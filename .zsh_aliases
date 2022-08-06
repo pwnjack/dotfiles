@@ -1,0 +1,28 @@
+# logo-ls
+alias ls='logo-ls'
+alias la='logo-ls -A'
+alias ll='logo-ls -al'
+# equivalents with Git Status on by Default
+alias ilsg='logo-ls -D'
+alias ilag='logo-ls -AD'
+alias illg='logo-ls -alD'
+
+alias vi='nvim'
+
+# configs
+alias szsh='source ~/.zshrc'
+alias vza='nvim ~/.zsh_aliases'
+alias vzr='nvim ~/.zshrc'
+alias i3c='nvim ~/.config/i3/config'
+
+# pacman
+alias archupdate='sudo pacman -Syu'
+alias inst='sudo pacman -S'
+alias uninst='sudo pacman -R'
+
+# cd to favourite directories
+alias cdd='cd ~/Downloads'
+alias cdm='cd ~/Music'
+alias cdc='cd ~/Documents'
+alias cds='cd ~/Scripts'
+alias cdp='cd ~/Pictures'

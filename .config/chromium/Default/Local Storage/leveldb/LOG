@@ -1,0 +1,15 @@
+2022/08/06-08:35:20.561 3 Reusing MANIFEST /home/pwnjack/.config/chromium/Default/Local Storage/leveldb/MANIFEST-000001
+2022/08/06-08:35:20.564 3 Recovering log #39
+2022/08/06-08:35:20.566 3 Reusing old log /home/pwnjack/.config/chromium/Default/Local Storage/leveldb/000039.log 
+2022/08/06-08:42:26.030 3 Level-0 table #43: started
+2022/08/06-08:42:26.038 3 Level-0 table #43: 18375 bytes OK
+2022/08/06-08:42:26.042 3 Delete type=0 #39
+2022/08/06-08:42:26.043 3 Compacting 4@0 + 1@1 files
+2022/08/06-08:42:26.108 3 Generated table #44@0: 389 keys, 549222 bytes
+2022/08/06-08:42:26.108 3 Compacted 4@0 + 1@1 files => 549222 bytes
+2022/08/06-08:42:26.111 3 compacted to: files[ 0 1 1 0 0 0 0 ]
+2022/08/06-08:42:26.123 3 Delete type=2 #43
+2022/08/06-08:42:26.124 3 Delete type=2 #40
+2022/08/06-08:42:26.124 3 Delete type=2 #36
+2022/08/06-08:42:26.126 3 Delete type=2 #33
+2022/08/06-08:42:26.126 3 Delete type=2 #38

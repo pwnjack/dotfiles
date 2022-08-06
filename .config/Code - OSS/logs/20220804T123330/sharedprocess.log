@@ -1,0 +1,8 @@
+[2022-08-04 12:33:41.006] [sharedprocess] [info] Starting worker process with pid 9935 (type: fileWatcher, window: 1).
+[2022-08-04 12:33:54.508] [sharedprocess] [info] Getting Manifest... dracula-theme.theme-dracula
+[2022-08-04 12:33:54.726] [sharedprocess] [info] Installing extension: dracula-theme.theme-dracula
+[2022-08-04 12:33:56.097] [sharedprocess] [info] Downloaded extension: dracula-theme.theme-dracula /home/pwnjack/.config/Code - OSS/CachedExtensionVSIXs/dracula-theme.theme-dracula-2.24.2
+[2022-08-04 12:33:56.254] [sharedprocess] [info] Extracted extension to /home/pwnjack/.vscode-oss/extensions/.adc75433-2914-4943-9a50-9b18355f679a: dracula-theme.theme-dracula
+[2022-08-04 12:33:56.271] [sharedprocess] [info] Renamed to /home/pwnjack/.vscode-oss/extensions/dracula-theme.theme-dracula-2.24.2
+[2022-08-04 12:33:56.278] [sharedprocess] [info] Extracting completed. dracula-theme.theme-dracula
+[2022-08-04 12:33:56.284] [sharedprocess] [info] Extension installed successfully: dracula-theme.theme-dracula

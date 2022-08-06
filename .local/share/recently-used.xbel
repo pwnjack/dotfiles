@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xbel version="1.0"
+      xmlns:bookmark="http://www.freedesktop.org/standards/desktop-bookmarks"
+      xmlns:mime="http://www.freedesktop.org/standards/shared-mime-info"
+>
+  <bookmark href="file:///home/pwnjack/Downloads/JetBrainsMono.zip" added="2022-08-02T10:13:25.638872Z" modified="2022-08-02T10:13:25.638882Z" visited="2022-08-02T10:13:25.638873Z">
+    <info>
+      <metadata owner="http://freedesktop.org">
+        <mime:mime-type type="application/zip"/>
+        <bookmark:applications>
+          <bookmark:application name="Firefox" exec="&apos;firefox %u&apos;" modified="2022-08-02T10:13:25.638877Z" count="1"/>
+        </bookmark:applications>
+      </metadata>
+    </info>
+  </bookmark>
+  <bookmark href="file:///home/pwnjack/Pictures/background.jpg" added="2022-08-02T10:47:41.509061Z" modified="2022-08-02T10:47:41.509074Z" visited="2022-08-02T10:47:41.509063Z">
+    <info>
+      <metadata owner="http://freedesktop.org">
+        <mime:mime-type type="image/jpeg"/>
+        <bookmark:applications>
+          <bookmark:application name="chromium" exec="&apos;chromium %u&apos;" modified="2022-08-02T10:47:41.509067Z" count="1"/>
+        </bookmark:applications>
+      </metadata>
+    </info>
+  </bookmark>
+  <bookmark href="file:///home/pwnjack/Pictures/background2.jpg" added="2022-08-02T11:23:52.956037Z" modified="2022-08-02T11:23:52.956053Z" visited="2022-08-02T11:23:52.956039Z">
+    <info>
+      <metadata owner="http://freedesktop.org">
+        <mime:mime-type type="image/jpeg"/>
+        <bookmark:applications>
+          <bookmark:application name="chromium" exec="&apos;chromium %u&apos;" modified="2022-08-02T11:23:52.956046Z" count="1"/>
+        </bookmark:applications>
+      </metadata>
+    </info>
+  </bookmark>
+  <bookmark href="file:///home/pwnjack/Scripts" added="2022-08-05T11:27:59.669610Z" modified="2022-08-05T11:27:59.669617Z" visited="2022-08-05T11:27:59.669611Z">
+    <info>
+      <metadata owner="http://freedesktop.org">
+        <mime:mime-type type="inode/directory"/>
+        <bookmark:applications>
+          <bookmark:application name="electron" exec="&apos;electron %u&apos;" modified="2022-08-05T11:27:59.669614Z" count="1"/>
+        </bookmark:applications>
+      </metadata>
+    </info>
+  </bookmark>
+</xbel>
