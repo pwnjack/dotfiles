@@ -22,3 +22,6 @@ Videos
 .zcompdump*
 .zshrc.pre-oh-my-zsh
 .oh-my-zsh
+.config/chromium
+.config/Code - OSS
+.config/discord

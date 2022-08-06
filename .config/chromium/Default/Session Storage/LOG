@@ -1,3 +1,9 @@
 2022/08/06-08:35:20.968 3 Reusing MANIFEST /home/pwnjack/.config/chromium/Default/Session Storage/MANIFEST-000001
 2022/08/06-08:35:20.971 3 Recovering log #7
 2022/08/06-08:35:20.976 3 Reusing old log /home/pwnjack/.config/chromium/Default/Session Storage/000007.log 
+2022/08/06-08:55:20.510 d Level-0 table #11: started
+2022/08/06-08:55:20.513 d Level-0 table #11: 15407 bytes OK
+2022/08/06-08:55:20.516 d Delete type=0 #7
+2022/08/06-09:01:59.744 13 Level-0 table #13: started
+2022/08/06-09:01:59.747 13 Level-0 table #13: 12547 bytes OK
+2022/08/06-09:01:59.749 13 Delete type=0 #10
