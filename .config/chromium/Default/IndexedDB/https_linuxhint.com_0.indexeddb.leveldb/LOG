@@ -1,6 +1,0 @@
-2022/08/04-20:26:16.338 24250 Creating DB /home/pwnjack/.config/chromium/Default/IndexedDB/https_linuxhint.com_0.indexeddb.leveldb since it was missing.
-2022/08/04-20:26:16.343 24250 Reusing MANIFEST /home/pwnjack/.config/chromium/Default/IndexedDB/https_linuxhint.com_0.indexeddb.leveldb/MANIFEST-000001
-2022/08/04-20:26:29.900 24250 Level-0 table #5: started
-2022/08/04-20:26:29.905 24250 Level-0 table #5: 357 bytes OK
-2022/08/04-20:26:29.906 24250 Delete type=0 #3
-2022/08/04-20:26:29.906 24250 Manual compaction at level-0 from (begin) .. (end); will stop at (end)

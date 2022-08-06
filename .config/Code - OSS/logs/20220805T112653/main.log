@@ -1,6 +1,0 @@
-[2022-08-05 11:26:53.383] [main] [info] update#ctor - updates are disabled as there is no update URL
-[2022-08-05 11:26:56.779] [main] [info] Starting extension host with pid 197736 (fork() took 23 ms).
-[2022-08-05 11:27:59.841] [main] [info] Extension host with pid 197736 exited with code: 0, signal: null.
-[2022-08-05 11:28:02.021] [main] [info] Starting extension host with pid 204513 (fork() took 14 ms).
-[2022-08-05 11:32:07.216] [main] [info] Extension host with pid 204513 exited with code: 0, signal: null.
-[2022-08-05 11:32:07.225] [main] [info] Waiting for extension host with pid 204513 to exit.

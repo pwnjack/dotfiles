@@ -1,5 +1,0 @@
-2022/08/04-20:01:43.332 7f33 Creating DB /home/pwnjack/.config/discord/Local Storage/leveldb since it was missing.
-2022/08/04-20:01:43.345 7f33 Reusing MANIFEST /home/pwnjack/.config/discord/Local Storage/leveldb/MANIFEST-000001
-2022/08/04-20:04:02.304 7f2f Level-0 table #5: started
-2022/08/04-20:04:02.312 7f2f Level-0 table #5: 505559 bytes OK
-2022/08/04-20:04:02.313 7f2f Delete type=0 #3
