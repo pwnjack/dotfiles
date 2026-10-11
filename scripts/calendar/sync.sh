@@ -77,12 +77,15 @@ else
     fi
     if [[ $state == ok ]] && ! out=$( { vdirsyncer metasync && vdirsyncer sync; } 2>&1 ); then state=failed; fi
     if [[ $state == failed ]]; then
-        if grep -qiE '401|unauthori[sz]ed' <<<"$out"; then
+        # Classify on error lines only: progress lines name collections by UUID.
+        errs=$({ grep -iE '^[[:space:]]*(error|critical)' <<<"$out" || true; })
+        [[ -n $errs ]] || errs=$out
+        if grep -qiE '(^|[^0-9a-z])401([^0-9a-z]|$)|unauthori[sz]ed' <<<"$errs"; then
             kind=auth message='Sign-in rejected'
-        elif grep -qiE 'name resolution|could not resolve|connection (refused|reset)|timed out|network is unreachable|cannot connect' <<<"$out"; then
+        elif grep -qiE 'name resolution|could not resolve|connection (refused|reset)|timed out|network is unreachable|cannot connect' <<<"$errs"; then
             kind=network message='iCloud is unreachable'
         else
-            kind=other message=$(grep -v '^[[:space:]]*$' <<<"$out" | tail -n1 | cut -c1-160)
+            kind=other message=$({ grep -v '^[[:space:]]*$' <<<"$errs" || true; } | tail -n1 | cut -c1-160)
             message=${message:-Sync failed}
         fi
     fi

@@ -63,6 +63,21 @@ assert_json_field "$(status)" '.kind' other "other: kind"
 assert_json_field "$(status)" '.message' "something odd happened" "other: the last error line"
 assert_eq "$(count notify-send)" 2 "success then failure: toasts again"
 
+sync_run
+FAKE_VDIR_SILENT=1 sync_run
+assert_json_field "$(status)" '.state' failed "silent failure: state failed"
+assert_json_field "$(status)" '.kind' other "silent failure: kind other"
+assert_json_field "$(status)" '.message' "Sync failed" "silent failure: generic message"
+assert_eq "$(count notify-send)" 3 "silent failure: toast sent"
+tail -n1 "$FAKE_LOG/pkill" | grep -q RTMIN+12 && ok=yes || ok=no
+assert_eq "$ok" yes "silent failure: Waybar signalled"
+FAKE_VDIR_ERROR=' ' sync_run
+assert_json_field "$(status)" '.message' "Sync failed" "whitespace-only output: generic message"
+FAKE_VDIR_ERROR=$'Syncing icloud/5ED4A843-0156-401A-B358-578AEDC71C5E\nerror: Temporary failure in name resolution' sync_run
+assert_json_field "$(status)" '.kind' network "a 401 inside a collection id is not an auth failure"
+FAKE_VDIR_ERROR=$'Syncing icloud/x\nerror: HTTP 401' sync_run
+assert_json_field "$(status)" '.kind' auth "a 401 on an error line is an auth failure"
+
 # Render only: no network.
 before=$(count vdirsyncer.argv)
 sync_run --render
