@@ -160,3 +160,100 @@ export function buildIcs(d, now, uid) {
 export function newUid(now) {
     return now.toString(36) + '-' + Math.random().toString(36).slice(2, 12) + '@calendar-card'
 }
+
+// ── Card state. Each bar segment owns a "home" view: the clock's is the month
+// with Upcoming folded, the pill's the same with Upcoming unfolded. Clicking
+// the segment whose home is showing closes; anything else goes to its home.
+export const CLOSED = { open: false, unfolded: false, sheet: false, sheetReturn: null, day: null, year: false }
+const home = unfolded => ({ open: true, unfolded: unfolded, sheet: false, sheetReturn: null, day: null, year: false })
+const isHome = (s, unfolded) => s.open && !s.sheet && !s.day && !s.year && s.unfolded === unfolded
+export function openSheet(s) { return Object.assign({}, s, { open: true, sheet: true, sheetReturn: s.open ? 'card' : 'close' }) }
+export function transition(s, action) {
+    switch (action) {
+    case 'clock': return isHome(s, false) ? CLOSED : home(false)
+    case 'pill': return isHome(s, true) ? CLOSED : home(true)
+    case 'keybind': return s.open && s.sheet ? CLOSED : openSheet(s)
+    case 'outside': return CLOSED
+    case 'esc':
+        if (!s.open) return s
+        if (s.sheet) return s.sheetReturn === 'close' ? CLOSED : Object.assign({}, s, { sheet: false, sheetReturn: null })
+        if (s.day) return Object.assign({}, s, { day: null })
+        if (s.year) return Object.assign({}, s, { year: false })
+        return CLOSED
+    }
+    return s
+}
+
+// monthGrid(year, monthIndex0, firstDayOfWeek 1=Mon..7=Sun) -> 42 cells.
+export function monthGrid(year, month, firstDay) {
+    const first = new Date(year, month, 1)
+    const weekday = first.getDay() === 0 ? 7 : first.getDay()           // 1..7, Monday = 1
+    const lead = (weekday - firstDay + 7) % 7
+    const cells = []
+    for (let i = 0; i < 42; i++) {
+        const d = new Date(year, month, 1 - lead + i)
+        cells.push({ key: dayKey(Math.floor(d.getTime() / 1000)), day: d.getDate(), inMonth: d.getMonth() === month })
+    }
+    return cells
+}
+
+// ── Upcoming: events not yet over, within 7 days of now.
+function ahead(events, now, days) {
+    const until = dayStart(addDays(dayKey(now), days))
+    return events.filter(e => e.endEpoch > now && e.startEpoch < until).slice().sort((a, b) => a.startEpoch - b.startEpoch)
+}
+export function upcomingSummary(events, now) {
+    const list = ahead(events, now, 7)
+    return { next: list.length ? list[0] : null, more: Math.max(0, list.length - 1) }
+}
+export function groupUpcoming(events, now, days) {
+    const groups = []
+    for (const e of ahead(events, now, days || 7)) {
+        const key = e.startEpoch < now ? dayKey(now) : dayKey(e.startEpoch)
+        let g = groups.find(x => x.key === key)
+        if (!g) { g = { key: key, events: [] }; groups.push(g) }
+        g.events.push(e)
+    }
+    return groups
+}
+
+// ── Timeline of one day.
+const hourOf = (s, key) => (s - dayStart(key)) / 3600                     // may be <0 or >24
+export function timelineRange(events, draft, key) {
+    let from = 8, to = 22
+    const timed = events.filter(e => !e.allDay)
+    if (draft && !draft.allDay) timed.push({ startEpoch: draft.start, endEpoch: draft.end })
+    for (const e of timed) {
+        from = Math.min(from, Math.floor(Math.max(0, hourOf(e.startEpoch, key))))
+        to = Math.max(to, Math.ceil(Math.min(24, hourOf(e.endEpoch, key))))
+    }
+    return { from: Math.max(0, from), to: Math.min(24, to) }
+}
+export function ticks(from, to) {
+    const out = []
+    for (let h = from; h < to; h += 4) if (to - h > 1 || h === from) out.push(h)
+    if (out[out.length - 1] !== to) out.push(to)
+    return out
+}
+// Lane 0 unless it overlaps an earlier event in lane 0; everything else shares lane 1.
+export function lanes(events) {
+    const sorted = events.slice().sort((a, b) => a.startEpoch - b.startEpoch)
+    let lane0End = -Infinity
+    return sorted.map(e => {
+        if (e.startEpoch >= lane0End) { lane0End = e.endEpoch; return Object.assign({}, e, { lane: 0 }) }
+        return Object.assign({}, e, { lane: 1 })
+    })
+}
+export function clashes(draft, events) {
+    if (!draft || draft.allDay) return []
+    return events.filter(e => !e.allDay && e.startEpoch < draft.end && e.endEpoch > draft.start)
+}
+// segment(event, key, range) -> {left, width} as fractions of the strip, and cut
+// when it runs past the strip's end.
+export function segment(e, key, range) {
+    const span = range.to - range.from
+    const a = Math.max(range.from, hourOf(e.startEpoch, key)), b = Math.min(range.to, hourOf(e.endEpoch, key))
+    return { left: (a - range.from) / span, width: Math.max(0, b - a) / span, cut: hourOf(e.endEpoch, key) > range.to }
+}
+// The minutes a click at fraction x of the strip means, snapped to the quarter hour.
+export function minutesAt(x, range) { return snapQuarter(Math.round((range.from + x * (range.to - range.from)) * 60)) }
