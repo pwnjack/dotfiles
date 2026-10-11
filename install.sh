@@ -109,6 +109,8 @@ PACKAGES=(
     # Applets and controls
     "pavucontrol" "blueman" "nm-connection-editor"
     "gnome-calculator"
+    # Calendar sync (scripts/calendar, docs/calendar.md)
+    "khal" "vdirsyncer"
     # Headset battery, for scripts/devices/devices.sh
     "headsetcontrol"
     # Script dependencies

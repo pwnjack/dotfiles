@@ -1,0 +1,15 @@
+# Reads the local copy vdirsyncer keeps (vdirsyncer/config). Names and colours
+# come from the metadata vdirsyncer syncs. Formats are ISO on purpose:
+# scripts/calendar/cal.sh parses them; everything shown to the user is
+# localised by the bar script and the card from LC_TIME instead.
+[calendars]
+[[icloud]]
+path = ~/.local/share/calendars/icloud/*
+type = discover
+
+[locale]
+timeformat = %H:%M
+dateformat = %Y-%m-%d
+longdateformat = %Y-%m-%d
+datetimeformat = %Y-%m-%d %H:%M
+longdatetimeformat = %Y-%m-%d %H:%M

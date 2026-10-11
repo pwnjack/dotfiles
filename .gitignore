@@ -52,6 +52,8 @@
 !/nvim/
 !/bat/
 !/fastfetch/
+!/khal/
+!/vdirsyncer/
 !/git/
 !/ssh/
 !/aichat/
@@ -72,6 +74,7 @@
 fish/fish_variables
 gtk-3.0/bookmarks
 options/capture-*
+options/calendar-*
 aichat/sessions/
 aichat/messages.md
 aichat/models-override.yaml
