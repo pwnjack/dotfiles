@@ -13,6 +13,22 @@ export function toggleHidden(text, name, shown) {
     if (!shown) names.push(name)
     return names.length ? names.join('\n') + '\n' : ''
 }
+// The Calendar page's reader may finish after the page was hidden; only a read started under
+// the current generation may be applied (the Devices page's rule).
+export function fresh(startedGeneration, currentGeneration, shown) {
+    return shown && startedGeneration === currentGeneration
+}
+// calendarStatus through panel-request.sh -> {calendar} or {error}. A lock timeout prints to
+// stderr only, and a backend failure replies {"ok":false,"error":...}; either way the
+// caller keeps the model it already has.
+export function readReply(stdout, stderr, code) {
+    let reply = null
+    try { reply = JSON.parse(stdout) } catch (_) { /* No reply: the helper failed before answering. */ }
+    if (code === 0 && reply && reply.ok === true && reply.calendar) return { calendar: reply.calendar }
+    if (reply && reply.error) return { error: String(reply.error) }
+    const detail = String(stderr || '').trim().split('\n').pop()
+    return { error: detail || `the settings helper exited ${code} without a reply` }
+}
 // "Last synced 3 min ago" / the failure, from status.json.
 export function statusLine(status, now, account) {
     // A stored account with no status yet has never synced.

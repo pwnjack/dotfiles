@@ -92,7 +92,7 @@ let showEnvironment = 'XDG_CURRENT_DESKTOP=Hyprland\nPATH=/usr/local/bin:/usr/bi
 const raceOnce = new Set()
 let events = [], failingPath = '', failingReadPath = '', failReload = false, failingGsettingsSets = 0, failNextSpawn = ''
 // The calendar's keyring account, cal.sh's listing (null: cal.sh fails) and setup.sh's sign-in failure.
-let keyringAccount = '', calendarsListing = null, signInError = ''
+let keyringAccount = '', calendarsListing = null, signInError = '', failCalendarRenders = 0
 // Shapes copied from `hyprctl getoption -j` on Hyprland 0.56: the value field
 // is named after its type, and `set` is only whether the config assigns it.
 const hyprOptions = {
@@ -300,6 +300,7 @@ globalThis.settingsMocks = {
         if (args[0] === 'fc-list') return 'FiraCode Nerd Font,FiraCode Nerd Font Med\nAdwaita Sans\n'
         if (args[0] === 'secret-tool') { if (!keyringAccount) throw new Error('secret not found'); return keyringAccount }
         if (String(args[1]).endsWith('/scripts/calendar/cal.sh')) { if (calendarsListing === null) throw new Error('{"ok":false}'); return calendarsListing }
+        if (String(args[1]).endsWith('/scripts/calendar/sync.sh') && failCalendarRenders > 0) { failCalendarRenders--; throw new Error('sync.sh --render failed') }
         if (args[0] === 'pkill') { running.delete(args[2]); return ''; }
         if (args[0] === 'pgrep') { if (!running.has(args[2])) throw new Error('not running'); return '123'; }
         if (args[1] === 'getoption') return JSON.stringify(hyprOptions[args[2]] ?? {int:1,set:true})
@@ -1555,7 +1556,16 @@ assert.ok(events.some(e => e[0] === 'bash' && String(e[1]).endsWith('/scripts/ca
 await dispatch({op:'calendarShow',name:'Home',shown:true})
 assert.equal(files.get(base+'/options/calendar-hidden'),'Work\n')
 await assert.rejects(dispatch({op:'calendarShow',name:'a\nb',shown:true}),/Invalid calendar name/)
+// A failed render puts the previous list back (the rollback's own render succeeds), and a list that did not exist is removed again.
+failCalendarRenders = 1
+await assert.rejects(dispatch({op:'calendarShow',name:'Home',shown:false}),/Previous settings restored/)
+assert.equal(files.get(base+'/options/calendar-hidden'),'Work\n','a failed render restores the previous bytes')
+files.delete(base+'/options/calendar-hidden')
+failCalendarRenders = 1
+await assert.rejects(dispatch({op:'calendarShow',name:'Work',shown:false}),/Previous settings restored/)
+assert.equal(files.has(base+'/options/calendar-hidden'),false,'a failed render removes the file it created')
 console.log('ok: calendar visibility edits the hidden list and re-renders')
+console.log('ok: a failed calendar render restores the hidden list')
 
 events = []
 await dispatch({op:'set',id:'calendar.default',value:'Work'})

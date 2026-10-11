@@ -5,6 +5,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import "deviceRead.mjs" as DeviceRead
+import "calendar.mjs" as CalendarRead
 
 ShellRoot {
     id: root
@@ -265,17 +266,36 @@ ShellRoot {
         running: root.devicesShown
         onTriggered: if (!deviceReader.running) { deviceReader.generation = root.deviceGeneration; deviceReader.running = true }
     }
+    // Bumped when the page is hidden, so a read still in flight cannot land afterwards (as the Devices page does).
+    property int calendarGeneration: 0
+    onCalendarShownChanged: if (!calendarShown) { calendarGeneration++; calendarReader.running = false; }
+    // The read failure currently shown in `problem`; cleared by the next good read, never a write's error.
+    property string calendarError: ""
     Process {
         id: calendarReader
         command: ["bash", root.configDir + "/scripts/settings/panel-request.sh", JSON.stringify({op: "calendarStatus"})]
-        stdout: StdioCollector {
-            onStreamFinished: { try { const r = JSON.parse(text); if (r.ok) root.calendar = r.calendar; } catch (e) {} }
+        property int generation: -1
+        property string reply: ""
+        property string errorText: ""
+        stdout: StdioCollector { onStreamFinished: calendarReader.reply = text }
+        stderr: StdioCollector { onStreamFinished: calendarReader.errorText = text }
+        onExited: code => {
+            if (CalendarRead.fresh(generation, root.calendarGeneration, root.calendarShown)) {
+                const result = CalendarRead.readReply(calendarReader.reply, calendarReader.errorText, code);
+                // A failed read keeps the model already shown; the banner says it is out of date.
+                if (result.calendar) { root.calendar = result.calendar; if (root.problem === root.calendarError) root.problem = ""; root.calendarError = ""; }
+                else { root.calendarError = "Could not read calendars: " + result.error; root.problem = root.calendarError; }
+            }
+            calendarReader.reply = "";
+            calendarReader.errorText = "";
+            // A hide/show faster than one read finds the killed run still "running": start the read the Timer skipped.
+            if (root.calendarShown && generation !== root.calendarGeneration) { generation = root.calendarGeneration; running = true }
         }
     }
     Timer {
         interval: 5000; repeat: true; triggeredOnStart: true
         running: root.calendarShown
-        onTriggered: if (!calendarReader.running) calendarReader.running = true
+        onTriggered: if (!calendarReader.running) { calendarReader.generation = root.calendarGeneration; calendarReader.running = true }
     }
     // Calendar writes take the same queue as every other change: the password goes on stdin, and a failure lands in `problem`.
     function calendarRequest(request) { submit(request); }

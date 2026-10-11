@@ -1007,9 +1007,11 @@ export async function dispatch(request) {
     if (request.op === "calendarSync") { detached(["bash", configDir + "/scripts/calendar/sync.sh"]); return {} }
     if (request.op === "calendarShow") {
         if (typeof request.name !== "string" || /[\r\n]/.test(request.name)) throw new Error("Invalid calendar name")
-        const before = exists(optionPath("calendar-hidden")) ? readOption("calendar-hidden") : ""
-        write(optionPath("calendar-hidden"), calendar.toggleHidden(before, request.name, request.shown === true))
-        await execAsync(["bash", configDir + "/scripts/calendar/sync.sh", "--render"])
+        // A failed render restores the list (or removes a file that did not exist), as an option save does.
+        const path = optionPath("calendar-hidden")
+        const before = exists(path) ? readOption("calendar-hidden") : ""
+        await saveAndApply(path, calendar.toggleHidden(before, request.name, request.shown === true),
+            () => execAsync(["bash", configDir + "/scripts/calendar/sync.sh", "--render"]), true)
         return {}
     }
     throw new Error("Unknown operation")
