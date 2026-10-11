@@ -24,8 +24,9 @@ alias, the alias names the executor and you pick the tier from the task shape.
 
 ## Step 1: Probe capability
 
-Run **both** probes from the shared contract. They are independent axes:
-mechanism (can I drive a pane?) and reviewer availability (is Codex usable?).
+Run **both** probes from the shared contract. They are separate axes:
+mechanism (can I drive a pane?) and reviewer availability (is Codex usable?);
+Codex runs only in a Herdr pane, so it needs both.
 Probe the `herdr` command itself, not just `$HERDR_ENV` — the variable can be
 set while the binary or session is gone.
 
@@ -60,10 +61,8 @@ The worker shares none of this conversation. State the goal, the paths you
 already know, and the constraints that actually bear on this task — do not
 gesture at context it cannot see.
 
-Create the report directory, then hand off:
-
-Write the brief to `/tmp/codex-handoff/<slug>-<ts>.brief.md` (the spawn helper
-already created the directory), prompt the pane with a one-line pointer to it,
+Hand off: write the brief to `/tmp/codex-handoff/<slug>-<ts>.brief.md`
+(`herdr-spawn.sh` already created the directory on the pane path), prompt the pane with a one-line pointer to it,
 then start the waiter **with `run_in_background: true`**:
 
 ```bash

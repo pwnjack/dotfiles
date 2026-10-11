@@ -1,7 +1,7 @@
 # Guide
 
 Everything beyond the [README](../README.md): how the pieces fit, day-to-day use,
-customization and maintenance. Keybindings have their own generated page,
+customisation and maintenance. Keybindings have their own generated page,
 [keybindings.md](keybindings.md).
 
 Deep dives, one per component:
@@ -14,22 +14,23 @@ Deep dives, one per component:
 - [Native workspace module](workspaces-native.md): the bar's workspace dots
 - [Spotify](spotify.md): SpotX ad-blocking and the pywal theme
 - [Virtual surround](virtual-surround.md): 7.1 for headphones
+- [SDDM greeter sync](../sddm/README.md): the login screen follows the wallpaper
 - [WoW / Battle.net](gaming-wow.md): gaming setup notes
 
-## Core Stack
+## Core stack
 
 | Component | Application |
 |-----------|-------------|
-| Window Manager | Hyprland |
-| Status Bar | Waybar |
+| Window manager | Hyprland |
+| Status bar | Waybar |
 | Launcher | Rofi |
-| Settings panel | Quickshell (Super+I, exits when closed) |
+| Settings panel and overlays | Quickshell (started on demand, exit when closed) |
 | Terminal | Ghostty (`options/terminal`) |
 | Notifications | SwayNC |
-| Lock Screen | Hyprlock |
-| File Manager | Thunar / Yazi |
+| Lock screen | Hyprlock |
+| File manager | Thunar / Yazi (`options/filemanager`) |
 | Browser | Zen Browser (`options/browser`) |
-| Editor | Neovim |
+| Editor | Neovim (LazyVim) |
 | Shell | Fish + Starship |
 
 ## Structure
@@ -38,39 +39,53 @@ Deep dives, one per component:
 ~/.config/
 ├── hypr/          # Hyprland: modular Lua config from hyprland.lua,
 │                  # plus Hyprlang configs for hyprlock/idle/sunset
-├── waybar/        # Bar: config.jsonc, style.css, pywal colors
+├── waybar/        # Bar: config.jsonc, style.css, scripts/, the native
+│                  # workspaces/ module (C)
 ├── rofi/          # Launcher, power and clipboard menus
 ├── swaync/        # Notification daemon and sidebar
 ├── quickshell/    # On-demand settings panel, wallpaper carousel, keybinds
 │                  # overlay, capture bar and update card
 ├── options/       # User preferences, one value per text file
-├── scripts/       # doctor/, theming/, waybar/, hyprland/, hooks/, docs/
-├── fish/ ghostty/ nvim/ btop/ cava/ starship/   # Per-app config
-├── spicetify/ vesktop/ zen/                     # Spotify, Discord, Zen themes
+├── scripts/       # Helper scripts by area: hyprland/, waybar/, theming/,
+│                  # capture/, updates/, settings/, devices/, doctor/, …
+├── fish/ ghostty/ nvim/ btop/ cava/ starship/ bat/ fastfetch/ git/
+│                  # Per-app config (starship.toml is a generated symlink)
+├── gtk-3.0/ gtk-4.0/ qt5ct/ qt6ct/ Thunar/ swappy/ waypaper/ aichat/
+│                  # Toolkit themes and small utilities
+├── spicetify/ vesktop/ zen/   # Spotify, Discord and Zen themes
+├── pipewire/      # The virtual surround sink
+├── sddm/          # Login-screen wallpaper sync (see its README)
+├── updates/       # Root helper and sudoers setup for the update card
+├── ssh/           # The ssh-agent fragment ~/.ssh/config includes
 ├── claude/ codex/ # Optional AI agent harness (see below)
-├── docs/          # This guide and the deep dives listed below
-├── test/          # Tests for the runner and the generated docs
+├── wallpapers/    # Bundled wallpapers
+├── screenshots/   # The README images
+├── docs/          # This guide and the deep dives listed above
+├── test/          # Repo-wide suites: runner, hook, deploy, docs, theming, …
+├── mimeapps.list  # Which app opens each link and file type
 ├── install.sh     # Fresh-system setup
 ├── doctor.sh      # Health check (see Maintenance)
 └── test.sh        # Test runner (see Maintenance)
 ```
 
 `CLAUDE.md` carries the detailed `hypr/config/` breakdown and the design notes
-behind each piece. Files ending in `.in` are templates and their non-`.in`
-counterparts are generated symlinks — edit the template.
+behind each piece. Files ending in `.in` are templates rendered into
+`~/.cache/wal/`; what reads the result is a symlink to it — edit the template.
 
 ## Everyday use
 
 ### Keybindings
+
 | Key | Action |
 |-----|--------|
 | `Super + Enter` | Terminal (`options/terminal`) |
 | `Super + Space` | App launcher |
-| `Super + Q/W` | Close window |
-| `Super + L` | Lock screen |
+| `Super + Ctrl + W` | Wallpaper carousel |
+| `Super + I` | Settings panel |
 | `Super + H` | Keybindings overlay |
 
-Those five are the ones worth memorising.
+Those five, the same as the README's, are the ones worth memorising, along with
+`Super + Q` or `Super + W` to close a window and `Super + L` to lock.
 **[docs/keybindings.md](keybindings.md) has every binding**, grouped by
 section — or press `Super + H` for the same list, searchable, without leaving
 the desktop.
@@ -94,17 +109,17 @@ a lowercase hex value and sends a notification.
 
 **Annotation** is opt-in, so the quick grab stays quick: `Super + Alt + S`
 captures a region straight into swappy, and the capture strip
-(`Super + Shift + S`) has an Annotate toggle for the same flow. Saved images land in `~/Pictures/Screenshots`
-with an `_annotated` suffix. swappy reports success by closing, which means you
-can save *or* copy one annotation, not both.
+(`Super + Shift + S`) has an Annotate toggle for the same flow. Saved images
+land in `~/Pictures/Screenshots` with an `_annotated` suffix. swappy reports
+success by closing, which means you can save *or* copy one annotation, not both.
 
-The **pending-updates module** sits between the disk and network readouts and
-appears only when repository, AUR or Flatpak updates exist — the module showing
-up is the notification. Left-click opens the update card, which lists what is
-pending and runs the repository and Flatpak update with a progress bar; AUR
-updates stay in the terminal. Right-click forces a refresh. The AUR command
-comes from `options/aurhelper`, and repository checks need `pacman-contrib`
-(`checkupdates`). See [updates.md](updates.md).
+The **pending-updates module** sits right after the CPU, memory, GPU and disk
+readouts and appears only when repository, AUR or Flatpak updates exist — the
+module showing up is the notification. Left-click opens the update card, which
+lists what is pending and runs the repository and Flatpak update with a
+progress bar; AUR updates stay in the terminal. Right-click forces a refresh.
+The AUR command comes from `options/aurhelper`, and repository checks need
+`pacman-contrib` (`checkupdates`). See [updates.md](updates.md).
 
 The **night-light module** reflects the temperature `hyprsunset` has actually
 applied. Left-click (or `Super + Shift + D`) switches between warm and neutral
@@ -112,7 +127,11 @@ as a manual override — both are overrides, and the daemon reclaims either at
 the next scheduled boundary. Right-click (or `Super + Ctrl + D`) hands control
 back to the schedule in `hypr/hyprsunset.conf` immediately.
 
-`Super + Shift + B` restarts Waybar; `Super + Alt + B` shows and hides it.
+The **AI sidebar** (`Super + A`) opens aichat in a narrow Ghostty window on its
+own special workspace; its API key comes from `~/.config/.env` (see below).
+
+`Super + Shift + B` restarts Waybar (a reload while it is running);
+`Super + Alt + B` shows and hides it.
 
 ### Idle efficiency
 
@@ -122,8 +141,9 @@ runtime resident. The workspace dots are a native Waybar module that listens to
 Hyprland's event socket instead of polling. Media, night-light, recording and
 update modules refresh on a Waybar signal when something changes; their
 intervals are safety fallbacks rather than the primary refresh path. The GPU
-module limits `nvidia-smi` to one probe every 30 seconds. See the component
-docs for measured panel and carousel memory.
+module makes one `nvidia-smi` call per five-second poll, and none while the
+settings panel's Bar page hides it. See the component docs for measured panel
+and carousel memory.
 
 ### Media
 
@@ -131,17 +151,16 @@ Media keys play/pause and skip in whichever player is active; `playerctl`
 does the same from a terminal.
 
 ### Clipboard
+
+`Super + C` opens the clipboard history in Rofi. The same from a terminal:
+
 ```bash
-# View clipboard history
 cliphist list | rofi -dmenu | cliphist decode | wl-copy
-
 ```
-
-Or press `Super + C`.
 
 ## Configuration
 
-### Configuration Files
+### Configuration files
 
 | Component | Location |
 |-----------|----------|
@@ -153,7 +172,6 @@ Or press `Super + C`.
 | Git diffs (delta; identity stays in `~/.gitconfig`) | `~/.config/git/config` |
 | Editor | `~/.config/nvim/` |
 | Keybinds | `~/.config/hypr/config/software/keybinds.lua` |
-
 
 ### Quick edits
 
@@ -186,47 +204,55 @@ btop (`xdg-terminal-exec`). Don't set these in `~/.profile`, and never set
 `TERM`: each terminal sets it itself. `./doctor.sh` warns when one of these
 defaults names a program that is not installed.
 
-### User Preferences
+### User preferences
 
-Simple text files in `~/.config/options/`:
+Simple text files in `~/.config/options/`, mostly written by the settings
+panel:
 
 ```bash
 ~/.config/options/
 ├── browser      # zen-browser
 ├── terminal     # ghostty
+├── editor       # nvim
+├── filemanager  # thunar
+├── font         # FiraCode Nerd Font
+├── aurhelper    # paru -Syu
 ├── launchertype # vertical
 ├── mainmonitor  # empty = no preference
+├── bar-*        # the Bar page's module modes and layout
 └── ...
 ```
 
-### Wallpaper Carousel
+`CLAUDE.md` lists every option file.
 
-**Super+Ctrl+W** toggles a fullscreen wallpaper carousel on the focused monitor.
-Browse with Left/Right, the mouse wheel, or a card click. Press Enter, click the
-selected card, or use **Apply wallpaper** to apply to all monitors. **Ctrl+F**
-searches filenames; **Escape** closes without applying a selection.
+### Wallpaper carousel
+
+`Super + Ctrl + W` toggles a fullscreen wallpaper carousel on the focused
+monitor. Browse with Left/Right, the mouse wheel, or a card click. Press Enter,
+click the selected card, or use **Apply wallpaper** to apply to all monitors.
+`Ctrl + F` searches filenames; `Escape` closes without applying a selection.
 
 The carousel reads the folder from Waypaper and keeps the existing awww/pywal
-theme pipeline. **Super+Shift+W** still selects a random wallpaper; run `waypaper`
-for the original picker and folder settings. Quickshell starts on first use.
-See [controls, integration, and verification](wallpaper-carousel.md).
+theme pipeline. `Super + Shift + W` still selects a random wallpaper; run
+`waypaper` for the original picker and folder settings. Quickshell starts on
+first use. See [controls, integration, and verification](wallpaper-carousel.md).
 
-### Pywal Colors
+### Pywal colours
 
-Generate colors from any wallpaper:
+Generate colours from any wallpaper:
 
 ```bash
 wal -i /path/to/wallpaper.jpg
 ```
 
-Colors automatically apply to Hyprland, Hyprlock, Waybar, Rofi, SwayNC,
-Ghostty, Thunar, cava, btop, Neovim, the Starship prompt, Vesktop (Discord),
-Zen Browser and Spotify (through Spicetify; see [spotify.md](spotify.md)).
-Zen picks up a new palette at its next launch. Open Neovim windows re-theme in
-place unless you picked another colour scheme in them; before pywal has run
-once, Neovim uses LazyVim's tokyonight. fastfetch and bat (and so man pages)
-follow too, without rendering anything — they colour by ANSI index, and the
-terminal palette is pywal's.
+Colours apply to Hyprland, Hyprlock, Waybar, Rofi, SwayNC, Ghostty, Thunar,
+cava, btop, Neovim, the Starship prompt, Vesktop (Discord), Zen Browser and
+Spotify (through Spicetify; see [spotify.md](spotify.md)). Zen picks up a new
+palette at its next launch. Open Neovim windows re-theme in place unless you
+picked another colour scheme in them; before pywal has run once, Neovim uses
+LazyVim's tokyonight. fastfetch and bat (and so man pages) follow too, without
+rendering anything — they colour by ANSI index, and the terminal palette is
+pywal's.
 
 Components needing more than a plain include own a
 `<component>/apply_wal_colors.sh`, rendering into `~/.cache/wal/`. The repo
@@ -235,7 +261,7 @@ tracks only a symlink to the result, so switching wallpapers never dirties git.
 a themed component means adding one file and nothing else:
 
 ```bash
-# Re-render every component's colors without changing the wallpaper
+# Re-render every component's colours without changing the wallpaper
 ~/.config/scripts/theming/apply-wal.sh
 ```
 
@@ -245,39 +271,54 @@ CSS. Edit the `.in` file (`cava/config.in`, `starship/starship.toml.in`,
 `vesktop/pywal.theme.css.in`, `zen/userChrome.css.in`), never the rendered
 copy or the symlink that points to it.
 
-### Visual Tweaks
+### Visual tweaks
 
-**Blur & Rounding:** `~/.config/hypr/config/looks/decor.lua`
+**Blur and rounding:** `~/.config/hypr/config/looks/decor.lua`
+
 ```lua
-hl.config("decoration", {
-    rounding = 18,
-    blur = { enabled = true, size = 4, passes = 2 },
+hl.config({
+    decoration = {
+        rounding = 18,
+        blur = { enabled = true, size = 4, passes = 2 },
+    },
 })
 ```
 
 **Animations:** `~/.config/hypr/config/looks/animations.lua`
 
-**Window Rules:** `~/.config/hypr/config/software/rules.lua`
+Most of these values also have a row on the settings panel's Appearance,
+Windows and Animations pages, which writes per-machine overrides instead of
+editing the tracked files.
 
 ### Displays
 
-Use the Displays page of the settings panel (Super+I). Per-machine rules are written to ~/.local/state/hypr/monitors.lua and loaded by ~/.config/hypr/config/hardware/monitor.lua, which stays host-neutral.
+Use the Displays page of the settings panel (`Super + I`). Per-machine rules
+are written to `~/.local/state/hypr/monitors.lua`, which
+`hypr/config/hardware/monitor.lua` loads; the tracked file itself stays
+host-neutral.
 
 ### Startup applications
-Edit: `~/.config/hypr/config/setup/autostart.lua`
+
+Edit `~/.config/hypr/config/setup/autostart.lua`:
+
 ```lua
 hl.on("hyprland.start", function()
     hl.exec_cmd("your-app")
 end)
 ```
 
+XDG autostart entries are managed on the settings panel's Startup page.
 
 ### Waybar modules
 
 Edit `~/.config/waybar/config.jsonc`; `Super + Shift + B` restarts the bar.
+Which resource modules show, and the bar's position and style, are set on the
+settings panel's Bar page.
 
 ### Window rules
-Edit: `~/.config/hypr/config/software/rules.lua`
+
+Edit `~/.config/hypr/config/software/rules.lua`:
+
 ```lua
 hl.window_rule({
     name = "float-your-app",
@@ -286,36 +327,37 @@ hl.window_rule({
 })
 ```
 
-## API Keys & Environment Variables
+## API keys and environment variables
 
 API keys and secrets are stored in `~/.config/.env` (git-ignored).
 
 ### Setup
 
-```bash
-# Copy the example file
-cp ~/.config/.env.example ~/.config/.env
+`install.sh` creates `.env` from the template if it is missing. To do it by
+hand:
 
-# Edit with your API keys
-nano ~/.config/.env
+```bash
+cp ~/.config/.env.example ~/.config/.env
+nano ~/.config/.env    # fill in your keys
 ```
 
-### Supported Keys
+### Supported keys
 
-- `GEMINI_API_KEY` - Google Gemini AI
+- `GEMINI_API_KEY` - Google Gemini (aichat's default model)
 - `OPENAI_API_KEY` - OpenAI/ChatGPT (optional)
 - `ANTHROPIC_API_KEY` - Claude (optional)
 - `GROQ_API_KEY` - Groq (optional)
 - `MISTRAL_API_KEY` - Mistral (optional)
 
-The `.env` file is automatically loaded by:
-- Fish shell (on startup)
-- AI assistant launcher script
+The `.env` file is loaded by:
+
+- Fish, on startup
+- the AI sidebar launcher (`scripts/hyprland/launch-chatbox.sh`, `Super + A`)
 
 ### Security
 
 - `.env` is git-ignored and never committed
-- Use `.env.example` as a template in your repository
+- `.env.example` is the tracked template; it holds no real keys
 - Keep your API keys private
 
 ## AI agent harness (optional)
@@ -372,16 +414,16 @@ What it checks:
   autostart, resolving the application table indirection first
 - **Services** — autostart daemons actually running, who owns
   `org.freedesktop.Notifications`, and `install.sh` package drift
+- **SDDM** and **updates** — the passwordless helpers are installed, current
+  and granted as `sudo -l` reports
 - **Waybar** — every module on the bar has a config block, every block is on
   the bar, and every command an `exec`, click or scroll handler invokes is
   installed
+- **Workspaces** — the native Waybar workspace module is built and current
 - **Hyprctl Lua compatibility** — tracked runtime calls do not use the removed
   `hyprctl keyword` or positional dispatcher forms
-- **Workspaces** — the native Waybar workspace module is built and current
 - **Hardware** — tracked files name no connector this machine lacks
 - **Autostart** — per-user XDG autostart entries whose program is missing
-- **SDDM** and **updates** — the passwordless helpers are installed, current
-  and granted as `sudo -l` reports
 - **SSH** — the agent socket is enabled and `~/.ssh/config` includes the
   tracked fragment
 - **Default applications** — `$BROWSER`, `$TERMINAL`, `$EDITOR` and `$VISUAL`,
@@ -390,23 +432,24 @@ What it checks:
 
 A pre-commit hook (`scripts/hooks/pre-commit`, activated by `install.sh` via
 `core.hooksPath`) runs `shellcheck` on staged shell scripts and the test suites
-covering whatever the commit touches. The Quickshell panel has its own UI and
-backend suite. All checks run in a private snapshot of the index, so partially staged
-changes are checked as they will be committed. The working tree and real index
-are untouched. The snapshot contains staged files and blobs, without commit
-history. Bypass with `git commit --no-verify`.
+covering whatever the commit touches. All checks run in a private snapshot of
+the index, so partially staged changes are checked as they will be committed.
+The working tree and real index are untouched. The snapshot contains staged
+files and blobs, without commit history. Bypass with `git commit --no-verify`.
 
 Run every test suite with `./test.sh`. Suites are discovered, not registered:
 `./test.sh --list` prints the current set and each one is runnable on its own,
-so naming and tracking a new file `test-*.sh` or `run-tests.sh` is the whole of
-adding one. Run new, untracked suites directly until they are staged. The panel
-persistence suite uses Node.js with built-in TypeScript support and module hooks
-(verified with Node.js 26.8.2); installation and hook fixtures use Python 3.
+so naming and tracking a file `test-*.sh` or `run-tests.sh` is the whole of
+adding one (an untracked suite is not discovered; run it directly). The
+Quickshell suites run their views offscreen under Qt's `qmltestrunner`, the
+pure models and the panel persistence suite under Node.js (built-in TypeScript
+support and module hooks; verified with Node.js 26.11), and the installation,
+hook and theming fixtures use Python 3.
 
 ## Installation details
 
 The install script checks/installs all dependencies, deploys the configs to
-`~/.config`, initializes pywal, and wires up all symlinks. Deployment copies
+`~/.config`, initialises pywal, and wires up all symlinks. Deployment copies
 only tracked files and backs up exactly the existing files it will replace,
 including symlinks. Untracked application data stays out of deployment;
 directory symlinks and file/directory conflicts are rejected before copying:
@@ -434,23 +477,25 @@ git reset origin/main   # marks repo files as tracked without touching them
 ### Manual
 
 ```bash
-# Core (official/CachyOS repos)
-sudo pacman -S hyprland hyprlock hypridle hyprpolkitagent hyprshot swappy \
-               hyprpicker hyprsunset waybar swaync quickshell rofi rofi-emoji \
-               ghostty fish starship fzf fd neovim zed kwrite thunar yazi \
-               btop bottom fastfetch cava playerctl cliphist wl-clipboard \
-               python-pywal qt5ct qt6ct nwg-look pavucontrol blueman \
-               nm-connection-editor gnome-calculator jq ffmpeg inotify-tools \
-               zoxide git-delta shellcheck python nodejs gjs pacman-contrib \
-               gpu-screen-recorder slurp headsetcontrol zip unzip \
-               gcc make pkgconf gtk3 json-glib xdg-terminal-exec ttf-firacode-nerd \
+# install.sh's repo packages. install.sh itself sends any your repos lack to the
+# AUR helper; on plain Arch, move those to the paru line below.
+sudo pacman -S --needed hyprland hyprlock hypridle hyprpolkitagent hyprshot \
+               hyprpicker hyprsunset swappy waybar swaync awww waypaper \
+               quickshell rofi rofi-emoji ghostty fish starship fzf fd neovim \
+               zed kate thunar yazi btop bottom resources fastfetch cava \
+               pacman-contrib xdg-terminal-exec cliphist wl-clipboard \
+               gpu-screen-recorder slurp playerctl qt5ct qt6ct \
+               nwg-look pavucontrol blueman nm-connection-editor \
+               gnome-calculator headsetcontrol jq ffmpeg inotify-tools zoxide \
+               git-delta aichat shellcheck zip unzip gcc make pkgconf gtk3 \
+               json-glib python nodejs gjs ttf-firacode-nerd \
                ttf-cascadia-mono-nerd ttf-nerd-fonts-symbols noto-fonts \
                noto-fonts-emoji
 
-# AUR / CachyOS-only (paru or yay)
-paru -S zen-browser-bin vesktop waybar-weather awww waypaper aichat resources
+# AUR (paru or yay); python-pywal left the official repos
+paru -S --needed zen-browser-bin vesktop waybar-weather python-pywal
 
-# Initialize pywal and render every component's cache file
+# Initialise pywal and render every component's cache file
 wal -i ~/.config/wallpapers/wall1.jpg
 ~/.config/scripts/theming/apply-wal.sh
 
@@ -475,6 +520,7 @@ git pull   # pick up updates
 ```
 
 ### Backup and restore
+
 ```bash
 # Backup current config
 cp -a ~/.config/hypr ~/hypr-backup-$(date +%Y%m%d)
@@ -496,39 +542,47 @@ not symlinks to another configuration tree.
 
 ## Troubleshooting
 
-**Colors not updating after `wal -i`:** plain `wal` recolours only the
+**Colours not updating after `wal -i`:** plain `wal` recolours only the
 terminals; the rest of the desktop follows when the palette is fanned out.
 Changing the wallpaper with the carousel or `Super + Shift + W` does this for
 you; after a manual `wal -i`, run:
+
 ```bash
 ~/.config/scripts/theming/apply-wal.sh
 ```
 
-**Pywal symlink broken:**
+**Colours look wrong everywhere:** rebuild the palette from the current
+wallpaper and apply it everywhere:
+
+```bash
+~/.config/scripts/hyprland/wall.sh
+```
+
+Running Ghostty and btop windows reload the new palette by themselves.
+
+**Pywal symlink broken:** `./doctor.sh` names it; the Hyprland pair is
+re-rendered with:
+
 ```bash
 ~/.config/hypr/apply_wal_colors.sh
 ```
 
 **Waybar issues:** press `Super + Shift + B` to restart the bar.
 
-**Lock screen not working:**
+**Screen does not lock when idle:**
+
 ```bash
-killall hypridle && hypridle &
+killall hypridle; hypridle &
 ```
 
 **Restart notifications:**
-```bash
-killall swaync && swaync &
-```
 
-**Colors look wrong everywhere:**
 ```bash
-wal -i ~/.config/wallpapers/wall1.jpg     # regenerate the palette
-~/.config/scripts/theming/apply-wal.sh    # re-render every component
+killall swaync; swaync &
 ```
-Running Ghostty and btop windows reload the new palette by themselves.
 
 **Logs:**
+
 ```bash
 # Hyprland log
 cat "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log"

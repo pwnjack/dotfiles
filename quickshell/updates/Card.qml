@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "model.mjs" as Model
 
-// The update card from the mockup (spec: docs/superpowers/specs/2026-10-03-update-popover-design.md).
+// The update card (docs/updates.md).
 // One translucent frame whose height follows the active view; views
 // crossfade; the progress value glides here so every view sees one number.
 FocusScope {

@@ -1,4 +1,4 @@
-# Spotify: SpotX across client updates
+# Spotify: SpotX ad-blocking and the pywal theme
 
 [SpotX-Bash](https://github.com/SpotX-Official/SpotX-Bash) patches the Spotify
 client so the free tier plays without ads: audio ads are never fetched, and
@@ -45,7 +45,7 @@ On every start the wrapper:
    - `spicetify restore` if Spicetify has unpacked the client (no
      `Apps/xpui.spa`), because SpotX only patches the packed file;
    - runs `spotx.sh` with
-     `--noninteractive -f -P <client>` (free tier; `-f` makes a rerun after a
+     `--noninteractive --nocolor -f -P <client>` (free tier; `-f` makes a rerun after a
      partial failure start from SpotX's own backup of the stock files); if it
      fails after the restore, `spicetify apply` puts the theme back as it was;
    - `spicetify backup apply`, which backs up the patched client (discarding
@@ -129,7 +129,7 @@ detached waiter refreshes as soon as the patch is done (the patch may already
 have applied the previous colours).
 
 The theme keeps Spotify's stock layout on purpose. Rules aimed at Spotify's
-generated class names stop matching when a release renames them, silently:
-that is how the Tokyo theme previously used here lost its "no animation while
-seeking" rule, so every seek slid across a full second.
+generated class names stop matching when a release renames them, silently,
+so the theme stays a few rules on top of the stock layout and colours the rest
+through Spicetify's colour scheme.
 

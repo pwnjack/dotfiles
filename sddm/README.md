@@ -1,4 +1,4 @@
-# SDDM Wallpaper Sync
+# SDDM wallpaper sync
 
 Scripts that keep the SDDM login screen background in sync with your desktop wallpaper.
 
@@ -50,17 +50,17 @@ Run `~/.config/doctor.sh` at any time to check the effective sudo grant, helper
 installation and drift, theme-directory ownership, ffmpeg, watcher process,
 and whether the greeter image is older than the newest awww cache trigger.
 
-## How It Works
+## How it works
 
 1. **On wallpaper change**: `watch_wallpaper.sh` (started via Hyprland autostart)
    notices the awww cache update and runs `update_sddm.sh`.
-2. **Wallpaper detection**: the updater reads the awww cache
-   (`~/.cache/awww/<version>/<monitor>`), falling back to the
+2. **Wallpaper detection**: the helper, running as the target user, reads the
+   awww cache (`~/.cache/awww/<version>/<monitor>`), falling back to the
    `~/.config/options/wallpaper` symlink.
 3. **Conversion**: `ffmpeg` decodes the image as the target user and streams a
    JPEG to a root-created temporary file for the theme configured in
-   `/etc/sddm.conf` (default: `sddm-astronaut-theme`). Root then atomically
-   renames that file to
+   `/etc/sddm.conf` (default `sddm-astronaut-theme`, which is also updated
+   whenever it is installed). Root then atomically renames that file to
    `/usr/share/sddm/themes/<theme>/Backgrounds/wallpaper.jpg`.
 
 ## Troubleshooting

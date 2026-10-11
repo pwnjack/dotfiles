@@ -11,6 +11,15 @@ report schema, capability probe, pane mechanics and model rules.
 **Announce at start:** "Using delegate-review to get an independent review from
 \<reviewer\>."
 
+## Inputs
+
+| Input | Values |
+|---|---|
+| Reviewer family | `codex` \| `claude`, or chosen by the pairing rule below |
+
+`auto-subagent-routing` or an alias normally supplies it; the pairing rule
+overrides a pinned family that would mean self-review.
+
 ## Two invariants
 
 These come before any mechanics. Where convenience conflicts with them,
@@ -41,7 +50,8 @@ This makes same-family self-review structurally impossible rather than merely
 discouraged. **If an alias or the user names an executor that would violate the
 pairing, the pairing wins — and say so rather than silently overriding.**
 
-When axis 2 fails (no usable Codex) the rule degrades to cross-**model** plus
+When there is no usable Codex — axis 2 fails, or axis 1 does, since Codex runs
+only in a Herdr pane — the rule degrades to cross-**model** plus
 fresh context: `opus` reviews Sonnet's work, `sonnet` reviews Opus's. This is
 same-family review and is genuinely weaker — an independent *context* and a
 different *tier*, but not an independent vendor. Announce it once, and say which

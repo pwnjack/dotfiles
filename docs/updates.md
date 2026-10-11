@@ -1,4 +1,4 @@
-# Update popover (Waybar custom/updates)
+# Update card (Waybar custom/updates)
 
 Clicking the bar's updates module opens a small Quickshell card under it:
 `scripts/hyprland/updates-popover.sh` toggles `quickshell/updates/shell.qml`,
@@ -32,8 +32,8 @@ starts and watches.
 - **AUR and Flatpak-only updates run in a terminal.** The card says how many there are and
   offers the terminal (`scripts/updates/terminal.sh aur|pacman|flatpak`, which
   opens `options/terminal`). Every pending mix has a path: Update runs repo
-  packages and then Flatpak, the AUR link's `update.sh` runs the AUR helper and
-  then Flatpak, and Flatpak updates on their own get the same link to
+  packages and then Flatpak, the AUR link (`terminal.sh aur`, which runs
+  `scripts/settings/update.sh`) runs the AUR helper and then Flatpak, and Flatpak updates on their own get the same link to
   `terminal.sh flatpak`. Without repo packages the subtitle says "Runs in a
   terminal", because the plan's download size covers repo packages only.
 
@@ -55,9 +55,9 @@ change the source gains root the next time setup is run. The installed copy is
 what runs between setups.
 
 Until the grant exists the card says "One-click updates are not set up" and
-offers a terminal update. The exact spelling sudo lists for the empty-argument
-rule (`/usr/local/bin/system-update ""`) is unverified against a live
-`sudo -l`; the setup script matches that spelling.
+offers a terminal update. `sudo -l` lists the empty-argument rule as
+`/usr/local/bin/system-update ""`, and the setup script checks for exactly that
+spelling.
 
 ## Privilege model
 
@@ -133,8 +133,8 @@ card showed; the bar keeps an unseen restart or attention class until
   bars. The package total comes from the `Packages (N)` header, and
   `VerbosePkgLists` changes it to `Package (N)  Old Version …` plus a table;
   the model accepts both.
-- **`LC_ALL=C` everywhere pacman is parsed.** This machine's locale prints
-  `6,48 MiB`.
+- **`LC_ALL=C` everywhere pacman is parsed.** A comma-decimal locale (such as
+  `it_IT`) prints `6,48 MiB`.
 - **`stdbuf -oL -eL`.** pacman block-buffers stdout into a pipe, which would
   deliver a whole phase's lines at once and make the bar jump.
 - **DownloadUser.** `DownloadUser = alpm` downloads into a `download-XXXXXX`

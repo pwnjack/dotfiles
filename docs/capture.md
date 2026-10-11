@@ -6,8 +6,6 @@ keep their own target. While a recording runs, a red timer sits at the left of
 Waybar's right-hand modules; click it, or press Super+Shift+R, to stop and save.
 During a start delay the pill is amber and a click cancels the countdown.
 
-Design: `docs/superpowers/specs/2026-10-09-capture-bar-design.md` (local).
-
 ## Pieces
 
 | Piece | Job |
@@ -29,8 +27,9 @@ and acts only while the strip is open. Option writes are synchronous
 The capture is started detached, stdio closed, after Hyprland reports the
 `capture-bar` layer closed (400 ms fallback if no event arrives). The layer
 rules are blur and `no_anim`, so the strip is gone from the screen before the
-shot and never appears in it. The Annotate button is 60 px: the spec's rule
-that no label is elided beat the mockup's 58 px with FiraCode Nerd Font.
+shot and never appears in it. Button widths are set so that no label is ever
+elided, which the offscreen QML test enforces; Annotate is 60 px wide for that
+reason.
 
 ## Options
 
@@ -55,18 +54,19 @@ creates a file the first time its control changes.
 ## Recording
 
 `gpu-screen-recorder -w <monitor> | -w WxH+X+Y -c mp4 -k h264 -ac aac -f 60
--q very_high -cursor yes [-a default_output|default_input] -v no
+-q very_high -cursor yes [-a <audio>] -v no
 -o ~/Videos/Recordings/Recording_YYYY-MM-DD_HH-MM-SS.mp4`. Region and window
 recordings use `-w WxH+X+Y` because gpu-screen-recorder 6.1.3 deprecates
-`-w region -region`. Capture is KMS through `gsr-kms-server`, which needs
-`cap_sys_admin` (the package sets it; `doctor.sh` warns if it is lost). No
-portal dialog.
+`-w region -region`. `<audio>` is `default_output` (desktop audio),
+`default_input` (the microphone) or both joined by `|`, mixed into one track.
+Capture is KMS through `gsr-kms-server`, which needs `cap_sys_admin` (the
+package sets it; `doctor.sh` warns if it is lost). No portal dialog.
 
 - **Window** recording records the window's rectangle at the moment you click
   it. Moving the window afterwards is not followed.
 - **Region coordinates** are passed exactly as slurp prints them. Untested on a
-  scaled monitor (this machine is scale 1).
-- **Very small regions fail.** NVENC rejected 64x64 and accepted 256x256 here;
+  scaled monitor (only scale 1 has been tried).
+- **Very small regions fail.** NVENC rejected 64x64 and accepted 256x256;
   a tiny selection ends in a "Recording failed" toast.
 - **Identity.** record.sh identifies the recorder by pid and its `/proc` start
   time (`since` in the state), so a recycled pid is never mistaken for it. Stops
@@ -113,11 +113,12 @@ lock.sh's path lacks.
 
 ## NVIDIA note
 
-The package ships `/usr/lib/modprobe.d/gsr-nvidia.conf` with
-`NVreg_PreserveVideoMemoryAllocations=1`; before it, the driver ran with 2.
-It takes effect after a reboot. Check with
-`grep PreserveVideoMemoryAllocations /proc/driver/nvidia/params` and test one
-suspend/resume after the reboot.
+On NVIDIA, the gpu-screen-recorder package ships
+`/usr/lib/modprobe.d/gsr-nvidia.conf` with
+`NVreg_PreserveVideoMemoryAllocations=1`; without it the author's driver ran
+with 2. It takes effect at the next boot; check the running value with
+`grep PreserveVideoMemoryAllocations /proc/driver/nvidia/params`, which reads
+1 once it applies.
 
 ## Testing
 
