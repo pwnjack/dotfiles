@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict'
+import * as C from '../calendar.mjs'
+const argv = C.signInCommand('/home/u/.config')
+assert.deepEqual(argv, ['bash', '/home/u/.config/scripts/calendar/setup.sh', '--sign-in', '--stdin'])
+assert.equal(C.signInInput(' me@icloud.com ', 'abcd-efgh'), 'me@icloud.com\nabcd-efgh\n')
+assert.ok(!argv.join(' ').includes('abcd-efgh'))
+assert.throws(() => C.signInInput('me', 'a\nb'))
+assert.throws(() => C.signInInput('', 'x'))
+assert.equal(C.toggleHidden('', 'Work', false), 'Work\n')
+assert.equal(C.toggleHidden('Work\nHome\n', 'Work', true), 'Home\n')
+assert.equal(C.toggleHidden('Work\n', 'Work', true), '')
+assert.equal(C.toggleHidden('Work\n', 'Work', false), 'Work\n')
+assert.equal(C.statusLine(null, 0), 'Not signed in')
+assert.equal(C.statusLine(null, 0, 'me@icloud.com'), 'Not synced yet')
+assert.equal(C.statusLine({ state: 'ok', lastSuccess: 1000 }, 1180), 'Last synced 3 min ago')
+assert.equal(C.statusLine({ state: 'failed', message: 'Sign-in rejected' }, 0), 'Sign-in rejected')
+console.log('calendar: ok')

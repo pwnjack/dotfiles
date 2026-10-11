@@ -25,6 +25,7 @@ Item {
         property var startup: null
         property var about: null
         property var devices: null
+        property var calendar: null
         property color background: "#05090c"
         property color foreground: "#cfddde"
         property color accent: "#6097a1"
@@ -36,7 +37,7 @@ Item {
         property bool keepPendingOnRevert: false
         function keepDisplay() { calls = calls.concat([{op:"displayKeep"}]); }
         function revertDisplay() { if (!keepPendingOnRevert) pendingDisplay = null; calls = calls.concat([{op:"displayRevert"}]); }
-        property var catalog: ({categories: [{id:"appearance",title:"Appearance",description:"Look and feel"}, {id:"input",title:"Input",description:"Mouse and keyboard"}, {id:"monitors",title:"Displays",description:"Screens"}, {id:"network",title:"Network",description:"Connections"}, {id:"startup",title:"Startup",description:"Login"}, {id:"devices",title:"Devices",description:"Wireless peripherals"}, {id:"about",title:"About this machine",placement:"footer"}], rows: [
+        property var catalog: ({categories: [{id:"appearance",title:"Appearance",description:"Look and feel"}, {id:"input",title:"Input",description:"Mouse and keyboard"}, {id:"monitors",title:"Displays",description:"Screens"}, {id:"network",title:"Network",description:"Connections"}, {id:"startup",title:"Startup",description:"Login"}, {id:"devices",title:"Devices",description:"Wireless peripherals"}, {id:"calendar",title:"Calendar",description:"iCloud calendars"}, {id:"about",title:"About this machine",placement:"footer"}], rows: [
             {id:"blur",category:"appearance",title:"Blur",description:"Frosted glass",kind:"toggle"},
             {id:"size",category:"appearance",title:"Size",description:"Radius",kind:"slider",min:1,max:20,step:1},
             {id:"font",category:"appearance",title:"Font",description:"Main font",kind:"text"},
@@ -59,6 +60,7 @@ Item {
         function reset(id) { calls = calls.concat([{reset:id}]); }
         function action(id) { calls = calls.concat([{action:id}]); }
         function submit(request) { calls = calls.concat([request]); }
+        function calendarRequest(request) { calls = calls.concat([request]); }
     }
     SettingsView { id: view; anchors.fill: parent; controller: controller }
     TestCase {
@@ -122,6 +124,38 @@ Item {
             verify(!DeviceRead.fresh(3, 3, false), "nothing lands while hidden");
             compare(DeviceRead.parse("[1]"), [1]);
             verify(!!DeviceRead.parse("nope").error);
+        }
+        function test_calendar_signed_out() {
+            controller.calendar = {account: "", calendars: [], status: null, line: "Not signed in"};
+            controller.select("calendar"); wait(20);
+            verify(findChild(view,"signInRow").visible);
+            compare(findChild(view,"passwordField").echoMode, TextInput.Password);
+            verify(!findChild(view,"signIn").enabled, "Sign in waits for both fields");
+            findChild(view,"appleIdField").text = " me@icloud.com ";
+            findChild(view,"passwordField").text = "abcd-efgh";
+            verify(findChild(view,"signIn").enabled);
+            findChild(view,"signIn").click();
+            compare(controller.calls, [{op: "calendarSignIn", appleId: " me@icloud.com ", password: "abcd-efgh"}]);
+            compare(findChild(view,"passwordField").text, "", "the password leaves the field once sent");
+        }
+        function test_calendar_signed_in() {
+            controller.calendar = {account: "me@icloud.com", status: {state: "ok", lastSuccess: 1000}, line: "Last synced 3 min ago",
+                calendars: [{name: "Work", color: "#ff0000", writable: true, shown: true}, {name: "Holidays", color: "", writable: false, shown: false}]};
+            controller.select("calendar"); wait(20);
+            verify(!findChild(view,"signInRow").visible);
+            verify(findChild(view,"signedInRow").visible);
+            compare(findChild(view,"calendarAccount").text, "me@icloud.com");
+            compare(findChild(view,"syncLine").text, "Last synced 3 min ago");
+            verify(findChild(view,"show-Work").checked);
+            verify(!findChild(view,"show-Holidays").checked);
+            mouseClick(findChild(view,"show-Work"));
+            compare(controller.calls, [{op: "calendarShow", name: "Work", shown: false}]);
+            findChild(view,"syncNow").click();
+            compare(controller.calls[1], {op: "calendarSync"});
+            findChild(view,"signOut").click();
+            compare(controller.calls.length, 2, "the first Sign out press only asks");
+            findChild(view,"signOut").click();
+            compare(controller.calls[2], {op: "calendarSignOut"});
         }
         function test_startup_view() {
             controller.startup = startupFixture(); controller.category = "startup"; waitForRendering(view);
@@ -223,7 +257,7 @@ Item {
             controller.authPending = false;
             controller.loaded = true; controller.loading = false;
             controller.pendingDisplay = null; controller.monitors = []; controller.stagedDisplays = ({}); controller.keepPendingOnRevert = false;
-            controller.network = null; controller.startup = null; controller.devices = null; controller.about = null;
+            controller.network = null; controller.startup = null; controller.devices = null; controller.about = null; controller.calendar = null;
             controller.values = ({blur:{value:true,reset:true},size:{value:4},font:{value:"Sans"},nickname:{value:"Bob"},theme:{value:"B",choices:[{label:"A",value:"A"},{label:"B",value:"B"}]},focus:{value:"1"},zone:{value:"Europe/Rome",choices:Array.from({length:30},(_,i)=>i===7?{label:"Europe / Rome",value:"Europe/Rome"}:i===8?{label:"New York",value:"America/New_York"}:{label:"Zone "+i,value:"Z"+i})},ntp:{value:true,note:"Synchronized with a time server"},idle:{value:0},mic:{value:62},speed:{value:3},"network.wifi":{value:true},"opt-lock":{value:false}});
             view.forceActiveFocus();
             findChild(view,"settingsScroll").contentItem.contentY = 0;

@@ -30,6 +30,9 @@ ShellRoot {
     property var about: null
     // Devices page: devices.sh every 10 s while the page is on screen; nothing otherwise.
     property var devices: null
+    // Calendar page: calendarStatus every 5 s while the page is on screen; nothing otherwise.
+    property var calendar: null
+    readonly property bool calendarShown: opened && !closing && category === "calendar" && !query.trim()
     readonly property bool devicesShown: opened && !closing && category === "devices" && !query.trim()
     // Bumped when the page is hidden, so a read still in flight cannot land afterwards.
     // Only on hide: the Timer's first read on show may fire before this handler, and a
@@ -262,6 +265,20 @@ ShellRoot {
         running: root.devicesShown
         onTriggered: if (!deviceReader.running) { deviceReader.generation = root.deviceGeneration; deviceReader.running = true }
     }
+    Process {
+        id: calendarReader
+        command: ["bash", root.configDir + "/scripts/settings/panel-request.sh", JSON.stringify({op: "calendarStatus"})]
+        stdout: StdioCollector {
+            onStreamFinished: { try { const r = JSON.parse(text); if (r.ok) root.calendar = r.calendar; } catch (e) {} }
+        }
+    }
+    Timer {
+        interval: 5000; repeat: true; triggeredOnStart: true
+        running: root.calendarShown
+        onTriggered: if (!calendarReader.running) calendarReader.running = true
+    }
+    // Calendar writes take the same queue as every other change: the password goes on stdin, and a failure lands in `problem`.
+    function calendarRequest(request) { submit(request); }
     Process {
         id: reader
         stdout: StdioCollector { onStreamFinished: root.readReply = text }
