@@ -97,6 +97,20 @@ assert_contains "$ad" "DTSTART;VALUE=DATE:20261018" "all-day: start date"
 assert_contains "$ad" "DTEND;VALUE=DATE:20261020" "all-day: exclusive end"
 assert_not_contains "$ad" "VALARM" "alert none: alarms removed"
 
+# all-day series: one occurrence's override stays on its own day, the series keeps its start
+yr=$(req "$FIX/allday-yearly.ics" "$(at '2026-01-17 00:00')" one "$(changes '2026-01-17 00:00' '2026-01-17 00:00' 'Renamed' day0 true 2026-01-17 2026-01-17)" | edit update | raw)
+assert_contains "$yr" "RECURRENCE-ID;VALUE=DATE:20260117" "all-day one: override for that day"
+assert_contains "$yr" "DTSTART;VALUE=DATE:20260117" "all-day one: override starts on its day"
+assert_contains "$yr" "DTEND;VALUE=DATE:20260118" "all-day one: override ends the day after"
+assert_contains "$yr" "SUMMARY:Renamed" "all-day one: new title"
+assert_eq "$(grep -c '^DTSTART;VALUE=DATE:20200117' <<<"$yr")" 1 "all-day one: the series still starts in 2020"
+assert_eq "$(req "$FIX/allday.ics" "$(at '2026-10-17 00:00')" one "$(changes '2026-10-18 00:00' '2026-10-20 00:00' 'X' none true two 2026-10-19)" | edit update | jq -r .ok)" false "all-day: a non-date day is refused"
+
+# a malformed update fails with a reason, never a bare failure
+bad=$(req "$FIX/iphone-weekly.ics" "$(at '2026-10-20 20:00')" one | edit update)
+assert_json_field "$bad" '.ok' false "update: null changes refused"
+assert_eq "$(jq -r '.error | length > 0' <<<"$bad")" true "update: null changes give a reason"
+
 # cal.sh: hash check, atomic write, move, delete
 mkdir -p "$CALENDAR_DATA/home" "$CALENDAR_DATA/work"
 echo Home > "$CALENDAR_DATA/home/displayname"; echo Work > "$CALENDAR_DATA/work/displayname"
@@ -110,6 +124,11 @@ upd() { jq -cn --arg h "$1" --arg m "${2:-}" --arg uid "$uid" --argjson occ "$(a
 out=$(upd stale)
 assert_json_contains "$out" '.error' "changed on your iPhone" "cal.sh update: stale hash refused"
 assert_eq "$(sha256sum < "$CALENDAR_DATA/home/calcetto.ics" | cut -d' ' -f1)" "$hash" "cal.sh update: file untouched when refused"
+out=$(jq -cn --arg h "$hash" --arg uid "$uid" --argjson occ "$(at '2026-10-20 20:00')" \
+    '{calendar: "Home", uid: $uid, occurrence: $occ, scope: "all", hash: $h, changes: null}' | bash "$TEST_DIR/cal.sh" update)
+assert_json_field "$out" '.ok' false "cal.sh update: null changes refused"
+assert_eq "$(jq -r '.error | length > 0' <<<"$out")" true "cal.sh update: null changes give a reason"
+assert_eq "$(sha256sum < "$CALENDAR_DATA/home/calcetto.ics" | cut -d' ' -f1)" "$hash" "cal.sh update: file untouched after a malformed request"
 inode=$(stat -c %i "$CALENDAR_DATA/home/calcetto.ics")
 out=$(upd "$hash")
 assert_json_field "$out" '.ok' true "cal.sh update: ok"

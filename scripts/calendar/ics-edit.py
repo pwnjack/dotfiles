@@ -167,6 +167,22 @@ def touch(event):
     replace(event, "SEQUENCE", int(event.get("SEQUENCE", 0)) + 1)
 
 
+def place_override(target, master, rid):
+    """A new override sits on its own occurrence: DTSTART is the occurrence and
+    DTEND keeps the series' length, so an all-day override is not left on the
+    series' first date."""
+    start = master.decoded("DTSTART")
+    if "DTEND" in master:
+        length = master.decoded("DTEND") - start
+    elif "DURATION" in master:
+        length = master.decoded("DURATION")
+    else:
+        length = dt.timedelta(days=1) if is_date(start) else dt.timedelta(0)
+    replace(target, "DURATION", None)
+    replace(target, "DTSTART", rid)
+    replace(target, "DTEND", rid + length)
+
+
 def set_times(event, changes, like, keep_date=None):
     """Write DTSTART/DTEND from `changes`; `keep_date` keeps a series' first date."""
     if "DURATION" in event:
@@ -202,7 +218,38 @@ def parse(request):
         fail(f"The event file could not be read: {error}")
 
 
+def checked_changes(request):
+    """The update's changes, or a failure that names what is missing or wrong."""
+    changes = request.get("changes")
+    if not isinstance(changes, dict):
+        fail("The event changes are missing")
+    missing = [key for key in ("title", "allDay", "alert") if key not in changes]
+    if missing:
+        fail(f"The event changes lack {', '.join(missing)}")
+    if not isinstance(changes["title"], str) or not isinstance(changes["alert"], str) \
+            or not isinstance(changes["allDay"], bool):
+        fail("The event changes have the wrong types")
+    try:
+        if changes["allDay"]:
+            day(changes["startDay"])
+            day(changes["endDay"])
+        else:
+            for key in ("start", "end"):
+                if isinstance(changes[key], bool) or not isinstance(changes[key], (int, float)):
+                    raise TypeError(key)
+    except (KeyError, TypeError, ValueError):
+        fail("The event dates are not valid")
+    return changes
+
+
 def main():
+    try:
+        run()
+    except Exception as error:
+        fail(f"The event could not be changed: {error or type(error).__name__}")
+
+
+def run():
     if len(sys.argv) != 2 or sys.argv[1] not in ("inspect", "update", "delete"):
         fail("Usage: ics-edit.py inspect|update|delete")
     request = json.loads(sys.stdin.readline())
@@ -233,8 +280,8 @@ def main():
         print(json.dumps({"ok": True, "raw": cal.to_ical().decode()}))
         return
 
-    changes = request["changes"]
-    if not str(changes.get("title", "")).strip():
+    changes = checked_changes(request)
+    if not changes["title"].strip():
         fail("An event needs a title")
     like = master.decoded("DTSTART")
     if not recurring:
@@ -251,6 +298,7 @@ def main():
                 if name in target:
                     del target[name]
             target.add("RECURRENCE-ID", rid)
+            place_override(target, master, rid)
             cal.add_component(target)
         apply(target, changes, like, times=not is_date(like))
     print(json.dumps({"ok": True, "raw": cal.to_ical().decode()}))

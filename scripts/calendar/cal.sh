@@ -154,11 +154,21 @@ after_write() {
     [[ ${CALENDAR_NO_SYNC:-} ]] || setsid -f bash "$cal_dir/sync.sh" </dev/null >/dev/null 2>&1
     echo '{"ok":true}'
 }
-# helper <op> <file> [jq args...] — ics-edit.py with the file's text and the request fields.
+# helper <op> <file> [jq args...] — ics-edit.py with the file's text and the request
+# fields. Prints its answer when it is {"ok":true,...}; otherwise prints an
+# {"ok":false} carrying its error, or a fixed one when it printed none (a crash
+# leaves only a traceback on stderr), and returns 1.
 helper() {
-    local op=$1 file=$2; shift 2
-    jq -cn --rawfile raw "$file" --argjson addresses "$(account_addresses)" "$@" \
-        '{raw: $raw, addresses: $addresses} + ($req // {})' | python3 -I "$cal_dir/ics-edit.py" "$op"
+    local op=$1 file=$2 out msg; shift 2
+    if out=$(jq -cn --rawfile raw "$file" --argjson addresses "$(account_addresses)" "$@" \
+        '{raw: $raw, addresses: $addresses} + ($req // {})' | python3 -I "$cal_dir/ics-edit.py" "$op") \
+        && jq -e '.ok == true' <<<"$out" >/dev/null 2>&1; then
+        printf '%s\n' "$out"
+        return 0
+    fi
+    msg=$(jq -r '.error // empty' <<<"$out" 2>/dev/null || true)
+    jq -cn --arg m "${msg:-The event could not be changed}" '{ok:false, error:$m}'
+    return 1
 }
 
 inspect() {
@@ -176,7 +186,7 @@ edit() {   # edit update|delete — one JSON request line on stdin
     file=$(find_event "$calendar" "$uid") || die "That event is no longer in $calendar"
     [[ $(sha256sum < "$file" | cut -d' ' -f1) == "$(jq -r '.hash // ""' <<<"$line")" ]] \
         || die 'This event changed on your iPhone; open it again'
-    out=$(helper "$op" "$file" --argjson req "$(jq -c '{occurrence, scope, changes}' <<<"$line")") || die "$(jq -r '.error // "The event could not be changed"' <<<"$out" 2>/dev/null)"
+    out=$(helper "$op" "$file" --argjson req "$(jq -c '{occurrence, scope, changes}' <<<"$line")") || { printf '%s\n' "$out"; exit 1; }
     new=$(jq -r '.raw' <<<"$out")
     if [[ -z $new ]]; then rm -f -- "$file"; after_write; return; fi
     target=$(jq -r '.moveTo // ""' <<<"$line")
