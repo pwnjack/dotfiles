@@ -2,6 +2,7 @@ import QtQuick
 import QtTest
 import ".."
 import "../model.mjs" as Model
+import "../controller.js" as Controller
 
 Item {
     id: host
@@ -28,7 +29,11 @@ Item {
         property string lastAction: ""
         // The draft file is a text target here; the shell writes the same Model.draftToKeep text to draft.json.
         property string draftFileText: ""
-        function keepDraft() { const t = Model.draftToKeep(draft); if (t !== null) draftFileText = t; }
+        readonly property var draftWriter: ({ setText: function (t) { controller.draftFileText = t; } })
+        // The same controller.js the shell runs; only the writer and the cal.sh replies are fakes.
+        property int sheetSession: 0
+        onStateChanged: Controller.invalidate(controller)
+        function keepDraft() { Controller.keepDraft(Model, controller, draftWriter); }
         function act(a) {
             const before = state;
             lastAction = a; state = Model.transition(state, a);
@@ -47,7 +52,12 @@ Item {
         function showYear() { state = Object.assign({}, state, { year: true }); }
         property int lastShift: 0; property int lastMonth: -1
         property string peekFor: ""; property var peekEvents: []
-        function pickMonth(m) { lastMonth = m; } function shiftMonth(d) { lastShift = d; } function shiftYear(d) { lastShift = d; }
+        function pickMonth(m) { lastMonth = m; }
+        function shiftMonth(d) { lastShift = d; Controller.shiftMonth(controller, d); }
+        function shiftYear(d) { lastShift = d; Controller.shiftYear(controller, d); }
+        function loadMonth() {} function loadYear() {} function loadDay(k) {}
+        function flash(t) { highlight = t; }
+        function defaults() { return { duration: 60, alert: "15m", calendar: "Home" }; }
         function loadPeek(key) { peekFor = key; }
         function toggleUpcoming() { state = Object.assign({}, state, { unfolded: !state.unfolded }); }
         function openSettings() {}
@@ -64,14 +74,19 @@ Item {
         property var lastEdited: null
         function save(scope) { saved = scope; }
         function remove(scope) { removed = scope; }
-        // The shell's editEvent after cal.sh inspect: the same draft, with the fixture's flags.
-        function editEvent(e) {
-            keepDraft();
-            lastEdited = e;
-            draft = Model.draftFromEvent(e, { alert: "custom", recurring: !!e.recurring, invitation: !!e.invitation,
-                readOnly: !!e.invitation, hash: "h" }, { duration: 60, alert: "15m", calendar: "Home" });
-            state = Model.openSheet(state);
+        // cal.sh inspect is a fake: holdInspect keeps its reply pending until replyInspect.
+        property bool holdInspect: false; property int asked: -1; property var inspectEvent: null
+        function inspectInfo(e) {
+            return { ok: true, alert: "custom", recurring: !!e.recurring, invitation: !!e.invitation, allDay: !!e.allDay, hash: "h" };
         }
+        function replyInspect(info) { Controller.inspectReply(Model, controller, asked, inspectEvent, info); }
+        // The shell's editEvent: the controller.js path, then the fixture's inspect reply unless it is held.
+        function editEvent(e) {
+            lastEdited = e; inspectEvent = e;
+            Controller.beginEdit(Model, controller, draftWriter, e, s => { asked = s; });
+            if (!holdInspect) replyInspect(inspectInfo(e));
+        }
+        function saveReply(session, title, r) { Controller.updateReply(Model, controller, session, title, r); }
     }
     Card { id: card; controller: controller; x: Math.round((host.width - width) / 2) }
     TestCase {
@@ -327,6 +342,57 @@ Item {
             controller.act("esc");
             verify(!controller.state.sheet);
             compare(JSON.parse(controller.draftFileText).title, "Match");
+        }
+        // Finding 3: a reply asked before a month or year shift is dropped, so an old event never opens over the new view.
+        function test_delayed_inspect_after_a_month_shift_is_dropped() {
+            const month = controller.viewMonth;
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.draft = null;
+            controller.holdInspect = true;
+            controller.editEvent(listed());
+            controller.shiftMonth(1);
+            controller.holdInspect = false;
+            controller.replyInspect(controller.inspectInfo(controller.inspectEvent));
+            verify(!controller.state.sheet, "a stale inspect reply opened a sheet");
+            compare(controller.draft, null);
+            controller.viewMonth = month;
+        }
+        function test_delayed_inspect_after_a_year_shift_is_dropped() {
+            const year = controller.viewYear;
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.draft = null;
+            controller.holdInspect = true;
+            controller.editEvent(listed());
+            controller.shiftYear(-1);
+            controller.holdInspect = false;
+            controller.replyInspect(controller.inspectInfo(controller.inspectEvent));
+            verify(!controller.state.sheet, "a stale inspect reply opened a sheet");
+            compare(controller.draft, null);
+            controller.viewYear = year;
+        }
+        // The control: the same delayed reply with no navigation in between still opens the event.
+        function test_delayed_inspect_without_navigation_opens_the_event() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.draft = null;
+            controller.holdInspect = true;
+            controller.editEvent(listed());
+            controller.holdInspect = false;
+            controller.replyInspect(controller.inspectInfo(controller.inspectEvent));
+            verify(controller.state.sheet);
+            compare(controller.draft.mode, "edit");
+        }
+        // A save asked from a sheet that a navigation has since retired: it highlights its event, and leaves the newer view alone.
+        function test_stale_save_reply_keeps_the_draft_and_only_highlights() {
+            const month = controller.viewMonth;
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.editEvent(listed());
+            const session = controller.sheetSession;
+            controller.shiftMonth(1);
+            controller.highlight = "";
+            controller.saveReply(session, "Calcetto", { ok: true });
+            compare(controller.draft.mode, "edit");
+            compare(controller.highlight, "Calcetto");
+            controller.viewMonth = month;
         }
         function test_failure_with_no_sheet_shows_on_the_card() {
             controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: "2026-10-20" });

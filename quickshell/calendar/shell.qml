@@ -5,6 +5,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import "model.mjs" as Model
+import "controller.js" as Controller
 
 // The calendar card. Started by scripts/hyprland/calendar-card.sh; exits on
 // close. Data: agenda.json/status.json (rendered by scripts/calendar/sync.sh,
@@ -27,9 +28,9 @@ ShellRoot {
     property var state: Model.CLOSED
     // Every state change (a sheet opens, closes or is replaced, or the card is
     // navigated) starts a new session: a cal.sh reply asked in an earlier one is
-    // stale. Navigating also clears the card's error line.
+    // stale. controller.js's invalidate() also runs on each month or year shift.
     property int sheetSession: 0
-    onStateChanged: { sheetSession += 1; addError = ""; }
+    onStateChanged: Controller.invalidate(root)
     property bool closing: false
     property double openedAt: 0
     property bool syncGaveUp: false     // sync.sh waits up to 120 s for its lock; past that, show what we have
@@ -62,10 +63,7 @@ ShellRoot {
         if (next.sheet && !before.sheet) startSheet(next.day);
         state = next;
     }
-    function keepDraft() {
-        const text = Model.draftToKeep(draft);
-        if (text !== null) draftFile.setText(text);
-    }
+    function keepDraft() { Controller.keepDraft(Model, root, draftFile); }
     function open() {
         const focused = Hyprland.focusedMonitor;
         window.screen = Quickshell.screens.find(s => focused && s.name === focused.name) || Quickshell.screens[0];
@@ -107,11 +105,12 @@ ShellRoot {
     // A click on a listed event: read it with cal.sh inspect, then open it for editing.
     function editEvent(e) {
         if (!e || !e.uid || inspector.running) return;
-        keepDraft();                                        // a new-event draft typed so far is kept
-        inspector.event = e;
-        inspector.session = sheetSession;
-        inspector.command = [calSh, "inspect", e.calendar, e.uid, String(e.startEpoch)];
-        inspector.running = true;
+        Controller.beginEdit(Model, root, draftFile, e, session => {   // keeps a typed new-event draft first
+            inspector.event = e;
+            inspector.session = session;
+            inspector.command = [calSh, "inspect", e.calendar, e.uid, String(e.startEpoch)];
+            inspector.running = true;
+        });
     }
     function save(scope) {
         if (!draft || draft.mode !== "edit") { add(); return; }
@@ -178,12 +177,9 @@ ShellRoot {
     // A hover peek on a day past the agenda's window. Its own reader, so it never overwrites the selected day.
     function loadPeek(key) { peekFor = key; startReader(peekReader, key); }
     function loadCalendars() { calendarReader.running = true; }
-    function shiftMonth(delta) {
-        const d = new Date(viewYear, viewMonth + delta, 1);
-        viewYear = d.getFullYear(); viewMonth = d.getMonth();
-        loadMonth();
-    }
-    function shiftYear(delta) { viewYear += delta; loadYear(); }
+    function shiftMonth(delta) { Controller.shiftMonth(root, delta); }
+    function shiftYear(delta) { Controller.shiftYear(root, delta); }
+    function flash(title) { highlight = title; if (title) unhighlight.restart(); }
     function goToday() {
         const d = new Date();
         viewYear = d.getFullYear(); viewMonth = d.getMonth();
@@ -319,17 +315,7 @@ ShellRoot {
         stdout: StdioCollector { onStreamFinished: {
             let info = null;
             try { info = JSON.parse(text); } catch (e) { info = null; }
-            const ok = !!info && info.ok !== false;
-            // The event was asked for in an earlier session: the view has moved on, so the reply is dropped.
-            if (Model.replyVerdict(inspector.session, root.sheetSession, ok, root.state.sheet) !== "apply") return;
-            if (!ok) { root.addError = info && info.error ? info.error : "The event could not be read."; return; }
-            const e = inspector.event;
-            const writable = root.calendars.some(c => c.name === e.calendar && c.writable);
-            info.readOnly = !writable || info.invitation;
-            root.draft = Model.draftFromEvent(e, info, root.defaults());
-            root.addError = "";
-            root.state = Model.openSheet(root.state);
-            root.loadDay(root.draft.startDay);
+            Controller.inspectReply(Model, root, inspector.session, inspector.event, info);
         } }
     }
     // cal.sh update|delete: one JSON line on stdin, as adder does.
@@ -343,13 +329,7 @@ ShellRoot {
         stdout: StdioCollector { onStreamFinished: {
             let r = null;
             try { r = JSON.parse(text); } catch (e) { r = { ok: false, error: "The calendar helper did not answer." }; }
-            // Only the sheet that asked may close or clear its draft. A saved change still highlights its event.
-            const verdict = Model.replyVerdict(updater.session, root.sheetSession, !!r.ok, root.state.sheet);
-            if (r.ok) {
-                if (verdict === "apply") { root.draft = null; root.act("esc"); }
-                root.highlight = updater.title;
-                if (updater.title) unhighlight.restart();
-            } else if (verdict !== "drop") root.addError = r.error || "The change could not be saved.";
+            Controller.updateReply(Model, root, updater.session, updater.title, r);
         } }
         onExited: stdinEnabled = true
     }
