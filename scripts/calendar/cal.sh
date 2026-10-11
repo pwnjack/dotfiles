@@ -42,6 +42,22 @@ known_calendars() {
     done
 }
 
+# hide_declined — reads khal's events on stdin and drops the instances the account
+# declined. $cal_state/declined holds "calendar<TAB>uid<TAB>key" rules, written by
+# sync.sh: "*" hides every instance, "<start>" hides the one starting then, and
+# "!<start>" shows one again under a declined series. A missing file hides nothing.
+hide_declined() {
+    local declined=$cal_state/declined
+    [[ -r $declined ]] || declined=/dev/null
+    jq -c --rawfile declined "$declined" '
+        ($declined | split("\n") | map(select(length > 0) | split("\t"))) as $rules
+        | map(. as $e
+            | ($rules | any(.[0] == $e.calendar and .[1] == $e.uid and .[2] == $e.start)) as $declined_here
+            | ($rules | any(.[0] == $e.calendar and .[1] == $e.uid and .[2] == "*")) as $series_declined
+            | ($rules | any(.[0] == $e.calendar and .[1] == $e.uid and .[2] == ("!" + $e.start))) as $shown_again
+            | select(($declined_here or ($series_declined and ($shown_again | not))) | not))'
+}
+
 # list <from> <days> — visible events from khal, normalized. Hidden and
 # skipped calendars are left out by khal itself. khal exits 2 on a -d name it
 # does not know or is given twice, and lists everything when -d covers every
@@ -70,7 +86,7 @@ list() {
         die "${name:-khal could not list events}"
     fi
     rm -f "$err"
-    jq -s -f "$cal_dir/khal-events.jq" <<<"$raw" | with_epochs
+    jq -s -f "$cal_dir/khal-events.jq" <<<"$raw" | hide_declined | with_epochs
 }
 
 # need_list <from> <days> — list into $events; on failure print its error

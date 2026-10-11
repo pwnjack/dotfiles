@@ -82,6 +82,24 @@ out=$(FAKE_KHAL_LIST="$TEST_DIR/fixtures/khal-year-boundary.json" run_cal year 2
 assert_json_field "$out" '.counts[0]' 1 "year: January counts only events starting that year"
 assert_json_field "$out" '.counts[11]' 0 "year: a spill-over from last year does not hit December"
 
+# Declined instances are dropped in every view. series-1 (Home) is accepted but its
+# 12th is declined; series-2 (Work) is declined except its 19th, which is accepted.
+rules=$(printf 'Home\tseries-1\t2026-10-12 09:00\nWork\tseries-2\t*\nWork\tseries-2\t!2026-10-19 09:00\n')
+printf '%s\n' "$rules" > "$CALENDAR_STATE_DIR/declined"
+export FAKE_KHAL_LIST="$TEST_DIR/fixtures/khal-declined.json"
+out=$(run_cal range 2026-10-01 30)
+assert_json_field "$out" 'length' 3 "declined: range keeps the accepted instances only"
+assert_json_field "$out" '[.[] | select(.uid == "series-2") | .start] | join(",")' "2026-10-19 09:00" "declined: a declined series shows its accepted instance again"
+assert_json_field "$out" '[.[] | select(.uid == "series-1") | .start] | join(",")' "2026-10-05 09:00,2026-10-19 09:00" "declined: only the declined override is hidden"
+assert_json_field "$(run_cal month 2026-10)" '.busy | join(",")' "5,19" "declined: month dots skip the declined days"
+assert_json_field "$(run_cal day 2026-10-12)" '[.[] | select(.start | startswith("2026-10-12"))] | length' 0 "declined: the day view drops the declined instances"
+assert_json_field "$(run_cal year 2026)" '.counts[9]' 3 "declined: year counts drop the declined instances"
+rm "$CALENDAR_STATE_DIR/declined"
+assert_json_field "$(run_cal range 2026-10-01 30)" 'length' 6 "no declined file: nothing is dropped"
+assert_json_field "$(run_cal month 2026-10)" '.busy | join(",")' "5,12,19" "no declined file: month dots are unchanged"
+unset FAKE_KHAL_LIST
+export FAKE_KHAL_LIST="$TEST_DIR/fixtures/khal-week.json"
+
 echo Work > "$CALENDAR_STATE_DIR/readonly"
 cals=$(run_cal calendars)
 assert_json_field "$cals" '[.[] | .name] | join(",")' "Home,Work" "calendars: names from displayname, skipped collection omitted"

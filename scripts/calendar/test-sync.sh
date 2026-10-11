@@ -84,6 +84,40 @@ sync_run --render
 assert_eq "$(count vdirsyncer.argv)" "$before" "--render: no vdirsyncer"
 assert_contains "$(tail -n1 "$FAKE_LOG/pkill")" "-RTMIN+12 waybar" "--render: signals"
 
+# Declined invitations: a successful sync writes the list and the agenda omits them.
+mkdir -p "$CALENDAR_DATA/home"; echo Home > "$CALENDAR_DATA/home/displayname"
+cat > "$CALENDAR_DATA/home/dentist-declined.ics" <<'EOF'
+BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:dentist-1
+DTSTART:20261011T160000Z
+DTEND:20261011T170000Z
+SUMMARY:Dentist
+ATTENDEE;PARTSTAT=DECLINED:mailto:me@example.com
+END:VEVENT
+END:VCALENDAR
+EOF
+rm -f "$CALENDAR_STATE_DIR/declined"
+sync_run
+assert_eq "$(cat "$CALENDAR_STATE_DIR/declined")" "$(printf 'Home\tdentist-1\t*')" "success: writes the declined list"
+assert_json_field "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" '[.[] | select(.uid == "dentist-1")] | length' 0 "success: agenda.json omits the declined event"
+assert_json_field "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" 'length' 3 "success: agenda.json keeps the other events"
+
+# --render keeps an existing list (its mtime is untouched) and writes a missing one.
+touch -d '2001-01-01' "$CALENDAR_STATE_DIR/declined"
+sync_run --render
+assert_eq "$(stat -c %Y "$CALENDAR_STATE_DIR/declined")" "$(date -d 2001-01-01 +%s)" "--render: an existing declined list is not rewritten"
+rm -f "$CALENDAR_STATE_DIR/declined"; sync_run --render
+assert_eq "$([[ -e $CALENDAR_STATE_DIR/declined ]] && echo yes || echo no)" yes "--render: a missing declined list is written"
+
+# A failing scan keeps the previous list, logs one line, and leaves the sync ok.
+mkdir -p "$TMP/badpy"; printf '#!/bin/sh\nexit 1\n' > "$TMP/badpy/python3"; chmod +x "$TMP/badpy/python3"
+err=$(PATH="$TMP/badpy:$PATH" sync_run 2>&1 >/dev/null)
+assert_eq "$(cat "$CALENDAR_STATE_DIR/declined")" "$(printf 'Home\tdentist-1\t*')" "failing scan: the previous list is kept"
+assert_contains "$err" "keeping the previous list" "failing scan: one line on stderr"
+assert_json_field "$(status)" '.state' ok "failing scan: the sync stays ok"
+
 # Units.
 svc=$(cat "$TEST_DIR/calendar-sync.service"); tmr=$(cat "$TEST_DIR/calendar-sync.timer")
 assert_contains "$svc" "ExecStart=/usr/bin/bash %h/.config/scripts/calendar/sync.sh" "service: runs sync.sh"
