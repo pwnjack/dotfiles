@@ -7,6 +7,9 @@
 #   cal.sh year <YYYY>                 {"counts":[12 numbers]}
 #   cal.sh calendars                   [{"name","color","writable"}]
 #   cal.sh add                         one stdin line {"calendar","ics"} -> {"ok":true}
+#   cal.sh inspect CALENDAR UID EPOCH  {"alert","recurring","invitation","allDay","hash"}
+#   cal.sh update                      one stdin line {"calendar","uid","occurrence","scope","hash","changes","moveTo"?}
+#   cal.sh delete                      one stdin line {"calendar","uid","occurrence","scope","hash"}
 # Errors print {"ok":false,"error":"..."} and exit 1.
 # shellcheck disable=SC2154  # cal_* paths come from lib.sh
 set -euo pipefail
@@ -114,11 +117,81 @@ add() {
         die "${err:-khal could not save the event}"
     fi
     rm -f "$tmp"
-    # Local first: the card and the bar see the event at once; iCloud gets it
-    # from a detached sync that outlives the card.
+    after_write
+}
+
+# calendar_dir <name> — the folder holding that calendar (vdirsyncer's displayname).
+calendar_dir() {
+    local dir
+    for dir in "$cal_data"/*/; do
+        [[ $(cat "$dir/displayname" 2>/dev/null || basename "$dir") == "$1" ]] && { printf '%s' "${dir%/}"; return 0; }
+    done
+    return 1
+}
+# find_event <calendar> <uid> — the file in that calendar whose UID line matches exactly.
+find_event() {
+    local dir file
+    dir=$(calendar_dir "$1") || return 1
+    while IFS= read -r -d '' file; do
+        if grep -qxF -e "UID:$2" -e "UID:$2"$'\r' "$file"; then printf '%s' "$file"; return 0; fi
+    done < <(find "$dir" -maxdepth 1 -name '*.ics' -print0)
+    return 1
+}
+# account_addresses — the account's own identities as a JSON array: writable.sh's
+# file, or the Apple ID as mailto: until that file exists.
+account_addresses() {
+    local list acct
+    list=$(grep -v '^[[:space:]]*$' "$cal_state/addresses" 2>/dev/null || true)
+    if [[ -z $list ]]; then
+        acct=$(cal_account)
+        [[ -z $acct ]] || list="mailto:${acct,,}"
+    fi
+    jq -Rc -s 'split("\n") | map(select(length > 0))' <<<"$list"
+}
+# after_write — the same local-first finish as an add.
+after_write() {
     bash "$cal_dir/sync.sh" --render >/dev/null 2>&1 || true
     [[ ${CALENDAR_NO_SYNC:-} ]] || setsid -f bash "$cal_dir/sync.sh" </dev/null >/dev/null 2>&1
     echo '{"ok":true}'
+}
+# helper <op> <file> [jq args...] — ics-edit.py with the file's text and the request fields.
+helper() {
+    local op=$1 file=$2; shift 2
+    jq -cn --rawfile raw "$file" --argjson addresses "$(account_addresses)" "$@" \
+        '{raw: $raw, addresses: $addresses} + ($req // {})' | python3 -I "$cal_dir/ics-edit.py" "$op"
+}
+
+inspect() {
+    local file
+    file=$(find_event "$1" "$2") || die "That event is no longer in $1"
+    helper inspect "$file" --argjson req "$(jq -cn --argjson o "${3:-0}" '{occurrence: $o}')"
+}
+
+edit() {   # edit update|delete — one JSON request line on stdin
+    local op=$1 line calendar uid file out new target dir tmp
+    IFS= read -r line || true
+    calendar=$(jq -r '.calendar // ""' <<<"$line" 2>/dev/null) || die 'Expected one JSON request'
+    uid=$(jq -r '.uid // ""' <<<"$line")
+    [[ $(calendars | jq -r --arg n "$calendar" '.[] | select(.name == $n) | .writable') == true ]] || die "$calendar is read-only"
+    file=$(find_event "$calendar" "$uid") || die "That event is no longer in $calendar"
+    [[ $(sha256sum < "$file" | cut -d' ' -f1) == "$(jq -r '.hash // ""' <<<"$line")" ]] \
+        || die 'This event changed on your iPhone; open it again'
+    out=$(helper "$op" "$file" --argjson req "$(jq -c '{occurrence, scope, changes}' <<<"$line")") || die "$(jq -r '.error // "The event could not be changed"' <<<"$out" 2>/dev/null)"
+    new=$(jq -r '.raw' <<<"$out")
+    if [[ -z $new ]]; then rm -f -- "$file"; after_write; return; fi
+    target=$(jq -r '.moveTo // ""' <<<"$line")
+    dir=$(dirname "$file")
+    if [[ -n $target && $target != "$calendar" ]]; then
+        [[ $(calendars | jq -r --arg n "$target" '.[] | select(.name == $n) | .writable') == true ]] || die "$target is read-only"
+        dir=$(calendar_dir "$target") || die "Unknown calendar: $target"
+        [[ ! -e $dir/$(basename "$file") ]] || die "$target already has this event"
+    fi
+    tmp=$(mktemp "$dir/.edit.XXXXXX")
+    printf '%s' "$new" > "$tmp"
+    # A rename gives the file a new inode, which is how vdirsyncer sees the change.
+    mv -f -- "$tmp" "$dir/$(basename "$file")"
+    [[ $dir == "$(dirname "$file")" ]] || rm -f -- "$file"
+    after_write
 }
 
 case ${1:-} in
@@ -137,5 +210,8 @@ case ${1:-} in
             | [range(1; 13) as $m | [$e[] | select((.start[5:7] | tonumber) == $m)] | length] | {counts: .}' <<<"$events" ;;
     calendars) calendars ;;
     add) add ;;
-    *) die 'Usage: cal.sh range|day|month|year|calendars|add' ;;
+    inspect) [[ $# == 4 ]] || die 'Usage: cal.sh inspect CALENDAR UID OCCURRENCE'; inspect "$2" "$3" "$4" ;;
+    update) edit update ;;
+    delete) edit delete ;;
+    *) die 'Usage: cal.sh range|day|month|year|calendars|add|inspect|update|delete' ;;
 esac
