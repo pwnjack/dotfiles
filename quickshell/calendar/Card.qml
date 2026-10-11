@@ -1,9 +1,10 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
+import "model.mjs" as Model
 
 // The card's frame: header (long date, sync status, Today, +) over the body
-// for the current state. Views are added in Tasks 10 and 11 into `body`.
+// for the current state. The reading views sit in `body`; the sheet (Task 11) replaces them.
 FocusScope {
     id: card
     required property var controller
@@ -36,6 +37,38 @@ FocusScope {
         onFinished: card.dismissed()
     }
     Keys.onEscapePressed: event => { card.c.act("esc"); event.accepted = true; }
+    // ↓ below the month grid's last row (the grid passes it on) unfolds Upcoming.
+    Keys.onDownPressed: event => {
+        if (card.c.state.open && !card.c.state.unfolded && !card.c.state.sheet && !card.c.state.day && !card.c.state.year) {
+            card.c.toggleUpcoming(); event.accepted = true;
+        }
+    }
+
+    // Hover previews: one tip shared by the month cells, Upcoming rows and timeline blocks.
+    property var peekEvents: []
+    property string peekHeading: ""
+    property var peekAnchor: null
+    property string peekPending: ""
+    function peekDay(item, key) {
+        const from = Model.dayStart(key), to = Model.dayStart(Model.addDays(key, 1));
+        const known = c.agenda.filter(e => e.startEpoch < to && e.endEpoch > from);
+        peekHeading = c.locale.toString(new Date(from * 1000), "dddd d MMMM");
+        peekAnchor = item;
+        peekEvents = known;
+        if (!known.length) { peekPending = key; c.loadPeek(key); }
+    }
+    Connections { target: card.c; function onPeekEventsChanged() {
+        if (card.peekPending && card.c.peekFor === card.peekPending) { card.peekEvents = card.c.peekEvents; card.peekPending = ""; } } }
+    function unpeek(item) { if (peekAnchor === item) { peekEvents = []; peekAnchor = null; peekPending = ""; } }
+    function showTip(item, events) { peekHeading = ""; peekAnchor = item; peekEvents = events; }
+    EventTip {
+        card: card
+        events: card.peekEvents
+        heading: card.peekHeading
+        readonly property point at: card.peekAnchor ? card.peekAnchor.mapToItem(card, 0, card.peekAnchor.height) : Qt.point(0, 0)
+        x: Math.max(0, Math.min(card.width - width, at.x))
+        y: at.y + card.px(4)
+    }
 
     Rectangle {
         id: frame
@@ -74,7 +107,29 @@ FocusScope {
                 HeaderButton { objectName: "plusButton"; label: "+"; card: card; square: true
                     enabled: card.c.status && card.c.status.state !== "none"; onClicked: card.c.newEvent(card.c.state.day || null) }
             }
-            Item { id: body; objectName: "body"; Layout.fillWidth: true; implicitHeight: childrenRect.height }
+            ColumnLayout {
+                id: body
+                objectName: "body"
+                visible: !card.c.state.sheet
+                Layout.fillWidth: true
+                spacing: card.px(10)
+                MonthGrid {
+                    id: month
+                    visible: !card.c.state.year
+                    Layout.fillWidth: true
+                    card: card
+                    selected: card.c.state.day || ""
+                    focus: !card.c.state.sheet
+                    onPicked: key => card.c.selectDay(key)
+                    onPrev: card.c.shiftMonth(-1)
+                    onNext: card.c.shiftMonth(1)
+                    onTitleClicked: card.c.showYear()
+                }
+                YearGrid { visible: card.c.state.year; Layout.fillWidth: true; card: card }
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: card.line }
+                Upcoming { visible: !card.c.state.day; Layout.fillWidth: true; card: card }
+                DayView { visible: !!card.c.state.day; Layout.fillWidth: true; card: card }
+            }
         }
     }
 }

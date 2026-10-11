@@ -34,6 +34,8 @@ ShellRoot {
     property var calendars: []
     property var dayEvents: []          // the selected day's (or the sheet's start day's) events
     property string dayFor: ""
+    property string peekFor: ""         // the day the newest hover peek asked for
+    property var peekEvents: []         // its events, once read
     property var busy: ({})             // "YYYY-MM" -> [day numbers]
     property var counts: ({})           // "YYYY" -> [12 counts]
     property var draft: null
@@ -115,6 +117,7 @@ ShellRoot {
         const key = text.slice(0, cut), body = text.slice(cut + 1);
         if (verb === "month") { const b = Object.assign({}, busy); b[key] = parseBusy(body); busy = b; }
         else if (verb === "year") { const c = Object.assign({}, counts); c[key] = parseCounts(body); counts = c; }
+        else if (verb === "peek") { if (key === peekFor) peekEvents = asArray(parseJson(body)); }   // only the newest hover's day is kept
         else if (key === state.day) { dayEvents = asArray(parseJson(body)); dayFor = key; }   // a day the card no longer shows is dropped
     }
     // The helpers print {"ok":false,"error":…} on failure: any other shape reads as empty.
@@ -126,6 +129,8 @@ ShellRoot {
     }
     function loadYear() { startReader(yearReader, String(viewYear)); }
     function loadDay(key) { if (key) startReader(dayReader, key); }
+    // A hover peek on a day past the agenda's window. Its own reader, so it never overwrites the selected day.
+    function loadPeek(key) { peekFor = key; startReader(peekReader, key); }
     function loadCalendars() { calendarReader.running = true; }
     function shiftMonth(delta) {
         const d = new Date(viewYear, viewMonth + delta, 1);
@@ -177,7 +182,7 @@ ShellRoot {
 
     // blockAllReads: text() waits for reload(), so a read after a change sees the new file.
     FileView { id: agendaFile; path: root.runtimeDir + "/agenda.json"; blockLoading: true; blockAllReads: true; printErrors: false; watchChanges: true
-        onFileChanged: { reload(); root.readAgenda(); root.loadMonth(); if (root.state.day) root.loadDay(root.state.day); } }
+        onFileChanged: { reload(); root.readAgenda(); root.loadMonth(); if (root.state.year) root.loadYear(); if (root.state.day) root.loadDay(root.state.day); } }
     FileView { id: statusFile; path: root.runtimeDir + "/status.json"; blockLoading: true; blockAllReads: true; printErrors: false; watchChanges: true
         onFileChanged: { reload(); root.readStatus(); } }
     FileView { id: draftFile; path: root.runtimeDir + "/draft.json"; blockLoading: true; printErrors: false; atomicWrites: true }
@@ -209,6 +214,13 @@ ShellRoot {
         property string queued: ""
         onRunningChanged: if (!running && queued) root.startReader(dayReader, queued)
         stdout: StdioCollector { onStreamFinished: root.readerDone(dayReader.verb, text) }
+    }
+    Process {
+        id: peekReader
+        property string verb: "day"     // cal.sh's verb; readerDone sees "peek"
+        property string queued: ""
+        onRunningChanged: if (!running && queued) root.startReader(peekReader, queued)
+        stdout: StdioCollector { onStreamFinished: root.readerDone("peek", text) }
     }
     Process {
         id: calendarReader

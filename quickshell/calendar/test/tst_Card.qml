@@ -38,7 +38,10 @@ Item {
         function goToday() {} function newEvent() { state = Model.openSheet(state); }
         function selectDay(k) { state = Object.assign({}, state, { day: k }); }
         function showYear() { state = Object.assign({}, state, { year: true }); }
-        function pickMonth(m) {} function shiftMonth(d) {} function shiftYear(d) {}
+        property int lastShift: 0; property int lastMonth: -1
+        property string peekFor: ""; property var peekEvents: []
+        function pickMonth(m) { lastMonth = m; } function shiftMonth(d) { lastShift = d; } function shiftYear(d) { lastShift = d; }
+        function loadPeek(key) { peekFor = key; }
         function toggleUpcoming() { state = Object.assign({}, state, { unfolded: !state.unfolded }); }
         function openSettings() {} function cancelSheet() {} function add() {}
     }
@@ -108,6 +111,106 @@ Item {
             card.forceActiveFocus();
             keyClick(Qt.Key_Escape);
             compare(controller.lastAction, "esc");
+        }
+        // The tests share one controller: each starts from the same clock, agenda and month data.
+        function cleanup() {
+            controller.now = 1000 + 180;
+            controller.agenda = []; controller.busy = ({}); controller.counts = ({});
+            controller.peekFor = ""; controller.peekEvents = [];
+            controller.state = Model.transition(Model.CLOSED, "clock");
+        }
+        function rowsNamed(item, name) {
+            let out = [];
+            for (const c of item.children) { if (c.objectName === name) out.push(c); out = out.concat(rowsNamed(c, name)); }
+            return out;
+        }
+        function hasText(item, text) {
+            for (const c of item.children) { if (c.text === text || hasText(c, text)) return true; }
+            return false;
+        }
+        function test_month_weekdays_start_on_monday_in_italian() {
+            compare(find("weekday0").text, Qt.locale("it_IT").dayName(1, Locale.ShortFormat));
+        }
+        function test_busy_dots() {
+            const key = controller.viewYear + "-" + String(controller.viewMonth + 1).padStart(2, "0");
+            const b = {}; b[key] = [13]; controller.busy = b;
+            verify(find("dot-" + key + "-13").visible);
+            verify(!find("dot-" + key + "-12").visible);
+        }
+        function test_wheel_and_month_name() {
+            const before = controller.lastAction;
+            mouseClick(find("monthName"));
+            verify(controller.state.year);
+            controller.state = Model.transition(Model.CLOSED, "clock");
+        }
+        function test_folded_line() {
+            const t = Math.floor(Date.now() / 1000);
+            controller.now = t;
+            controller.agenda = [{ title: "Dentist", calendar: "Home", color: "#ff9f0a", location: "", allDay: false,
+                startEpoch: t + 3600, endEpoch: t + 7200 }];
+            verify(find("foldedLine").text.indexOf("Dentist") >= 0);
+            mouseClick(find("foldedLine"));
+            verify(controller.state.unfolded);
+            controller.state = Model.transition(Model.CLOSED, "clock");
+        }
+        function test_set_up_row_without_account() {
+            controller.status = { state: "none", kind: "", message: "", lastSuccess: null, lastAttempt: 1 };
+            verify(find("setUpRow").visible);
+            controller.status = { state: "ok", kind: "", message: "", lastSuccess: 1000, lastAttempt: 1000 };
+        }
+        function test_day_view_new_event_button() {
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: "2026-10-13" });
+            controller.dayFor = "2026-10-13"; controller.dayEvents = [];
+            verify(find("newOnDay").text.indexOf(Qt.locale("it_IT").toString(new Date(2026, 9, 13), "ddd d")) >= 0);
+            mouseClick(find("newOnDayButton"));
+            verify(controller.state.sheet);
+            controller.state = Model.transition(Model.CLOSED, "clock");
+        }
+        function test_year_month_click_picks_that_month() {
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { year: true });
+            mouseClick(find("yearMonth3"));
+            compare(controller.lastMonth, 3);
+            controller.state = Model.transition(Model.CLOSED, "clock");
+        }
+        function test_unfolded_groups_are_headed_today_and_tomorrow() {
+            const t = Math.floor(Date.now() / 1000);
+            controller.now = t;
+            controller.agenda = [
+                { title: "Now", calendar: "Home", color: "", location: "", allDay: false, startEpoch: t + 60, endEpoch: t + 1800 },
+                { title: "Later", calendar: "Home", color: "", location: "", allDay: true, startEpoch: t + 86400, endEpoch: t + 172800 },
+            ];
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { unfolded: true });
+            waitForRendering(card);
+            verify(hasText(card, "Today"));
+            verify(hasText(card, "Tomorrow"));
+            verify(hasText(card, "all day"));
+            controller.agenda = [];
+            controller.state = Model.transition(Model.CLOSED, "clock");
+        }
+        function test_long_titles_stay_inside_the_card() {
+            const t = Math.floor(Date.now() / 1000);
+            controller.now = t;
+            controller.agenda = [{ title: "x".repeat(300), calendar: "Home", color: "", location: "", allDay: false,
+                startEpoch: t + 60, endEpoch: t + 1800 }];
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { unfolded: true });
+            waitForRendering(card);
+            const rows = rowsNamed(card, "eventRow");
+            verify(rows.length > 0);
+            for (const r of rows) {
+                const right = r.mapToItem(card, r.width, 0).x;
+                verify(right <= card.width, "a row reaches x=" + right + " on a " + card.width + " px card");
+            }
+            controller.agenda = [];
+            controller.state = Model.transition(Model.CLOSED, "clock");
+        }
+        function test_hover_peek_for_a_day_outside_the_agenda_asks_the_controller() {
+            card.peekDay(find("monthName"), "2026-12-01");
+            compare(controller.peekFor, "2026-12-01");
+            controller.peekEvents = [{ title: "Far", calendar: "Home", color: "", location: "", allDay: true,
+                startEpoch: 1, endEpoch: 2 }];
+            compare(card.peekEvents.length, 1);
+            card.unpeek(find("monthName"));
+            compare(card.peekEvents.length, 0);
         }
     }
 }
