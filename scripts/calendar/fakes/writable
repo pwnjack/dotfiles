@@ -1,0 +1,4 @@
+#!/bin/bash
+# Stands in for writable.sh: logs a line; exits 1 when $FAKE_WRITABLE_FAIL is set.
+printf '%s\n' "$*" >> "$FAKE_LOG/writable.argv"
+[[ -z ${FAKE_WRITABLE_FAIL:-} ]]

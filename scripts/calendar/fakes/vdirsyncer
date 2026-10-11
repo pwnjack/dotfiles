@@ -1,0 +1,4 @@
+#!/bin/bash
+# Logs argv; fails with $FAKE_VDIR_ERROR on stderr when it is set.
+printf '%s\n' "$*" >> "$FAKE_LOG/vdirsyncer.argv"
+if [[ ${FAKE_VDIR_ERROR:-} ]]; then printf '%s\n' "$FAKE_VDIR_ERROR" >&2; exit 1; fi
