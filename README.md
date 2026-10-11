@@ -1,8 +1,8 @@
-# Hyprland Dotfiles
+# Hyprland dotfiles
 
 A complete, ready-to-use Hyprland desktop for Arch Linux and CachyOS. Its
-colors follow your wallpaper: change the wallpaper and the bar, launcher,
-notifications, terminal and lock screen all re-theme themselves.
+colours follow your wallpaper: change the wallpaper and the bar, launcher,
+notifications, terminal, lock screen and apps all re-theme themselves.
 
 ![Arch](https://img.shields.io/badge/Arch_Linux-CachyOS-1793D1)
 ![Hyprland](https://img.shields.io/badge/Hyprland-0.55+-blue)
@@ -30,15 +30,21 @@ you have no login manager, type `start-hyprland` in the console.
 ## What's inside
 
 - **Colours that follow the wallpaper**: Hyprland, Hyprlock, Waybar, Rofi,
-  notifications, Ghostty, Neovim, btop, Discord (Vesktop), Zen Browser and
-  Spotify all re-theme when the wallpaper changes, open windows included
-  (Zen at its next launch).
-- **Settings panel** for displays, sound, network, bar layout, power, date and
-  region, startup apps and more, without editing config files.
+  notifications, Ghostty and its TUI apps (btop, cava, the Starship prompt),
+  Neovim, Thunar, Discord (Vesktop), Zen Browser and Spotify all re-theme when
+  the wallpaper changes, open windows included (Zen at its next launch). The
+  login screen follows too.
+- **Settings panel** for appearance, the bar, windows, animations,
+  notifications, network, devices, displays, sound, power, keyboard and mouse,
+  accessibility, date and region, startup apps and default apps, without
+  editing config files.
 - **Capture bar** for screenshots and screen recording, with annotation.
 - **Wallpaper carousel**, a searchable **keybindings overlay**, and an
   **update card** that runs system updates from the bar.
 - **Native workspace dots** on the bar, with smooth animation.
+- **Night light** on a schedule, an **AI sidebar** (aichat), **virtual 7.1
+  surround** for headphones, and a themed **Spotify** that SpotX keeps
+  ad-free (when it is installed with spotify-launcher).
 - **`./doctor.sh`** checks the live system against the config and tells you
   what is broken and how to fix it.
 
@@ -48,7 +54,7 @@ you have no login manager, type `start-hyprland` in the console.
 |---|---|
 | `Super + Enter` | Terminal |
 | `Super + Space` | App launcher |
-| `Super + Ctrl + W` | Pick a wallpaper — colors follow |
+| `Super + Ctrl + W` | Pick a wallpaper — colours follow |
 | `Super + I` | Settings |
 | `Super + H` | Every shortcut, searchable |
 
@@ -70,12 +76,12 @@ Each wallpaper re-themes the whole desktop: bar, borders, terminal and overlays.
 
 ## More
 
-- [Guide](docs/guide.md) — customization, troubleshooting, maintenance, and
+- [Guide](docs/guide.md) — customisation, troubleshooting, maintenance, and
   links to a deep dive for each component
 - [All keybindings](docs/keybindings.md)
 
 ## License
 
 Copyright © 2026 pwnjack. Licensed under the GNU General Public License,
-version 3 or (at your option) any later version; see [LICENSE](LICENSE).
+version 3 or any later version; see [LICENSE](LICENSE).
 Vendored third-party files keep their own notices.

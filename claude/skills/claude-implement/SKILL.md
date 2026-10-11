@@ -16,11 +16,11 @@ This launches an independent `claude` CLI process. It shares none of this
 conversation, this memory, or this task list, so the brief must be fully
 self-contained.
 
-Two guards are mandatory and both come from
-`~/.claude/skills/_shared/handoff.md`: split the pane with
-`--env CLAUDE_AGENT_DEPTH=1`, and start the agent with the
-`--append-system-prompt` leaf directive. Without them a Claude subagent reads
-the global routing policy and delegates in turn.
+Two guards are mandatory (see *Recursion guards* in
+`~/.claude/skills/_shared/handoff.md`): `CLAUDE_AGENT_DEPTH=1` on the pane and
+the `--append-system-prompt` leaf directive. `herdr-spawn.sh` applies both, so
+always launch through it and never hand-roll the split. Without them a Claude
+subagent reads the global routing policy and delegates in turn.
 
 Per the adversarial pairing rule, code a Claude pane writes is reviewed by
 **Codex** — not by another Claude.

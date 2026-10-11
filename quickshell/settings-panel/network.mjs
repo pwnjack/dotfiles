@@ -2,7 +2,7 @@
 // only file that touches libnm; everything decidable lives here and is tested
 // under Node.
 
-// Decided by the round-3 Task 1 probe (docs/settings-panel.md): "nm" lets the
+// Decided by the Proton VPN probe in docs/settings-panel.md: "nm" lets the
 // panel switch Proton's WireGuard profile like any VPN, "app" hands it to the
 // Proton app because switching behind its back desyncs it.
 export const PROTON_MODE = "app"

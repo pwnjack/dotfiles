@@ -1,7 +1,7 @@
 # Wallpaper carousel
 
-Implemented September 19, 2026 using Quickshell 0.3.1 and Qt 6.11.2. Matugen
-remains deferred; wallpapers still flow through Waypaper, awww, and pywal.
+Built September 19, 2026 with Quickshell 0.3.1 and Qt 6.11.2. Wallpapers flow
+through Waypaper, awww and pywal, exactly as they do without the carousel.
 
 ## Controls
 
@@ -91,14 +91,13 @@ These are single historical observations, not cross-machine guarantees. The
 modest warm-open improvement was not worth retaining hundreds of MiB while
 idle, so closing now exits the process and leaves no carousel RSS.
 
-The user confirmed that the physical Super+Ctrl+W shortcut opens the carousel
-and that the random-wallpaper shortcut retains its existing direct behavior.
-Synthetic `wtype` modifier injection did not trigger the global shortcut on
-this host, so that check relied on physical input instead.
+A physical Super+Ctrl+W keypress opens the carousel, and the random-wallpaper
+shortcut keeps its direct behaviour. Synthetic `wtype` modifier injection does
+not trigger the global shortcut, so that check needs a real keypress.
 
-Live checks established: current-image centering; keyboard navigation; search
+Live checks established: current-image centring; keyboard navigation; search
 with no results; Escape; unchanged saved configuration after cancellation; six
-concurrent toggles remaining serialized and ending with no process; Enter applying a
+concurrent toggles remaining serialised and ending with no process; Enter applying a
 different wallpaper; duplicate Enter ignored; awww,
 the saved login choice, and current-wallpaper state agreeing; and successful
 theme generation. The original wallpaper was restored afterward. The final
@@ -107,10 +106,11 @@ and desktop services. Hyprland reported `[""]` configuration errors (healthy).
 
 Offscreen tests exercise the actual QML view's mouse selection, wheel input over
 cards and background, horizontal/high-resolution wheels, keyboard/search/
-cancellation, empty results, and unreadable-preview behavior (10 checks pass).
-Shell fixtures cover argument boundaries (quotes, spaces, Unicode, `$()`,
-backticks and `#`), read-only browsing, runtime folder settings, backend/query/
-  save/theme failures, deleted files, duplicate submissions, and racing launches.
+cancellation, empty results, and unreadable-preview behaviour (eight test
+functions). Shell fixtures cover argument boundaries (quotes, spaces, Unicode,
+`$()`, backticks and `#`), read-only browsing, runtime folder settings,
+backend/query/save/theme failures, deleted files, duplicate submissions, and
+racing launches.
 
 ```bash
 bash scripts/hyprland/test-carousel.sh
@@ -124,12 +124,11 @@ scripts/docs/generate-keybindings.sh --check
 ./doctor.sh
 ```
 
-The 11 existing tracked suites passed. Run the two new suites explicitly until
-they are tracked; the repository runner intentionally discovers tracked files
-only. Qt's native linter succeeds with three Quickshell metadata warnings:
-`PanelWindow` marked uncreatable, and the two `Process.exited` handlers' missing
-`QProcess::ExitStatus` metadata. Live Quickshell loads them successfully. Use the
-Qt 6 tool path above; the unrelated `/usr/bin/qmllint` exits 255 on this host.
+`./test.sh` discovers both carousel suites with the rest. Qt's native linter succeeds with three Quickshell metadata warnings, all in
+`shell.qml`: `PanelWindow` marked uncreatable, `devicePixelRatio` not found on
+`QuickshellScreenInfo`, and the optional chaining on that same lookup reported
+as redundant. Live Quickshell loads them successfully. Use the
+Qt 6 tool path above; the unrelated `/usr/bin/qmllint` exits 255 on the author's machine.
 
 ## Limits
 

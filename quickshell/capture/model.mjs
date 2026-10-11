@@ -1,5 +1,4 @@
-// The capture strip's pure model (spec:
-// docs/superpowers/specs/2026-10-09-capture-bar-design.md). Everything the
+// The capture strip's pure model (docs/capture.md). Everything the
 // strip decides lives here: the option files behind its controls, which
 // controls each mode shows, the keyboard, the action button and the command
 // it runs. shell.qml and Strip.qml only draw it; test/model.mjs runs it under node.

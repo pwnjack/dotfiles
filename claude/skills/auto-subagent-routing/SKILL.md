@@ -10,8 +10,8 @@ Decides **who** does a piece of work and **who reviews it**.
 skill decides which to reach for. Mechanics live in
 `~/.claude/skills/_shared/handoff.md`.
 
-Unlike its predecessor, this skill applies **everywhere** — outside a Herdr
-session it selects the native `Agent` tool rather than switching itself off.
+This skill applies **everywhere**: outside a Herdr session it selects the
+native `Agent` tool rather than switching itself off.
 
 ## Invariants
 
@@ -28,8 +28,8 @@ Where a later section appears to conflict with one of these, the invariant wins.
 
 ## Step 1: Probe capability, once
 
-Two **independent** axes, not one ladder. They fail separately and any
-combination is legal.
+Two axes, not one ladder. They fail separately, but Codex runs only in a Herdr
+pane, so cross-family review needs both to pass.
 
 ```bash
 # Axis 1 — mechanism: can I actually drive a pane?
@@ -46,8 +46,8 @@ command -v codex >/dev/null 2>&1 && codex login status >/dev/null 2>&1
 
 | Axis 2 | Review pairing |
 |---|---|
-| pass | Cross-**family** — the full guarantee |
-| fail | **Degraded:** cross-**model** + fresh context |
+| pass (and axis 1 passes) | Cross-**family** — the full guarantee |
+| fail, or axis 1 fails | **Degraded:** cross-**model** + fresh context |
 
 Cache both for the session. Probe the `herdr` command, not just `$HERDR_ENV`:
 the variable can be set while the binary or session is gone, which would select

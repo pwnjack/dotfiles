@@ -15,7 +15,7 @@ ShellRoot {
     property bool authPending: false
     // Set when an authorised write timed out with its polkit dialog possibly still open.
     property bool authStalled: false
-    // Task 1: whether hyprpolkitagent's dialog can be seen and used over this Overlay surface.
+    // Probed (docs/settings-panel.md): hyprpolkitagent's dialog is hidden behind this Overlay surface.
     readonly property bool authHidesPanel: true
     property bool loading: true
     property bool loaded: false
@@ -348,7 +348,7 @@ ShellRoot {
         // matching search) is still up; otherwise a scan that outlives either would relight it.
         onExited: { if (root.opened && root.liveTags.includes("network")) scanSettle.restart(); }
     }
-    // A scan completes a few seconds later, and `nmcli monitor` may not report it (Task 1).
+    // A scan completes a few seconds later, and `nmcli monitor` may not report it (docs/settings-panel.md).
     Timer { id: scanSettle; interval: 5000; onTriggered: root.markLive("network") }
     Connections {
         target: Hyprland

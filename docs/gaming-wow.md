@@ -2,10 +2,12 @@
 
 ## Current working baseline (2026-09-12)
 
-Use **Battle.net from Rofi**, which runs
-`env LUTRIS_SKIP_INIT=1 lutris lutris:rungameid/3`. Keep Lutris as the primary
-launcher: the user reports better cursor behavior here than in Faugus. The
-previous Faugus migration was stopped; the desktop shortcut was never changed.
+Launch **Battle.net from Rofi**: the entry is Lutris's own desktop file
+(`~/.local/share/applications/net.lutris.battlenet-3.desktop`, machine-local),
+which runs `env LUTRIS_SKIP_INIT=1 lutris lutris:rungameid/3`. Lutris stays the
+primary launcher because its cursor behaviour is better than Faugus's here; a
+migration to Faugus was started and stopped, and the desktop entry was never
+changed.
 
 The current chain is Rofi -> Lutris -> Gamescope (SDL) -> UMU/Proton ->
 Battle.net -> WoW. Lutris's game configuration is machine-local:
@@ -23,13 +25,13 @@ gamescope_window_mode: -b
 ```
 
 Only the backend was changed from `wayland` to `sdl` during troubleshooting.
-The user confirmed resizing worked, initially reported unclickable controls,
-then reported the retry worked and asked to retain this setup. Disabling
-Gamescope was prepared but never applied. Existing Lutris environment and
+With it, resizing works and, after one retry with unclickable controls, the
+launcher's controls respond; this is the setup to keep. Disabling Gamescope was
+considered and never applied. Existing Lutris environment and
 runner overrides remain intact; there is no verified reason to copy the
 different Faugus overrides into this baseline.
 
-Battle.net now opens centered at **1920x1080** instead of 1280x720 on the
+Battle.net now opens centred at **1920x1080** instead of 1280x720 on the
 2560x1440 monitor. This is the outer window size; Gamescope's internal game
 resolution remains 2560x1440. WoW retains its fullscreen/workspace-5 rules.
 When a shared Gamescope window leaves fullscreen, returning to its previous
@@ -37,11 +39,11 @@ launcher-sized geometry is expected. This does not by itself indicate that
 the fullscreen game was rendering at that smaller resolution.
 
 Live verification after the size change: Battle.net opened floating and
-centered at 1920x1080; WoW subsequently appeared with initial title
+centred at 1920x1080; WoW subsequently appeared with initial title
 `World of Warcraft`, fullscreen at 2560x1440 on workspace 5. Hyprland reported
-no configuration errors. Keep testing through this one launch path: camera
-dragging, Super+workspace switching and repeated fullscreen/resize cycles still
-need user confirmation before treating gameplay as fully verified.
+no configuration errors. Camera dragging, Super+workspace switching and
+repeated fullscreen/resize cycles have not yet been confirmed through this
+launch path, so test them there before calling gameplay fully verified.
 
 Audio: to hear WoW's 7.1 mix positionally on headphones, route it to the
 virtual surround device once in `pavucontrol` (see `docs/virtual-surround.md`).
@@ -54,9 +56,9 @@ separate from these input/window tests.
 ## Historical Faugus recipe
 
 Hard-won launch tuning that this repo **cannot** track directly. `.gitignore`
-ignores `faugus-launcher/**`, and rightly so: Faugus rewrites `games.json` on
-every session (`playtime` alone churns), and the directory also holds absolute
-paths, banners, icons and the BattlEye/EAC blobs. So the recipe lives here as
+is a whitelist, so `faugus-launcher/` is ignored, and rightly so: Faugus
+rewrites `games.json` on every session (`playtime` alone churns), and the
+directory also holds absolute paths, banners, icons and the BattlEye/EAC blobs. So the recipe lives here as
 prose instead. A fresh `./install.sh` restores the Hyprland half automatically
 and needs this file to rebuild the rest by hand.
 
@@ -125,8 +127,8 @@ case-insensitively with literal dots. The Gamescope launcher title matches
 `Battle.net`; Hyprland uses full regex matches, so the old `^(Battle.net)`
 missed the login window. The WoW title also accepts Gamescope's optional
 ` (grabbed)` suffix. Both Battle.net rules also set the outer launcher size to
-1920x1080. The WoW rule effects remain unchanged. Rofi's existing Battle.net
-shortcut invokes Lutris with the SDL backend; see the current baseline.
+1920x1080. The WoW rule effects remain unchanged. The Rofi Battle.net entry
+starts Lutris, whose Gamescope uses the SDL backend; see the current baseline.
 
 Floating, size, workspace and fullscreen rules apply when a window opens.
 Restart Battle.net to test the corrected startup match. If Gamescope reuses
@@ -143,9 +145,9 @@ rule update.
 - **`workspace 5` + `fullscreen on`** — the game gets its own workspace, so
   `$Mod+1..4` still flips to a browser without disturbing it.
 - **`idle_inhibit fullscreen`** — added 2026-07-26. Nothing in the
-  wine/gamescope chain sends an idle inhibit, so `hypridle` would fire
-  `hyprlock` at its 305s timeout over a fullscreen game during a cutscene,
-  flight path or queue. The mode is `fullscreen`, not `always`, so switching to
+  wine/gamescope chain sends an idle inhibit, so `hypridle` would lock the
+  screen at its idle timeout (`hypr/hypridle.conf`) over a fullscreen game
+  during a cutscene, flight path or queue. The mode is `fullscreen`, not `always`, so switching to
   a browser workspace restores the normal lock timer immediately.
 
 The rule name is **`idle_inhibit`**, with an underscore. Hyprland 0.56 rejects
@@ -190,7 +192,7 @@ other.
 
 ## Measured and rejected
 
-Recorded so this ground isn't re-covered. All measured on this machine
+Recorded so this ground isn't re-covered. All measured on the author's machine
 (i7-9700K, RTX 3080 Ti, desktop, no battery) on 2026-07-26.
 
 **`gamemode` — not worth wiring up.** Running `gamemoderun sleep 8` and watching
@@ -217,7 +219,7 @@ thermals and fan noise, not battery life.
 waybar, force swaync DND and inhibit idle whenever a game was running. It
 dissolved on inspection:
 
-- Waybar is `"layer": "bottom"` (`waybar/config.jsonc:8`) with an exclusive
+- Waybar is `"layer": "bottom"` (`waybar/config.jsonc`) with an exclusive
   zone, so a fullscreen window already occludes it completely. Hiding it gains
   no screen space during play, and would remove the bar exactly during the
   workspace-switched moments when it's wanted.

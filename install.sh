@@ -95,7 +95,7 @@ PACKAGES=(
     # Launchers and menus
     "rofi" "rofi-emoji"
     # Terminals, shell, editors
-    "ghostty" "fish" "starship" "fzf" "fd" "neovim" "zed" "kwrite"
+    "ghostty" "fish" "starship" "fzf" "fd" "neovim" "zed" "kate"
     # File managers and system tools
     "thunar" "yazi" "btop" "bottom" "resources" "fastfetch" "cava"
     # checkupdates, for the waybar updates module

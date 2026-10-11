@@ -7,7 +7,7 @@ orchestrated worker; otherwise treat the session as direct and interactive.
 
 ## Search workflow (mgrep)
 
-Use `mgrep` for natural-language code exploration: locating behavior,
+Use `mgrep` for natural-language code exploration: locating behaviour,
 understanding responsibilities, and finding implementations when the symbol or
 file name is unknown. From the project root, start with a focused query:
 
@@ -68,12 +68,12 @@ checks after combining work. Never let multiple writing workers share one
 checkout or target branch.
 
 When a human is using Codex directly, git mutations require an explicit request
-from that human. A request to commit authorizes staging only the changes made
+from that human. A request to commit authorises staging only the changes made
 for the current task and creating that commit; inspect the working tree first
 and do not include unrelated changes. Do not ask for a second confirmation.
-A request to delegate writing work authorizes the orchestrator to create and
+A request to delegate writing work authorises the orchestrator to create and
 clean up task-specific worktrees and branches, have their workers commit, and
-integrate approved worker commits after review. It does not authorize pushing.
+integrate approved worker commits after review. It does not authorise pushing.
 Outside that delegated workflow, operations such as pushing, switching
 branches, rebasing, resetting, merging, or stashing each require their own
 explicit request.

@@ -289,7 +289,7 @@ assert_eq "$DOCTOR_WARNINGS" "8" "degraded-feature references counted as warning
 assert_eq "$DOCTOR_NOTICES" "0" "nothing here is a notice"
 
 # --- every fix hint is copy-pasteable ---------------------------------------
-# One assertion per hint: a quoting bug survived Task 2 review because only one
+# One assertion per hint: a quoting bug once survived review because only one
 # hint was ever asserted.
 assert_contains "$ref_out" "restore $ref_fixture/hypr/config/spaced\\ dir/gone.conf, or drop the source line from $ref_fixture/hypr/hyprland.conf" \
     "source hint shell-quotes a target containing a space"

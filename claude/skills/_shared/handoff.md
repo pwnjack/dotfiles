@@ -6,9 +6,11 @@ instead of restating it, so the contract has exactly one copy.
 
 ## Capability probe
 
-Two **independent** axes. They are not a single ladder: mechanism and reviewer
-availability fail separately, and any combination is legal. Probe both once per
-session and cache the answers. Never assume either.
+Two axes. They are not a single ladder: mechanism and reviewer availability
+fail separately. But Codex runs only in a Herdr pane (`herdr-spawn.sh codex`
+exits 3 without Herdr), so the cross-family pairing needs **both** to pass;
+with axis 1 failing, review takes the degraded pairing whatever axis 2 says.
+Probe both once per session and cache the answers. Never assume either.
 
 ```bash
 # Axis 1 — mechanism: can I actually drive a pane?
@@ -25,8 +27,8 @@ command -v codex >/dev/null 2>&1 && codex login status >/dev/null 2>&1
 
 | Axis 2 — Codex | Review pairing |
 |---|---|
-| pass | Cross-**family** — the full guarantee |
-| fail | **Degraded:** cross-**model** + fresh context (`opus` reviews Sonnet's work, `sonnet` reviews Opus's) |
+| pass (and axis 1 passes) | Cross-**family** — the full guarantee |
+| fail, or axis 1 fails | **Degraded:** cross-**model** + fresh context (`opus` reviews Sonnet's work, `sonnet` reviews Opus's) |
 
 `$HERDR_ENV` alone is not a mechanism probe — the variable can be set while the
 binary or the session is gone, which selects panes and then fails on the first
@@ -436,7 +438,7 @@ Its first output line is the verdict:
 
 | Verdict | Exit | Next move |
 |---|---|---|
-| `REPORT` | 0 | Report JSON is printed. Verify, then close the pane |
+| `REPORT` | 0 | The report's `status`, `summary`, `files_changed`, `blockers` and `concerns` are printed; read the file for `commands_run` and `tests_run`. Verify, then close the pane |
 | `BLOCKED` | 3 | Screen printed. Answer if unambiguous (then restart the waiter); surface permission grants and destructive actions to the user |
 | `NOREPORT` | 4 | Re-prompt once for the report only, restart the waiter; second miss → scrollback is the channel, say so |
 | `QUOTA` | 5 | Codex out of quota: axis 2 fails for the session. Close the pane, re-route per the degraded pairing |

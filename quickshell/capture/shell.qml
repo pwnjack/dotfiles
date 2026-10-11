@@ -6,7 +6,7 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import "model.mjs" as Model
 
-// The capture strip (spec: docs/superpowers/specs/2026-10-09-capture-bar-design.md).
+// The capture strip (docs/capture.md).
 // Started by scripts/hyprland/capture-bar.sh; the process exits on close. It
 // writes only options/capture-* (each change at once, so what is shown is
 // what is saved, even after Esc). screenshot.sh and record.sh do the

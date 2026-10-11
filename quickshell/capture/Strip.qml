@@ -3,10 +3,9 @@ import QtQuick
 import QtQuick.Controls
 import "model.mjs" as Model
 
-// The capture strip from mockup T2 (spec:
-// docs/superpowers/specs/2026-10-09-capture-bar-design.md): a segmented mode
-// pill centred above one row of controls. Every control shows its current
-// value; the controller (shell.qml) owns the state and the option files.
+// The capture strip (docs/capture.md): a segmented mode pill centred above
+// one row of controls. Every control shows its current value; the controller
+// (shell.qml) owns the state and the option files.
 // The option group is as wide as the wider mode and the action button as wide
 // as its widest label, so switching tabs or a running timer moves nothing.
 FocusScope {

@@ -130,8 +130,8 @@ for test_file in "$TEST_DIR"/test-*.sh; do
     FILES_TOTAL=$((FILES_TOTAL + 1))
 done
 
-# Mechanical guard for the subshell contract documented in lib.sh. Passes
-# trivially until Task 2 adds the first check module.
+# Mechanical guard for the subshell contract documented in lib.sh: no check
+# module may run a loop in a pipeline.
 echo "▸ contract"
 if grep -rnE '\|[[:space:]]*while[[:space:]]' "$DOCTOR_DIR"/checks/*.sh 2>/dev/null; then
     TESTS_FAILED=$((TESTS_FAILED + 1))

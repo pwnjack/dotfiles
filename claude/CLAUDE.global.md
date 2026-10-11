@@ -2,7 +2,7 @@
 
 ## Search workflow (mgrep)
 
-Use `mgrep` for natural-language code exploration: locating behavior,
+Use `mgrep` for natural-language code exploration: locating behaviour,
 understanding responsibilities, and finding implementations when the symbol or
 file name is unknown. From the project root, start with a focused query:
 
@@ -85,10 +85,10 @@ about it yourself is what produced triple reviews; the marker is what knows.
 
 A `PreToolUse` hook on the `Agent` tool
 (`~/.claude/hooks/auto-subagent-reminder.sh`) reinforces this at the moment of
-dispatch. It is advisory, not blocking, and **it does not fire on the Codex
-path** — `delegate-implement` and `delegate-review` drive a Herdr pane through
-Bash, not through `Agent` — so its silence is not permission to skip the routing
-decision.
+dispatch, inside a Herdr session only. It is advisory, not blocking, and **it
+does not fire on the Codex path** — `delegate-implement` and `delegate-review`
+drive a Herdr pane through Bash, not through `Agent` — so its silence is not
+permission to skip the routing decision.
 
 ## Verification
 

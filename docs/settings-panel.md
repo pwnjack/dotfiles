@@ -1,4 +1,4 @@
-# On-demand settings panel
+# Settings panel
 
 Super+I and Waybar's settings button open `quickshell/settings-panel/shell.qml`.
 The panel starts a fresh process, renders its frame, then reads all settings
@@ -9,24 +9,47 @@ clicking outside, or Super+I closes it.
 Once pending saves finish, the process exits. Failed saves keep the error visible
 by reopening the panel. Text fields apply with Return or their Apply button, which appears while the text differs from the saved value; sliders save on release.
 
-`catalog.json` is the only list of settings (114 rows on 15 pages on October 2,
-2026), with search, editable display cards and per-row resets. Pages sit in five
-sidebar groups, and rows sit in titled sections inside each page, one line each:
-label on the left, control on the right. Reload Hyprland, Restart bar and Update
-system live in the title bar's ⋯ menu; Restart bar and Update now also appear as
-buttons in the Bar and Default Apps sections they belong to. Things another surface already owns stay there: the
-keybind cheatsheet (Super+H), Do Not Disturb, output volume, mute and per-app
-volume (SwayNC),
-updates (Waybar), screenshot and recording options (the capture bar) and wallpapers (the carousel).
-The palette is read through `scripts/theming/palette.sh` on every launch. The
-wallpaper carousel remains a separate application with its existing lifecycle.
+`catalog.json` is the only list of settings: 114 rows on 16 pages (15 in the
+sidebar, plus About), with search, editable display cards and per-row resets.
+Pages sit in five sidebar groups, and rows sit in titled sections inside each
+page, one line each: label on the left, control on the right. Reload Hyprland,
+Restart bar and Update system… live in the title bar's ⋯ menu; Restart bar also
+appears as a button in the Bar page's Layout section, and Update now in Default
+Apps' Launcher & updates section. Things another surface already owns stay
+there: the keybind cheatsheet (Super+H), Do Not Disturb, output volume, mute and
+per-app volume (SwayNC), running updates (the update card; the panel only
+chooses whether the bar shows the module), screenshot and recording options
+(the capture bar) and picking wallpapers (the carousel; the panel only holds
+the random-wallpaper-at-login switch). The palette is read through
+`scripts/theming/palette.sh` on every launch.
+
+## Pages
+
+| Page | Group | Rows | Sections |
+| --- | --- | --- | --- |
+| Appearance | look | 18 | Style, Themes, Fonts, Cursor, Window style, Transparency & effects |
+| Bar | look | 13 | Layout, Clock & workspaces, Modules (see [Bar](#bar)) |
+| Windows | look | 10 | Tiling, Focus, Advanced |
+| Animations | look | 8 | General, Speed |
+| Notifications | look | 7 | Position, Timing, Size |
+| Network | connectivity | 1 | Its own view: Wi-Fi, Wired, VPN (see [Network](#network)) |
+| Devices | connectivity | — | Its own view: wireless peripherals (see [Devices](#devices)) |
+| Displays | hardware | 1 | One card per output, plus Options (see [Displays](#displays)) |
+| Sound | hardware | 6 | Output, Input |
+| Power | hardware | 9 | Power mode, Lock & sleep, Wake screen, Night Light |
+| Keyboard & Mouse | input | 15 | Keyboard, Mouse, Touchpad, Pointer |
+| Accessibility | input | 2 | Vision |
+| Date & Region | system | 5 | Date & time, Language & formats (see [Date & Region](#date--region)) |
+| Startup | system | 3 | At login, plus the autostart lists (see [Startup](#startup)) |
+| Default Apps | system | 16 | Applications, File types, Launcher & updates |
+| About this machine | system | — | Opened from the account card under the sidebar |
 
 ## Implementation
 
 - Layout is data. Each category has a `group` (`look`, `connectivity`,
-  `hardware`, `input` or `system`, in that sidebar order: the panel opens on
-  Appearance, so it opens at the top of the list; the categories array is the sidebar order, and a
-  gap opens where the group changes) and ordered `sections`
+  `hardware`, `input` or `system`, in that sidebar order; the categories array
+  is the sidebar order, a gap opens where the group changes, and the panel
+  opens on Appearance, the top entry) and ordered `sections`
   (`{id, title, footer?, actions?}`, where each action is `{label, action}` and
   the action is `reload`, `waybar` or `update`). Each row names its `section`.
   A slider may add `ends` (two end labels shown instead of the value) and
@@ -56,7 +79,7 @@ wallpaper carousel remains a separate application with its existing lifecycle.
 - `catalog.json` owns setting metadata, accepted ranges and dropdown choices.
   Each category's `icon` is a hex codepoint of a Material Design glyph in
   Symbols Nerd Font (`ttf-nerd-fonts-symbols`), drawn in the nav rail and beside
-  the page title. It is text, so it follows the selection and palette colors —
+  the page title. It is text, so it follows the selection and palette colours —
   the Papirus symbolic icons would not (see the night light notes). Look names
   up in the font's cmap (`md-<name>`) rather than retyping glyphs.
 - `SettingsView.qml` and `SettingControl.qml` build only visible category/search
@@ -125,8 +148,8 @@ wallpaper carousel remains a separate application with its existing lifecycle.
   `float`, `str`, `css`, `custom`); `set` only says whether the config assigns the
   option and is never a value. The Lua provider rejects legacy hyphenated
   names: use `input:touchpad:tap_to_click`, not `tap-to-click`.
-- AGS no longer starts at login or after wallpaper changes. Its retired source
-  and AGS/Astal packages are gone; GJS remains an explicit backend dependency.
+- `gjs` is an explicit dependency of the backend: `settings-panel.sh` refuses
+  to start without `qs`, `gjs` and `flock`.
 
 ## Displays
 
@@ -175,9 +198,10 @@ Verified on DP-1 (ROG PG279Q, 2560×1440) with Hyprland 0.56.2:
   `HYPRLAND_INSTANCE_SIGNATURE`, which the guard inherits when a request has
   none. `systemctl stop` of an unloaded unit says `Unit … not loaded.`
 
-## Round 3: verified behaviour
+## Probes behind the Network, Date & Region and Startup pages
 
-Probed 2026-09-28 on this machine (round-3 plan, Task 1).
+Probed 2026-09-28 and 2026-09-29 on the author's machine, before those pages
+were built.
 
 ### Baseline
 Full read (every row plus monitors), five runs: 275, 275, 278, 281, 288 ms. Median **278 ms**.
@@ -201,24 +225,24 @@ Waybar 0.15 expands `~` in `include` (`Found config file: /home/you/.local/state
 merges key by key: with `"format": "MAIN"` in the main file, the trace says
 `Option format is already set; ignoring value "PROBE ..."`, while the include's `interval`
 was taken. A main `clock` object without `format` therefore takes the include's format.
-Decision: **include at `~/.local/state/waybar/clock.jsonc`**. The screenshot check is deferred
-to plan Task 7 (the session was locked during the probe).
+Decision: **include at `~/.local/state/waybar/clock.jsonc`**. The on-screen check followed on
+2026-09-29 (see Measurements).
 
 ### Proton VPN
-Probed 2026-09-29 with the user present. `nmcli connection down "ProtonVPN IT#113"` deactivated
-the tunnel, and the Proton app then **deleted** both the WireGuard profile and the
-`pvpn-killswitch-ipv6` dummy, so there is nothing for `nmcli connection up` to bring back. Traffic
-kept flowing over the real IP (the kill switch is not in permanent mode). The app showed a clean
-"Disconnected", and reconnecting from the app created a new profile named after the new server
-("ProtonVPN IT#116"). Decision: **`PROTON_MODE = "app"`**: the panel shows the state and opens the
+Probed 2026-09-29. `nmcli connection down` on the Proton profile deactivated the tunnel, and
+the Proton app then **deleted** both the WireGuard profile and the `pvpn-killswitch-ipv6`
+dummy, so there is nothing for `nmcli connection up` to bring back. Traffic kept flowing over
+the real IP (the kill switch is not in permanent mode). The app showed a clean "Disconnected",
+and reconnecting from the app created a new profile named after the new server.
+Decision: **`PROTON_MODE = "app"`** (`network.mjs`): the panel shows the state and opens the
 Proton app, and never switches Proton's profile itself.
 
 ### Polkit dialog versus the overlay
-Probed 2026-09-29 with the user present: with a panel-shaped Overlay surface up (keyboard focus
-None), an interactive `SetTimezone` opened hyprpolkitagent's dialog (Waybar's title read
+Probed 2026-09-29: with a panel-shaped Overlay surface up (keyboard focus None), an
+interactive `SetTimezone` opened hyprpolkitagent's dialog (Waybar's title read
 "Authentication Required") but the dialog was completely hidden behind the overlay and could not
-be clicked. Decision: **`AUTH_HIDES_PANEL = true`**: the panel hides while a prompt is open.
-A dismissed dialog returns `org.freedesktop.DBus.Error.AccessDenied: Permission denied`, which
+be clicked. Decision: **`authHidesPanel: true`** (`shell.qml`): the panel hides while a prompt
+is open. A dismissed dialog returns `org.freedesktop.DBus.Error.AccessDenied: Permission denied`, which
 `authError.mjs` maps to "Authentication was cancelled; nothing changed." (checked: the time zone
 stayed Europe/Rome).
 
@@ -268,8 +292,7 @@ Traps:
   `LC_TIME` and its own `locale` option for `{:%a}`-style names; `{:L%a}` is what
   makes the Formats row reach the bar, the way `date` already makes it reach hyprlock.
 
-- **Polkit focus and visibility.** `AUTH_HIDES_PANEL = true` (`authHidesPanel` in
-  `shell.qml`): a panel-shaped Overlay hid hyprpolkitagent's dialog completely, so the
+- **Polkit focus and visibility.** `authHidesPanel` is true in `shell.qml`: a panel-shaped Overlay hid hyprpolkitagent's dialog completely, so the
   panel hides while `authPending` is set and comes back after the answer. A dismissed
   dialog returns `org.freedesktop.DBus.Error.AccessDenied: Permission denied`, shown as
   "Authentication was cancelled; nothing changed."
@@ -279,9 +302,6 @@ Traps:
   so the include's format wins; the include path is fixed (`~/.local/state/waybar/`).
 - **Formats use `SetLocale`** (system-wide, polkit): a per-user `locale.conf` is not
   effective because the systemd user manager already exports `LANG`/`LC_TIME`.
-- **Stale hyprlock is not a lock.** `pgrep -x hyprlock` alone is not a lock test: stale
-  instances (0 CPU time) linger for a day, and they also make
-  `lock.sh` (hypridle's `lock_cmd`) skip starting a lock. Check `ps -o time= -p PID` before any synthetic input.
 
 ## Startup
 
@@ -313,7 +333,8 @@ runs otherwise: hiding the page stops a read in flight and discards a late resul
 value in the accent colour, bold. An asleep device shows its last reading; a USB input device
 with no readable battery (a dongle or a wired keyboard) shows "Connected" and "No battery info".
 A USB headset's battery comes from `headsetcontrol` (optional; without it the headset has no
-battery row), and a headset switched off behind its dongle shows "Asleep". `settings-panel.sh devices` opens it.
+battery row), and a headset switched off behind its dongle shows "Asleep".
+`scripts/hyprland/settings-panel.sh devices` opens it.
 
 ## Bar
 
@@ -321,8 +342,8 @@ One select row per Waybar module that can come and go: CPU, Memory, GPU and Disk
 (Always · Only when high · Hidden), Network (During traffic · Always · Offline only) and
 Updates (When pending · Hidden). Each is a plain `options/bar-*` file; a missing or unknown
 value means the first choice, which is also the tracked default, so the bar looks the same
-until something is changed. "High" is the amber threshold: 70%, disk 80%. `settings-panel.sh
-bar` opens it.
+until something is changed. "High" is the amber threshold: 70%, disk 80%.
+`scripts/hyprland/settings-panel.sh bar` opens it.
 
 Below them, the bar's layout: Position (Top · Bottom), Style (Floating: today's inset,
 rounded, fully bordered bar · Docked: edge to edge, square, one border line facing the
@@ -417,7 +438,7 @@ by display SSID.
 
 ## Measurements
 
-Measured September 19, 2026 with Quickshell 0.3.1 / Qt 6.11.2 on this host,
+Measured September 19, 2026 with Quickshell 0.3.1 / Qt 6.11.2 on the author's machine,
 2560×1440 at scale 1. Original baseline before the session-snapshot refinement,
 six consecutive fresh process launches (OS caches warm):
 
@@ -427,21 +448,21 @@ six consecutive fresh process launches (OS caches warm):
 | Launcher timestamp to initial 14 values ready | 348–418 ms |
 | Open Quickshell process PSS, last three runs | 105–107 MiB |
 | Panel process after closing | Absent (verified via IPC and `/proc`) |
-| Previous resident AGS + GJS PSS snapshot | About 137 MiB |
+| The panel it replaced (a resident AGS + GJS process, since removed), PSS | About 137 MiB |
 
 A full backend read of every row (`panel-request.sh` with all ids) took about
 70 ms with 56 rows and about 280 ms with 89 on September 28, 2026; most of the
 increase is the nine File Types rows forking `xdg-mime`. The frame is drawn
-before values arrive, so this delays values, not the panel. With round 2's
-Sound rows and the richer display read it measured 286 ms median (279–292 ms,
+before values arrive, so this delays values, not the panel. With the Sound
+rows and the richer display read it measured 286 ms median (279–292 ms,
 five runs) against 282 ms before, inside the +10 ms budget. With the panel
 closed there is no `pactl subscribe`, no `settings-display-*` unit and no
 panel process. On the Sound page, audio playback on an awake sink plus three
 notifications caused no live read; each default-device change caused one.
-Follow-up: the nine File Types rows fork `xdg-mime` on every full read and are
-most of the open cost.
+The nine File types rows (Default Apps) fork `xdg-mime` on every full read and
+are most of the open cost.
 
-Task 6's full read on September 29, 2026 measured **302 ms cold** after 40
+A full read on September 29, 2026 measured **302 ms cold** after 40
 seconds idle. Five immediate warm runs were 291, 298, 296, 300 and 291 ms,
 for a **296 ms median**. Each run used:
 
@@ -450,23 +471,24 @@ req=$(jq -c '{op:"read",ids:[.rows[].id],monitors:true}' quickshell/settings-pan
 bash scripts/settings/panel-request.sh "$req"
 ```
 
-Round 3 (September 29, 2026), measured with `live-smoke.sh` and the loop above:
+After the Network, Date & Region and Startup pages were added (September 29, 2026), measured
+with `live-smoke.sh` and the loop above:
 
 | Measurement | Observed |
 | --- | --- |
-| Full read, five runs (median) | 292, 293, 299, 301, 307 ms (**299 ms**) against Task 1's 278 ms; two more sets 295 and 299 ms |
-| Full read at `ee1ab1d` (round 2 code, same session) | 296, 295, 292, 288, 296 and 301, 298, 288, 291, 293 ms (median about 294 ms), so round 3 adds about 5 ms; the +21 ms against Task 1 is machine drift, not code |
+| Full read, five runs (median) | 292, 293, 299, 301, 307 ms (**299 ms**) against the 278 ms probe baseline; two more sets 295 and 299 ms |
+| Full read at `ee1ab1d` (before those pages, same session) | 296, 295, 292, 288, 296 and 301, 298, 288, 291, 293 ms (median about 294 ms), so the three pages add about 5 ms; the +21 ms against the baseline is machine drift, not code |
 | Empty read (`ids: []`) median | 44 ms |
 | Network read median | 48 ms (+4, budget 30) |
 | Startup read median | 69 ms (+25, budget 40) |
 | `nmcli monitor` RSS on the Network page | 10.9 MB (about 10.7 MB in a second run), one process |
 | Off the Network page / closed | `nmcli monitor`: 0; `pgrep -af 'nmcli monitor\|settings-panel/shell.qml'`: no process |
 
-Live checks deferred earlier, done September 29, 2026 with screenshots: the Network
+Live checks, September 29, 2026, with screenshots: the Network
 page shows the Wi-Fi list, Wired and VPN with "Open Proton VPN"; the Waybar clock shows
 `12:08` in 24 h, `12:08 PM` after `region.clock=12h`, and `options/clock` was set back to
 `24h`; the Startup and Date & Region pages render (nothing was toggled or changed).
-Hyprlock's 12/24 h check ran with the user on 2026-09-29: with `options/clock` at 24h the lock screen showed 15:56, and at 12h the hour label showed 03 at 15:59. The option was set back to 24h afterwards.
+Hyprlock's 12/24 h check ran on 2026-09-29: with `options/clock` at 24h the lock screen showed 15:56, and at 12h the hour label showed 03 at 15:59. The option was set back to 24h afterwards.
 
 The timestamp starts after the launcher's lock, IPC probe and palette load, so
 these are not full keypress-to-display measurements. A frame swap is a render
@@ -499,8 +521,12 @@ writes, interaction locking, display staging, the pending banner, and every
 Apply/Keep/Revert ordering and failure path against a mocked systemd guard. The desktop smoke
 check reads every catalog setting without changing them, captures
 `/tmp/settings-panel-live.png`, measures opening, and verifies process exit.
-Qt's linter reports four Quickshell metadata warnings (PanelWindow
-creatability and three Process exit-status handlers); live loading succeeds. Multiple physical monitors and fractional scaling have not been tested.
+Qt's linter reports four warnings on 2026-10-11 (PanelWindow is not creatable
+outside Quickshell, an `actionsMenu` id shadowing a property, and two property
+lookups on types it has no metadata for); live loading succeeds.
+
+Only a single physical monitor at scale 1 has been tested; multiple monitors
+and fractional scaling have not.
 
 Logs and launch/request locks live in `~/.cache/settings-panel/`. Quickshell's
 own session logs can be read with:
