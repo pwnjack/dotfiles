@@ -181,4 +181,25 @@ assert.equal(M.keepsDraft(Object.assign({}, draft, { title: '   ' })), false)
 assert.equal(M.keepsDraft(Object.assign({}, draft, { title: 'Match', mode: 'edit' })), false)
 assert.equal(M.keepsDraft(null), false)
 
+// Editing
+const listed = { uid: 'calc-1', title: 'Calcetto', location: 'Campo', calendar: 'Home', color: '#ff9f0a',
+    startEpoch: at('2026-10-20T20:00'), endEpoch: at('2026-10-20T22:30'), allDay: false, recurring: true }
+const info = { alert: 'custom', recurring: true, invitation: false, readOnly: false, hash: 'h1' }
+const e1 = M.draftFromEvent(listed, info, defaults)
+assert.equal(e1.mode, 'edit')
+assert.equal(e1.occurrence, listed.startEpoch)
+assert.equal(e1.originalCalendar, 'Home')
+assert.equal(e1.alert, 'custom')
+assert.equal(M.alertLabel(e1), 'Custom (kept)')
+assert.deepEqual(M.alertItems(e1).map(x => x.id).slice(-1), ['custom'])
+assert.deepEqual(M.alertItems(M.newDraft(now, defaults)).map(x => x.id).includes('custom'), false)
+assert.deepEqual(M.scopeChoices(e1), ['one', 'all'])
+assert.deepEqual(M.scopeChoices(Object.assign({}, e1, { calendar: 'Work' })), ['all'])
+assert.deepEqual(M.scopeChoices(Object.assign({}, e1, { recurring: false })), [])
+assert.deepEqual(M.clashes(e1, [listed]), [])                                   // never with itself
+assert.deepEqual(M.clashes(e1, [Object.assign({}, listed, { uid: 'other' })]).length, 1)
+assert.deepEqual(Object.keys(M.changesOf(e1)).sort(), ['alert', 'allDay', 'end', 'endDay', 'location', 'start', 'startDay', 'title'])
+const allDayListed = Object.assign({}, listed, { allDay: true, startEpoch: at('2026-10-17T00:00'), endEpoch: at('2026-10-19T00:00') })
+assert.equal(M.draftFromEvent(allDayListed, info, defaults).endDay, '2026-10-18')       // inclusive last day
+
 console.log('model: ok')

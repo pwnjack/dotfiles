@@ -29,5 +29,6 @@ Rectangle {
             color: row.card.c.foreground; font.family: row.card.c.monoFont; font.pixelSize: row.card.px(13) }
     }
     MouseArea { id: hov; anchors.fill: parent; hoverEnabled: true
-        onContainsMouseChanged: containsMouse ? row.card.showTip(row, [row.event]) : row.card.unpeek(row) }
+        onContainsMouseChanged: containsMouse ? row.card.showTip(row, [row.event]) : row.card.unpeek(row)
+        onClicked: row.card.c.editEvent(row.event) }
 }

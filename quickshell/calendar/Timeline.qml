@@ -11,6 +11,8 @@ Item {
     property string day: ""
     property var events: []
     property var draft: null
+    // Off inside the sheet: a click on another event there would leave the edit half-made.
+    property bool editable: true
     signal gapClicked(int minutes)
     readonly property var timed: Model.lanes(events.filter(e => !e.allDay))
     readonly property var range: Model.timelineRange(events, draft, day)
@@ -85,7 +87,8 @@ Item {
                 }
                 MouseArea { id: bhov; anchors.fill: parent; hoverEnabled: true
                     onContainsMouseChanged: containsMouse ? tl.pointerTip(blk, bhov.mouseX) : tl.card.unpeek(blk)
-                    onPositionChanged: mouse => tl.pointerTip(blk, mouse.x) }
+                    onPositionChanged: mouse => tl.pointerTip(blk, mouse.x)
+                    onClicked: if (tl.editable) tl.card.c.editEvent(blk.modelData) }
             }
         }
         Repeater {   // clashes, hatched

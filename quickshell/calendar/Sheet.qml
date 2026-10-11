@@ -15,10 +15,14 @@ FocusScope {
     readonly property bool calendarOk: !!d && card.c.calendars.some(c => c.writable && c.name === d.calendar)
     // Add needs a title, a sensible span and a calendar to write to.
     readonly property bool ready: !!d && check.ok && calendarOk
+    // An event opened for editing; a read-only one (other calendar's, or an invitation) has no Done or Delete.
+    readonly property bool editing: !!d && d.mode === "edit"
+    readonly property bool readOnly: editing && d.readOnly
     readonly property var dayEvents: d && card.c.dayFor === d.startDay ? card.c.dayEvents : []
     readonly property var conflicts: d ? Model.clashes(d, dayEvents) : []
     readonly property var allDayOthers: dayEvents.filter(e => e.allDay)
     property string expanded: ""            // "", "startDate", "endDate", "startTime", "endTime", "calendar", "alert"
+    property string prompting: ""           // "", "save", "delete": the scope prompt over the sheet
     property int pickYear: 2026             // the month the open date picker shows
     property int pickMonth: 0
     property Item datePill: null        // the date pill whose picker is open; focus returns to it
@@ -33,7 +37,7 @@ FocusScope {
     onDChanged: syncFields()
     onVisibleChanged: {
         if (visible && d) { syncFields(); titleField.forceActiveFocus(); }
-        if (!visible) expanded = "";
+        if (!visible) { expanded = ""; prompting = ""; }
     }
     onExpandedChanged: {
         if (expanded === "startDate" || expanded === "endDate") {
@@ -46,7 +50,13 @@ FocusScope {
     }
 
     function set(next) { card.c.setDraft(next); }
-    function addIfReady() { if (ready) card.c.add(); }
+    // Done (edit) or Add (new). A repeating event asks which occurrences first; a one-off saves at once.
+    function done() {
+        if (readOnly || prompting !== "" || !ready) return;
+        if (!editing) { card.c.add(); return; }
+        if (Model.scopeChoices(d).length) { prompting = "save"; return; }
+        card.c.save("all");
+    }
     function fmtTime(s) { return Model.formatTime(Model.minutesOf(s), card.c.clock, card.c.locale.amText, card.c.locale.pmText); }
     function fmtDay(key) { return card.c.locale.toString(new Date(Model.dayStart(key) * 1000), "ddd d MMM yyyy"); }
     function stepTime(which, steps) {
@@ -79,13 +89,15 @@ FocusScope {
     }
 
     // Esc closes whatever is open in the sheet first; with nothing open the card's ladder takes it.
+    // An open scope prompt closes first, then an open pill, then the card's ladder takes it.
     Keys.onEscapePressed: event => {
-        if (expanded !== "") { expanded = ""; event.accepted = true; }
+        if (prompting !== "") { prompting = ""; event.accepted = true; }
+        else if (expanded !== "") { expanded = ""; event.accepted = true; }
         else event.accepted = false;
     }
-    // Return adds from anywhere in the sheet once valid. Pills and time fields take it first.
-    Keys.onReturnPressed: event => { addIfReady(); event.accepted = true; }
-    Keys.onEnterPressed: event => { addIfReady(); event.accepted = true; }
+    // Return saves from anywhere in the sheet once valid. Pills and time fields take it first.
+    Keys.onReturnPressed: event => { done(); event.accepted = true; }
+    Keys.onEnterPressed: event => { done(); event.accepted = true; }
 
     ColumnLayout {
         id: col
@@ -103,9 +115,10 @@ FocusScope {
                 MouseArea { anchors.fill: parent; anchors.margins: -6; onClicked: sheet.card.c.cancelSheet() }
             }
             Text {
+                objectName: "sheetTitle"
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
-                text: "New event"
+                text: sheet.readOnly ? "Event" : sheet.editing ? "Edit event" : "New event"
                 color: sheet.card.c.foreground
                 font.family: sheet.card.c.monoFont
                 font.pixelSize: sheet.card.px(15)
@@ -115,6 +128,7 @@ FocusScope {
                 id: addButton
                 objectName: "addButton"
                 enabled: sheet.ready
+                visible: !sheet.readOnly
                 width: addLabel.implicitWidth + sheet.card.px(26)
                 height: sheet.card.px(28)
                 radius: sheet.card.px(9)
@@ -122,15 +136,26 @@ FocusScope {
                 activeFocusOnTab: true
                 Text {
                     id: addLabel
+                    objectName: "addLabel"
                     anchors.centerIn: parent
-                    text: "Add"
+                    text: sheet.editing ? "Done" : "Add"
                     font.weight: Font.Bold
                     font.family: sheet.card.c.monoFont
                     font.pixelSize: sheet.card.px(13)
                     color: addButton.enabled ? sheet.card.c.accentInk : sheet.card.dim
                 }
-                MouseArea { anchors.fill: parent; enabled: addButton.enabled; onClicked: sheet.addIfReady() }
+                MouseArea { anchors.fill: parent; enabled: addButton.enabled; onClicked: sheet.done() }
             }
+        }
+        Text {
+            objectName: "readOnlyLine"
+            visible: sheet.readOnly
+            Layout.fillWidth: true
+            text: sheet.d && sheet.d.invitation ? "Invitation · reply or change it on your iPhone" : "Read-only calendar"
+            color: sheet.card.dim
+            wrapMode: Text.Wrap
+            font.family: sheet.card.c.monoFont
+            font.pixelSize: sheet.card.px(12.5)
         }
         Text {
             objectName: "addError"
@@ -149,6 +174,7 @@ FocusScope {
             implicitHeight: g1.implicitHeight
             radius: sheet.card.px(12)
             color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
+            enabled: !sheet.readOnly
             ColumnLayout {
                 id: g1
                 width: parent.width
@@ -159,10 +185,11 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.margins: sheet.card.px(4)
                     activeFocusOnTab: true
+                    enabled: !sheet.readOnly
                     placeholderText: "Title"
                     onTextChanged: if (sheet.d && text !== sheet.d.title) sheet.set(Object.assign({}, sheet.d, { title: text }))
-                    Keys.onReturnPressed: event => { sheet.addIfReady(); event.accepted = true; }
-                    Keys.onEnterPressed: event => { sheet.addIfReady(); event.accepted = true; }
+                    Keys.onReturnPressed: event => { sheet.done(); event.accepted = true; }
+                    Keys.onEnterPressed: event => { sheet.done(); event.accepted = true; }
                     color: sheet.card.c.foreground
                     placeholderTextColor: sheet.card.dim
                     font.family: sheet.card.c.monoFont
@@ -176,10 +203,11 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.margins: sheet.card.px(4)
                     activeFocusOnTab: true
+                    enabled: !sheet.readOnly
                     placeholderText: "Location"
                     onTextChanged: if (sheet.d && text !== sheet.d.location) sheet.set(Object.assign({}, sheet.d, { location: text }))
-                    Keys.onReturnPressed: event => { sheet.addIfReady(); event.accepted = true; }
-                    Keys.onEnterPressed: event => { sheet.addIfReady(); event.accepted = true; }
+                    Keys.onReturnPressed: event => { sheet.done(); event.accepted = true; }
+                    Keys.onEnterPressed: event => { sheet.done(); event.accepted = true; }
                     color: sheet.card.c.foreground
                     placeholderTextColor: sheet.card.dim
                     font.family: sheet.card.c.monoFont
@@ -195,6 +223,7 @@ FocusScope {
             implicitHeight: g2.implicitHeight + sheet.card.px(6)
             radius: sheet.card.px(12)
             color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
+            enabled: !sheet.readOnly
             ColumnLayout {
                 id: g2
                 width: parent.width
@@ -205,6 +234,7 @@ FocusScope {
                     Controls.Switch {
                         objectName: "allDaySwitch"
                         activeFocusOnTab: true
+                        enabled: !sheet.readOnly && !(sheet.d && sheet.d.recurring)
                         checked: !!sheet.d && sheet.d.allDay
                         onToggled: sheet.set(Model.setAllDay(sheet.d, checked))
                     }
@@ -216,6 +246,7 @@ FocusScope {
                         id: startDatePill
                         objectName: "startDate"
                         card: sheet.card
+                        enabled: !sheet.readOnly && !(sheet.d && sheet.d.recurring)
                         text: sheet.d ? sheet.fmtDay(sheet.d.startDay) : ""
                         active: sheet.expanded === "startDate"
                         onClicked: sheet.toggle("startDate")
@@ -224,6 +255,7 @@ FocusScope {
                         objectName: "startTime"
                         visible: !!sheet.d && !sheet.d.allDay && sheet.expanded !== "startTime"
                         card: sheet.card
+                        enabled: !sheet.readOnly
                         text: sheet.d ? sheet.fmtTime(sheet.d.start) : ""
                         onClicked: sheet.toggle("startTime")
                         onWheelStep: steps => sheet.stepTime("start", steps)
@@ -259,6 +291,7 @@ FocusScope {
                         id: endDatePill
                         objectName: "endDate"
                         card: sheet.card
+                        enabled: !sheet.readOnly && !(sheet.d && sheet.d.recurring)
                         text: sheet.d ? sheet.fmtDay(sheet.d.endDay) : ""
                         strikeout: sheet.check.endBeforeStart
                         active: sheet.expanded === "endDate"
@@ -268,6 +301,7 @@ FocusScope {
                         objectName: "endTime"
                         visible: !!sheet.d && !sheet.d.allDay && sheet.expanded !== "endTime"
                         card: sheet.card
+                        enabled: !sheet.readOnly
                         text: sheet.d ? sheet.fmtTime(sheet.d.end) : ""
                         strikeout: sheet.check.endBeforeStart
                         onClicked: sheet.toggle("endTime")
@@ -315,6 +349,7 @@ FocusScope {
                         day: sheet.d ? sheet.d.startDay : ""
                         events: sheet.dayEvents
                         draft: sheet.d
+                        editable: false      // a click here would leave an edit half-made
                         onGapClicked: minutes => sheet.set(Model.moveStart(sheet.d, Model.at(sheet.d.startDay, minutes)))
                     }
                     Repeater {
@@ -352,6 +387,7 @@ FocusScope {
             implicitHeight: g3.implicitHeight
             radius: sheet.card.px(12)
             color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
+            enabled: !sheet.readOnly
             ColumnLayout {
                 id: g3
                 width: parent.width
@@ -362,6 +398,7 @@ FocusScope {
                     Pill {
                         objectName: "calendarValue"
                         card: sheet.card
+                        enabled: !sheet.readOnly
                         text: sheet.d ? (sheet.calendarOk ? sheet.d.calendar + "  ›" : "No writable calendar") : ""
                         active: sheet.expanded === "calendar"
                         onClicked: sheet.toggle("calendar")
@@ -383,6 +420,7 @@ FocusScope {
                     Pill {
                         objectName: "alertPill"
                         card: sheet.card
+                        enabled: !sheet.readOnly
                         text: sheet.d ? Model.alertLabel(sheet.d) + "  ›" : ""
                         active: sheet.expanded === "alert"
                         onClicked: sheet.toggle("alert")
@@ -398,18 +436,47 @@ FocusScope {
                     Layout.rightMargin: sheet.card.px(8)
                     visible: sheet.expanded === "alert"
                     card: sheet.card
-                    items: (sheet.d && sheet.d.allDay ? Model.ALERTS_ALLDAY : Model.ALERTS_TIMED).map(a => ({ value: a.id, label: a.label }))
+                    items: Model.alertItems(sheet.d || {}).map(a => ({ value: a.id, label: a.label }))
                     current: sheet.d ? sheet.d.alert : ""
                     onChosen: value => { sheet.set(Object.assign({}, sheet.d, { alert: value })); sheet.expanded = ""; }
                 }
             }
         }
+        Rectangle {
+            objectName: "deleteButton"
+            visible: sheet.editing && !sheet.readOnly
+            Layout.fillWidth: true; implicitHeight: sheet.card.px(36); radius: sheet.card.px(12)
+            color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
+            Text { anchors.centerIn: parent; text: "Delete event"; color: "#e0787a"; font.weight: Font.DemiBold
+                font.family: sheet.card.c.monoFont; font.pixelSize: sheet.card.px(13) }
+            MouseArea { anchors.fill: parent; onClicked: sheet.prompting = "delete" }
+        }
         Text {
             Layout.alignment: Qt.AlignHCenter
-            text: "Return adds · Esc cancels"
+            text: sheet.editing ? "Return saves · Esc cancels" : "Return adds · Esc cancels"
             color: sheet.card.dim
             font.family: sheet.card.c.monoFont
             font.pixelSize: sheet.card.px(12)
         }
+    }
+
+    // Last child, so it covers the whole sheet while a repeating event asks its scope.
+    ScopePrompt {
+        objectName: "scopePrompt"
+        visible: sheet.prompting !== ""
+        card: sheet.card
+        question: sheet.prompting === "delete"
+            ? (sheet.d && sheet.d.recurring ? "Delete this repeating event?" : "Delete event?")
+            : "Save changes to this repeating event?"
+        choices: {
+            if (sheet.prompting === "delete")
+                return sheet.d && sheet.d.recurring
+                    ? [{ value: "one", label: "This event only", danger: true }, { value: "all", label: "All events", danger: true }]
+                    : [{ value: "all", label: "Delete", danger: true }];
+            return Model.scopeChoices(sheet.d || {}).map(v => ({ value: v, label: v === "one" ? "This event only" : "All events" }));
+        }
+        onChosen: value => { const what = sheet.prompting; sheet.prompting = "";
+            if (what === "delete") sheet.card.c.remove(value); else sheet.card.c.save(value); }
+        onCancelled: sheet.prompting = ""
     }
 }

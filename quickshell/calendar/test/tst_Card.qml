@@ -53,6 +53,17 @@ Item {
         }
         function loadPickerMonth(key) { pickerKey = key; }
         function cancelSheet() { cancels += 1; }
+        property string saved: ""; property string removed: ""
+        property var lastEdited: null
+        function save(scope) { saved = scope; }
+        function remove(scope) { removed = scope; }
+        // The shell's editEvent after cal.sh inspect: the same draft, with the fixture's flags.
+        function editEvent(e) {
+            lastEdited = e;
+            draft = Model.draftFromEvent(e, { alert: "custom", recurring: !!e.recurring, invitation: !!e.invitation,
+                readOnly: !!e.invitation, hash: "h" }, { duration: 60, alert: "15m", calendar: "Home" });
+            state = Model.openSheet(state);
+        }
     }
     Card { id: card; controller: controller; x: Math.round((host.width - width) / 2) }
     TestCase {
@@ -121,6 +132,158 @@ Item {
             keyClick(Qt.Key_Escape);
             compare(controller.lastAction, "esc");
         }
+        function listed(extra) {
+            return Object.assign({ uid: "calc-1", title: "Calcetto", location: "", calendar: "Home", color: "#ff9f0a",
+                startEpoch: Math.floor(new Date(2026, 9, 20, 20, 0).getTime() / 1000),
+                endEpoch: Math.floor(new Date(2026, 9, 20, 22, 30).getTime() / 1000), allDay: false, recurring: true }, extra || {});
+        }
+        // An edit opens with its layouts settled, as on screen, before a test clicks inside it.
+        function openEvent(e) { controller.editEvent(e); waitForRendering(card); }
+        function test_edit_repeating() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.saved = ""; controller.removed = "";
+            openEvent(listed());
+            compare(find("sheetTitle").text, "Edit event");
+            compare(find("addLabel").text, "Done");
+            compare(find("titleField").text, "Calcetto");
+            compare(find("addButton").visible, true);
+            compare(find("addButton").enabled, true);
+            verify(!find("startDate").enabled);
+            verify(!find("allDaySwitch").enabled);
+            compare(find("alertValue").text, "Custom (kept)");
+            mouseClick(find("addButton"));
+            waitForRendering(card);
+            verify(find("scopePrompt").visible);
+            verify(find("choice1").visible);
+            compare(find("promptQuestion").text, "Save changes to this repeating event?");
+            mouseClick(find("choice0"));
+            compare(controller.saved, "one");
+            verify(!find("scopePrompt").visible);
+        }
+        function test_edit_one_off_saves_at_once() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.saved = "";
+            openEvent(listed({ recurring: false }));
+            verify(find("startDate").enabled);
+            mouseClick(find("addButton"));
+            verify(!find("scopePrompt").visible);
+            compare(controller.saved, "all");
+        }
+        function test_calendar_change_offers_all_only() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.calendars = [{ name: "Home", color: "#ff9f0a", writable: true },
+                { name: "Work", color: "#3366ff", writable: true }];
+            controller.saved = "";
+            openEvent(listed());
+            controller.draft = Object.assign({}, controller.draft, { calendar: "Work" });
+            mouseClick(find("addButton"));
+            waitForRendering(card);
+            waitForRendering(card);
+            verify(find("scopePrompt").visible);
+            compare(find("promptQuestion").text, "Save changes to this repeating event?");
+            verify(find("choice0").visible);
+            compare(findChild(find("scopePrompt"), "choice1"), null);
+            mouseClick(find("choice0"));
+            compare(controller.saved, "all");
+        }
+        function test_escape_closes_the_prompt_first() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.saved = "";
+            openEvent(listed());
+            mouseClick(find("addButton"));
+            waitForRendering(card);
+            verify(find("scopePrompt").visible);
+            keyClick(Qt.Key_Escape);
+            verify(!find("scopePrompt").visible);
+            compare(controller.saved, "");
+            compare(controller.state.sheet, true);
+        }
+        function test_delete_one_off() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.removed = "";
+            openEvent(listed({ recurring: false }));
+            mouseClick(find("deleteButton"));
+            waitForRendering(card);
+            compare(find("promptQuestion").text, "Delete event?");
+            mouseClick(find("choice0"));
+            compare(controller.removed, "all");
+        }
+        function test_delete_repeating_asks_which_events() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.removed = "";
+            openEvent(listed());
+            mouseClick(find("deleteButton"));
+            waitForRendering(card);
+            compare(find("promptQuestion").text, "Delete this repeating event?");
+            mouseClick(find("choice1"));
+            compare(controller.removed, "all");
+        }
+        function test_invitation_is_read_only() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            openEvent(listed({ invitation: true, recurring: false }));
+            compare(find("readOnlyLine").text, "Invitation · reply or change it on your iPhone");
+            verify(find("readOnlyLine").visible);
+            verify(!find("deleteButton").visible);
+            verify(!find("addButton").visible);
+            verify(!find("titleField").enabled);
+            verify(!find("startTime").enabled);
+        }
+        function test_read_only_calendar_says_so() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            openEvent(listed({ calendar: "Holidays", recurring: false }));
+            controller.draft = Object.assign({}, controller.draft, { readOnly: true, invitation: false });
+            compare(find("readOnlyLine").text, "Read-only calendar");
+            verify(!find("locationField").enabled);
+        }
+        function test_no_self_clash() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            openEvent(listed());
+            controller.dayFor = "2026-10-20"; controller.dayEvents = [listed()];
+            compare(find("overlap0"), null);
+        }
+        function test_clash_with_another_event_is_shown() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            openEvent(listed({ recurring: false }));
+            controller.dayFor = "2026-10-20";
+            controller.dayEvents = [listed({ uid: "other", title: "Dentist", recurring: false })];
+            waitForRendering(card);
+            verify(find("overlap0").visible);
+            verify(find("overlap0").text.indexOf("Dentist") > 0);
+        }
+        function test_timeline_block_click_opens_the_event() {
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: "2026-10-20" });
+            controller.dayFor = "2026-10-20"; controller.dayEvents = [listed({ recurring: false })];
+            waitForRendering(card);
+            controller.lastEdited = null;
+            const blocks = rowsNamed(find("timeline"), "timeBlock");
+            verify(blocks.length > 0);
+            mouseClick(blocks[0]);
+            compare(controller.lastEdited.title, "Calcetto");
+        }
+        function test_event_row_click_opens_the_event() {
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: "2026-10-20" });
+            controller.dayFor = "2026-10-20"; controller.dayEvents = [listed({ recurring: false })];
+            waitForRendering(card);
+            controller.lastEdited = null;
+            const rows = rowsNamed(card, "eventRow");
+            verify(rows.length > 0);
+            mouseClick(rows[0]);
+            compare(controller.lastEdited.title, "Calcetto");
+        }
+        function test_sheet_timeline_does_not_open_another_event() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            openEvent(listed({ recurring: false }));
+            controller.dayFor = "2026-10-20";
+            controller.dayEvents = [listed({ uid: "other", title: "Dentist", startEpoch: Math.floor(new Date(2026, 9, 20, 9, 0).getTime() / 1000),
+                endEpoch: Math.floor(new Date(2026, 9, 20, 10, 0).getTime() / 1000), recurring: false })];
+            waitForRendering(card);
+            controller.lastEdited = null;
+            const blocks = rowsNamed(find("sheetTimeline"), "timeBlock");
+            verify(blocks.length > 0);
+            mouseClick(blocks[0]);
+            compare(controller.lastEdited, null);
+        }
+
         // The tests share one controller: each starts from the same clock, agenda and month data.
         function cleanup() {
             controller.now = 1000 + 180;
@@ -130,6 +293,7 @@ Item {
             controller.status = { state: "ok", kind: "", message: "", lastSuccess: 1000, lastAttempt: 1000 };
             controller.state = Model.transition(Model.CLOSED, "clock");
             controller.draft = null; controller.adds = 0; controller.cancels = 0; controller.pickerKey = "";
+            controller.saved = ""; controller.removed = ""; controller.lastEdited = null;
             controller.calendars = [{ name: "Home", color: "#ff9f0a", writable: true }];
             card.peekEvents = []; card.peekAnchor = null; card.peekPending = "";
         }

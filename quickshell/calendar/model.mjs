@@ -75,6 +75,7 @@ export const ALERTS_ALLDAY = [
     { id: 'week', label: '1 week before (09:00)', trigger: '-P6DT15H' },
 ]
 export function alertLabel(draft) {
+    if (draft.alert === 'custom') return 'Custom (kept)'
     const list = draft.allDay ? ALERTS_ALLDAY : ALERTS_TIMED
     const found = list.find(x => x.id === draft.alert)
     return found ? found.label : 'None'
@@ -253,8 +254,36 @@ export function lanes(events) {
 }
 export function clashes(draft, events) {
     if (!draft || draft.allDay) return []
-    return events.filter(e => !e.allDay && e.startEpoch < draft.end && e.endEpoch > draft.start)
+    const self = e => draft.uid && e.uid === draft.uid && e.startEpoch === draft.occurrence
+    return events.filter(e => !e.allDay && !self(e) && e.startEpoch < draft.end && e.endEpoch > draft.start)
 }
+// ── Editing. A draft built from a listed event and what `cal.sh inspect` found.
+export function draftFromEvent(e, info, defaults) {
+    return {
+        title: e.title, location: e.location || '', allDay: !!e.allDay,
+        start: e.startEpoch, end: e.endEpoch,
+        startDay: dayKey(e.startEpoch), endDay: e.allDay ? dayKey(e.endEpoch - 1) : dayKey(e.endEpoch),
+        calendar: e.calendar, alert: info.alert, timedAlert: e.allDay ? (defaults.alert || '15m') : info.alert,
+        mode: 'edit', uid: e.uid, occurrence: e.startEpoch, recurring: !!info.recurring,
+        readOnly: !!info.readOnly, invitation: !!info.invitation, originalCalendar: e.calendar,
+        hash: info.hash, hadCustom: info.alert === 'custom',
+    }
+}
+export function changesOf(d) {
+    return { title: d.title.trim(), location: String(d.location).trim(), allDay: d.allDay, start: d.start, end: d.end,
+        startDay: d.startDay, endDay: d.endDay, alert: d.alert }
+}
+// The scopes a save offers: none for a one-off; a calendar change moves the whole series.
+export function scopeChoices(d) {
+    if (!d.recurring) return []
+    return d.calendar !== d.originalCalendar ? ['all'] : ['one', 'all']
+}
+export function alertItems(d) {
+    const list = (d.allDay ? ALERTS_ALLDAY : ALERTS_TIMED).slice()
+    if (d.hadCustom) list.push({ id: 'custom', label: 'Custom (kept)' })
+    return list
+}
+
 // segment(event, key, range) -> {left, width} as fractions of the strip, and cut
 // when it runs past the strip's end.
 export function segment(e, key, range) {

@@ -98,6 +98,34 @@ ShellRoot {
         state = Model.openSheet(state);
         startSheet(dayKey, minutes);
     }
+    // A click on a listed event: read it with cal.sh inspect, then open it for editing.
+    function editEvent(e) {
+        if (!e || !e.uid || inspector.running) return;
+        keepDraft();                                        // a new-event draft typed so far is kept
+        inspector.event = e;
+        inspector.command = [calSh, "inspect", e.calendar, e.uid, String(e.startEpoch)];
+        inspector.running = true;
+    }
+    function save(scope) {
+        if (!draft || draft.mode !== "edit") { add(); return; }
+        if (!Model.validate(draft).ok || updater.running) return;
+        addError = "";
+        updater.request = JSON.stringify({ calendar: draft.originalCalendar, uid: draft.uid, occurrence: draft.occurrence,
+            scope: scope || "all", hash: draft.hash, moveTo: draft.calendar !== draft.originalCalendar ? draft.calendar : "",
+            changes: Model.changesOf(draft) });
+        updater.title = draft.title.trim();
+        updater.command = [calSh, "update"];
+        updater.running = true;
+    }
+    function remove(scope) {
+        if (!draft || draft.mode !== "edit" || updater.running) return;
+        addError = "";
+        updater.request = JSON.stringify({ calendar: draft.originalCalendar, uid: draft.uid, occurrence: draft.occurrence,
+            scope: scope || "all", hash: draft.hash });
+        updater.title = "";
+        updater.command = [calSh, "delete"];
+        updater.running = true;
+    }
     function defaults() {
         const writable = calendars.filter(c => c.writable);
         const wanted = optionDefault.text().trim();
@@ -157,7 +185,12 @@ ShellRoot {
     function showYear() { state = Object.assign({}, state, { year: true }); loadYear(); }
     function pickMonth(m) { viewMonth = m; state = Object.assign({}, state, { year: false }); loadMonth(); }
     function toggleUpcoming() { state = Object.assign({}, state, { unfolded: !state.unfolded }); }
-    function cancelSheet() { draftFile.setText(""); draft = null; act("esc"); }
+    // Cancel drops a new event's draft; an edit never touches draft.json.
+    function cancelSheet() {
+        if (!draft || draft.mode !== "edit") draftFile.setText("");
+        draft = null;
+        act("esc");
+    }
     function add() {
         const writable = draft && calendars.some(c => c.writable && c.name === draft.calendar);
         if (!draft || !Model.validate(draft).ok || !writable || adder.running) return;
@@ -268,6 +301,42 @@ ShellRoot {
                 root.act("esc");
             } else root.addError = r.error || "The event could not be saved.";
         } }
+    }
+
+    Process {
+        id: inspector
+        property var event: null
+        stdout: StdioCollector { onStreamFinished: {
+            let info = null;
+            try { info = JSON.parse(text); } catch (e) { info = null; }
+            if (!info || info.ok === false) { root.addError = info && info.error ? info.error : "The event could not be read."; return; }
+            const e = inspector.event;
+            const writable = root.calendars.some(c => c.name === e.calendar && c.writable);
+            info.readOnly = !writable || info.invitation;
+            root.draft = Model.draftFromEvent(e, info, root.defaults());
+            root.addError = "";
+            root.state = Model.openSheet(root.state);
+            root.loadDay(root.draft.startDay);
+        } }
+    }
+    // cal.sh update|delete: one JSON line on stdin, as adder does.
+    Process {
+        id: updater
+        property string request: ""
+        property string title: ""
+        stdinEnabled: true
+        onStarted: { write(request + "\n"); stdinEnabled = false; }
+        stdout: StdioCollector { onStreamFinished: {
+            let r = null;
+            try { r = JSON.parse(text); } catch (e) { r = { ok: false, error: "The calendar helper did not answer." }; }
+            if (r.ok) {
+                root.draft = null;
+                root.highlight = updater.title;
+                if (updater.title) unhighlight.restart();
+                root.act("esc");
+            } else root.addError = r.error || "The change could not be saved.";
+        } }
+        onExited: stdinEnabled = true
     }
 
     IpcHandler {
