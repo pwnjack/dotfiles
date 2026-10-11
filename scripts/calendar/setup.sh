@@ -20,6 +20,9 @@ forget() {
     secret-tool clear service calendar-icloud field username 2>/dev/null || true
     secret-tool clear service calendar-icloud field password 2>/dev/null || true
 }
+# keyring_empty — true when neither field is left; clear exits 1 when nothing
+# matched, so forget cannot tell a removal from a failure on its own.
+keyring_empty() { [[ -z $(cal_secret username) && -z $(cal_secret password) ]]; }
 enable_timer() {
     local unit
     for unit in "${units[@]}"; do systemctl --user link "$cal_dir/$unit" >/dev/null; done
@@ -43,8 +46,11 @@ case ${1:-} in
             read -r -s -p 'App-specific password: ' pw; echo
         fi
         [[ -n ${id:-} && -n ${pw:-} ]] || { echo 'Both the Apple ID and the app-specific password are needed.' >&2; exit 1; }
-        store username "$id"
-        store password "$pw"
+        if ! store username "$id" || ! store password "$pw"; then
+            forget
+            echo 'Could not store the account in the keyring' >&2
+            exit 1
+        fi
         unset pw
         # discover asks before creating each local folder; the answer is always yes.
         if ! out=$(vdirsyncer discover icloud < <(yes 2>/dev/null) 2>&1); then
@@ -67,6 +73,12 @@ case ${1:-} in
         rm -rf -- "$cal_data" "$cal_state" "${CALENDAR_VDIR_STATUS:-${XDG_STATE_HOME:-$HOME/.local/state}/vdirsyncer/status}"
         rm -f -- "$cal_runtime/agenda.json" "$cal_runtime/status.json"
         pkill -RTMIN+12 waybar 2>/dev/null || true
+        # Cleanup runs first, so a keyring that refuses the clear still leaves
+        # no local copy behind; the failure is reported last.
+        if ! keyring_empty; then
+            echo 'Could not remove the account from the keyring' >&2
+            exit 1
+        fi
         ;;
     *) echo 'Usage: setup.sh [--sign-in [--stdin] | --sign-out]' >&2; exit 2 ;;
 esac

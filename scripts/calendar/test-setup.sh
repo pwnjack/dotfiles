@@ -28,6 +28,11 @@ assert_contains "$out" "Sign-in rejected" "sign-in rejected: says so"
 assert_eq "$([[ -e $FAKE_KEYRING/password ]] && echo yes || echo no)" no "sign-in rejected: password cleared"
 assert_eq "$([[ -e $FAKE_KEYRING/username ]] && echo yes || echo no)" no "sign-in rejected: username cleared"
 
+out=$(printf 'me@example.com\n%s\n' "$secret" | FAKE_SECRET_FAIL_FIELD=password setup --sign-in --stdin 2>&1); code=$?
+assert_eq "$code" 1 "keyring rejects the password: exit 1"
+assert_contains "$out" "Could not store the account in the keyring" "keyring rejects the password: says so"
+assert_eq "$([[ -e $FAKE_KEYRING/username || -e $FAKE_KEYRING/password ]] && echo yes || echo no)" no "keyring rejects the password: nothing left behind"
+
 out=$(printf 'me@example.com\n%s\n' "$secret" | setup --sign-in --stdin 2>&1); code=$?
 assert_eq "$code" 0 "sign-in: exit 0"
 assert_eq "$(cat "$FAKE_KEYRING/username")" "me@example.com" "sign-in: username stored"
@@ -49,10 +54,18 @@ assert_eq "$(cat "$CALENDAR_STATE_DIR/addresses")" "/old" "writable: failure lea
 assert_eq "$(cat "$CALENDAR_STATE_DIR/readonly")" "Family" "writable: failure leaves readonly unchanged"
 assert_eq "$(find "$CALENDAR_STATE_DIR" -name '*.*' | wc -l)" 0 "writable: failure leaves no temp files"
 
+before=$(wc -l < "$FAKE_LOG/systemctl.argv")
 setup >/dev/null 2>&1
-assert_contains "$(tail -n1 "$FAKE_LOG/systemctl.argv")" "enable --now calendar-sync.timer" "install path with an account: enables the timer"
+new=$(tail -n +"$((before + 1))" "$FAKE_LOG/systemctl.argv")
+assert_contains "$new" "--user link" "install path with an account: links the units"
+assert_contains "$new" "enable --now calendar-sync.timer" "install path with an account: enables the timer"
 
 mkdir -p "$CALENDAR_DATA/x" "$CALENDAR_RUNTIME_DIR"; echo '[]' > "$CALENDAR_RUNTIME_DIR/agenda.json"
+out=$(FAKE_SECRET_CLEAR_NOOP=1 setup --sign-out 2>&1); code=$?
+assert_eq "$code" 1 "sign-out, keyring keeps the account: exit 1"
+assert_contains "$out" "Could not remove the account from the keyring" "sign-out, keyring keeps the account: says so"
+assert_eq "$([[ -e $CALENDAR_DATA ]] && echo yes || echo no)" no "sign-out, keyring keeps the account: local copy still removed"
+
 setup --sign-out; code=$?
 assert_eq "$code" 0 "sign-out: exit 0"
 assert_eq "$(find "$FAKE_KEYRING" -type f | wc -l)" 0 "sign-out: keyring cleared"
