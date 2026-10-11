@@ -113,7 +113,9 @@ export function setAllDay(d, on) {
     if (on === d.allDay) return d
     if (on) return Object.assign({}, d, { allDay: true, startDay: dayKey(d.start), endDay: dayKey(d.start),
         timedAlert: d.alert, alert: defaultAllDayAlert(d.alert) })
-    return Object.assign({}, d, { allDay: false, alert: d.timedAlert || '15m' })
+    const start = at(d.startDay, minutesOf(d.start)), end = start + (d.end - d.start)
+    return Object.assign({}, d, { allDay: false, alert: d.timedAlert || '15m', start: start, end: end,
+        startDay: dayKey(start), endDay: dayKey(end) })
 }
 export function validate(d) {
     const endBeforeStart = d.allDay ? d.endDay < d.startDay : d.end <= d.start
@@ -122,7 +124,7 @@ export function validate(d) {
 
 // RFC 5545 text.
 export function escapeText(s) {
-    return String(s).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
+    return String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
 }
 const utf8Length = ch => { const c = ch.codePointAt(0); return c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4 }
 // Folds at 75 octets, continuation lines start with one space; never splits a character.
@@ -218,7 +220,10 @@ export function groupUpcoming(events, now, days) {
 }
 
 // ── Timeline of one day.
-const hourOf = (s, key) => (s - dayStart(key)) / 3600                     // may be <0 or >24
+// Wall-clock hours since local midnight of `key` (may be <0 or >24); whole days come
+// from calendar dates, so a 23 h or 25 h day still has 24 hours on the strip.
+const dayNumber = key => { const [y, m, d] = key.split('-').map(Number); return Date.UTC(y, m - 1, d) / 86400000 }
+const hourOf = (s, key) => (dayNumber(dayKey(s)) - dayNumber(key)) * 24 + minutesOf(s) / 60
 export function timelineRange(events, draft, key) {
     let from = 8, to = 22
     const timed = events.filter(e => !e.allDay)

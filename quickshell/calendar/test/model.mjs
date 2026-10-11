@@ -47,6 +47,14 @@ assert.equal(a.endDay, '2026-10-17')
 assert.equal(a.alert, 'day0')
 assert.equal(M.setAllDay(Object.assign({}, onDay, { alert: 'none' }), true).alert, 'none')
 assert.equal(M.validate(M.setEndDay(a, '2026-10-16')).endBeforeStart, true)
+{   // turning all day off keeps the day chosen meanwhile, and the timed length
+    const moved = M.setStartDay(a, '2026-10-20')
+    const back = M.setAllDay(moved, false)
+    assert.equal(back.startDay, '2026-10-20')
+    assert.equal(back.start, at('2026-10-20T' + new Date(onDay.start * 1000).toTimeString().slice(0, 5)))
+    assert.equal(back.end - back.start, onDay.end - onDay.start)
+    assert.equal(back.endDay, M.dayKey(back.end))
+}
 assert.equal(M.defaultAllDayAlert('none'), 'none')
 assert.equal(M.defaultAllDayAlert('30m'), 'day0')
 
@@ -58,7 +66,7 @@ assert.ok(ics.startsWith('BEGIN:VCALENDAR\r\nVERSION:2.0\r\n'))
 assert.ok(ics.endsWith('END:VCALENDAR\r\n'))
 assert.ok(ics.includes('\r\nDTSTART:20261013T183000Z\r\n'))      // 20:30 CEST = 18:30 UTC
 assert.ok(ics.includes('\r\nDTEND:20261013T193000Z\r\n'))
-assert.ok(ics.includes('\r\nSUMMARY:Riunione :: budget\\, Q4\; R&D\\\\ok\r\n'))
+assert.ok(ics.includes('\r\nSUMMARY:Riunione :: budget\\, Q4\\; R&D\\\\ok\r\n'))
 assert.ok(ics.includes('\r\nLOCATION:Sala 2\\nPiano 1\r\n'))
 assert.ok(ics.includes('\r\nUID:uid-1\r\n'))
 assert.ok(ics.includes('\r\nTRIGGER:-PT15M\r\n'))
@@ -156,5 +164,15 @@ assert.deepEqual(M.clashes(draft, day13).map(e => e.title), ['Calcetto'])
 assert.deepEqual(M.clashes(draft, [ev('Birthday', '2026-10-13T00:00', '2026-10-14T00:00', true)]), [])
 // segment of an event within the strip, clipped at the ends
 assert.deepEqual(M.segment(early[1], '2026-10-14', { from: 6, to: 24 }), { left: (23.5 - 6) / 18, width: 0.5 / 18, cut: true })
+
+// DST days (TZ=Europe/Rome): the strip counts wall-clock hours
+const dstLong = [ev('Late', '2026-10-25T20:00', '2026-10-25T22:30')]
+assert.deepEqual(M.timelineRange(dstLong, null, '2026-10-25'), { from: 8, to: 23 })
+assert.deepEqual(M.segment(dstLong[0], '2026-10-25', { from: 8, to: 22 }), { left: 12 / 14, width: 2 / 14, cut: true })
+assert.deepEqual(M.segment(dstLong[0], '2026-10-25', { from: 8, to: 23 }), { left: 12 / 15, width: 2.5 / 15, cut: false })
+const dstShort = [ev('Late', '2027-03-28T20:00', '2027-03-28T22:30')]
+assert.deepEqual(M.timelineRange(dstShort, null, '2027-03-28'), { from: 8, to: 23 })
+assert.deepEqual(M.segment(dstShort[0], '2027-03-28', { from: 8, to: 23 }), { left: 12 / 15, width: 2.5 / 15, cut: false })
+assert.equal(M.escapeText('a;b'), 'a\\;b')
 
 console.log('model: ok')
