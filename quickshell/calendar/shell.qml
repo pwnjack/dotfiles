@@ -69,6 +69,7 @@ ShellRoot {
         window.screen = Quickshell.screens.find(s => focused && s.name === focused.name) || Quickshell.screens[0];
         openedAt = Date.now() / 1000;
         closing = false;
+        Controller.reopened(root);
         syncGaveUp = false;
         syncGiveUp.restart();
         const today = new Date();
@@ -137,11 +138,12 @@ ShellRoot {
         updater.running = true;
     }
     // A write still in flight when the card is dismissed must answer before the shell quits,
-    // so its result (or failure) is not lost with the window.
-    property bool writePending: false
+    // so its result (or failure) is not lost with the window. controller.js counts them.
+    property int pendingWrites: 0
     property bool quitting: false
-    function beginWrite() { writePending = true; }
-    function endWrite() { writePending = false; if (quitting) Qt.quit(); }
+    function beginWrite() { Controller.beginWrite(root); }
+    function endWrite() { Controller.endWrite(root); }
+    function quit() { Qt.quit(); }
     // A failure the card can no longer show goes to the desktop instead.
     function notifyFailure(message) { Quickshell.execDetached(["notify-send", "-a", "Calendar", "Calendar", message]); }
     function defaults() {
@@ -384,7 +386,7 @@ ShellRoot {
             // anchor means switching views only changes the card's height.
             x: Math.round((window.width - width) / 2)
             y: root.barAtBottom ? window.height - height - px(8) : px(8)
-            onDismissed: if (root.closing) { root.quitting = true; if (!root.writePending) Qt.quit(); }
+            onDismissed: Controller.dismissed(root)
         }
     }
 }

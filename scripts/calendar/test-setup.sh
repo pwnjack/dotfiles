@@ -108,4 +108,37 @@ assert_eq "$([[ -e $CALENDAR_DATA ]] && echo yes || echo no)" no "sign-out after
 assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "sign-out after the sync: no agenda left"
 sleep 0.2
 assert_eq "$([[ -e $CALENDAR_DATA ]] && echo yes || echo no)" no "sign-out after the sync: nothing recreated"
+# Sign-out while a render is paused in khal: the render holds render.lock while it reads and
+# publishes, so the removal waits for it. When it cannot get the lock it removes nothing; once
+# the render has published, the removal takes the agenda with it, and nothing comes back.
+mkdir -p "$FAKE_KEYRING" "$CALENDAR_DATA/home" "$CALENDAR_STATE_DIR" "$CALENDAR_RUNTIME_DIR"
+printf 'me@example.com' > "$FAKE_KEYRING/username"; printf '%s' "$secret" > "$FAKE_KEYRING/password"
+echo Home > "$CALENDAR_DATA/home/displayname"; echo 'BEGIN:VCALENDAR' > "$CALENDAR_DATA/home/x.ics"
+touch "$CALENDAR_STATE_DIR/discovered"; rm -f "$CALENDAR_RUNTIME_DIR/agenda.json"
+kgate="$TMP/khal-gate"; mkfifo "$kgate"
+lists=$(grep -c '^list' "$FAKE_LOG/khal.argv" 2>/dev/null || true)
+FAKE_KHAL_WAIT="$kgate" bash "$TEST_DIR/sync.sh" --render & renderpid=$!
+for ((n = 0; n < 100; n++)); do [[ $(grep -c '^list' "$FAKE_LOG/khal.argv" 2>/dev/null || true) -gt $lists ]] && break; sleep 0.05; done
+out=$(CALENDAR_LOCK_WAIT=1 setup --sign-out 2>&1); code=$?
+assert_eq "$code" 1 "sign-out during a render: exit 1"
+assert_contains "$out" "Calendar is busy; try again in a moment" "sign-out during a render: says why"
+assert_eq "$(cat "$FAKE_KEYRING/username")" "me@example.com" "sign-out during a render: username kept"
+assert_eq "$([[ -e $CALENDAR_DATA/home/x.ics ]] && echo yes || echo no)" yes "sign-out during a render: local copy kept"
+timeout 5 sh -c "echo go > '$kgate'" || true
+wait "$renderpid"
+assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" yes "render finished before sign-out: its agenda was published"
+setup --sign-out; code=$?
+assert_eq "$code" 0 "sign-out after the render: exit 0"
+assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "sign-out after the render: agenda removed"
+sleep 0.2
+assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "sign-out after the render: nothing recreated"
+
+# A render whose account is removed while cal.sh reads (the keyring forgets it, without the
+# render lock) publishes no agenda: the copy it read is no longer the account's.
+printf 'me@example.com' > "$FAKE_KEYRING/username"; rm -f "$CALENDAR_RUNTIME_DIR/agenda.json"
+FAKE_KHAL_FORGET=1 bash "$TEST_DIR/sync.sh" --render; code=$?
+assert_eq "$code" 0 "render signed out mid-read: exit 0"
+assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "render signed out mid-read: no agenda published"
+printf 'me@example.com' > "$FAKE_KEYRING/username"
+
 test_summary setup

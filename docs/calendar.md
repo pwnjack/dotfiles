@@ -32,8 +32,9 @@ keyring entries, disables and stops the timer, and deletes the local copy, the
 state files, the vdirsyncer status and the `agenda.json` and `status.json`
 runtime files. It keeps `draft.json`, and the timer's unit links stay in place,
 so a sign-out is not a complete removal. The sign-out first stops the timer and
-the sync service, then waits up to two minutes for a running sync to finish. If
-the sync still holds its lock, the sign-out refuses, and it removes nothing.
+the sync service, then waits up to two minutes for a running sync to finish and
+for a running render (which reads and publishes `agenda.json`) to end. If either
+still holds its lock, the sign-out refuses, and it removes nothing.
 
 ## How it works
 
@@ -55,7 +56,8 @@ iCloud ⇄ vdirsyncer ⇄ ~/.local/share/calendars/icloud/ ⇄ khal ⇄ cal.sh �
   render that fails leaves the last `agenda.json` in place and turns a sync that
   would have been `ok` into a failed one, with `cal.sh`'s message. `sync.sh
   --render` exits 1 in that case, which is what the panel rolls an option back on.
-  A sync whose account is removed while it runs writes nothing.
+  A sync whose account is removed while it runs writes nothing, and a render whose
+  account is removed while it reads publishes nothing.
   `sync.sh --render` does the rendering and the signal with no network at all.
 - **The sign-in exception.** `setup.sh --sign-in` runs `vdirsyncer discover`
   and `writable.sh` itself, outside the sync lock, before it enables the timer
@@ -221,7 +223,7 @@ the sheet stays open and the error shows under Add.
 Opening an event calls `cal.sh inspect`. It reads the file once and returns the
 current alert, which is a preset id, `none`, or `custom`. Custom means several
 alarms, one that matches no preset, one set to fire from the end of the event,
-or one that is not a display alarm. It also returns whether the event repeats,
+one that is not a display alarm, or one that repeats or has a duration. It also returns whether the event repeats,
 whether it is an invitation, whether it is all-day, and a SHA-256 hash of the
 file. The sheet then opens with the event's values, under *Cancel · Edit event
 · Done*, with a red *Delete event* at the bottom.

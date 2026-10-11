@@ -153,7 +153,8 @@ def alarms(event):
 def alert_of(event):
     """A preset id when the event's one alarm is a plain display alarm at a preset
     duration from the start; "custom" for anything else (several alarms, a
-    trigger from the end, another action, or a duration no preset offers)."""
+    trigger from the end, another action, a repeat or duration, or a duration no
+    preset offers)."""
     found = alarms(event)
     if not found:
         return "none"
@@ -162,6 +163,8 @@ def alert_of(event):
     alarm = found[0]
     action = alarm.get("ACTION")
     if action is not None and str(action).upper() != "DISPLAY":
+        return "custom"
+    if "REPEAT" in alarm or "DURATION" in alarm:
         return "custom"
     trigger = alarm.get("TRIGGER")
     if trigger is None or trigger.params.get("RELATED", "START").upper() == "END":
@@ -236,14 +239,16 @@ def set_times(event, changes, like, keep_date=None):
 
 
 def apply(event, changes, like, keep_date=None, times=True):
-    before, was_date = alert_of(event), is_date(event.decoded("DTSTART"))
+    was_date = is_date(event.decoded("DTSTART"))
     replace(event, "SUMMARY", changes["title"])
     replace(event, "LOCATION", changes["location"] or None)
     if times:
         set_times(event, changes, like, keep_date)
-    # The alarms are rewritten only when the alert changed, or the event switched
-    # between all-day and timed (the presets differ), so other edits keep them.
-    if changes["alert"] != before or is_date(event.decoded("DTSTART")) != was_date:
+    # The alarms are rewritten only when the card says the user chose an alert, or the
+    # event switched between all-day and timed (the presets differ), so other edits
+    # keep them. The card's alert is the one it inspected, which for a series can be
+    # an override's, so it is never compared with this event's own alarm.
+    if changes.get("alertChanged") or is_date(event.decoded("DTSTART")) != was_date:
         set_alert(event, changes["alert"], changes["title"])
     touch(event)
 

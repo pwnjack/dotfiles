@@ -81,11 +81,19 @@ case ${1:-} in
         systemctl --user stop calendar-sync.service >/dev/null 2>&1 || true
         # A sync that is still running (a detached one is outside the unit the stop
         # reaches) holds sync.lock. The removal waits for it, and touches nothing if
-        # it cannot get the lock.
+        # it cannot get the lock. Locks are taken in sync.sh's order: sync, then render.
         mkdir -p "$cal_runtime"
         exec 8>"$cal_runtime/sync.lock"
         if ! flock -w "${CALENDAR_LOCK_WAIT:-120}" 8; then
             echo 'A sync with iCloud is running; try again in a moment' >&2
+            exit 1
+        fi
+        # A render holds render.lock from its read to its publish (sync.sh takes the
+        # same order), so the removal waits for it too: no agenda of the old account
+        # can land after the removal.
+        exec 9>"$cal_runtime/render.lock"
+        if ! flock -w "${CALENDAR_LOCK_WAIT:-120}" 9; then
+            echo 'Calendar is busy; try again in a moment' >&2
             exit 1
         fi
         forget

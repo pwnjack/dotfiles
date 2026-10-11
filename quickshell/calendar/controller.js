@@ -48,16 +48,19 @@ function inspectReply(M, c, asked, e, info) {
 }
 
 // cal.sh update|delete's reply. A saved change always highlights its event; only
-// the sheet that asked may close or clear its draft.
+// the sheet that asked may close or clear its draft. A failure is reported as an
+// add's is: on the sheet, or to the desktop once nothing on the card shows it.
 function updateReply(M, c, asked, title, r) {
     const ok = !!r.ok;
     const verdict = M.replyVerdict(asked, c.sheetSession, ok, c.state.sheet);
     if (ok) {
         if (verdict === "apply") { c.draft = null; c.act("esc"); }
         c.flash(title);
-    } else if (verdict !== "drop") {
-        c.addError = r.error || "The change could not be saved.";
+        return;
     }
+    const message = r.error || "The change could not be saved.";
+    if (verdict === "apply" || verdict === "card") c.addError = message;
+    if (verdict === "drop" || !c.state.open) c.notifyFailure(message);
 }
 
 // cal.sh add's reply. Like an update, only the sheet that asked may close or clear
@@ -82,6 +85,23 @@ function addReply(M, c, asked, sent, title, r, w) {
     if (w.text() === sent) w.setText("");
     c.flash(title);
 }
+
+// Writes in flight. A dismissed card quits only after every write has answered, so
+// no reply is lost with the window. A count, not a flag: two writes can overlap (an
+// add still running while an event is saved), and the first reply must not quit.
+function beginWrite(c) { c.pendingWrites += 1; }
+function endWrite(c) {
+    c.pendingWrites = Math.max(0, c.pendingWrites - 1);
+    if (c.quitting && c.pendingWrites === 0) c.quit();
+}
+// The card was dismissed: quit now, or when the last write answers.
+function dismissed(c) {
+    if (!c.closing) return;
+    c.quitting = true;
+    if (c.pendingWrites === 0) c.quit();
+}
+// A reopened card stays up: a quit still waiting on a write is cancelled.
+function reopened(c) { c.quitting = false; }
 
 // The calendar list from cal.sh calendars. A failed run prints {"ok":false,…}, which
 // is not a list: the list shown stays. An empty list is a real answer. A draft that

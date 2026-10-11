@@ -221,7 +221,11 @@ assert.deepEqual(M.scopeChoices(Object.assign({}, e1, { calendar: 'Work' })), ['
 assert.deepEqual(M.scopeChoices(Object.assign({}, e1, { recurring: false })), [])
 assert.deepEqual(M.clashes(e1, [listed]), [])                                   // never with itself
 assert.deepEqual(M.clashes(e1, [Object.assign({}, listed, { uid: 'other' })]).length, 1)
-assert.deepEqual(Object.keys(M.changesOf(e1)).sort(), ['alert', 'allDay', 'end', 'endDay', 'location', 'start', 'startDay', 'title'])
+assert.deepEqual(Object.keys(M.changesOf(e1)).sort(), ['alert', 'alertChanged', 'allDay', 'end', 'endDay', 'location', 'start', 'startDay', 'title'])
+// The alert counts as changed only when the user picked another one: a series' inspected alert can be an override's.
+assert.equal(M.changesOf(e1).alertChanged, false)
+assert.equal(M.changesOf(Object.assign({}, e1, { alert: '30m' })).alertChanged, true)
+assert.equal(M.changesOf(Object.assign({}, e1, { title: 'Renamed' })).alertChanged, false)
 const allDayListed = Object.assign({}, listed, { allDay: true, startEpoch: at('2026-10-17T00:00'), endEpoch: at('2026-10-19T00:00') })
 assert.equal(M.draftFromEvent(allDayListed, info, defaults).endDay, '2026-10-18')       // inclusive last day
 

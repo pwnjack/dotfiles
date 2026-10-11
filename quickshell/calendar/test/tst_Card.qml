@@ -93,6 +93,13 @@ Item {
         function notifyFailure(message) { lastNotice = message; }
         function addReply(session, sent, title, r) { Controller.addReply(Model, controller, session, sent, title, r, draftWriter); }
         function calendarsReply(list) { Controller.calendarsReply(Model, controller, list); }
+        // The shell's write count, dismissal and quit, through the same controller.js functions.
+        property int pendingWrites: 0; property bool quitting: false; property bool closing: false; property int quitCalls: 0
+        function quit() { quitCalls += 1; }
+        function beginWrite() { Controller.beginWrite(controller); }
+        function endWrite() { Controller.endWrite(controller); }
+        function dismissed() { Controller.dismissed(controller); }
+        function reopen() { closing = false; Controller.reopened(controller); }
     }
     Card { id: card; controller: controller; x: Math.round((host.width - width) / 2) }
     TestCase {
@@ -482,6 +489,7 @@ Item {
             controller.draft = null; controller.adds = 0; controller.cancels = 0; controller.pickerKey = "";
             controller.saved = ""; controller.removed = ""; controller.lastEdited = null;
             controller.draftFileText = ""; controller.addError = "";
+            controller.pendingWrites = 0; controller.quitting = false; controller.closing = false; controller.quitCalls = 0;
             controller.calendars = [{ name: "Home", color: "#ff9f0a", writable: true }];
             card.peekEvents = []; card.peekAnchor = null; card.peekPending = "";
         }
@@ -986,6 +994,60 @@ Item {
             controller.state = Model.CLOSED;
             controller.addReply(controller.sheetSession, "{}", "Match", { ok: false, error: "iCloud refused" });
             compare(controller.lastNotice, "iCloud refused");
+        }
+
+        // An update or delete that fails is reported as an add is: on the open sheet, or on the
+        // desktop once the card no longer shows it.
+        // Writes and quitting: a dismissed card quits once every write has answered, and a reopened card never quits.
+        function test_dismissal_waits_for_every_overlapping_write() {
+            controller.beginWrite();              // an add still running
+            controller.beginWrite();              // an event saved meanwhile
+            controller.closing = true;
+            controller.dismissed();
+            compare(controller.quitCalls, 0, "quit before any write answered");
+            controller.endWrite();
+            compare(controller.quitCalls, 0, "quit with a second write still outstanding");
+            controller.endWrite();
+            compare(controller.quitCalls, 1, "the last reply did not quit the dismissed card");
+        }
+        function test_dismissal_without_writes_quits_at_once() {
+            controller.closing = true;
+            controller.dismissed();
+            compare(controller.quitCalls, 1);
+        }
+        function test_reopening_cancels_a_quit_waiting_on_a_write() {
+            controller.beginWrite();
+            controller.closing = true;
+            controller.dismissed();
+            controller.reopen();                  // the card comes back before the write answers
+            controller.endWrite();
+            compare(controller.quitCalls, 0, "the reopened card quit when its old write answered");
+            compare(controller.pendingWrites, 0);
+            controller.closing = true;            // and it still quits when dismissed again
+            controller.dismissed();
+            compare(controller.quitCalls, 1);
+        }
+
+        function test_update_failure_on_the_open_sheet_shows_there() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.editEvent(listed());
+            controller.saveReply(controller.sheetSession, "Calcetto", { ok: false, error: "iCloud refused" });
+            compare(controller.addError, "iCloud refused");
+            compare(controller.lastNotice, "", "a failure the sheet shows also went to the desktop");
+        }
+        function test_update_failure_after_the_card_closed_is_reported_to_the_desktop() {
+            controller.state = Model.CLOSED;
+            controller.saveReply(controller.sheetSession, "Calcetto", { ok: false, error: "iCloud refused" });
+            compare(controller.lastNotice, "iCloud refused", "a failed save after the card closed was lost");
+        }
+        function test_stale_update_failure_is_reported_to_the_desktop() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.editEvent(listed());
+            const session = controller.sheetSession;
+            controller.shiftMonth(1);
+            controller.saveReply(session, "Calcetto", { ok: false, error: "This event changed on your iPhone; open it again" });
+            compare(controller.addError, "", "a failed earlier save showed on the newer view");
+            compare(controller.lastNotice, "This event changed on your iPhone; open it again", "the failure was lost");
         }
 
         // ── The calendar list. A slow first discovery, a rename, a writability change, and a failed read.

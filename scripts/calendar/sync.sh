@@ -5,7 +5,8 @@
 #   sync.sh --render   render agenda.json and signal only: no network
 # Locks: a second sync waits for the first (sync.lock), and so do cal.sh's writes;
 # rendering has its own lock, so an add renders at once even while a slow sync runs.
-# A sync whose account is removed while it runs (a sign-out) writes nothing.
+# A sync whose account is removed while it runs (a sign-out) writes nothing, and a
+# sign-out waits for a render (render.lock) before it removes anything.
 # shellcheck disable=SC2154  # cal_* paths come from lib.sh
 set -euo pipefail
 # shellcheck source=scripts/calendar/lib.sh
@@ -28,6 +29,8 @@ render() {
     if [[ -z $(cal_account) ]]; then rm -f "$cal_runtime/agenda.json"; return 0; fi
     tmp=$(mktemp "$cal_runtime/agenda.XXXXXX")
     if out=$(bash "$cal_dir/cal.sh" range "$(date +%F)" 8); then
+        # Signed out while cal.sh read: what it read is no longer the account's, so nothing is published.
+        if [[ -z $(cal_account) ]]; then rm -f "$tmp"; return 0; fi
         if jq -e 'type == "array"' <<<"$out" >/dev/null && printf '%s\n' "$out" > "$tmp" \
             && mv -f "$tmp" "$cal_runtime/agenda.json"; then
             return 0

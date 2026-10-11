@@ -5,7 +5,12 @@
 # given to $FAKE_LOG/imported.ics.
 printf '%s\n' "$*" >> "$FAKE_LOG/khal.argv"
 case $1 in
-    list) [[ ${FAKE_KHAL_LIST_FAIL:-} ]] && { echo 'Unknown calendar: X' >&2; exit 2; }; cat "${FAKE_KHAL_LIST:-/dev/null}" ;;
+    list) [[ ${FAKE_KHAL_LIST_FAIL:-} ]] && { echo 'Unknown calendar: X' >&2; exit 2; }
+          # Test seams: FAKE_KHAL_WAIT holds the listing until a line arrives on that fifo;
+          # FAKE_KHAL_FORGET removes the account from the keyring while it is read, as a sign-out would.
+          if [[ ${FAKE_KHAL_WAIT:-} ]]; then read -r _ < "$FAKE_KHAL_WAIT"; fi
+          if [[ ${FAKE_KHAL_FORGET:-} ]]; then rm -f -- "$FAKE_KEYRING/username"; fi
+          cat "${FAKE_KHAL_LIST:-/dev/null}" ;;
     printcalendars) printf '%s\n' "${FAKE_KHAL_CALENDARS:-Home}" ;;
     import) cp -- "${!#}" "$FAKE_LOG/imported.ics"; [[ ${FAKE_KHAL_IMPORT_FAIL:-} ]] && { echo 'import failed' >&2; exit 1; }; exit 0 ;;
 esac

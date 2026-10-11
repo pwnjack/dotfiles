@@ -71,7 +71,7 @@ assert_eq "$(grep -c '^TRIGGER' <<<"$new")" 2 "all: custom alarms kept"
 assert_contains "$new" "SEQUENCE:3" "all: sequence bumped"
 
 # update, this event only (after the DST change)
-printf '%s\n' "$(req "$FIX/iphone-weekly.ics" "$(at '2026-10-27 20:00')" one "$(changes '2026-10-27 21:00' '2026-10-27 23:30' 'Calcetto' 15m)" | edit update | jq -r .raw)" > "$TMP/one.ics"
+printf '%s\n' "$(req "$FIX/iphone-weekly.ics" "$(at '2026-10-27 20:00')" one "$(changes '2026-10-27 21:00' '2026-10-27 23:30' 'Calcetto' 15m | jq -c '. + {alertChanged: true}')" | edit update | jq -r .raw)" > "$TMP/one.ics"
 one=$(tr -d '\r' < "$TMP/one.ics")
 assert_eq "$(grep -c '^BEGIN:VEVENT' <<<"$one")" 2 "one: an override is added"
 assert_contains "$one" "RECURRENCE-ID;TZID=Europe/Rome:20261027T200000" "one: for that date, in the series' zone"
@@ -92,7 +92,7 @@ assert_eq "$(req "$FIX/iphone-weekly.ics" 0 all | edit delete | jq -r .raw)" "" 
 assert_eq "$(req "$FIX/allday.ics" 0 one | edit delete | jq -r .raw)" "" "delete a one-off: nothing left"
 
 # all-day and alerts
-ad=$(req "$FIX/allday.ics" "$(at '2026-10-17 00:00')" all "$(changes '2026-10-18 00:00' '2026-10-20 00:00' "Mum's birthday" none true 2026-10-18 2026-10-19)" | edit update | raw)
+ad=$(req "$FIX/allday.ics" "$(at '2026-10-17 00:00')" all "$(changes '2026-10-18 00:00' '2026-10-20 00:00' "Mum's birthday" none true 2026-10-18 2026-10-19 | jq -c '. + {alertChanged: true}')" | edit update | raw)
 assert_contains "$ad" "DTSTART;VALUE=DATE:20261018" "all-day: start date"
 assert_contains "$ad" "DTEND;VALUE=DATE:20261020" "all-day: exclusive end"
 assert_not_contains "$ad" "VALARM" "alert none: alarms removed"
@@ -146,6 +146,39 @@ assert_contains "$tonly" "TRIGGER;RELATED=END:-PT15M" "title-only edit: the end-
 assert_contains "$tonly" "X-APPLE-DEFAULT-ALARM:TRUE" "title-only edit: Apple's alarm property survives"
 assert_contains "$tonly" "X-WR-ALARMUID:B1" "title-only edit: the alarm keeps its UID"
 assert_eq "$(grep -c '^BEGIN:VALARM' <<<"$tonly")" 1 "title-only edit: still one alarm"
+
+# A title-only "All events" edit opened from a moved override keeps the series' own alarm: the
+# card's alert is the override's, so the master is rewritten only when the card says the alert changed.
+mt=$(req "$MOVED" "$(at '2026-10-13 14:00')" all "$(changes '2026-10-13 14:00' '2026-10-13 15:00' 'Standup renamed' 30m)" | edit update | raw)
+assert_contains "$mt" "SUMMARY:Standup renamed" "all from override: the title changed"
+assert_eq "$(grep -c '^TRIGGER:-PT15M' <<<"$mt")" 1 "all from override: the series keeps its -PT15M alarm"
+assert_eq "$(grep -c '^TRIGGER:-PT30M' <<<"$mt")" 1 "all from override: only the override keeps -PT30M"
+mc=$(req "$MOVED" "$(at '2026-10-13 14:00')" all "$(changes '2026-10-13 14:00' '2026-10-13 15:00' 'Standup renamed' 30m | jq -c '. + {alertChanged: true}')" | edit update | raw)
+assert_eq "$(grep -c '^TRIGGER:-PT30M' <<<"$mc")" 2 "all from override, alert changed: the series takes the chosen alert"
+
+# A display alarm that repeats or carries a duration is not a plain preset: it is custom.
+REP="$TMP/repeat-alarm.ics"
+cat > "$REP" <<'EOF'
+BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:REPEAT-0001
+DTSTAMP:20261001T080000Z
+DTSTART:20261020T100000Z
+DTEND:20261020T110000Z
+SUMMARY:Pills
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Pills
+TRIGGER:-PT15M
+REPEAT:2
+DURATION:PT5M
+END:VALARM
+END:VEVENT
+END:VCALENDAR
+EOF
+out=$(req "$REP" "$(at '2026-10-20 12:00')" | edit inspect)
+assert_json_field "$out" '.alert' custom "repeating display alarm: inspect reports custom, not 15m"
 assert_contains "$new" "X-WR-ALARMUID:A1" "all: a custom alarm keeps its properties"
 
 # cal.sh: hash check, atomic write, move, delete

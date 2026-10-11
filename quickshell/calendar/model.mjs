@@ -267,12 +267,14 @@ export function draftFromEvent(e, info, defaults) {
         calendar: e.calendar, alert: info.alert, timedAlert: e.allDay ? (defaults.alert || '15m') : info.alert,
         mode: 'edit', uid: e.uid, occurrence: e.startEpoch, recurring: !!info.recurring,
         readOnly: !!info.readOnly, invitation: !!info.invitation, originalCalendar: e.calendar,
-        hash: info.hash, hadCustom: info.alert === 'custom',
+        hash: info.hash, hadCustom: info.alert === 'custom', originalAlert: info.alert,
     }
 }
+// alertChanged tells the helper whether to rewrite the alarms: the alert the card
+// inspected (originalAlert) may belong to an override, not the event being saved.
 export function changesOf(d) {
     return { title: d.title.trim(), location: String(d.location).trim(), allDay: d.allDay, start: d.start, end: d.end,
-        startDay: d.startDay, endDay: d.endDay, alert: d.alert }
+        startDay: d.startDay, endDay: d.endDay, alert: d.alert, alertChanged: d.alert !== d.originalAlert }
 }
 // The scopes a save offers: none for a one-off; a calendar change moves the whole series.
 export function scopeChoices(d) {
