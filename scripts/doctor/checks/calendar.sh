@@ -33,7 +33,7 @@ _cal_now() { date +%s; }
 check_calendar() {
     local timer="$DOCTOR_ROOT/scripts/calendar/calendar-sync.timer"
     local installer="$DOCTOR_ROOT/install.sh"
-    local unit tools tool status state message last found=0
+    local unit tools tool status fields state message last found=0
     [ -f "$timer" ] || return 0
     [ -n "$(_cal_account)" ] || return 0
     unit=$(basename "$timer")
@@ -57,16 +57,37 @@ check_calendar() {
         found=1
     fi
     status=$(_cal_status)
-    if [ -n "$status" ]; then
-        state=$(printf '%s' "$status" | jq -r '.state // ""' 2>/dev/null)
-        message=$(printf '%s' "$status" | jq -r '.message // ""' 2>/dev/null)
-        last=$(printf '%s' "$status" | jq -r '.lastSuccess // 0' 2>/dev/null)
-        if [ "$state" = failed ]; then
-            warn "last sync failed: $message" "bash $(doctor_q "$DOCTOR_ROOT/scripts/calendar/sync.sh")"
+    if [ -z "${status//[[:space:]]/}" ]; then
+        warn "no sync status yet — the calendar has not synced since login" \
+            "bash $(doctor_q "$DOCTOR_ROOT/scripts/calendar/sync.sh")"
+        found=1
+    else
+        # One checked jq call: a non-object, a non-string state or message, or a
+        # lastSuccess that is neither null nor a whole number in a sane range
+        # yields no fields, so nothing unvalidated reaches the shell arithmetic.
+        # The fields are joined with the unit separator, which read does not
+        # treat as whitespace, so an empty message keeps its place.
+        fields=$(printf '%s' "$status" | jq -r '
+            select(type == "object")
+            | select((.state // "") | type == "string")
+            | select((.message // "") | type == "string")
+            | select(.lastSuccess == null or ((.lastSuccess | type) == "number"
+                and .lastSuccess == (.lastSuccess | floor)
+                and .lastSuccess > -1e15 and .lastSuccess < 1e15))
+            | [(.state // ""), (.message // ""), ((.lastSuccess // 0) | tostring)]
+            | join("\u001f")' 2>/dev/null) || fields=""
+        if [ -z "$fields" ]; then
+            warn "status.json is not valid" "bash $(doctor_q "$DOCTOR_ROOT/scripts/calendar/sync.sh")"
             found=1
-        elif [ "${last:-0}" -le 0 ] || [ $(( $(_cal_now) - last )) -gt 3600 ]; then
-            warn "no successful sync in the last hour" "bash $(doctor_q "$DOCTOR_ROOT/scripts/calendar/sync.sh")"
-            found=1
+        else
+            IFS=$'\037' read -r state message last <<< "$fields"
+            if [ "$state" = failed ]; then
+                warn "last sync failed: $message" "bash $(doctor_q "$DOCTOR_ROOT/scripts/calendar/sync.sh")"
+                found=1
+            elif [ "$last" -le 0 ] || [ $(( $(_cal_now) - last )) -gt 3600 ]; then
+                warn "no successful sync in the last hour" "bash $(doctor_q "$DOCTOR_ROOT/scripts/calendar/sync.sh")"
+                found=1
+            fi
         fi
     fi
     [ "$found" -eq 1 ] || ok "iCloud calendar syncing"

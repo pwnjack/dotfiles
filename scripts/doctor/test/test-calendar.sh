@@ -77,6 +77,37 @@ assert_contains "$cal_out" "no successful sync in the last hour" "calendar: stal
 cal_healthy
 cal_status='{"state":"none","kind":"","message":"","lastSuccess":null,"lastAttempt":1000}'; cal_run
 assert_contains "$cal_out" "no successful sync in the last hour" "calendar: a null lastSuccess is stale"
+
+# No status yet (missing file, or an empty one): an account without any sync
+# on record is a warning, never the all-clear.
+cal_healthy
+cal_status=""; cal_run
+assert_contains "$cal_out" "no sync status yet" "calendar: a missing status is reported"
+assert_contains "$cal_out" "scripts/calendar/sync.sh" "calendar: no-status hint runs the sync"
+assert_not_contains "$cal_out" "iCloud calendar syncing" "calendar: a missing status is not ok"
+assert_eq "$DOCTOR_WARNINGS" 1 "calendar: a missing status is one warning"
+cal_status=$'  \n'; cal_run
+assert_contains "$cal_out" "no sync status yet" "calendar: an empty status is reported"
+assert_not_contains "$cal_out" "iCloud calendar syncing" "calendar: an empty status is not ok"
+cal_healthy
+
+# Unvalidated fields must never reach shell arithmetic, and the shell must
+# survive the call: the harness runs under set -u, where a bad operand aborts.
+cal_healthy
+cal_reached=no
+cal_status='{"state":"ok","kind":"","message":"","lastSuccess":"oops","lastAttempt":1000}'; cal_run
+cal_reached=yes
+assert_eq "$cal_reached" yes "calendar: a string lastSuccess does not abort the shell"
+assert_contains "$cal_out" "status.json is not valid" "calendar: a string lastSuccess is reported invalid"
+assert_contains "$cal_out" "scripts/calendar/sync.sh" "calendar: invalid status hint runs the sync"
+assert_not_contains "$cal_out" "iCloud calendar syncing" "calendar: an invalid status is not ok"
+
+cal_reached=no
+cal_status='{"state":"ok",'; cal_run
+cal_reached=yes
+assert_eq "$cal_reached" yes "calendar: invalid JSON does not abort the shell"
+assert_contains "$cal_out" "status.json is not valid" "calendar: invalid JSON is reported invalid"
+assert_eq "$DOCTOR_WARNINGS" 1 "calendar: invalid JSON is one warning"
 cal_healthy
 
 # install.sh without the marker: the tools cannot be derived, so say so, but
