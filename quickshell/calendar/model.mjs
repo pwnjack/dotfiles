@@ -87,10 +87,11 @@ export function newDraft(now, defaults, key, minutes) {
     const base = nextFullHour(now)
     const day = key || dayKey(base)
     const start = at(day, minutes === undefined || minutes === null ? minutesOf(base) : minutes)
+    const end = start + (defaults.duration || 60) * 60
     return {
         title: '', location: '', allDay: false,
-        start: start, end: start + (defaults.duration || 60) * 60,
-        startDay: day, endDay: day,
+        start: start, end: end,
+        startDay: day, endDay: dayKey(end),
         calendar: defaults.calendar || '', alert: defaults.alert || '15m', timedAlert: defaults.alert || '15m',
     }
 }

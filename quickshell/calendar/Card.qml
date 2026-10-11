@@ -19,6 +19,12 @@ FocusScope {
     }
     width: px(372)
     height: frame.height
+    // The room a frame may take: the screen less the bar's gap and a margin at each end.
+    // The header and the sheet's top bar stay fixed; the reading views scroll inside what is left.
+    readonly property real frameRoom: Math.max(px(160), parent.height - px(16))
+    readonly property real contentRoom: frameRoom - px(32)
+    readonly property real fixedHeight: (headerRow.visible ? headerRow.height + content.spacing : 0)
+        + (errorLine.visible ? errorLine.height + content.spacing : 0)
     property real fade: 0
     property real lift: 0
     opacity: fade
@@ -89,6 +95,7 @@ FocusScope {
             width: parent.width - card.px(32)
             spacing: card.px(12)
             RowLayout {
+                id: headerRow
                 objectName: "header"
                 visible: !card.c.state.sheet
                 Layout.fillWidth: true
@@ -112,6 +119,7 @@ FocusScope {
             }
             // A failure with no sheet open (an event that could not be read, a change that failed after its sheet closed).
             Text {
+                id: errorLine
                 objectName: "cardError"
                 visible: !card.c.state.sheet && text !== ""
                 text: card.c.addError
@@ -121,31 +129,43 @@ FocusScope {
                 font.family: card.c.monoFont
                 font.pixelSize: card.px(12.5)
             }
-            ColumnLayout {
-                id: body
-                objectName: "body"
+            // The reading views. Past the room the card has, they scroll; nothing else moves.
+            Flickable {
+                id: scroller
+                objectName: "scroller"
                 visible: !card.c.state.sheet
                 Layout.fillWidth: true
-                spacing: card.px(10)
-                MonthGrid {
-                    id: month
-                    visible: !card.c.state.year
-                    Layout.fillWidth: true
-                    card: card
-                    selected: card.c.state.day || ""
-                    focus: !card.c.state.sheet
-                    onPicked: key => card.c.selectDay(key)
-                    onPrev: card.c.shiftMonth(-1)
-                    onNext: card.c.shiftMonth(1)
-                    onTitleClicked: card.c.showYear()
+                Layout.preferredHeight: Math.max(0, Math.min(body.implicitHeight, card.contentRoom - card.fixedHeight))
+                contentWidth: width
+                contentHeight: body.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ColumnLayout {
+                    id: body
+                    objectName: "body"
+                    width: scroller.width
+                    spacing: card.px(10)
+                    MonthGrid {
+                        id: month
+                        visible: !card.c.state.year
+                        Layout.fillWidth: true
+                        card: card
+                        selected: card.c.state.day || ""
+                        focus: !card.c.state.sheet
+                        onPicked: key => card.c.selectDay(key)
+                        onPrev: card.c.shiftMonth(-1)
+                        onNext: card.c.shiftMonth(1)
+                        onTitleClicked: card.c.showYear()
+                    }
+                    YearGrid { visible: card.c.state.year; Layout.fillWidth: true; card: card }
+                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: card.line }
+                    // Without an account the Set up row stays, even with a day selected.
+                    Upcoming { visible: !card.c.state.day || (!!card.c.status && card.c.status.state === "none"); Layout.fillWidth: true; card: card }
+                    DayView { visible: !!card.c.state.day; Layout.fillWidth: true; card: card }
                 }
-                YearGrid { visible: card.c.state.year; Layout.fillWidth: true; card: card }
-                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: card.line }
-                // Without an account the Set up row stays, even with a day selected.
-                Upcoming { visible: !card.c.state.day || (!!card.c.status && card.c.status.state === "none"); Layout.fillWidth: true; card: card }
-                DayView { visible: !!card.c.state.day; Layout.fillWidth: true; card: card }
             }
-            Sheet { visible: card.c.state.sheet && !!card.c.draft; Layout.fillWidth: true; card: card; focus: card.c.state.sheet }
+            Sheet { visible: card.c.state.sheet && !!card.c.draft; Layout.fillWidth: true; card: card; focus: card.c.state.sheet
+                maxHeight: card.contentRoom }
         }
     }
 }

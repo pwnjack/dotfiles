@@ -38,6 +38,29 @@ assert.equal(onDay.start, at('2026-10-17T17:00'))                               
 const atGap = M.newDraft(at('2026-10-11T16:52'), defaults, '2026-10-13', 20 * 60 + 15)
 assert.equal(atGap.start, at('2026-10-13T20:15'))
 assert.equal(M.snapQuarter(20 * 60 + 22), 20 * 60 + 15)
+// A draft whose span crosses midnight ends on the next day, for every default duration and a clicked gap.
+for (const [duration, endDay] of [[15, '2026-10-12'], [30, '2026-10-12'], [60, '2026-10-12'], [120, '2026-10-12']]) {
+    const late = M.newDraft(at('2026-10-11T22:15'), { duration, alert: '15m', calendar: 'Home' }, '2026-10-11', 23 * 60 + 45)
+    assert.equal(late.endDay, endDay, `${duration} min from 23:45`)
+    assert.equal(late.end, late.start + duration * 60, `${duration} min from 23:45 keeps its length`)
+}
+for (const [duration, endDay] of [[15, '2026-10-11'], [30, '2026-10-11'], [60, '2026-10-11'], [120, '2026-10-12']]) {
+    const evening = M.newDraft(at('2026-10-11T22:15'), { duration, alert: '15m', calendar: 'Home' }, '2026-10-11', 22 * 60 + 15)
+    assert.equal(evening.endDay, endDay, `${duration} min from 22:15`)
+}
+const nearMidnight = M.newDraft(at('2026-10-11T22:15'), defaults)                 // 60 min from the next full hour (23:00)
+assert.equal(nearMidnight.start, at('2026-10-11T23:00'))
+assert.equal(nearMidnight.endDay, '2026-10-12', 'the default 60 min from 23:00 ends after midnight')
+assert.equal(M.validate(Object.assign({}, nearMidnight, { title: 'Late' })).ok, true)
+const gapLate = M.newDraft(at('2026-10-11T16:52'), defaults, '2026-10-11', 23 * 60 + 30)
+assert.equal(gapLate.endDay, '2026-10-12', 'a gap clicked at 23:30 ends on the next day')
+assert.equal(gapLate.end, at('2026-10-12T00:30'))
+const gapEdge = M.newDraft(at('2026-10-11T16:52'), defaults, '2026-10-11', 23 * 60)
+assert.equal(gapEdge.endDay, '2026-10-12', 'a gap at 23:00 ends at midnight, on the next day')
+// Editing the end time after that keeps the day consistent with the epoch.
+const edited = M.setEnd(Object.assign({}, gapLate, { title: 'Late' }), at('2026-10-12T01:00'))
+assert.equal(edited.endDay, '2026-10-12')
+assert.equal(M.validate(edited).ok, true)
 
 // All day
 let a = M.setAllDay(Object.assign({}, onDay, { title: 'Birthday' }), true)

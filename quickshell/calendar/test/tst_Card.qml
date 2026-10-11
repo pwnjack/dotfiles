@@ -29,7 +29,7 @@ Item {
         property string lastAction: ""
         // The draft file is a text target here; the shell writes the same Model.draftToKeep text to draft.json.
         property string draftFileText: ""
-        readonly property var draftWriter: ({ setText: function (t) { controller.draftFileText = t; } })
+        readonly property var draftWriter: ({ setText: function (t) { controller.draftFileText = t; }, text: function () { return controller.draftFileText; } })
         // The same controller.js the shell runs; only the writer and the cal.sh replies are fakes.
         property int sheetSession: 0
         onStateChanged: Controller.invalidate(controller)
@@ -57,7 +57,8 @@ Item {
         function shiftYear(d) { lastShift = d; Controller.shiftYear(controller, d); }
         function loadMonth() {} function loadYear() {} function loadDay(k) {}
         function flash(t) { highlight = t; }
-        function defaults() { return { duration: 60, alert: "15m", calendar: "Home" }; }
+        // The shell's defaults(): the saved default when writable, else the first writable calendar.
+        function defaults() { const w = calendars.find(c => c.writable); return { duration: 60, alert: "15m", calendar: w ? w.name : "" }; }
         function loadPeek(key) { peekFor = key; }
         function toggleUpcoming() { state = Object.assign({}, state, { unfolded: !state.unfolded }); }
         function openSettings() {}
@@ -87,6 +88,11 @@ Item {
             if (!holdInspect) replyInspect(inspectInfo(e));
         }
         function saveReply(session, title, r) { Controller.updateReply(Model, controller, session, title, r); }
+        // The shell's add and calendar-list replies, and the desktop notice a failure gets once the card is gone.
+        property string lastNotice: ""
+        function notifyFailure(message) { lastNotice = message; }
+        function addReply(session, sent, title, r) { Controller.addReply(Model, controller, session, sent, title, r, draftWriter); }
+        function calendarsReply(list) { Controller.calendarsReply(Model, controller, list); }
     }
     Card { id: card; controller: controller; x: Math.round((host.width - width) / 2) }
     TestCase {
@@ -467,6 +473,7 @@ Item {
         // The tests share one controller: each starts from the same clock, agenda and month data.
         function cleanup() {
             controller.now = 1000 + 180;
+            controller.lastNotice = ""; controller.highlight = ""; controller.addError = "";
             controller.agenda = []; controller.busy = ({}); controller.counts = ({});
             controller.peekFor = ""; controller.peekEvents = [];
             controller.dayFor = ""; controller.dayEvents = []; controller.clock = "24h";
@@ -907,6 +914,154 @@ Item {
             verify(right <= card.width - card.px(12), "the warning reaches x=" + right + " on a " + card.width + " px card");
             verify(warn.lineCount > 1, "the warning does not wrap");
             verify(warn.text.indexOf("20:00–22:30") >= 0, "the time is cut off");
+        }
+
+        // ── A cal.sh add reply belongs to the sheet that asked. A late success never clears or closes a
+        // newer draft; a kept copy of the saved event goes, since it would reopen the event.
+        function newDraftFor(title) {
+            return Object.assign({}, Model.newDraft(1000, { duration: 60, alert: "15m", calendar: "Home" }), { title: title });
+        }
+        function test_late_add_success_never_clears_a_newer_draft() {
+            controller.state = Model.openSheet(Model.transition(Model.CLOSED, "clock"));
+            controller.draft = newDraftFor("Match");
+            const sent = JSON.stringify(controller.draft);
+            const asked = controller.sheetSession;
+            controller.act("esc");                                   // the add is still pending; its draft is kept
+            compare(controller.draftFileText, sent);
+            controller.newEvent();                                   // a newer sheet, typed into
+            controller.draft = newDraftFor("Newer");
+            controller.addReply(asked, sent, "Match", { ok: true });
+            compare(controller.draft.title, "Newer", "a late success replaced the newer draft");
+            verify(controller.state.sheet, "a late success closed the newer sheet");
+            compare(controller.draftFileText, "", "the kept copy of the saved event is still there");
+            compare(controller.highlight, "Match");
+        }
+        function test_late_add_success_keeps_an_unrelated_kept_draft() {
+            controller.state = Model.openSheet(Model.transition(Model.CLOSED, "clock"));
+            controller.draft = newDraftFor("Match");
+            const sent = JSON.stringify(controller.draft);
+            const asked = controller.sheetSession;
+            controller.act("esc");
+            controller.draftFileText = JSON.stringify(newDraftFor("Unrelated"));   // a different draft was kept since
+            controller.addReply(asked, sent, "Match", { ok: true });
+            compare(JSON.parse(controller.draftFileText).title, "Unrelated");
+        }
+        function test_add_success_closes_the_sheet_it_came_from() {
+            controller.state = Model.openSheet(Model.transition(Model.CLOSED, "clock"));
+            controller.draft = newDraftFor("Match");
+            controller.draftFileText = "stale";
+            controller.addReply(controller.sheetSession, JSON.stringify(controller.draft), "Match", { ok: true });
+            compare(controller.draft, null);
+            verify(!controller.state.sheet);
+            compare(controller.draftFileText, "");
+            compare(controller.highlight, "Match");
+        }
+        function test_add_success_with_a_draft_edited_meanwhile_keeps_the_sheet() {
+            controller.state = Model.openSheet(Model.transition(Model.CLOSED, "clock"));
+            controller.draft = newDraftFor("Match");
+            const sent = JSON.stringify(controller.draft);
+            controller.draft = newDraftFor("Match, moved");           // typed into while the add was pending
+            controller.addReply(controller.sheetSession, sent, "Match", { ok: true });
+            compare(controller.draft.title, "Match, moved");
+            verify(controller.state.sheet);
+            compare(controller.highlight, "Match");
+        }
+        function test_stale_add_failure_is_dropped_from_the_open_sheet_but_reported() {
+            controller.state = Model.openSheet(Model.transition(Model.CLOSED, "clock"));
+            controller.draft = newDraftFor("Newer");
+            controller.addReply(controller.sheetSession - 1, "{}", "Match", { ok: false, error: "iCloud refused" });
+            compare(controller.addError, "", "a failed earlier add showed in the newer sheet");
+            compare(controller.lastNotice, "iCloud refused", "the failure was lost");
+            compare(controller.draft.title, "Newer");
+        }
+        function test_add_failure_on_the_open_sheet_shows_there() {
+            controller.state = Model.openSheet(Model.transition(Model.CLOSED, "clock"));
+            controller.draft = newDraftFor("Match");
+            controller.addReply(controller.sheetSession, JSON.stringify(controller.draft), "Match", { ok: false, error: "iCloud refused" });
+            compare(controller.addError, "iCloud refused");
+            compare(controller.lastNotice, "", "a failure the sheet shows also went to the desktop");
+            verify(controller.state.sheet);
+        }
+        function test_add_failure_after_the_card_closed_is_reported_to_the_desktop() {
+            controller.state = Model.CLOSED;
+            controller.addReply(controller.sheetSession, "{}", "Match", { ok: false, error: "iCloud refused" });
+            compare(controller.lastNotice, "iCloud refused");
+        }
+
+        // ── The calendar list. A slow first discovery, a rename, a writability change, and a failed read.
+        function test_slow_first_discovery_gives_the_open_sheet_a_calendar() {
+            controller.calendars = [];
+            controller.state = Model.openSheet(Model.transition(Model.CLOSED, "clock"));
+            controller.draft = Object.assign({}, newDraftFor("Match"), { calendar: "" });
+            waitForRendering(card);
+            verify(!find("addButton").enabled, "no calendar yet, so Add is off");
+            controller.calendarsReply([{ name: "Work", color: "#00ff00", writable: true }]);
+            compare(controller.draft.calendar, "Work");
+            waitForRendering(card);
+            verify(find("addButton").enabled, "discovery did not enable Add");
+        }
+        function test_renamed_calendar_moves_the_new_draft_to_the_default() {
+            openSheet();
+            controller.draft = Object.assign({}, controller.draft, { title: "Match" });
+            controller.calendarsReply([{ name: "Casa", color: "#ff0000", writable: true }]);
+            compare(controller.draft.calendar, "Casa");
+            waitForRendering(card);
+            verify(find("calendarValue").text.indexOf("Casa") === 0, "the menu shows " + find("calendarValue").text);
+            verify(find("addButton").enabled);
+        }
+        function test_writability_change_makes_an_open_edit_read_only() {
+            const e = listed({ startEpoch: Math.floor(new Date(2026, 9, 20, 20, 0).getTime() / 1000) });
+            controller.draft = Model.draftFromEvent(e, { alert: "15m", recurring: false, invitation: false, hash: "h" }, { alert: "15m" });
+            controller.state = Model.openSheet(Model.transition(Model.CLOSED, "clock"));
+            controller.calendarsReply([{ name: "Home", color: "#ff9f0a", writable: false }]);
+            verify(controller.draft.readOnly, "a calendar turned read-only still offers Done");
+            compare(controller.draft.mode, "edit");
+            waitForRendering(card);
+            verify(!find("addButton").visible);
+        }
+        function test_failed_calendar_read_keeps_the_list_and_the_draft() {
+            openSheet();
+            const before = controller.calendars;
+            controller.calendarsReply({ ok: false, error: "khal is not installed" });
+            compare(controller.calendars, before, "a failed read replaced the list");
+            compare(controller.draft.calendar, "Home", "a failed read reset the draft's calendar");
+        }
+
+        // ── The card's height is bounded by the screen, and its reading views scroll inside that.
+        function test_thirty_upcoming_events_stay_inside_a_small_window() {
+            const t = Math.floor(Date.now() / 1000);
+            controller.now = t;
+            controller.agenda = Array.from({ length: 30 }, (_, i) => ({ uid: "u" + i, title: "Evento " + i, calendar: "Home",
+                color: "#ff9f0a", location: "", allDay: false, startEpoch: t + 600 + i * 3600, endEpoch: t + 1200 + i * 3600 }));
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { unfolded: true });
+            host.height = 900;
+            waitForRendering(card);
+            // The frame eases its height over 160 ms: judge the settled size.
+            tryVerify(() => card.height <= host.height, 1000, "the card is " + card.height + " px in a " + host.height + " px window");
+            const scroller = find("scroller");
+            verify(scroller.contentHeight > scroller.height, "the upcoming list does not scroll");
+            const rows = rowsNamed(card, "eventRow");
+            const last = rows[rows.length - 1];
+            scroller.contentY = scroller.contentHeight - scroller.height;
+            waitForRendering(card);
+            // The row, inside the viewport the scroller shows, is reached by scrolling down.
+            const top = last.mapToItem(scroller, 0, 0).y;
+            verify(top >= 0 && top + last.height <= scroller.height, "the last row is at " + top + " in a " + scroller.height + " px viewport");
+            scroller.contentY = 0;
+            controller.agenda = [];
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            host.height = 900;
+        }
+        function test_short_window_keeps_the_sheet_top_bar_visible() {
+            host.height = 260;
+            openSheet();
+            waitForRendering(card);
+            tryVerify(() => card.height <= host.height, 1000, "the sheet is " + card.height + " px in a " + host.height + " px window");
+            const bar = find("cancelButton");
+            const top = bar.mapToItem(card, 0, 0).y;
+            verify(top >= 0 && top + bar.height <= card.height, "the top bar is off the card");
+            verify(find("addButton").visible, "the Add button is off the card");
+            host.height = 900;
         }
     }
 }

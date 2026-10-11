@@ -60,6 +60,47 @@ function updateReply(M, c, asked, title, r) {
     }
 }
 
+// cal.sh add's reply. Like an update, only the sheet that asked may close or clear
+// its draft. A stale success still saved its event, so only the kept copy of that
+// draft goes (it would reopen the event). `sent` is the draft JSON the request was
+// made from, `w` the draft file. A failure nobody can see now goes to the desktop.
+function addReply(M, c, asked, sent, title, r, w) {
+    const verdict = M.replyVerdict(asked, c.sheetSession, !!r.ok, c.state.sheet);
+    if (!r.ok) {
+        const message = r.error || "The event could not be saved.";
+        if (verdict === "apply" || verdict === "card") c.addError = message;
+        if (verdict === "drop" || !c.state.open) c.notifyFailure(message);
+        return;
+    }
+    if (verdict === "apply" && !!c.draft && JSON.stringify(c.draft) === sent) {
+        w.setText("");
+        c.draft = null;
+        c.flash(title);
+        c.act("esc");
+        return;
+    }
+    if (w.text() === sent) w.setText("");
+    c.flash(title);
+}
+
+// The calendar list from cal.sh calendars. A failed run prints {"ok":false,…}, which
+// is not a list: the list shown stays. An empty list is a real answer. A draft that
+// names a calendar no longer writable takes the default (a new event) or turns
+// read-only (an edit, whose calendar is gone or whose event is an invitation).
+function calendarsReply(M, c, list) {
+    if (!Array.isArray(list)) return;
+    c.calendars = list;
+    const d = c.draft;
+    if (!d) return;
+    const writable = name => list.some(x => x.name === name && x.writable);
+    if (d.mode === "edit") {
+        const readOnly = !writable(d.originalCalendar) || !!d.invitation;
+        if (readOnly !== !!d.readOnly) c.draft = Object.assign({}, d, { readOnly: readOnly });
+    } else if (!writable(d.calendar)) {
+        c.draft = Object.assign({}, d, { calendar: c.defaults().calendar });
+    }
+}
+
 // The month and year arrows. Each one moves the view, so it retires pending replies.
 function shiftMonth(c, delta) {
     const d = new Date(c.viewYear, c.viewMonth + delta, 1);

@@ -122,6 +122,7 @@ ShellRoot {
         updater.title = draft.title.trim();
         updater.session = sheetSession;
         updater.command = [calSh, "update"];
+        beginWrite();
         updater.running = true;
     }
     function remove(scope) {
@@ -132,8 +133,17 @@ ShellRoot {
         updater.title = "";
         updater.session = sheetSession;
         updater.command = [calSh, "delete"];
+        beginWrite();
         updater.running = true;
     }
+    // A write still in flight when the card is dismissed must answer before the shell quits,
+    // so its result (or failure) is not lost with the window.
+    property bool writePending: false
+    property bool quitting: false
+    function beginWrite() { writePending = true; }
+    function endWrite() { writePending = false; if (quitting) Qt.quit(); }
+    // A failure the card can no longer show goes to the desktop instead.
+    function notifyFailure(message) { Quickshell.execDetached(["notify-send", "-a", "Calendar", "Calendar", message]); }
     function defaults() {
         const writable = calendars.filter(c => c.writable);
         const wanted = optionDefault.text().trim();
@@ -176,7 +186,12 @@ ShellRoot {
     function loadDay(key) { if (key) startReader(dayReader, key); }
     // A hover peek on a day past the agenda's window. Its own reader, so it never overwrites the selected day.
     function loadPeek(key) { peekFor = key; startReader(peekReader, key); }
-    function loadCalendars() { calendarReader.running = true; }
+    // A publication that lands mid-read queues one more read, so the list is never older than the last sync.
+    function loadCalendars() {
+        if (calendarReader.running) { calendarReader.queued = true; return; }
+        calendarReader.queued = false;
+        calendarReader.running = true;
+    }
     function shiftMonth(delta) { Controller.shiftMonth(root, delta); }
     function shiftYear(delta) { Controller.shiftYear(root, delta); }
     function flash(title) { highlight = title; if (title) unhighlight.restart(); }
@@ -203,6 +218,9 @@ ShellRoot {
         const nowS = Math.floor(Date.now() / 1000);
         adder.request = JSON.stringify({ calendar: draft.calendar, ics: Model.buildIcs(draft, nowS, Model.newUid(nowS)) });
         adder.title = draft.title.trim();
+        adder.session = sheetSession;
+        adder.sent = JSON.stringify(draft);
+        beginWrite();
         adder.running = true;
     }
     function openSettings() {
@@ -230,7 +248,7 @@ ShellRoot {
 
     // blockAllReads: text() waits for reload(), so a read after a change sees the new file.
     FileView { id: agendaFile; path: root.runtimeDir + "/agenda.json"; blockLoading: true; blockAllReads: true; printErrors: false; watchChanges: true
-        onFileChanged: { reload(); root.readAgenda(); root.loadMonth(); if (root.state.year) root.loadYear(); if (root.state.day) root.loadDay(root.state.day); if (root.state.sheet && root.draft) root.loadDay(root.draft.startDay); } }
+        onFileChanged: { reload(); root.readAgenda(); root.loadMonth(); root.loadCalendars(); if (root.state.year) root.loadYear(); if (root.state.day) root.loadDay(root.state.day); if (root.state.sheet && root.draft) root.loadDay(root.draft.startDay); } }
     FileView { id: statusFile; path: root.runtimeDir + "/status.json"; blockLoading: true; blockAllReads: true; printErrors: false; watchChanges: true
         onFileChanged: { reload(); root.readStatus(); } }
     FileView { id: draftFile; path: root.runtimeDir + "/draft.json"; blockLoading: true; printErrors: false; atomicWrites: true }
@@ -280,11 +298,12 @@ ShellRoot {
     Process {
         id: calendarReader
         command: [root.calSh, "calendars"]
+        property bool queued: false
+        onRunningChanged: if (!running && queued) root.loadCalendars()
         stdout: StdioCollector { onStreamFinished: {
-            try { root.calendars = root.asArray(JSON.parse(text)); } catch (e) { root.calendars = []; }
-            // A sheet opened before this read landed has no calendar yet: take the default now.
-            if (root.draft && root.draft.mode !== "edit" && !root.draft.calendar)
-                root.draft = Object.assign({}, root.draft, { calendar: root.defaults().calendar });
+            let list = null;
+            try { list = JSON.parse(text); } catch (e) { list = null; }
+            Controller.calendarsReply(Model, root, list);
         } }
     }
     Process {
@@ -295,16 +314,13 @@ ShellRoot {
         stdinEnabled: true
         // The ICS travels on stdin, never argv. cal.sh reads one line.
         onStarted: { write(request + "\n"); request = ""; }
+        property int session: 0
+        property string sent: ""
         stdout: StdioCollector { onStreamFinished: {
             let r = null;
             try { r = JSON.parse(text); } catch (e) { r = { ok: false, error: "The calendar helper did not answer." }; }
-            if (r.ok) {
-                draftFile.setText("");
-                root.draft = null;
-                root.highlight = adder.title;
-                unhighlight.restart();
-                root.act("esc");
-            } else root.addError = r.error || "The event could not be saved.";
+            Controller.addReply(Model, root, adder.session, adder.sent, adder.title, r, draftFile);
+            root.endWrite();
         } }
     }
 
@@ -330,6 +346,7 @@ ShellRoot {
             let r = null;
             try { r = JSON.parse(text); } catch (e) { r = { ok: false, error: "The calendar helper did not answer." }; }
             Controller.updateReply(Model, root, updater.session, updater.title, r);
+            root.endWrite();
         } }
         onExited: stdinEnabled = true
     }
@@ -367,7 +384,7 @@ ShellRoot {
             // anchor means switching views only changes the card's height.
             x: Math.round((window.width - width) / 2)
             y: root.barAtBottom ? window.height - height - px(8) : px(8)
-            onDismissed: if (root.closing) Qt.quit()
+            onDismissed: if (root.closing) { root.quitting = true; if (!root.writePending) Qt.quit(); }
         }
     }
 }

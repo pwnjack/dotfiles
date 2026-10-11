@@ -9,6 +9,8 @@ import "model.mjs" as Model
 FocusScope {
     id: sheet
     required property var card
+    // The room the card leaves for the sheet. Its top bar stays put; everything under it scrolls.
+    property real maxHeight: Infinity
     readonly property var d: card.c.draft
     readonly property var check: d ? Model.validate(d) : ({ ok: false, endBeforeStart: false })
     // The draft's calendar must be one the shell can write to now: a restored draft can name one that is gone.
@@ -105,6 +107,7 @@ FocusScope {
         spacing: sheet.card.px(10)
         visible: !!sheet.d
         RowLayout {
+            id: bar
             Layout.fillWidth: true
             Text {
                 objectName: "cancelButton"
@@ -147,316 +150,329 @@ FocusScope {
                 MouseArea { anchors.fill: parent; enabled: addButton.enabled; onClicked: sheet.done() }
             }
         }
-        Text {
-            objectName: "readOnlyLine"
-            visible: sheet.readOnly
+        Flickable {
+            id: scroll
             Layout.fillWidth: true
-            text: sheet.d && sheet.d.invitation ? "Invitation · reply or change it on your iPhone" : "Read-only calendar"
-            color: sheet.card.dim
-            wrapMode: Text.Wrap
-            font.family: sheet.card.c.monoFont
-            font.pixelSize: sheet.card.px(12.5)
-        }
-        Text {
-            objectName: "addError"
-            visible: text !== ""
-            text: sheet.card.c.addError
-            color: "#eaa3a4"
-            wrapMode: Text.Wrap
-            Layout.fillWidth: true
-            font.family: sheet.card.c.monoFont
-            font.pixelSize: sheet.card.px(12.5)
-        }
-
-        // Group 1: title, location
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: g1.implicitHeight
-            radius: sheet.card.px(12)
-            color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
-            enabled: !sheet.readOnly
+            Layout.preferredHeight: Math.min(inner.implicitHeight, Math.max(0, sheet.maxHeight - bar.height - col.spacing))
+            contentHeight: inner.implicitHeight
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
             ColumnLayout {
-                id: g1
-                width: parent.width
-                spacing: 0
-                Controls.TextField {
-                    id: titleField
-                    objectName: "titleField"
-                    Layout.fillWidth: true
-                    Layout.margins: sheet.card.px(4)
-                    activeFocusOnTab: true
-                    enabled: !sheet.readOnly
-                    placeholderText: "Title"
-                    onTextChanged: if (sheet.d && text !== sheet.d.title) sheet.set(Object.assign({}, sheet.d, { title: text }))
-                    Keys.onReturnPressed: event => { sheet.done(); event.accepted = true; }
-                    Keys.onEnterPressed: event => { sheet.done(); event.accepted = true; }
-                    color: sheet.card.c.foreground
-                    placeholderTextColor: sheet.card.dim
-                    font.family: sheet.card.c.monoFont
-                    font.pixelSize: sheet.card.px(13)
-                    background: Item {}
-                }
-                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: sheet.card.line }
-                Controls.TextField {
-                    id: locationField
-                    objectName: "locationField"
-                    Layout.fillWidth: true
-                    Layout.margins: sheet.card.px(4)
-                    activeFocusOnTab: true
-                    enabled: !sheet.readOnly
-                    placeholderText: "Location"
-                    onTextChanged: if (sheet.d && text !== sheet.d.location) sheet.set(Object.assign({}, sheet.d, { location: text }))
-                    Keys.onReturnPressed: event => { sheet.done(); event.accepted = true; }
-                    Keys.onEnterPressed: event => { sheet.done(); event.accepted = true; }
-                    color: sheet.card.c.foreground
-                    placeholderTextColor: sheet.card.dim
-                    font.family: sheet.card.c.monoFont
-                    font.pixelSize: sheet.card.px(13)
-                    background: Item {}
+                id: inner
+                width: scroll.width
+                spacing: sheet.card.px(10)
+            Text {
+                objectName: "readOnlyLine"
+                visible: sheet.readOnly
+                Layout.fillWidth: true
+                text: sheet.d && sheet.d.invitation ? "Invitation · reply or change it on your iPhone" : "Read-only calendar"
+                color: sheet.card.dim
+                wrapMode: Text.Wrap
+                font.family: sheet.card.c.monoFont
+                font.pixelSize: sheet.card.px(12.5)
+            }
+            Text {
+                objectName: "addError"
+                visible: text !== ""
+                text: sheet.card.c.addError
+                color: "#eaa3a4"
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+                font.family: sheet.card.c.monoFont
+                font.pixelSize: sheet.card.px(12.5)
+            }
+
+            // Group 1: title, location
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: g1.implicitHeight
+                radius: sheet.card.px(12)
+                color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
+                enabled: !sheet.readOnly
+                ColumnLayout {
+                    id: g1
+                    width: parent.width
+                    spacing: 0
+                    Controls.TextField {
+                        id: titleField
+                        objectName: "titleField"
+                        Layout.fillWidth: true
+                        Layout.margins: sheet.card.px(4)
+                        activeFocusOnTab: true
+                        enabled: !sheet.readOnly
+                        placeholderText: "Title"
+                        onTextChanged: if (sheet.d && text !== sheet.d.title) sheet.set(Object.assign({}, sheet.d, { title: text }))
+                        Keys.onReturnPressed: event => { sheet.done(); event.accepted = true; }
+                        Keys.onEnterPressed: event => { sheet.done(); event.accepted = true; }
+                        color: sheet.card.c.foreground
+                        placeholderTextColor: sheet.card.dim
+                        font.family: sheet.card.c.monoFont
+                        font.pixelSize: sheet.card.px(13)
+                        background: Item {}
+                    }
+                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: sheet.card.line }
+                    Controls.TextField {
+                        id: locationField
+                        objectName: "locationField"
+                        Layout.fillWidth: true
+                        Layout.margins: sheet.card.px(4)
+                        activeFocusOnTab: true
+                        enabled: !sheet.readOnly
+                        placeholderText: "Location"
+                        onTextChanged: if (sheet.d && text !== sheet.d.location) sheet.set(Object.assign({}, sheet.d, { location: text }))
+                        Keys.onReturnPressed: event => { sheet.done(); event.accepted = true; }
+                        Keys.onEnterPressed: event => { sheet.done(); event.accepted = true; }
+                        color: sheet.card.c.foreground
+                        placeholderTextColor: sheet.card.dim
+                        font.family: sheet.card.c.monoFont
+                        font.pixelSize: sheet.card.px(13)
+                        background: Item {}
+                    }
                 }
             }
-        }
 
-        // Group 2: all day, starts, ends, timeline
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: g2.implicitHeight + sheet.card.px(6)
-            radius: sheet.card.px(12)
-            color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
-            enabled: !sheet.readOnly
-            ColumnLayout {
-                id: g2
-                width: parent.width
-                spacing: 0
-                SheetRow {
-                    card: sheet.card
-                    label: "All day"
-                    Controls.Switch {
-                        objectName: "allDaySwitch"
-                        activeFocusOnTab: true
-                        enabled: !sheet.readOnly && !(sheet.d && sheet.d.recurring)
-                        checked: !!sheet.d && sheet.d.allDay
-                        onToggled: sheet.set(Model.setAllDay(sheet.d, checked))
-                    }
-                }
-                SheetRow {
-                    card: sheet.card
-                    label: "Starts"
-                    Pill {
-                        id: startDatePill
-                        objectName: "startDate"
-                        card: sheet.card
-                        enabled: !sheet.readOnly && !(sheet.d && sheet.d.recurring)
-                        text: sheet.d ? sheet.fmtDay(sheet.d.startDay) : ""
-                        active: sheet.expanded === "startDate"
-                        onClicked: sheet.toggle("startDate")
-                    }
-                    Pill {
-                        objectName: "startTime"
-                        visible: !!sheet.d && !sheet.d.allDay && sheet.expanded !== "startTime"
-                        card: sheet.card
-                        enabled: !sheet.readOnly
-                        text: sheet.d ? sheet.fmtTime(sheet.d.start) : ""
-                        onClicked: sheet.toggle("startTime")
-                        onWheelStep: steps => sheet.stepTime("start", steps)
-                    }
-                    TimeField {
-                        id: startTimeField
-                        objectName: "startTimeField"
-                        visible: sheet.expanded === "startTime"
-                        card: sheet.card
-                        value: sheet.d ? Model.minutesOf(sheet.d.start) : 0
-                        onChosen: minutes => { sheet.set(Model.moveStart(sheet.d, Model.at(sheet.d.startDay, minutes))); sheet.expanded = ""; }
-                    }
-                }
-                MonthGrid {
-                    id: startPicker
-                    objectName: "startPicker"
-                    visible: sheet.expanded === "startDate"
-                    Layout.fillWidth: true
-                    Layout.margins: sheet.card.px(10)
-                    card: sheet.card
-                    peek: false
-                    year: sheet.pickYear
-                    month: sheet.pickMonth
-                    selected: sheet.d ? sheet.d.startDay : ""
-                    onPicked: key => { sheet.set(Model.setStartDay(sheet.d, key)); sheet.expanded = ""; }
-                    onPrev: sheet.shiftPicker(-1)
-                    onNext: sheet.shiftPicker(1)
-                }
-                SheetRow {
-                    card: sheet.card
-                    label: "Ends"
-                    Pill {
-                        id: endDatePill
-                        objectName: "endDate"
-                        card: sheet.card
-                        enabled: !sheet.readOnly && !(sheet.d && sheet.d.recurring)
-                        text: sheet.d ? sheet.fmtDay(sheet.d.endDay) : ""
-                        strikeout: sheet.check.endBeforeStart
-                        active: sheet.expanded === "endDate"
-                        onClicked: sheet.toggle("endDate")
-                    }
-                    Pill {
-                        objectName: "endTime"
-                        visible: !!sheet.d && !sheet.d.allDay && sheet.expanded !== "endTime"
-                        card: sheet.card
-                        enabled: !sheet.readOnly
-                        text: sheet.d ? sheet.fmtTime(sheet.d.end) : ""
-                        strikeout: sheet.check.endBeforeStart
-                        onClicked: sheet.toggle("endTime")
-                        onWheelStep: steps => sheet.stepTime("end", steps)
-                    }
-                    TimeField {
-                        id: endTimeField
-                        objectName: "endTimeField"
-                        visible: sheet.expanded === "endTime"
-                        card: sheet.card
-                        value: sheet.d ? Model.minutesOf(sheet.d.end) : 0
-                        onChosen: minutes => { sheet.set(Model.setEnd(sheet.d, Model.at(sheet.d.endDay, minutes))); sheet.expanded = ""; }
-                    }
-                }
-                MonthGrid {
-                    id: endPicker
-                    objectName: "endPicker"
-                    visible: sheet.expanded === "endDate"
-                    Layout.fillWidth: true
-                    Layout.margins: sheet.card.px(10)
-                    card: sheet.card
-                    peek: false
-                    year: sheet.pickYear
-                    month: sheet.pickMonth
-                    selected: sheet.d ? sheet.d.endDay : ""
-                    onPicked: key => { sheet.set(Model.setEndDay(sheet.d, key)); sheet.expanded = ""; }
-                    onPrev: sheet.shiftPicker(-1)
-                    onNext: sheet.shiftPicker(1)
-                }
+            // Group 2: all day, starts, ends, timeline
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: g2.implicitHeight + sheet.card.px(6)
+                radius: sheet.card.px(12)
+                color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
+                enabled: !sheet.readOnly
                 ColumnLayout {
-                    visible: !!sheet.d && !sheet.d.allDay
-                    Layout.fillWidth: true
-                    Layout.margins: sheet.card.px(12)
-                    spacing: sheet.card.px(4)
-                    Text {
-                        text: sheet.d ? sheet.card.c.locale.toString(new Date(Model.dayStart(sheet.d.startDay) * 1000), "dddd d MMMM") : ""
-                        color: sheet.card.dim
-                        font.family: sheet.card.c.monoFont
-                        font.pixelSize: sheet.card.px(12)
-                    }
-                    Timeline {
-                        objectName: "sheetTimeline"
-                        Layout.fillWidth: true
+                    id: g2
+                    width: parent.width
+                    spacing: 0
+                    SheetRow {
                         card: sheet.card
-                        day: sheet.d ? sheet.d.startDay : ""
-                        events: sheet.dayEvents
-                        draft: sheet.d
-                        editable: false      // a click here would leave an edit half-made
-                        onGapClicked: minutes => sheet.set(Model.moveStart(sheet.d, Model.at(sheet.d.startDay, minutes)))
-                    }
-                    Repeater {
-                        model: sheet.conflicts
-                        delegate: Text {
-                            required property var modelData
-                            required property int index
-                            objectName: "overlap" + index
-                            text: "⚠ Overlaps " + modelData.title + " " + sheet.fmtTime(modelData.startEpoch) + "–" + sheet.fmtTime(modelData.endEpoch)
-                            color: "#eaa3a4"
-                            font.family: sheet.card.c.monoFont
-                            font.pixelSize: sheet.card.px(12.5)
-                            // A long title wraps inside the card instead of running past it.
-                            Layout.fillWidth: true
-                            Layout.minimumWidth: 0
-                            wrapMode: Text.WordWrap
+                        label: "All day"
+                        Controls.Switch {
+                            objectName: "allDaySwitch"
+                            activeFocusOnTab: true
+                            enabled: !sheet.readOnly && !(sheet.d && sheet.d.recurring)
+                            checked: !!sheet.d && sheet.d.allDay
+                            onToggled: sheet.set(Model.setAllDay(sheet.d, checked))
                         }
                     }
-                    Text {
-                        visible: sheet.allDayOthers.length > 0
-                        text: "Also that day: " + sheet.allDayOthers.map(e => "● " + e.title).join("  ")
-                        color: sheet.card.dim
-                        font.family: sheet.card.c.monoFont
-                        font.pixelSize: sheet.card.px(12)
-                        elide: Text.ElideRight
+                    SheetRow {
+                        card: sheet.card
+                        label: "Starts"
+                        Pill {
+                            id: startDatePill
+                            objectName: "startDate"
+                            card: sheet.card
+                            enabled: !sheet.readOnly && !(sheet.d && sheet.d.recurring)
+                            text: sheet.d ? sheet.fmtDay(sheet.d.startDay) : ""
+                            active: sheet.expanded === "startDate"
+                            onClicked: sheet.toggle("startDate")
+                        }
+                        Pill {
+                            objectName: "startTime"
+                            visible: !!sheet.d && !sheet.d.allDay && sheet.expanded !== "startTime"
+                            card: sheet.card
+                            enabled: !sheet.readOnly
+                            text: sheet.d ? sheet.fmtTime(sheet.d.start) : ""
+                            onClicked: sheet.toggle("startTime")
+                            onWheelStep: steps => sheet.stepTime("start", steps)
+                        }
+                        TimeField {
+                            id: startTimeField
+                            objectName: "startTimeField"
+                            visible: sheet.expanded === "startTime"
+                            card: sheet.card
+                            value: sheet.d ? Model.minutesOf(sheet.d.start) : 0
+                            onChosen: minutes => { sheet.set(Model.moveStart(sheet.d, Model.at(sheet.d.startDay, minutes))); sheet.expanded = ""; }
+                        }
+                    }
+                    MonthGrid {
+                        id: startPicker
+                        objectName: "startPicker"
+                        visible: sheet.expanded === "startDate"
                         Layout.fillWidth: true
+                        Layout.margins: sheet.card.px(10)
+                        card: sheet.card
+                        peek: false
+                        year: sheet.pickYear
+                        month: sheet.pickMonth
+                        selected: sheet.d ? sheet.d.startDay : ""
+                        onPicked: key => { sheet.set(Model.setStartDay(sheet.d, key)); sheet.expanded = ""; }
+                        onPrev: sheet.shiftPicker(-1)
+                        onNext: sheet.shiftPicker(1)
+                    }
+                    SheetRow {
+                        card: sheet.card
+                        label: "Ends"
+                        Pill {
+                            id: endDatePill
+                            objectName: "endDate"
+                            card: sheet.card
+                            enabled: !sheet.readOnly && !(sheet.d && sheet.d.recurring)
+                            text: sheet.d ? sheet.fmtDay(sheet.d.endDay) : ""
+                            strikeout: sheet.check.endBeforeStart
+                            active: sheet.expanded === "endDate"
+                            onClicked: sheet.toggle("endDate")
+                        }
+                        Pill {
+                            objectName: "endTime"
+                            visible: !!sheet.d && !sheet.d.allDay && sheet.expanded !== "endTime"
+                            card: sheet.card
+                            enabled: !sheet.readOnly
+                            text: sheet.d ? sheet.fmtTime(sheet.d.end) : ""
+                            strikeout: sheet.check.endBeforeStart
+                            onClicked: sheet.toggle("endTime")
+                            onWheelStep: steps => sheet.stepTime("end", steps)
+                        }
+                        TimeField {
+                            id: endTimeField
+                            objectName: "endTimeField"
+                            visible: sheet.expanded === "endTime"
+                            card: sheet.card
+                            value: sheet.d ? Model.minutesOf(sheet.d.end) : 0
+                            onChosen: minutes => { sheet.set(Model.setEnd(sheet.d, Model.at(sheet.d.endDay, minutes))); sheet.expanded = ""; }
+                        }
+                    }
+                    MonthGrid {
+                        id: endPicker
+                        objectName: "endPicker"
+                        visible: sheet.expanded === "endDate"
+                        Layout.fillWidth: true
+                        Layout.margins: sheet.card.px(10)
+                        card: sheet.card
+                        peek: false
+                        year: sheet.pickYear
+                        month: sheet.pickMonth
+                        selected: sheet.d ? sheet.d.endDay : ""
+                        onPicked: key => { sheet.set(Model.setEndDay(sheet.d, key)); sheet.expanded = ""; }
+                        onPrev: sheet.shiftPicker(-1)
+                        onNext: sheet.shiftPicker(1)
+                    }
+                    ColumnLayout {
+                        visible: !!sheet.d && !sheet.d.allDay
+                        Layout.fillWidth: true
+                        Layout.margins: sheet.card.px(12)
+                        spacing: sheet.card.px(4)
+                        Text {
+                            text: sheet.d ? sheet.card.c.locale.toString(new Date(Model.dayStart(sheet.d.startDay) * 1000), "dddd d MMMM") : ""
+                            color: sheet.card.dim
+                            font.family: sheet.card.c.monoFont
+                            font.pixelSize: sheet.card.px(12)
+                        }
+                        Timeline {
+                            objectName: "sheetTimeline"
+                            Layout.fillWidth: true
+                            card: sheet.card
+                            day: sheet.d ? sheet.d.startDay : ""
+                            events: sheet.dayEvents
+                            draft: sheet.d
+                            editable: false      // a click here would leave an edit half-made
+                            onGapClicked: minutes => sheet.set(Model.moveStart(sheet.d, Model.at(sheet.d.startDay, minutes)))
+                        }
+                        Repeater {
+                            model: sheet.conflicts
+                            delegate: Text {
+                                required property var modelData
+                                required property int index
+                                objectName: "overlap" + index
+                                text: "⚠ Overlaps " + modelData.title + " " + sheet.fmtTime(modelData.startEpoch) + "–" + sheet.fmtTime(modelData.endEpoch)
+                                color: "#eaa3a4"
+                                font.family: sheet.card.c.monoFont
+                                font.pixelSize: sheet.card.px(12.5)
+                                // A long title wraps inside the card instead of running past it.
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+                        Text {
+                            visible: sheet.allDayOthers.length > 0
+                            text: "Also that day: " + sheet.allDayOthers.map(e => "● " + e.title).join("  ")
+                            color: sheet.card.dim
+                            font.family: sheet.card.c.monoFont
+                            font.pixelSize: sheet.card.px(12)
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                        }
                     }
                 }
             }
-        }
 
-        // Group 3: calendar, alert
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: g3.implicitHeight
-            radius: sheet.card.px(12)
-            color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
-            enabled: !sheet.readOnly
-            ColumnLayout {
-                id: g3
-                width: parent.width
-                spacing: 0
-                SheetRow {
-                    card: sheet.card
-                    label: "Calendar"
-                    Pill {
-                        objectName: "calendarValue"
+            // Group 3: calendar, alert
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: g3.implicitHeight
+                radius: sheet.card.px(12)
+                color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
+                enabled: !sheet.readOnly
+                ColumnLayout {
+                    id: g3
+                    width: parent.width
+                    spacing: 0
+                    SheetRow {
                         card: sheet.card
-                        enabled: !sheet.readOnly
-                        text: sheet.d ? (sheet.calendarOk ? sheet.d.calendar + "  ›" : "No writable calendar") : ""
-                        active: sheet.expanded === "calendar"
-                        onClicked: sheet.toggle("calendar")
+                        label: "Calendar"
+                        Pill {
+                            objectName: "calendarValue"
+                            card: sheet.card
+                            enabled: !sheet.readOnly
+                            text: sheet.d ? (sheet.calendarOk ? sheet.d.calendar + "  ›" : "No writable calendar") : ""
+                            active: sheet.expanded === "calendar"
+                            onClicked: sheet.toggle("calendar")
+                        }
                     }
-                }
-                Menu {
-                    objectName: "calendarMenu"
-                    Layout.alignment: Qt.AlignRight
-                    Layout.rightMargin: sheet.card.px(8)
-                    visible: sheet.expanded === "calendar"
-                    card: sheet.card
-                    items: sheet.card.c.calendars.filter(c => c.writable).map(c => ({ value: c.name, label: c.name, color: c.color }))
-                    current: sheet.d ? sheet.d.calendar : ""
-                    onChosen: value => { sheet.set(Object.assign({}, sheet.d, { calendar: value })); sheet.expanded = ""; }
-                }
-                SheetRow {
-                    card: sheet.card
-                    label: "Alert"
-                    Pill {
-                        objectName: "alertPill"
+                    Menu {
+                        objectName: "calendarMenu"
+                        Layout.alignment: Qt.AlignRight
+                        Layout.rightMargin: sheet.card.px(8)
+                        visible: sheet.expanded === "calendar"
                         card: sheet.card
-                        enabled: !sheet.readOnly
-                        text: sheet.d ? Model.alertLabel(sheet.d) + "  ›" : ""
-                        active: sheet.expanded === "alert"
-                        onClicked: sheet.toggle("alert")
-                        // Add sits in the top bar, so the chain would wrap past it: Tab from the last field goes to Add.
-                        KeyNavigation.tab: addButton
-                        // The label without the chevron, for tests and screen readers.
-                        Text { objectName: "alertValue"; visible: false; text: sheet.d ? Model.alertLabel(sheet.d) : "" }
+                        items: sheet.card.c.calendars.filter(c => c.writable).map(c => ({ value: c.name, label: c.name, color: c.color }))
+                        current: sheet.d ? sheet.d.calendar : ""
+                        onChosen: value => { sheet.set(Object.assign({}, sheet.d, { calendar: value })); sheet.expanded = ""; }
                     }
-                }
-                Menu {
-                    objectName: "alertMenu"
-                    Layout.alignment: Qt.AlignRight
-                    Layout.rightMargin: sheet.card.px(8)
-                    visible: sheet.expanded === "alert"
-                    card: sheet.card
-                    items: Model.alertItems(sheet.d || {}).map(a => ({ value: a.id, label: a.label }))
-                    current: sheet.d ? sheet.d.alert : ""
-                    onChosen: value => { sheet.set(Object.assign({}, sheet.d, { alert: value })); sheet.expanded = ""; }
+                    SheetRow {
+                        card: sheet.card
+                        label: "Alert"
+                        Pill {
+                            objectName: "alertPill"
+                            card: sheet.card
+                            enabled: !sheet.readOnly
+                            text: sheet.d ? Model.alertLabel(sheet.d) + "  ›" : ""
+                            active: sheet.expanded === "alert"
+                            onClicked: sheet.toggle("alert")
+                            // Add sits in the top bar, so the chain would wrap past it: Tab from the last field goes to Add.
+                            KeyNavigation.tab: addButton
+                            // The label without the chevron, for tests and screen readers.
+                            Text { objectName: "alertValue"; visible: false; text: sheet.d ? Model.alertLabel(sheet.d) : "" }
+                        }
+                    }
+                    Menu {
+                        objectName: "alertMenu"
+                        Layout.alignment: Qt.AlignRight
+                        Layout.rightMargin: sheet.card.px(8)
+                        visible: sheet.expanded === "alert"
+                        card: sheet.card
+                        items: Model.alertItems(sheet.d || {}).map(a => ({ value: a.id, label: a.label }))
+                        current: sheet.d ? sheet.d.alert : ""
+                        onChosen: value => { sheet.set(Object.assign({}, sheet.d, { alert: value })); sheet.expanded = ""; }
+                    }
                 }
             }
-        }
-        Rectangle {
-            objectName: "deleteButton"
-            visible: sheet.editing && !sheet.readOnly
-            Layout.fillWidth: true; implicitHeight: sheet.card.px(36); radius: sheet.card.px(12)
-            color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
-            Text { anchors.centerIn: parent; text: "Delete event"; color: "#e0787a"; font.weight: Font.DemiBold
-                font.family: sheet.card.c.monoFont; font.pixelSize: sheet.card.px(13) }
-            MouseArea { anchors.fill: parent; onClicked: sheet.prompting = "delete" }
-        }
-        Text {
-            Layout.alignment: Qt.AlignHCenter
-            text: sheet.editing ? "Return saves · Esc cancels" : "Return adds · Esc cancels"
-            color: sheet.card.dim
-            font.family: sheet.card.c.monoFont
-            font.pixelSize: sheet.card.px(12)
+            Rectangle {
+                objectName: "deleteButton"
+                visible: sheet.editing && !sheet.readOnly
+                Layout.fillWidth: true; implicitHeight: sheet.card.px(36); radius: sheet.card.px(12)
+                color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
+                Text { anchors.centerIn: parent; text: "Delete event"; color: "#e0787a"; font.weight: Font.DemiBold
+                    font.family: sheet.card.c.monoFont; font.pixelSize: sheet.card.px(13) }
+                MouseArea { anchors.fill: parent; onClicked: sheet.prompting = "delete" }
+            }
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                text: sheet.editing ? "Return saves · Esc cancels" : "Return adds · Esc cancels"
+                color: sheet.card.dim
+                font.family: sheet.card.c.monoFont
+                font.pixelSize: sheet.card.px(12)
+            }
+            }
         }
     }
 
