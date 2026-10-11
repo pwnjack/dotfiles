@@ -5,9 +5,12 @@ import QtQuick.Layouts
 // The year: ‹ YYYY ›, 12 months with their event counts; a click zooms in.
 ColumnLayout {
     id: year
+    objectName: "yearView"
     required property var card
     readonly property var counts: card.c.counts[String(card.c.viewYear)] || []
     spacing: card.px(6)
+    // Wheel up goes back a year, as in the month grid.
+    WheelHandler { onWheel: event => { if (event.angleDelta.y > 0) year.card.c.shiftYear(-1); else if (event.angleDelta.y < 0) year.card.c.shiftYear(1); } }
     RowLayout {
         Layout.fillWidth: true
         Text { text: "‹"; color: year.card.c.accent; font.pixelSize: year.card.px(18)

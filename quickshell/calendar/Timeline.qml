@@ -16,10 +16,23 @@ Item {
     readonly property var range: Model.timelineRange(events, draft, day)
     readonly property bool twoLanes: timed.some(e => e.lane === 1)
     readonly property bool isToday: day !== "" && day === Model.dayKey(card.c.now)
-    readonly property real nowX: !day ? 0 : (((card.c.now - Model.dayStart(day)) / 3600) - range.from) / (range.to - range.from)
+    // Wall-clock hours, as the range is in: on a DST day elapsed time is one hour off.
+    readonly property real nowX: !day ? 0 : (Model.minutesOf(card.c.now) / 60 - range.from) / (range.to - range.from)
     implicitHeight: strip.height + ticksRow.height + card.px(4)
+    function tickText(h) {
+        const hh = h % 24;
+        if (card.c.clock !== "12h") return Model.formatTime(hh * 60, card.c.clock, card.c.locale.amText, card.c.locale.pmText);
+        return (hh % 12 || 12) + " " + (hh < 12 ? card.c.locale.amText : card.c.locale.pmText);
+    }
+    // The events under the pointer at a block, at the wall-clock time it points at (minutesAt's mapping, unsnapped).
+    function pointerTip(block, x) {
+        const frac = block.mapToItem(strip, x, 0).x / strip.width;
+        const at = Model.at(day, Math.round((range.from + frac * (range.to - range.from)) * 60));
+        card.showTip(block, timed.filter(e => e.startEpoch <= at && at < e.endEpoch));
+    }
     Rectangle {
         id: strip
+        objectName: "timelineStrip"
         width: parent.width
         height: tl.card.px(tl.twoLanes ? 44 : 28)
         radius: tl.card.px(7)
@@ -30,15 +43,31 @@ Item {
             hoverEnabled: true
             onClicked: mouse => tl.gapClicked(Model.minutesAt(mouse.x / width, tl.range))
         }
-        Rectangle {   // past hours, today only
+        Item {   // past hours, today only: diagonal hatching
+            objectName: "pastHatch"
             visible: tl.isToday && tl.nowX > 0
-            width: parent.width * Math.min(1, tl.nowX); height: parent.height; radius: parent.radius
-            color: Qt.rgba(tl.card.c.foreground.r, tl.card.c.foreground.g, tl.card.c.foreground.b, 0.07)
+            width: parent.width * Math.min(1, Math.max(0, tl.nowX)); height: parent.height; clip: true
+            onVisibleChanged: hatch.requestPaint()
+            onWidthChanged: hatch.requestPaint()
+            Canvas {
+                id: hatch
+                anchors.fill: parent
+                onPaint: {
+                    const ctx = getContext("2d"), fg = tl.card.c.foreground;
+                    ctx.reset();
+                    ctx.strokeStyle = "rgba(" + Math.round(fg.r * 255) + "," + Math.round(fg.g * 255) + "," + Math.round(fg.b * 255) + ",0.16)";
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    for (let x = -height; x < width; x += tl.card.px(6)) { ctx.moveTo(x, height); ctx.lineTo(x + height, 0); }
+                    ctx.stroke();
+                }
+            }
         }
         Repeater {
             model: tl.timed
             delegate: Rectangle {
                 id: blk
+                objectName: "timeBlock"
                 required property var modelData
                 readonly property var seg: Model.segment(modelData, tl.day, tl.range)
                 x: seg.left * strip.width; width: Math.max(2, seg.width * strip.width)
@@ -55,9 +84,8 @@ Item {
                     color: "#05090c"; font.family: tl.card.c.monoFont; font.pixelSize: tl.card.px(12); font.weight: Font.DemiBold
                 }
                 MouseArea { id: bhov; anchors.fill: parent; hoverEnabled: true
-                    onContainsMouseChanged: containsMouse
-                        ? tl.card.showTip(blk, tl.timed.filter(e => e.startEpoch < blk.modelData.endEpoch && e.endEpoch > blk.modelData.startEpoch))
-                        : tl.card.unpeek(blk) }
+                    onContainsMouseChanged: containsMouse ? tl.pointerTip(blk, bhov.mouseX) : tl.card.unpeek(blk)
+                    onPositionChanged: mouse => tl.pointerTip(blk, mouse.x) }
             }
         }
         Repeater {   // clashes, hatched
@@ -100,11 +128,12 @@ Item {
         Repeater {
             model: tl.day ? Model.ticks(tl.range.from, tl.range.to) : []
             delegate: Text {
+                objectName: "tick"
                 required property int modelData
                 required property int index
                 readonly property real fx: (modelData - tl.range.from) / (tl.range.to - tl.range.from)
                 x: Math.max(0, Math.min(ticksRow.width - implicitWidth, fx * ticksRow.width - implicitWidth / 2))
-                text: String(modelData).padStart(2, "0")
+                text: tl.tickText(modelData)
                 color: tl.card.dim; font.family: tl.card.c.monoFont; font.pixelSize: tl.card.px(12)
             }
         }

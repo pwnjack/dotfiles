@@ -117,7 +117,10 @@ Item {
             controller.now = 1000 + 180;
             controller.agenda = []; controller.busy = ({}); controller.counts = ({});
             controller.peekFor = ""; controller.peekEvents = [];
+            controller.dayFor = ""; controller.dayEvents = []; controller.clock = "24h";
+            controller.status = { state: "ok", kind: "", message: "", lastSuccess: 1000, lastAttempt: 1000 };
             controller.state = Model.transition(Model.CLOSED, "clock");
+            card.peekEvents = []; card.peekAnchor = null; card.peekPending = "";
         }
         function rowsNamed(item, name) {
             let out = [];
@@ -211,6 +214,113 @@ Item {
             compare(card.peekEvents.length, 1);
             card.unpeek(find("monthName"));
             compare(card.peekEvents.length, 0);
+        }
+        // True when the item and every ancestor is visible: what the eye sees.
+        function shown(item) {
+            for (let i = item; i; i = i.parent) if (!i.visible) return false;
+            return true;
+        }
+        function today() { return Model.dayKey(Math.floor(Date.now() / 1000)); }
+        function test_set_up_row_stays_with_a_day_selected() {
+            controller.status = { state: "none", kind: "", message: "", lastSuccess: null, lastAttempt: 1 };
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: "2026-10-13" });
+            controller.dayFor = "2026-10-13"; controller.dayEvents = [];
+            waitForRendering(card);
+            verify(shown(find("setUpRow")), "the Set up row is hidden while a day is selected");
+            verify(!shown(find("newOnDayButton")), "a day view without an account offers New event");
+            verify(!find("plusButton").enabled);
+        }
+        function test_past_hours_are_hatched_today() {
+            const key = today();
+            controller.now = Model.at(key, 14 * 60);
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: key });
+            controller.dayFor = key; controller.dayEvents = [];
+            waitForRendering(card);
+            const hatch = find("pastHatch");
+            verify(shown(hatch), "today's past hours have no hatch");
+            verify(hatch.width > 0 && hatch.width < find("timelineStrip").width, "the hatch covers only the past: " + hatch.width);
+        }
+        function test_year_wheel_moves_years() {
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { year: true });
+            waitForRendering(card);
+            const view = find("yearView");
+            mouseWheel(view, 20, 20, 0, 120, 0, 0);
+            compare(controller.lastShift, -1);
+            mouseWheel(view, 20, 20, 0, -120, 0, 0);
+            compare(controller.lastShift, 1);
+            controller.state = Model.transition(Model.CLOSED, "clock");
+        }
+        function test_ticks_follow_the_clock() {
+            const key = "2026-10-13";
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: key });
+            controller.dayFor = key; controller.dayEvents = [];
+            controller.clock = "24h";
+            waitForRendering(card);
+            const h24 = rowsNamed(card, "tick").map(t => t.text);
+            verify(h24.length > 1 && h24.every(t => /^\d\d:\d\d$/.test(t)), "24 h ticks: " + h24.join(" | "));
+            controller.clock = "12h";
+            waitForRendering(card);
+            const h12 = rowsNamed(card, "tick").map(t => t.text);
+            verify(h12.length > 1 && h12.every(t => /^\d{1,2} \S/.test(t)), "12 h ticks: " + h12.join(" | "));
+            verify(h12.some(t => t.indexOf(Qt.locale("it_IT").pmText) >= 0), "no PM tick in 12 h: " + h12.join(" | "));
+        }
+        function test_12h_time_column_leaves_room_for_the_dot() {
+            const key = today();
+            controller.clock = "12h";
+            controller.now = Model.at(key, 9 * 60);
+            controller.agenda = [{ title: "Dentist", calendar: "Home", color: "", location: "", allDay: false,
+                startEpoch: Model.at(key, 18 * 60), endEpoch: Model.at(key, 19 * 60) }];
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { unfolded: true });
+            waitForRendering(card);
+            const row = rowsNamed(card, "eventRow")[0];
+            const time = findChild(row, "eventTime"), dot = findChild(row, "eventDot");
+            verify(time.implicitWidth <= time.width, "the time text is clipped: " + time.implicitWidth + " > " + time.width);
+            verify(dot.mapToItem(row, 0, 0).x >= time.mapToItem(row, time.width, 0).x, "the dot sits under the time");
+            verify(row.mapToItem(card, row.width, 0).x <= card.width, "the row leaves the card");
+        }
+        function test_now_line_follows_the_wall_clock_over_dst() {
+            for (const day of ["2026-10-25", "2027-03-28"]) {
+                controller.now = Model.at(day, 18 * 60);
+                controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: day });
+                controller.dayFor = day; controller.dayEvents = [];
+                waitForRendering(card);
+                const tl = find("timeline");
+                const want = (18 - tl.range.from) / (tl.range.to - tl.range.from);
+                verify(Math.abs(tl.nowX - want) < 1e-9, day + ": the now line is at " + tl.nowX + ", want " + want);
+            }
+        }
+        function test_late_reply_does_not_replace_a_later_preview() {
+            card.peekDay(find("monthName"), "2026-12-01");        // A: not in the agenda, so it waits on the controller
+            compare(controller.peekFor, "2026-12-01");
+            const soon = "2026-10-13";
+            controller.agenda = [{ title: "B", calendar: "Home", color: "", location: "", allDay: true,
+                startEpoch: Model.dayStart(soon), endEpoch: Model.dayStart(Model.addDays(soon, 1)) }];
+            card.peekDay(find("monthName"), soon);                // B: known, shown at once
+            compare(card.peekEvents[0].title, "B");
+            controller.peekEvents = [{ title: "A-late", calendar: "Home", color: "", location: "", allDay: true,
+                startEpoch: 1, endEpoch: 2 }];                    // A's reply arrives after B
+            compare(card.peekEvents[0].title, "B");
+            card.unpeek(find("monthName"));
+        }
+        function test_pointer_lists_only_the_events_under_it() {
+            const key = "2026-10-13";
+            const mk = (title, from, to) => ({ title: title, calendar: "Home", color: "", location: "", allDay: false,
+                startEpoch: Model.at(key, from), endEpoch: Model.at(key, to) });
+            controller.dayFor = key; controller.dayEvents = [mk("A", 9 * 60, 12 * 60), mk("B", 11 * 60, 13 * 60)];
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: key });
+            waitForRendering(card);
+            const tl = find("timeline"), strip = find("timelineStrip");
+            const block = rowsNamed(card, "timeBlock").find(b => b.modelData.title === "A");
+            // Hover at an hour of the strip, as the pointer would be over block A.
+            const hoverAt = hour => {
+                const x = (hour - tl.range.from) / (tl.range.to - tl.range.from) * strip.width;
+                mouseMove(block, block.mapFromItem(strip, x, 0).x, 5);
+            };
+            hoverAt(9.5);
+            compare(card.peekEvents.map(e => e.title).join(), "A");
+            hoverAt(11.5);
+            compare(card.peekEvents.map(e => e.title).join(), "A,B");
+            card.unpeek(block);
         }
     }
 }

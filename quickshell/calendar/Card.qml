@@ -55,12 +55,15 @@ FocusScope {
         peekHeading = c.locale.toString(new Date(from * 1000), "dddd d MMMM");
         peekAnchor = item;
         peekEvents = known;
-        if (!known.length) { peekPending = key; c.loadPeek(key); }
+        // A new preview replaces any request still out: its late reply must not land here.
+        peekPending = known.length ? "" : key;
+        if (!known.length) c.loadPeek(key);
     }
+    // A reply lands only if its day is the one the current preview is still waiting for.
     Connections { target: card.c; function onPeekEventsChanged() {
         if (card.peekPending && card.c.peekFor === card.peekPending) { card.peekEvents = card.c.peekEvents; card.peekPending = ""; } } }
     function unpeek(item) { if (peekAnchor === item) { peekEvents = []; peekAnchor = null; peekPending = ""; } }
-    function showTip(item, events) { peekHeading = ""; peekAnchor = item; peekEvents = events; }
+    function showTip(item, events) { peekHeading = ""; peekAnchor = item; peekEvents = events; peekPending = ""; }
     EventTip {
         card: card
         events: card.peekEvents
@@ -127,7 +130,8 @@ FocusScope {
                 }
                 YearGrid { visible: card.c.state.year; Layout.fillWidth: true; card: card }
                 Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: card.line }
-                Upcoming { visible: !card.c.state.day; Layout.fillWidth: true; card: card }
+                // Without an account the Set up row stays, even with a day selected.
+                Upcoming { visible: !card.c.state.day || (!!card.c.status && card.c.status.state === "none"); Layout.fillWidth: true; card: card }
                 DayView { visible: !!card.c.state.day; Layout.fillWidth: true; card: card }
             }
         }
