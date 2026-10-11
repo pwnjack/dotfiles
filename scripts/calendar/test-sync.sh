@@ -141,6 +141,27 @@ assert_contains "$(cat "$TMP/mverr")" "keeping the previous list" "failed publis
 assert_json_field "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" 'length' 4 "failed publish: agenda still rendered (the kept list hides nothing here)"
 assert_contains "$(cat "$FAKE_LOG/pkill")" "-RTMIN+12 waybar" "failed publish: Waybar still signalled"
 
+# The rename and the temp-file cleanup both fail (a state dir that lost write permission):
+# still not fatal, so the sync exits 0, stays ok, renders and signals.
+# A fake rm fails only for the temp file; every other removal is the real one.
+real_rm=$(command -v rm)
+mkdir -p "$TMP/badrm"
+cat > "$TMP/badrm/rm" <<EOF
+#!/bin/bash
+for a; do [[ \$a == */declined.* ]] && exit 1; done
+exec $real_rm "\$@"
+EOF
+chmod +x "$TMP/badrm/rm"
+printf 'Home\tstale\t*\n' > "$CALENDAR_STATE_DIR/declined"
+rm -f "$CALENDAR_RUNTIME_DIR/agenda.json"; : > "$FAKE_LOG/pkill"
+rc=0; PATH="$TMP/badrm:$TMP/badmv:$PATH" sync_run 2>"$TMP/rmerr" || rc=$?
+assert_eq "$rc" 0 "failed publish and cleanup: sync exits 0"
+assert_json_field "$(status)" '.state' ok "failed publish and cleanup: state stays ok"
+assert_eq "$(cat "$CALENDAR_STATE_DIR/declined")" "$(printf 'Home\tstale\t*')" "failed publish and cleanup: the previous list is kept"
+assert_contains "$(cat "$TMP/rmerr")" "keeping the previous list" "failed publish and cleanup: one line on stderr"
+assert_json_field "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" 'length' 4 "failed publish and cleanup: agenda rendered"
+assert_contains "$(cat "$FAKE_LOG/pkill")" "-RTMIN+12 waybar" "failed publish and cleanup: Waybar signalled"
+
 # Units.
 svc=$(cat "$TEST_DIR/calendar-sync.service"); tmr=$(cat "$TEST_DIR/calendar-sync.timer")
 assert_contains "$svc" "ExecStart=/usr/bin/bash %h/.config/scripts/calendar/sync.sh" "service: runs sync.sh"

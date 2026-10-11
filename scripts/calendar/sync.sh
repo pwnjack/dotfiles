@@ -47,7 +47,7 @@ scan_declined() {
         && mv -f "$tmp" "$cal_state/declined"; then
         return 0
     fi
-    rm -f "$tmp"
+    rm -f -- "$tmp" 2>/dev/null || true
     echo 'calendar: could not scan declined invitations; keeping the previous list' >&2
     return 0
 }
