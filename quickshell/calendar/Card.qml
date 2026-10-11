@@ -110,6 +110,17 @@ FocusScope {
                 HeaderButton { objectName: "plusButton"; label: "+"; card: card; square: true
                     enabled: card.c.status && card.c.status.state !== "none"; onClicked: card.c.newEvent(card.c.state.day || null) }
             }
+            // A failure with no sheet open (an event that could not be read, a change that failed after its sheet closed).
+            Text {
+                objectName: "cardError"
+                visible: !card.c.state.sheet && text !== ""
+                text: card.c.addError
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                color: "#eaa3a4"
+                font.family: card.c.monoFont
+                font.pixelSize: card.px(12.5)
+            }
             ColumnLayout {
                 id: body
                 objectName: "body"

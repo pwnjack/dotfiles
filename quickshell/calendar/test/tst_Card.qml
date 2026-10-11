@@ -26,7 +26,14 @@ Item {
         property var draft: null; property string addError: ""; property string highlight: ""
         property int viewYear: new Date().getFullYear(); property int viewMonth: new Date().getMonth()
         property string lastAction: ""
-        function act(a) { lastAction = a; state = Model.transition(state, a); }
+        // The draft file is a text target here; the shell writes the same Model.draftToKeep text to draft.json.
+        property string draftFileText: ""
+        function keepDraft() { const t = Model.draftToKeep(draft); if (t !== null) draftFileText = t; }
+        function act(a) {
+            const before = state;
+            lastAction = a; state = Model.transition(state, a);
+            if (before.sheet && !state.sheet) keepDraft();
+        }
         // The same rule as the real controller (shell.qml headerStatus).
         function headerStatus() {
             if (!syncGaveUp && (!status || (status.lastAttempt || 0) < openedAt - 1)) return "syncing…";
@@ -59,6 +66,7 @@ Item {
         function remove(scope) { removed = scope; }
         // The shell's editEvent after cal.sh inspect: the same draft, with the fixture's flags.
         function editEvent(e) {
+            keepDraft();
             lastEdited = e;
             draft = Model.draftFromEvent(e, { alert: "custom", recurring: !!e.recurring, invitation: !!e.invitation,
                 readOnly: !!e.invitation, hash: "h" }, { duration: 60, alert: "15m", calendar: "Home" });
@@ -283,6 +291,53 @@ Item {
             mouseClick(blocks[0]);
             compare(controller.lastEdited, null);
         }
+        function test_delete_moved_series_offers_all_only() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.calendars = [{ name: "Home", color: "#ff9f0a", writable: true },
+                { name: "Work", color: "#3366ff", writable: true }];
+            controller.removed = "";
+            openEvent(listed());
+            controller.draft = Object.assign({}, controller.draft, { calendar: "Work" });
+            mouseClick(find("deleteButton"));
+            waitForRendering(card);
+            verify(find("scopePrompt").visible);
+            compare(find("promptQuestion").text, "Delete this repeating event?");
+            verify(find("choice0").visible);
+            compare(findChild(find("scopePrompt"), "choice1"), null);
+            mouseClick(find("choice0"));
+            compare(controller.removed, "all");
+        }
+        // Finding 5: a typed new event survives an event click and a plain exit, and an edit never writes the file.
+        function test_typed_new_event_is_kept_when_an_event_is_clicked() {
+            controller.state = Model.openSheet(Model.transition(Model.CLOSED, "clock"));
+            controller.draft = Object.assign({}, Model.newDraft(1000, { duration: 60, alert: "15m", calendar: "Home" }), { title: "Match" });
+            controller.draftFileText = "";
+            waitForRendering(card);
+            controller.editEvent(listed({ recurring: false }));
+            compare(JSON.parse(controller.draftFileText).title, "Match");
+            compare(controller.draft.mode, "edit");
+            controller.draftFileText = "";
+            controller.editEvent(listed({ recurring: false }));
+            compare(controller.draftFileText, "");
+        }
+        function test_typed_new_event_is_kept_when_the_sheet_is_left() {
+            controller.state = Model.openSheet(Model.transition(Model.CLOSED, "clock"));
+            controller.draft = Object.assign({}, Model.newDraft(1000, { duration: 60, alert: "15m", calendar: "Home" }), { title: "Match" });
+            controller.draftFileText = "";
+            controller.act("esc");
+            verify(!controller.state.sheet);
+            compare(JSON.parse(controller.draftFileText).title, "Match");
+        }
+        function test_failure_with_no_sheet_shows_on_the_card() {
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: "2026-10-20" });
+            controller.addError = "This event changed on your iPhone; open it again";
+            waitForRendering(card);
+            verify(find("cardError").visible);
+            compare(find("cardError").text, "This event changed on your iPhone; open it again");
+            controller.state = Model.openSheet(controller.state);
+            waitForRendering(card);
+            verify(!find("cardError").visible);
+        }
 
         // The tests share one controller: each starts from the same clock, agenda and month data.
         function cleanup() {
@@ -294,6 +349,7 @@ Item {
             controller.state = Model.transition(Model.CLOSED, "clock");
             controller.draft = null; controller.adds = 0; controller.cancels = 0; controller.pickerKey = "";
             controller.saved = ""; controller.removed = ""; controller.lastEdited = null;
+            controller.draftFileText = ""; controller.addError = "";
             controller.calendars = [{ name: "Home", color: "#ff9f0a", writable: true }];
             card.peekEvents = []; card.peekAnchor = null; card.peekPending = "";
         }

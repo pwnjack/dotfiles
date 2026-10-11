@@ -469,11 +469,12 @@ FocusScope {
             ? (sheet.d && sheet.d.recurring ? "Delete this repeating event?" : "Delete event?")
             : "Save changes to this repeating event?"
         choices: {
-            if (sheet.prompting === "delete")
-                return sheet.d && sheet.d.recurring
-                    ? [{ value: "one", label: "This event only", danger: true }, { value: "all", label: "All events", danger: true }]
-                    : [{ value: "all", label: "Delete", danger: true }];
-            return Model.scopeChoices(sheet.d || {}).map(v => ({ value: v, label: v === "one" ? "This event only" : "All events" }));
+            const d = sheet.d || {};
+            if (sheet.prompting === "delete") {
+                if (!d.recurring) return [{ value: "all", label: "Delete", danger: true }];
+                return Model.deleteChoices(d).map(v => ({ value: v, label: v === "one" ? "This event only" : "All events", danger: true }));
+            }
+            return Model.scopeChoices(d).map(v => ({ value: v, label: v === "one" ? "This event only" : "All events" }));
         }
         onChosen: value => { const what = sheet.prompting; sheet.prompting = "";
             if (what === "delete") sheet.card.c.remove(value); else sheet.card.c.save(value); }

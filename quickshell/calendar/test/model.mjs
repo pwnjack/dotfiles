@@ -202,4 +202,25 @@ assert.deepEqual(Object.keys(M.changesOf(e1)).sort(), ['alert', 'allDay', 'end',
 const allDayListed = Object.assign({}, listed, { allDay: true, startEpoch: at('2026-10-17T00:00'), endEpoch: at('2026-10-19T00:00') })
 assert.equal(M.draftFromEvent(allDayListed, info, defaults).endDay, '2026-10-18')       // inclusive last day
 
+// Delete follows the save scopes: a moved series deletes all its events only
+assert.deepEqual(M.deleteChoices(e1), ['one', 'all'])
+assert.deepEqual(M.deleteChoices(Object.assign({}, e1, { calendar: 'Work' })), ['all'])
+assert.deepEqual(M.deleteChoices(Object.assign({}, e1, { recurring: false })), ['all'])
+
+// Replies carry the session they were asked in (delayed success and failure)
+assert.equal(M.replyVerdict(1, 1, true, true), 'apply')             // reply on the same sheet
+assert.equal(M.replyVerdict(1, 1, false, true), 'apply')            // its failure shows in that sheet
+assert.equal(M.replyVerdict(1, 2, true, true), 'drop')              // sheet cancelled, another opened: success changes nothing
+assert.equal(M.replyVerdict(1, 2, false, true), 'drop')             // failure while another sheet is open
+assert.equal(M.replyVerdict(1, 2, false, false), 'card')            // failure after the sheet was left: the card says so
+assert.equal(M.replyVerdict(1, 2, true, false), 'drop')             // a success after the card was navigated
+assert.equal(M.replyVerdict(3, 4, false, false), 'card')            // a later navigation does not make it current
+
+// The draft file keeps a typed new event and never an edit
+const typed = Object.assign({}, draft, { title: 'Match' })
+assert.equal(JSON.parse(M.draftToKeep(typed)).title, 'Match')
+assert.equal(M.draftToKeep(Object.assign({}, typed, { title: '  ' })), null)
+assert.equal(M.draftToKeep(e1), null)
+assert.equal(M.draftToKeep(null), null)
+
 console.log('model: ok')

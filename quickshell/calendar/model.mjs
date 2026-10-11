@@ -278,10 +278,29 @@ export function scopeChoices(d) {
     if (!d.recurring) return []
     return d.calendar !== d.originalCalendar ? ['all'] : ['one', 'all']
 }
+// Delete asks the same question as save: a one-off goes at once, a repeating
+// event offers the scopes save would, so a moved series deletes all its events only.
+export function deleteChoices(d) {
+    return d.recurring ? scopeChoices(d) : ['all']
+}
 export function alertItems(d) {
     const list = (d.allDay ? ALERTS_ALLDAY : ALERTS_TIMED).slice()
     if (d.hadCustom) list.push({ id: 'custom', label: 'Custom (kept)' })
     return list
+}
+// A cal.sh reply belongs to the sheet session that asked for it. Once the sheet
+// is left, replaced, or the card is navigated, the session moves on.
+//   'apply': the originating session is current; act on the reply.
+//   'card':  a stale failure, and no sheet is open; show its error on the card.
+//   'drop':  a stale reply with nothing to show.
+export function replyVerdict(asked, current, ok, sheetOpen) {
+    if (asked === current) return 'apply'
+    return !ok && !sheetOpen ? 'card' : 'drop'
+}
+// What the draft file keeps when the sheet is left or an event is clicked: a
+// typed new event, as JSON; nothing for an edit or an empty title.
+export function draftToKeep(d) {
+    return keepsDraft(d) ? JSON.stringify(d) : null
 }
 
 // segment(event, key, range) -> {left, width} as fractions of the strip, and cut

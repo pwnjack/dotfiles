@@ -25,6 +25,11 @@ ShellRoot {
     readonly property real uiScale: 1
 
     property var state: Model.CLOSED
+    // Every state change (a sheet opens, closes or is replaced, or the card is
+    // navigated) starts a new session: a cal.sh reply asked in an earlier one is
+    // stale. Navigating also clears the card's error line.
+    property int sheetSession: 0
+    onStateChanged: { sheetSession += 1; addError = ""; }
     property bool closing: false
     property double openedAt: 0
     property bool syncGaveUp: false     // sync.sh waits up to 120 s for its lock; past that, show what we have
@@ -58,7 +63,8 @@ ShellRoot {
         state = next;
     }
     function keepDraft() {
-        if (Model.keepsDraft(draft)) draftFile.setText(JSON.stringify(draft));
+        const text = Model.draftToKeep(draft);
+        if (text !== null) draftFile.setText(text);
     }
     function open() {
         const focused = Hyprland.focusedMonitor;
@@ -103,6 +109,7 @@ ShellRoot {
         if (!e || !e.uid || inspector.running) return;
         keepDraft();                                        // a new-event draft typed so far is kept
         inspector.event = e;
+        inspector.session = sheetSession;
         inspector.command = [calSh, "inspect", e.calendar, e.uid, String(e.startEpoch)];
         inspector.running = true;
     }
@@ -114,6 +121,7 @@ ShellRoot {
             scope: scope || "all", hash: draft.hash, moveTo: draft.calendar !== draft.originalCalendar ? draft.calendar : "",
             changes: Model.changesOf(draft) });
         updater.title = draft.title.trim();
+        updater.session = sheetSession;
         updater.command = [calSh, "update"];
         updater.running = true;
     }
@@ -123,6 +131,7 @@ ShellRoot {
         updater.request = JSON.stringify({ calendar: draft.originalCalendar, uid: draft.uid, occurrence: draft.occurrence,
             scope: scope || "all", hash: draft.hash });
         updater.title = "";
+        updater.session = sheetSession;
         updater.command = [calSh, "delete"];
         updater.running = true;
     }
@@ -306,10 +315,14 @@ ShellRoot {
     Process {
         id: inspector
         property var event: null
+        property int session: 0
         stdout: StdioCollector { onStreamFinished: {
             let info = null;
             try { info = JSON.parse(text); } catch (e) { info = null; }
-            if (!info || info.ok === false) { root.addError = info && info.error ? info.error : "The event could not be read."; return; }
+            const ok = !!info && info.ok !== false;
+            // The event was asked for in an earlier session: the view has moved on, so the reply is dropped.
+            if (Model.replyVerdict(inspector.session, root.sheetSession, ok, root.state.sheet) !== "apply") return;
+            if (!ok) { root.addError = info && info.error ? info.error : "The event could not be read."; return; }
             const e = inspector.event;
             const writable = root.calendars.some(c => c.name === e.calendar && c.writable);
             info.readOnly = !writable || info.invitation;
@@ -324,17 +337,19 @@ ShellRoot {
         id: updater
         property string request: ""
         property string title: ""
+        property int session: 0
         stdinEnabled: true
         onStarted: { write(request + "\n"); stdinEnabled = false; }
         stdout: StdioCollector { onStreamFinished: {
             let r = null;
             try { r = JSON.parse(text); } catch (e) { r = { ok: false, error: "The calendar helper did not answer." }; }
+            // Only the sheet that asked may close or clear its draft. A saved change still highlights its event.
+            const verdict = Model.replyVerdict(updater.session, root.sheetSession, !!r.ok, root.state.sheet);
             if (r.ok) {
-                root.draft = null;
+                if (verdict === "apply") { root.draft = null; root.act("esc"); }
                 root.highlight = updater.title;
                 if (updater.title) unhighlight.restart();
-                root.act("esc");
-            } else root.addError = r.error || "The change could not be saved.";
+            } else if (verdict !== "drop") root.addError = r.error || "The change could not be saved.";
         } }
         onExited: stdinEnabled = true
     }
