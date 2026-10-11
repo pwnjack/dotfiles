@@ -1,0 +1,11 @@
+#!/bin/bash
+# Fake khal for the calendar suites. Logs argv (one line per call) and answers
+# from fixtures: `list` prints $FAKE_KHAL_LIST (a file of per-day arrays),
+# `printcalendars` prints $FAKE_KHAL_CALENDARS, `import` copies the file it is
+# given to $FAKE_LOG/imported.ics.
+printf '%s\n' "$*" >> "$FAKE_LOG/khal.argv"
+case $1 in
+    list) cat "${FAKE_KHAL_LIST:-/dev/null}" ;;
+    printcalendars) printf '%s\n' "${FAKE_KHAL_CALENDARS:-Home}" ;;
+    import) cp -- "${!#}" "$FAKE_LOG/imported.ics"; [[ ${FAKE_KHAL_IMPORT_FAIL:-} ]] && { echo 'import failed' >&2; exit 1; }; exit 0 ;;
+esac
