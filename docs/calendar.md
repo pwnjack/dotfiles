@@ -27,8 +27,11 @@ of these methods.
 
 `scripts/calendar/setup.sh` without arguments is what `install.sh` runs. It
 never prompts. With an account already stored, it links and enables the timer.
-Without one, it prints a pointer to the panel. `setup.sh --sign-out` removes the
-keyring entries, the timer, the local copy and the runtime files.
+Without one, it prints a pointer to the panel. `setup.sh --sign-out` clears the
+keyring entries, disables and stops the timer, and deletes the local copy, the
+state files, the vdirsyncer status and the `agenda.json` and `status.json`
+runtime files. It keeps `draft.json`, and the timer's unit links stay in place,
+so a sign-out is not a complete removal.
 
 ## How it works
 
@@ -39,23 +42,30 @@ first:
 iCloud ⇄ vdirsyncer ⇄ ~/.local/share/calendars/icloud/ ⇄ khal ⇄ cal.sh ⇄ bar and card
 ```
 
-- **`sync.sh` is the only network path.** Everything that talks to iCloud goes
-  through it: the timer, the card when it opens, an add or edit that needs
-  pushing, the bar's right-click, and the panel's *Sync now*. It takes a lock, so
-  two syncs never overlap. It runs `vdirsyncer metasync` and `vdirsyncer sync`,
-  discovers the calendars once a day, and rebuilds the declined list. Then it
-  renders `agenda.json` and `status.json` in `$XDG_RUNTIME_DIR/calendar/`, and
-  sends Waybar signal 12. `sync.sh --render` does the rendering and the signal
-  with no network at all.
+- **`sync.sh` is the normal sync path.** The timer, the card when it opens, an
+  add or edit that needs pushing, the bar's right-click, and the panel's *Sync
+  now* all run it. It takes a lock, so two syncs never overlap. It runs
+  `vdirsyncer metasync` and `vdirsyncer sync`, discovers the calendars once a
+  day, and rebuilds the declined list. Then it renders `agenda.json` and
+  `status.json` in `$XDG_RUNTIME_DIR/calendar/`, and sends Waybar signal 12.
+  `sync.sh --render` does the rendering and the signal with no network at all.
+- **The sign-in exception.** `setup.sh --sign-in` runs `vdirsyncer discover`
+  and `writable.sh` itself, outside the sync lock, before it enables the timer
+  and syncs once. The daily discovery inside `sync.sh` runs `writable.sh` under
+  the lock, but `writable.sh`'s three PROPFINDs use `curl` directly, so the lock
+  does not serialise all network activity.
 - **The timer** (`calendar-sync.timer`) runs two minutes after login and then
   every 15 minutes. The unit files are tracked and linked with
   `systemctl --user link`, not copied.
-- **Failures.** `sync.sh` classifies a failed run from its error lines only, as
-  *Sign-in rejected* (a word-bounded 401 or *unauthorized*), *iCloud is
-  unreachable* (name resolution, a refused or reset connection, a timeout), or
-  the last error line otherwise. It writes the status and sends one notification
-  on the change from success to failure. A run that fails without any error line
-  records the whole output as its message, or *Sync failed* when that is empty.
+- **Failures.** `sync.sh` classifies a failed run from its error lines first,
+  which are lines starting with `error` or `critical`, as *Sign-in rejected* (a
+  word-bounded 401 or *unauthorized*), *iCloud is unreachable* (name resolution,
+  a refused or reset connection, a timeout), or otherwise a message. Without any
+  error line, it classifies from the whole output. The message is the last
+  nonblank line of those lines, cut to 160 characters, or *Sync failed* when
+  that is blank. The notification fires whenever the previous recorded state was
+  not a failure. That covers the change from success, and a first failure before
+  any success. A run of consecutive failures stays silent.
 - **`cal.sh` is the only reader and writer of the local copy through khal.** It
   prints the card's JSON: `range`, `day`, `month`, `year`, `calendars`, `add`,
   `inspect`, `update` and `delete`. The ISO date formats in `khal/config` are
@@ -100,13 +110,20 @@ The Bar page sets the mode in `options/bar-agenda`:
 |---|---|
 | `soon` (default) | In progress, or starting within 12 hours |
 | `today` | In progress, or starting before midnight |
-| `next` | In progress, or the next event however far away |
+| `next` | In progress, or the next timed event in the snapshot |
 | `hidden` | Nothing |
+
+The bar reads only the snapshot that `sync.sh` renders: the eight days from
+today. So `next` cannot show an event beyond that window, however far away it
+is. Inside the window, `next` applies no further cut-off.
 
 ### The card
 
-The card is one layer, anchored to the centre of the capsule, so its views
-change height with a short animation and never move. It draws from
+The card is one layer, centred on the monitor rather than on the capsule. Its
+horizontal position comes from the window and card widths alone, and the code
+never measures the capsule. Waybar's centre group also holds `custom/weather`,
+so the capsule's centre need not be the monitor's. Its views change height with
+a short animation and never move. It draws from
 `agenda.json` at once and starts a sync in the background. The header then
 moves from *syncing…* to *iCloud · synced just now* (or *synced N min ago*), and
 the views refresh.
@@ -261,8 +278,8 @@ comes from `options/clock`. UI words are English, as in the rest of the panel.
 | Read-only calendar | It is left out of the Calendar menu, and its events open read-only. |
 | Changed on the iPhone | Done or Delete is refused, with *This event changed on your iPhone; open it again*. |
 | Edit cannot be written | The sheet stays open with the error. The file is untouched, because the write is atomic. |
-| Tools missing | The pill is hidden, and the card shows *Calendar tools not installed*. The doctor reports it. |
-| DST | Timed events are stored in UTC and shown in local time. |
+| Tools missing | `sync.sh` records *vdirsyncer is not installed* as a failed sync, and the header shows that message. `cal.sh` answers *khal is not installed*, which a read treats as no events and an add or edit shows under Add. The doctor reports each missing tool as an error. The pill is not hidden: it keeps the last `agenda.json` that rendered, so a failed khal render can leave it visible. |
+| DST | New timed events are written in UTC and shown in local time. Existing events keep their own time zone (`TZID`) or floating time. An edit writes its new times in that same form, so a repeating event keeps its wall time across DST. An all-day event that becomes timed is written in UTC. |
 
 ## Files and options
 
@@ -270,7 +287,7 @@ comes from `options/clock`. UI words are English, as in the rest of the panel.
 |---|---|
 | `vdirsyncer/config` | Pairs iCloud with the local copy. Tracked. |
 | `khal/config` | Reads the local copy, with ISO formats. Tracked. |
-| `scripts/calendar/sync.sh` | The only network path, and rendering. |
+| `scripts/calendar/sync.sh` | The normal sync path, and rendering. |
 | `scripts/calendar/cal.sh` | The reader and writer of the local copy, through khal. |
 | `scripts/calendar/ics-edit.py`, `declined.py` | Patch an event, and scan declined invitations. Python, for `icalendar`. |
 | `scripts/calendar/writable.sh` | Classifies calendars into read-only, skipped and addresses. |

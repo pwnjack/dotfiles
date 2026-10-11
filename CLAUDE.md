@@ -182,10 +182,12 @@ stay in the terminal (`scripts/updates/terminal.sh`). See `docs/updates.md`.
 
 ### Calendar (clock capsule, Super+Shift+E)
 
-`scripts/calendar/sync.sh` is the only path that talks to iCloud: a `flock`, then
+`scripts/calendar/sync.sh` is the normal path to iCloud: a `flock`, then
 `vdirsyncer metasync` and `sync` into `~/.local/share/calendars/icloud/`, a daily
 discover, `writable.sh` and `declined.py`, then `agenda.json` and `status.json`
-in `$XDG_RUNTIME_DIR/calendar/` and signal 12. `sync.sh --render` does no network.
+in `$XDG_RUNTIME_DIR/calendar/` and signal 12. `setup.sh --sign-in` is the
+exception: it runs discover and `writable.sh` outside that lock, and `writable.sh`'s
+PROPFINDs use `curl` directly. `sync.sh --render` does no network.
 `cal.sh` is the only khal reader and writer; `khal/config` holds the ISO formats
 it parses, and everything shown is localised from `LC_TIME`. Adds go through
 `khal import --batch -a`, never `khal new`, which splits the summary on ` :: `.
@@ -193,7 +195,7 @@ Passwords live only in the keyring and reach vdirsyncer, `curl -K -` and
 `secret-tool store` on stdin, never in argv. `secret-tool lookup` exits 1 with no
 output for a missing item, and anything else means the keyring could not be read.
 `agenda-bar.sh` reads only `agenda.json` and the options. `model.mjs` holds the
-card's transition table, and the card is anchored to the capsule's centre. Edits
+card's transition table, and the card is centred on the monitor, not the capsule. Edits
 go through `ics-edit.py`: the event's own TZID, overrides and EXDATEs, the hash
 check and an atomic rename, since vdirsyncer notices a new inode. iCloud colours
 arrive as `#RRGGBBAA` and are cut to `#RRGGBB`, because Qt reads eight digits as
