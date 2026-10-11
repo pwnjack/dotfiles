@@ -29,16 +29,16 @@ function beginEdit(M, c, w, e, start) {
     start(c.sheetSession);
 }
 
-// cal.sh inspect's reply. Returns "opened", "failed" or "dropped".
+// cal.sh inspect's reply. Returns "opened", "failed" or "dropped". An inspect is a
+// read: once navigation has retired the session that asked, its reply is dropped
+// whether it succeeded or failed, so an abandoned read never leaves an error behind.
 function inspectReply(M, c, asked, e, info) {
+    if (asked !== c.sheetSession) return "dropped";
     const ok = !!info && info.ok !== false;
-    const verdict = M.replyVerdict(asked, c.sheetSession, ok, c.state.sheet);
     if (!ok) {
-        if (verdict === "drop") return "dropped";
         c.addError = info && info.error ? info.error : "The event could not be read.";
         return "failed";
     }
-    if (verdict !== "apply") return "dropped";
     const writable = c.calendars.some(x => x.name === e.calendar && x.writable);
     c.draft = M.draftFromEvent(e, Object.assign({}, info, { readOnly: !writable || info.invitation }), c.defaults());
     c.addError = "";

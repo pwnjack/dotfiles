@@ -381,6 +381,65 @@ Item {
             verify(controller.state.sheet);
             compare(controller.draft.mode, "edit");
         }
+        // An inspect is a read: a failure for an abandoned click leaves no card error and no sheet.
+        function test_delayed_inspect_failure_after_a_month_shift_is_dropped() {
+            const month = controller.viewMonth;
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.draft = null;
+            controller.holdInspect = true;
+            controller.editEvent(listed());
+            controller.shiftMonth(1);
+            controller.holdInspect = false;
+            controller.replyInspect({ ok: false, error: "Could not read the event" });
+            verify(!controller.state.sheet, "a stale inspect failure opened a sheet");
+            compare(controller.addError, "");
+            waitForRendering(card);
+            verify(!find("cardError").visible, "a stale inspect failure showed on the card");
+            controller.viewMonth = month;
+        }
+        function test_delayed_inspect_failure_after_a_year_shift_is_dropped() {
+            const year = controller.viewYear;
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.draft = null;
+            controller.holdInspect = true;
+            controller.editEvent(listed());
+            controller.shiftYear(-1);
+            controller.holdInspect = false;
+            controller.replyInspect({ ok: false, error: "Could not read the event" });
+            verify(!controller.state.sheet, "a stale inspect failure opened a sheet");
+            compare(controller.addError, "");
+            waitForRendering(card);
+            verify(!find("cardError").visible, "a stale inspect failure showed on the card");
+            controller.viewYear = year;
+        }
+        function test_delayed_inspect_failure_after_a_day_is_selected_is_dropped() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.draft = null;
+            controller.holdInspect = true;
+            controller.editEvent(listed());
+            controller.selectDay("2026-10-21");
+            controller.holdInspect = false;
+            controller.replyInspect({ ok: false, error: "Could not read the event" });
+            verify(!controller.state.sheet, "a stale inspect failure opened a sheet");
+            compare(controller.addError, "");
+            waitForRendering(card);
+            verify(!find("cardError").visible, "a stale inspect failure showed on the card");
+        }
+        // The control: a current inspect failure, with no navigation in between, still shows on the card.
+        function test_current_inspect_failure_shows_on_the_card() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.draft = null;
+            controller.holdInspect = true;
+            controller.editEvent(listed());
+            controller.holdInspect = false;
+            controller.replyInspect({ ok: false, error: "Could not read the event" });
+            verify(!controller.state.sheet);
+            compare(controller.addError, "Could not read the event");
+            waitForRendering(card);
+            verify(find("cardError").visible);
+            compare(find("cardError").text, "Could not read the event");
+            controller.addError = "";
+        }
         // A save asked from a sheet that a navigation has since retired: it highlights its event, and leaves the newer view alone.
         function test_stale_save_reply_keeps_the_draft_and_only_highlights() {
             const month = controller.viewMonth;
