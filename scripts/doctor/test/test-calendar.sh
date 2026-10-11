@@ -110,6 +110,24 @@ assert_contains "$cal_out" "status.json is not valid" "calendar: invalid JSON is
 assert_eq "$DOCTOR_WARNINGS" 1 "calendar: invalid JSON is one warning"
 cal_healthy
 
+# A message is free text: a unit separator or a newline in it must neither shift
+# lastSuccess into the message's place nor end the field early.
+cal_reached=no
+cal_status='{"state":"failed","kind":"auth","message":"hello\u001foops\nafter","lastSuccess":1000,"lastAttempt":1090}'; cal_run
+cal_reached=yes
+assert_eq "$cal_reached" yes "calendar: a message with U+001F and a newline does not abort the shell"
+assert_contains "$cal_out" "last sync failed: hello oops after" "calendar: control characters in a message become spaces"
+assert_eq "$DOCTOR_WARNINGS" 1 "calendar: a failed message with control characters is one warning"
+
+# A newline in the message of a fresh sync must not be read as a stale one.
+cal_healthy; cal_reached=no
+cal_status='{"state":"ok","kind":"","message":"hello\nworld","lastSuccess":1090,"lastAttempt":1090}'; cal_run
+cal_reached=yes
+assert_eq "$cal_reached" yes "calendar: a message with a newline does not abort the shell"
+assert_not_contains "$cal_out" "no successful sync" "calendar: a newline in a fresh message is not stale"
+assert_contains "$cal_out" "iCloud calendar syncing" "calendar: a fresh sync with a multi-line message is ok"
+cal_healthy
+
 # install.sh without the marker: the tools cannot be derived, so say so, but
 # the timer and status checks still run.
 mkdir -p "$DOCTOR_TEST_TMP/cal-nomark/scripts/calendar"
