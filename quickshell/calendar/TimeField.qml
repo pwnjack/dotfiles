@@ -34,7 +34,9 @@ TextField {
         if (m === null) { text = shown(); shake.restart(); return; }
         field.chosen(m);
     }
+    // Applies a typed value. Esc hides the field without calling this, so that value is dropped.
+    function commit() { if (visible) apply(); }
     Keys.onReturnPressed: event => { apply(); event.accepted = true; }
     Keys.onEnterPressed: event => { apply(); event.accepted = true; }
-    onEditingFinished: if (visible) apply()
+    onEditingFinished: commit()
 }

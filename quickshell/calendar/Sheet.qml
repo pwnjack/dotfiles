@@ -11,20 +11,38 @@ FocusScope {
     required property var card
     readonly property var d: card.c.draft
     readonly property var check: d ? Model.validate(d) : ({ ok: false, endBeforeStart: false })
+    // The draft's calendar must be one the shell can write to now: a restored draft can name one that is gone.
+    readonly property bool calendarOk: !!d && card.c.calendars.some(c => c.writable && c.name === d.calendar)
     // Add needs a title, a sensible span and a calendar to write to.
-    readonly property bool ready: !!d && check.ok && !!d.calendar
+    readonly property bool ready: !!d && check.ok && calendarOk
     readonly property var dayEvents: d && card.c.dayFor === d.startDay ? card.c.dayEvents : []
     readonly property var conflicts: d ? Model.clashes(d, dayEvents) : []
     readonly property var allDayOthers: dayEvents.filter(e => e.allDay)
     property string expanded: ""            // "", "startDate", "endDate", "startTime", "endTime", "calendar", "alert"
     property int pickYear: 2026             // the month the open date picker shows
     property int pickMonth: 0
+    property Item datePill: null        // the date pill whose picker is open; focus returns to it
     implicitHeight: col.implicitHeight
-    // The fields take the draft's text as the sheet opens; after that, edits flow from the field to the draft.
-    onVisibleChanged: if (visible && d) {
-        titleField.text = d.title;
-        locationField.text = d.location;
-        titleField.forceActiveFocus();
+    // The fields show the draft's text. Typing is the only edit that comes from a field, and it
+    // already matches the draft, so this writes only when the draft was replaced under them.
+    function syncFields() {
+        if (!d) return;
+        if (titleField.text !== d.title) titleField.text = d.title;
+        if (locationField.text !== d.location) locationField.text = d.location;
+    }
+    onDChanged: syncFields()
+    onVisibleChanged: {
+        if (visible && d) { syncFields(); titleField.forceActiveFocus(); }
+        if (!visible) expanded = "";
+    }
+    onExpandedChanged: {
+        if (expanded === "startDate" || expanded === "endDate") {
+            datePill = expanded === "startDate" ? startDatePill : endDatePill;
+            (expanded === "startDate" ? startPicker : endPicker).forceActiveFocus();
+            return;
+        }
+        if (expanded === "" && datePill) datePill.forceActiveFocus();
+        datePill = null;
     }
 
     function set(next) { card.c.setDraft(next); }
@@ -35,12 +53,21 @@ FocusScope {
         if (which === "start") set(Model.moveStart(d, d.start + steps * 900));
         else set(Model.setEnd(d, d.end + steps * 900));
     }
+    // The picker's month is read on its own, so its busy dots do not depend on the card's month.
+    function requestPickerMonth() {
+        card.c.loadPickerMonth(pickYear + "-" + String(pickMonth + 1).padStart(2, "0"));
+    }
     function toggle(which) {
-        if (expanded === which) { expanded = ""; return; }
+        // A typed time is applied before its field closes, so clicking another pill keeps it.
+        const was = expanded;
+        if (was === "startTime") startTimeField.commit();
+        else if (was === "endTime") endTimeField.commit();
+        if (was === which) { expanded = ""; return; }
         if (which === "startDate" || which === "endDate") {
             const key = which === "startDate" ? d.startDay : d.endDay;
             pickYear = Number(key.slice(0, 4));
             pickMonth = Number(key.slice(5, 7)) - 1;
+            requestPickerMonth();
         }
         expanded = which;
     }
@@ -48,6 +75,7 @@ FocusScope {
         const m = new Date(pickYear, pickMonth + delta, 1);
         pickYear = m.getFullYear();
         pickMonth = m.getMonth();
+        requestPickerMonth();
     }
 
     // Esc closes whatever is open in the sheet first; with nothing open the card's ladder takes it.
@@ -185,6 +213,7 @@ FocusScope {
                     card: sheet.card
                     label: "Starts"
                     Pill {
+                        id: startDatePill
                         objectName: "startDate"
                         card: sheet.card
                         text: sheet.d ? sheet.fmtDay(sheet.d.startDay) : ""
@@ -200,6 +229,7 @@ FocusScope {
                         onWheelStep: steps => sheet.stepTime("start", steps)
                     }
                     TimeField {
+                        id: startTimeField
                         objectName: "startTimeField"
                         visible: sheet.expanded === "startTime"
                         card: sheet.card
@@ -208,6 +238,7 @@ FocusScope {
                     }
                 }
                 MonthGrid {
+                    id: startPicker
                     objectName: "startPicker"
                     visible: sheet.expanded === "startDate"
                     Layout.fillWidth: true
@@ -225,6 +256,7 @@ FocusScope {
                     card: sheet.card
                     label: "Ends"
                     Pill {
+                        id: endDatePill
                         objectName: "endDate"
                         card: sheet.card
                         text: sheet.d ? sheet.fmtDay(sheet.d.endDay) : ""
@@ -242,6 +274,7 @@ FocusScope {
                         onWheelStep: steps => sheet.stepTime("end", steps)
                     }
                     TimeField {
+                        id: endTimeField
                         objectName: "endTimeField"
                         visible: sheet.expanded === "endTime"
                         card: sheet.card
@@ -250,6 +283,7 @@ FocusScope {
                     }
                 }
                 MonthGrid {
+                    id: endPicker
                     objectName: "endPicker"
                     visible: sheet.expanded === "endDate"
                     Layout.fillWidth: true
@@ -293,6 +327,10 @@ FocusScope {
                             color: "#eaa3a4"
                             font.family: sheet.card.c.monoFont
                             font.pixelSize: sheet.card.px(12.5)
+                            // A long title wraps inside the card instead of running past it.
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            wrapMode: Text.WordWrap
                         }
                     }
                     Text {
@@ -324,7 +362,7 @@ FocusScope {
                     Pill {
                         objectName: "calendarValue"
                         card: sheet.card
-                        text: sheet.d ? (sheet.d.calendar ? sheet.d.calendar + "  ›" : "No writable calendar") : ""
+                        text: sheet.d ? (sheet.calendarOk ? sheet.d.calendar + "  ›" : "No writable calendar") : ""
                         active: sheet.expanded === "calendar"
                         onClicked: sheet.toggle("calendar")
                     }

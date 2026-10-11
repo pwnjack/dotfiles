@@ -135,6 +135,8 @@ ShellRoot {
         startReader(monthReader, viewYear + "-" + String(viewMonth + 1).padStart(2, "0"));
     }
     function loadYear() { startReader(yearReader, String(viewYear)); }
+    // The new-event picker's own month ("YYYY-MM"): its own reader, so the card's month is never waiting on it.
+    function loadPickerMonth(key) { startReader(pickerReader, key); }
     function loadDay(key) { if (key) startReader(dayReader, key); }
     // A hover peek on a day past the agenda's window. Its own reader, so it never overwrites the selected day.
     function loadPeek(key) { peekFor = key; startReader(peekReader, key); }
@@ -157,7 +159,8 @@ ShellRoot {
     function toggleUpcoming() { state = Object.assign({}, state, { unfolded: !state.unfolded }); }
     function cancelSheet() { draftFile.setText(""); draft = null; act("esc"); }
     function add() {
-        if (!draft || !Model.validate(draft).ok || !draft.calendar || adder.running) return;
+        const writable = draft && calendars.some(c => c.writable && c.name === draft.calendar);
+        if (!draft || !Model.validate(draft).ok || !writable || adder.running) return;
         addError = "";
         const nowS = Math.floor(Date.now() / 1000);
         adder.request = JSON.stringify({ calendar: draft.calendar, ics: Model.buildIcs(draft, nowS, Model.newUid(nowS)) });
@@ -221,6 +224,13 @@ ShellRoot {
         property string queued: ""
         onRunningChanged: if (!running && queued) root.startReader(dayReader, queued)
         stdout: StdioCollector { onStreamFinished: root.readerDone(dayReader.verb, text) }
+    }
+    Process {
+        id: pickerReader
+        property string verb: "month"
+        property string queued: ""
+        onRunningChanged: if (!running && queued) root.startReader(pickerReader, queued)
+        stdout: StdioCollector { onStreamFinished: root.readerDone(pickerReader.verb, text) }
     }
     Process {
         id: peekReader

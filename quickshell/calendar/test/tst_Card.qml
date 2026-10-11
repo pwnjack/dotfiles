@@ -45,8 +45,13 @@ Item {
         function toggleUpcoming() { state = Object.assign({}, state, { unfolded: !state.unfolded }); }
         function openSettings() {}
         property int adds: 0; property int cancels: 0
+        property string pickerKey: ""
         function setDraft(d) { draft = d; }
-        function add() { if (Model.validate(draft).ok) adds += 1; }
+        // The shell's add(): a valid draft, into a calendar that is writable now.
+        function add() {
+            if (Model.validate(draft).ok && calendars.some(c => c.writable && c.name === draft.calendar)) adds += 1;
+        }
+        function loadPickerMonth(key) { pickerKey = key; }
         function cancelSheet() { cancels += 1; }
     }
     Card { id: card; controller: controller; x: Math.round((host.width - width) / 2) }
@@ -124,7 +129,7 @@ Item {
             controller.dayFor = ""; controller.dayEvents = []; controller.clock = "24h";
             controller.status = { state: "ok", kind: "", message: "", lastSuccess: 1000, lastAttempt: 1000 };
             controller.state = Model.transition(Model.CLOSED, "clock");
-            controller.draft = null; controller.adds = 0; controller.cancels = 0;
+            controller.draft = null; controller.adds = 0; controller.cancels = 0; controller.pickerKey = "";
             controller.calendars = [{ name: "Home", color: "#ff9f0a", writable: true }];
             card.peekEvents = []; card.peekAnchor = null; card.peekPending = "";
         }
@@ -445,6 +450,118 @@ Item {
             verify(shown(find("alertMenu")));
             verify(rowsNamed(find("alertMenu"), "tick4")[0].visible);     // 15m is the fifth timed preset
             verify(!rowsNamed(find("alertMenu"), "tick0")[0].visible);
+        }
+        // Return on any focused pill adds a valid draft; only Space and click open the controls.
+        function test_return_adds_from_each_focused_pill() {
+            openSheet();
+            find("titleField").text = "Match";
+            for (const n of ["startDate", "startTime", "endDate", "endTime", "calendarValue", "alertPill"]) {
+                find(n).forceActiveFocus();
+                const before = controller.adds;
+                keyClick(Qt.Key_Return);
+                compare(controller.adds - before, 1, n + " did not add on Return");
+            }
+            verify(!find("startTimeField").visible && !find("endTimeField").visible, "Return opened a time editor");
+            verify(!find("startPicker").visible && !find("endPicker").visible, "Return opened a picker");
+            verify(!find("calendarMenu").visible && !find("alertMenu").visible, "Return opened a menu");
+        }
+        function test_space_still_opens_the_picker() {
+            openSheet();
+            find("startDate").forceActiveFocus();
+            keyClick(Qt.Key_Space);
+            verify(find("startPicker").visible);
+        }
+        function test_return_in_a_time_field_applies_the_time_without_adding() {
+            openSheet();
+            find("titleField").text = "Match";
+            mouseClick(find("startTime"));
+            const field = find("startTimeField");
+            field.selectAll(); keyClick(Qt.Key_1); keyClick(Qt.Key_9); keyClick(Qt.Key_Return);
+            compare(Model.minutesOf(controller.draft.start), 19 * 60);
+            compare(controller.adds, 0, "Return in the time editor also added the event");
+        }
+        function test_escape_in_a_time_field_keeps_the_old_time() {
+            openSheet();
+            const before = controller.draft.start;
+            mouseClick(find("startTime"));
+            const field = find("startTimeField");
+            field.selectAll(); keyClick(Qt.Key_1); keyClick(Qt.Key_9); keyClick(Qt.Key_Escape);
+            compare(controller.draft.start, before);
+            verify(!find("startTimeField").visible);
+        }
+        // A typed time is applied when another pill is clicked, and the clicked control stays open.
+        function test_clicking_another_pill_applies_a_typed_time() {
+            openSheet();
+            mouseClick(find("startTime"));
+            const field = find("startTimeField");
+            field.selectAll(); keyClick(Qt.Key_1); keyClick(Qt.Key_9);
+            mouseClick(find("endDate"));
+            compare(Model.minutesOf(controller.draft.start), 19 * 60);
+            verify(find("endPicker").visible, "the picker the click opened is closed again");
+            verify(!find("startTimeField").visible);
+        }
+        // The picker takes the keys, and Esc gives focus back to its date pill.
+        function test_picker_keys_reach_the_month_grid() {
+            for (const pair of [["startDate", "startPicker"], ["endDate", "endPicker"]]) {
+                openSheet();
+                const pill = find(pair[0]), picker = find(pair[1]);
+                mouseClick(pill);
+                verify(picker.activeFocus, pair[0] + ": the picker does not have focus");
+                const before = picker.month;
+                keyClick(Qt.Key_PageDown);
+                compare(picker.month, (before + 1) % 12, pair[0] + ": PgDn did not move the picker");
+                keyClick(Qt.Key_Escape);
+                verify(!picker.visible);
+                verify(pill.activeFocus, pair[0] + ": focus did not return to the pill");
+            }
+        }
+        // The picker asks for its own month, and that month's busy dots show when the result lands.
+        function test_picker_asks_for_its_month_and_shows_its_busy_dots() {
+            openSheet();
+            mouseClick(find("startDate"));
+            compare(controller.pickerKey, "2026-10");
+            keyClick(Qt.Key_PageDown);
+            compare(controller.pickerKey, "2026-11");
+            // What readerDone stores when the requested month arrives.
+            const b = Object.assign({}, controller.busy); b["2026-11"] = [5]; controller.busy = b;
+            verify(findChild(find("startPicker"), "dot-2026-11-5").visible, "no busy dot for the requested month");
+        }
+        // A new draft replaces the fields of the last one, even while the sheet is already showing.
+        function test_a_new_draft_replaces_the_fields_of_the_last_one() {
+            openSheet();
+            find("titleField").text = "Old title";
+            find("locationField").text = "Old place";
+            controller.state = Model.transition(controller.state, "esc");
+            openSheet("2026-10-14");
+            compare(find("titleField").text, "");
+            compare(find("locationField").text, "");
+            verify(!find("addButton").enabled);
+        }
+        // A restored draft naming a calendar that is no longer writable cannot be added.
+        function test_stale_calendar_selection_disables_add() {
+            openSheet();
+            find("titleField").text = "Match";
+            verify(find("addButton").enabled);
+            controller.calendars = [{ name: "Work", color: "#00ff00", writable: true }];
+            verify(!find("addButton").enabled);
+            compare(find("calendarValue").text, "No writable calendar");
+            find("titleField").forceActiveFocus();
+            keyClick(Qt.Key_Return);
+            compare(controller.adds, 0);
+            controller.calendars = [];
+            verify(!find("addButton").enabled);
+        }
+        // A long conflict title wraps inside the card, and its time stays readable.
+        function test_long_conflict_title_stays_inside_the_card() {
+            openSheet();
+            controller.dayEvents = [{ title: "Riunione ".repeat(30), calendar: "Home", color: "#ff9f0a", location: "", allDay: false,
+                startEpoch: Math.floor(new Date(2026, 9, 13, 20, 0).getTime() / 1000), endEpoch: Math.floor(new Date(2026, 9, 13, 22, 30).getTime() / 1000) }];
+            waitForRendering(card);
+            const warn = find("overlap0");
+            const right = warn.mapToItem(card, warn.width, 0).x;
+            verify(right <= card.width - card.px(12), "the warning reaches x=" + right + " on a " + card.width + " px card");
+            verify(warn.lineCount > 1, "the warning does not wrap");
+            verify(warn.text.indexOf("20:00–22:30") >= 0, "the time is cut off");
         }
     }
 }

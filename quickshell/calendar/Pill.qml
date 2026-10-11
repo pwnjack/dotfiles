@@ -17,7 +17,7 @@ Rectangle {
     border.width: active ? 1 : 0
     border.color: card.c.accent
     activeFocusOnTab: true
-    Keys.onReturnPressed: event => { pill.clicked(); event.accepted = true; }
+    // Return is not taken here: it passes to the sheet, which adds a valid draft.
     Keys.onSpacePressed: event => { pill.clicked(); event.accepted = true; }
     Keys.onUpPressed: event => { pill.wheelStep(1); event.accepted = true; }
     Keys.onDownPressed: event => { pill.wheelStep(-1); event.accepted = true; }
