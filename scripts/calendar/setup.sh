@@ -20,9 +20,18 @@ forget() {
     secret-tool clear service calendar-icloud field username 2>/dev/null || true
     secret-tool clear service calendar-icloud field password 2>/dev/null || true
 }
-# keyring_empty — true when neither field is left; clear exits 1 when nothing
-# matched, so forget cannot tell a removal from a failure on its own.
-keyring_empty() { [[ -z $(cal_secret username) && -z $(cal_secret password) ]]; }
+# keyring_empty — true only when the keyring proves neither field is stored:
+# lookup exits 1 with no output for a missing item. Anything else (an error on
+# stderr, content on stdout, another status) means the keyring could not be
+# verified, so it is not counted as empty. cal_secret cannot make this call: it
+# turns every failure into an empty value.
+keyring_empty() {
+    local field out code
+    for field in username password; do
+        out=$(secret-tool lookup service calendar-icloud field "$field" 2>&1); code=$?
+        [[ $code -eq 1 && -z $out ]] || return 1
+    done
+}
 enable_timer() {
     local unit
     for unit in "${units[@]}"; do systemctl --user link "$cal_dir/$unit" >/dev/null; done

@@ -66,6 +66,10 @@ assert_eq "$code" 1 "sign-out, keyring keeps the account: exit 1"
 assert_contains "$out" "Could not remove the account from the keyring" "sign-out, keyring keeps the account: says so"
 assert_eq "$([[ -e $CALENDAR_DATA ]] && echo yes || echo no)" no "sign-out, keyring keeps the account: local copy still removed"
 
+out=$(FAKE_SECRET_LOOKUP_ERROR=1 setup --sign-out 2>&1); code=$?
+assert_eq "$code" 1 "sign-out, keyring unreadable: exit 1"
+assert_contains "$out" "Could not remove the account from the keyring" "sign-out, keyring unreadable: says so"
+
 setup --sign-out; code=$?
 assert_eq "$code" 0 "sign-out: exit 0"
 assert_eq "$(find "$FAKE_KEYRING" -type f | wc -l)" 0 "sign-out: keyring cleared"
