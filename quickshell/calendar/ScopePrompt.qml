@@ -36,11 +36,11 @@ Rectangle {
                 Text { anchors.centerIn: parent; text: modelData.label; font.weight: Font.Bold
                     color: modelData.danger ? "#ffffff" : prompt.card.c.accentInk
                     font.family: prompt.card.c.monoFont; font.pixelSize: prompt.card.px(13) }
-                MouseArea { anchors.fill: parent; onClicked: prompt.chosen(modelData.value) }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: prompt.chosen(modelData.value) }
             }
         }
         Text { Layout.alignment: Qt.AlignHCenter; text: "Cancel"; color: prompt.card.c.accent
             font.family: prompt.card.c.monoFont; font.pixelSize: prompt.card.px(13)
-            MouseArea { anchors.fill: parent; anchors.margins: -8; onClicked: prompt.cancelled() } }
+            MouseArea { anchors.fill: parent; anchors.margins: -8; cursorShape: Qt.PointingHandCursor; onClicked: prompt.cancelled() } }
     }
 }

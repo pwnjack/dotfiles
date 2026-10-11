@@ -14,5 +14,6 @@ Rectangle {
     color: Qt.rgba(card.c.accent.r, card.c.accent.g, card.c.accent.b, hover.containsMouse ? 0.32 : 0.22)
     Text { id: labelText; anchors.centerIn: parent; text: button.label; color: button.card.c.foreground
         font.family: button.card.c.monoFont; font.pixelSize: button.card.px(button.square ? 18 : 12.5); font.weight: Font.Bold }
-    MouseArea { id: hover; anchors.fill: parent; hoverEnabled: true; enabled: button.enabled; onClicked: button.clicked() }
+    MouseArea { id: hover; anchors.fill: parent; hoverEnabled: true; enabled: button.enabled
+        cursorShape: button.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: button.clicked() }
 }

@@ -62,6 +62,7 @@ Rectangle {
                     id: ihov
                     anchors.fill: parent
                     hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
                     onClicked: menu.chosen(item.modelData.value)
                 }
             }

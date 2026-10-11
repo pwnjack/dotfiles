@@ -18,7 +18,7 @@ ColumnLayout {
         Text { Layout.fillWidth: true; text: dv.card.c.locale.toString(dv.dayDate, "dddd d MMMM")
             color: dv.card.dim; font.family: dv.card.c.monoFont; font.pixelSize: dv.card.px(12) }
         Text { text: "Upcoming ›"; color: dv.card.c.accent; font.family: dv.card.c.monoFont; font.pixelSize: dv.card.px(12)
-            MouseArea { anchors.fill: parent; anchors.margins: -6; onClicked: dv.card.c.act("esc") } }
+            MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: dv.card.c.act("esc") } }
     }
     Timeline { objectName: "timeline"; Layout.fillWidth: true; card: dv.card; day: dv.day; events: dv.events
         onGapClicked: minutes => { if (dv.canAdd) dv.card.c.newEvent(dv.day, minutes); } }
@@ -35,6 +35,6 @@ ColumnLayout {
         Text { objectName: "newOnDay"; x: dv.card.px(10); anchors.verticalCenter: parent.verticalCenter
             text: "+ New event on " + dv.card.c.locale.toString(dv.dayDate, "ddd d")
             color: dv.card.c.accent; font.family: dv.card.c.monoFont; font.pixelSize: dv.card.px(13) }
-        MouseArea { anchors.fill: parent; onClicked: dv.card.c.newEvent(dv.day) }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: dv.card.c.newEvent(dv.day) }
     }
 }

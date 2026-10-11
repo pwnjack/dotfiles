@@ -25,7 +25,7 @@ ColumnLayout {
         color: Qt.rgba(up.card.c.accent.r, up.card.c.accent.g, up.card.c.accent.b, 0.18)
         Text { anchors.centerIn: parent; text: "Set up iCloud in Settings ›"; color: up.card.c.foreground
             font.family: up.card.c.monoFont; font.pixelSize: up.card.px(13) }
-        MouseArea { anchors.fill: parent; onClicked: up.card.c.openSettings() }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: up.card.c.openSettings() }
     }
     Rectangle {
         visible: !up.noAccount && !up.card.c.state.unfolded
@@ -42,14 +42,14 @@ ColumnLayout {
                 : "Nothing in the next 7 days"
             color: up.card.c.foreground; font.family: up.card.c.monoFont; font.pixelSize: up.card.px(13)
         }
-        MouseArea { id: foldHover; anchors.fill: parent; hoverEnabled: true; onClicked: if (up.summary.next) up.card.c.toggleUpcoming() }
+        MouseArea { id: foldHover; anchors.fill: parent; hoverEnabled: true; cursorShape: up.summary.next ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: if (up.summary.next) up.card.c.toggleUpcoming() }
     }
     RowLayout {
         visible: !up.noAccount && up.card.c.state.unfolded
         Layout.fillWidth: true
         Text { text: "Upcoming · 7 days"; color: up.card.dim; font.family: up.card.c.monoFont; font.pixelSize: up.card.px(12); Layout.fillWidth: true }
         Text { text: "⌃"; color: up.card.c.accent; font.pixelSize: up.card.px(14)
-            MouseArea { anchors.fill: parent; anchors.margins: -8; onClicked: up.card.c.toggleUpcoming() } }
+            MouseArea { anchors.fill: parent; anchors.margins: -8; cursorShape: Qt.PointingHandCursor; onClicked: up.card.c.toggleUpcoming() } }
     }
     Text { visible: !up.noAccount && up.card.c.state.unfolded && !up.groups.length; text: "Nothing in the next 7 days"
         color: up.card.dim; font.family: up.card.c.monoFont; font.pixelSize: up.card.px(13) }

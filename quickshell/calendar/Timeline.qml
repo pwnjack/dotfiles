@@ -43,6 +43,7 @@ Item {
             id: free
             anchors.fill: parent
             hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
             onClicked: mouse => tl.gapClicked(Model.minutesAt(mouse.x / width, tl.range))
         }
         Item {   // past hours, today only: diagonal hatching
@@ -86,6 +87,7 @@ Item {
                     color: "#05090c"; font.family: tl.card.c.monoFont; font.pixelSize: tl.card.px(12); font.weight: Font.DemiBold
                 }
                 MouseArea { id: bhov; anchors.fill: parent; hoverEnabled: true
+                    cursorShape: tl.editable ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onContainsMouseChanged: containsMouse ? tl.pointerTip(blk, bhov.mouseX) : tl.card.unpeek(blk)
                     onPositionChanged: mouse => tl.pointerTip(blk, mouse.x)
                     onClicked: if (tl.editable) tl.card.c.editEvent(blk.modelData) }

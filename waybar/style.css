@@ -154,9 +154,12 @@ window#waybar {
    the pill's own left edge, so it disappears with the pill. Hover tints only
    the segment under the pointer: each is its own door into the card. */
 #calendar {
-    background: alpha(@foreground, 0.06);
+    background: transparent;
     border-radius: 9px;
     margin: 4px 0px;
+}
+#calendar:hover {
+    background: alpha(@foreground, 0.06);
 }
 #calendar #clock,
 #calendar #custom-agenda {

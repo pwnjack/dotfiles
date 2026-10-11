@@ -82,8 +82,9 @@ ShellRoot {
     }
     function close() {
         keepDraft();
-        state = Model.CLOSED;
+        // closing first: the window's visible binding must never read false between the two.
         closing = true;
+        state = Model.CLOSED;
         card.disappear();
     }
     function startSheet(dayKey, minutes) {
@@ -373,7 +374,7 @@ ShellRoot {
         exclusionMode: ExclusionMode.Normal
         WlrLayershell.namespace: "calendar-card"
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: root.state.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        WlrLayershell.keyboardFocus: root.state.open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
         MouseArea { anchors.fill: parent; onClicked: root.act("outside") }
 

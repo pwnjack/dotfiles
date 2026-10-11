@@ -43,14 +43,14 @@ FocusScope {
         RowLayout {
             Layout.fillWidth: true
             Text { text: "‹"; color: grid.card.c.accent; font.pixelSize: grid.card.px(18)
-                MouseArea { anchors.fill: parent; anchors.margins: -8; onClicked: grid.prev() } }
+                MouseArea { anchors.fill: parent; anchors.margins: -8; cursorShape: Qt.PointingHandCursor; onClicked: grid.prev() } }
             Item { Layout.fillWidth: true; implicitHeight: name.implicitHeight
                 Text { id: name; objectName: "monthName"; anchors.centerIn: parent
                     text: grid.card.c.locale.standaloneMonthName(grid.month, Locale.LongFormat) + " " + grid.year
                     color: grid.card.c.foreground; font.family: grid.card.c.monoFont; font.pixelSize: grid.card.px(13); font.weight: Font.DemiBold
-                    MouseArea { anchors.fill: parent; anchors.margins: -6; onClicked: grid.titleClicked() } } }
+                    MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: grid.titleClicked() } } }
             Text { text: "›"; color: grid.card.c.accent; font.pixelSize: grid.card.px(18)
-                MouseArea { anchors.fill: parent; anchors.margins: -8; onClicked: grid.next() } }
+                MouseArea { anchors.fill: parent; anchors.margins: -8; cursorShape: Qt.PointingHandCursor; onClicked: grid.next() } }
         }
         GridLayout {
             columns: 7; columnSpacing: 0; rowSpacing: grid.card.px(3)
@@ -88,7 +88,7 @@ FocusScope {
                         visible: cell.busy; width: grid.card.px(4); height: width; radius: width / 2
                         anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: grid.card.px(2)
                         color: cell.today ? grid.card.c.accentInk : grid.card.c.accent }
-                    MouseArea { id: hover; anchors.fill: parent; hoverEnabled: true; onClicked: grid.picked(cell.modelData.key) }
+                    MouseArea { id: hover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: grid.picked(cell.modelData.key) }
                     Timer { running: grid.peek && cell.busy && hover.containsMouse; interval: 300; onTriggered: grid.card.peekDay(cell, cell.modelData.key) }
                     Connections { target: hover; function onContainsMouseChanged() { if (!hover.containsMouse) grid.card.unpeek(cell); } }
                 }

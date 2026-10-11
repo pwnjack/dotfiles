@@ -14,11 +14,11 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         Text { text: "‹"; color: year.card.c.accent; font.pixelSize: year.card.px(18)
-            MouseArea { anchors.fill: parent; anchors.margins: -8; onClicked: year.card.c.shiftYear(-1) } }
+            MouseArea { anchors.fill: parent; anchors.margins: -8; cursorShape: Qt.PointingHandCursor; onClicked: year.card.c.shiftYear(-1) } }
         Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: year.card.c.viewYear
             color: year.card.c.foreground; font.family: year.card.c.monoFont; font.pixelSize: year.card.px(13); font.weight: Font.DemiBold }
         Text { text: "›"; color: year.card.c.accent; font.pixelSize: year.card.px(18)
-            MouseArea { anchors.fill: parent; anchors.margins: -8; onClicked: year.card.c.shiftYear(1) } }
+            MouseArea { anchors.fill: parent; anchors.margins: -8; cursorShape: Qt.PointingHandCursor; onClicked: year.card.c.shiftYear(1) } }
     }
     GridLayout {
         columns: 3; columnSpacing: year.card.px(6); rowSpacing: year.card.px(6)
@@ -43,7 +43,7 @@ ColumnLayout {
                         text: year.counts.length ? (year.counts[m.index] || "·") : ""
                         color: m.current ? year.card.c.accentInk : year.card.dim; font.family: year.card.c.monoFont; font.pixelSize: year.card.px(12) }
                 }
-                MouseArea { id: hov; anchors.fill: parent; hoverEnabled: true; onClicked: year.card.c.pickMonth(m.index) }
+                MouseArea { id: hov; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: year.card.c.pickMonth(m.index) }
             }
         }
     }

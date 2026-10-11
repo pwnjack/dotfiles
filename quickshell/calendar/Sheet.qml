@@ -115,7 +115,7 @@ FocusScope {
                 color: sheet.card.c.accent
                 font.family: sheet.card.c.monoFont
                 font.pixelSize: sheet.card.px(13)
-                MouseArea { anchors.fill: parent; anchors.margins: -6; onClicked: sheet.card.c.cancelSheet() }
+                MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: sheet.card.c.cancelSheet() }
             }
             Text {
                 objectName: "sheetTitle"
@@ -147,7 +147,7 @@ FocusScope {
                     font.pixelSize: sheet.card.px(13)
                     color: addButton.enabled ? sheet.card.c.accentInk : sheet.card.dim
                 }
-                MouseArea { anchors.fill: parent; enabled: addButton.enabled; onClicked: sheet.done() }
+                MouseArea { anchors.fill: parent; enabled: addButton.enabled; cursorShape: addButton.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: sheet.done() }
             }
         }
         Flickable {
@@ -160,7 +160,7 @@ FocusScope {
             ColumnLayout {
                 id: inner
                 width: scroll.width
-                spacing: sheet.card.px(10)
+                spacing: sheet.card.px(12)
             Text {
                 objectName: "readOnlyLine"
                 visible: sheet.readOnly
@@ -192,7 +192,7 @@ FocusScope {
                 ColumnLayout {
                     id: g1
                     width: parent.width
-                    spacing: 0
+                    spacing: sheet.card.px(6)
                     Controls.TextField {
                         id: titleField
                         objectName: "titleField"
@@ -241,16 +241,16 @@ FocusScope {
                 ColumnLayout {
                     id: g2
                     width: parent.width
-                    spacing: 0
+                    spacing: sheet.card.px(6)
                     SheetRow {
                         card: sheet.card
                         label: "All day"
-                        Controls.Switch {
+                        Toggle {
                             objectName: "allDaySwitch"
-                            activeFocusOnTab: true
+                            card: sheet.card
                             enabled: !sheet.readOnly && !(sheet.d && sheet.d.recurring)
                             checked: !!sheet.d && sheet.d.allDay
-                            onToggled: sheet.set(Model.setAllDay(sheet.d, checked))
+                            onToggled: sheet.set(Model.setAllDay(sheet.d, !checked))
                         }
                     }
                     SheetRow {
@@ -405,7 +405,7 @@ FocusScope {
                 ColumnLayout {
                     id: g3
                     width: parent.width
-                    spacing: 0
+                    spacing: sheet.card.px(6)
                     SheetRow {
                         card: sheet.card
                         label: "Calendar"
@@ -463,7 +463,7 @@ FocusScope {
                 color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
                 Text { anchors.centerIn: parent; text: "Delete event"; color: "#e0787a"; font.weight: Font.DemiBold
                     font.family: sheet.card.c.monoFont; font.pixelSize: sheet.card.px(13) }
-                MouseArea { anchors.fill: parent; onClicked: sheet.prompting = "delete" }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: sheet.prompting = "delete" }
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter

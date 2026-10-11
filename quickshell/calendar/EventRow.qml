@@ -28,7 +28,7 @@ Rectangle {
         Text { Layout.fillWidth: true; Layout.minimumWidth: 0; text: row.event.title; elide: Text.ElideRight
             color: row.card.c.foreground; font.family: row.card.c.monoFont; font.pixelSize: row.card.px(13) }
     }
-    MouseArea { id: hov; anchors.fill: parent; hoverEnabled: true
+    MouseArea { id: hov; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
         onContainsMouseChanged: containsMouse ? row.card.showTip(row, [row.event]) : row.card.unpeek(row)
         onClicked: row.card.c.editEvent(row.event) }
 }
