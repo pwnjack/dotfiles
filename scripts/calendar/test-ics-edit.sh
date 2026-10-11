@@ -155,6 +155,24 @@ assert_eq "$(grep -c '^TRIGGER:-PT15M' <<<"$mt")" 1 "all from override: the seri
 assert_eq "$(grep -c '^TRIGGER:-PT30M' <<<"$mt")" 1 "all from override: only the override keeps -PT30M"
 mc=$(req "$MOVED" "$(at '2026-10-13 14:00')" all "$(changes '2026-10-13 14:00' '2026-10-13 15:00' 'Standup renamed' 30m | jq -c '. + {alertChanged: true}')" | edit update | raw)
 assert_eq "$(grep -c '^TRIGGER:-PT30M' <<<"$mc")" 2 "all from override, alert changed: the series takes the chosen alert"
+# The series' times move only when the user moved them. An override's draft starts at the
+# override's times, so a title, location or alert edit must leave the master's DTSTART/DTEND.
+MASTER_TIMES='^DTSTART;TZID=Europe/Rome:20261006T100000$'
+assert_eq "$(grep -c '^DTSTART;TZID=Europe/Rome:20261013T140000$' <<<"$mc")" 1 "all from override, no timesChanged key: counts as changed, the master takes the shown start"
+mtt=$(req "$MOVED" "$(at '2026-10-13 14:00')" all "$(changes '2026-10-13 14:00' '2026-10-13 15:00' 'Standup renamed' 30m | jq -c '. + {alertChanged: true, timesChanged: false}')" | edit update | raw)
+assert_eq "$(grep -c "$MASTER_TIMES" <<<"$mtt")" 1 "all from override, title/alert only: the master keeps its 10:00 start"
+assert_eq "$(grep -c '^DTEND;TZID=Europe/Rome:20261006T110000$' <<<"$mtt")" 1 "all from override, title/alert only: the master keeps its 11:00 end"
+assert_eq "$(grep -c '^TRIGGER:-PT30M' <<<"$mtt")" 2 "all from override, title/alert only: the master takes the alert the user chose"
+mloc=$(req "$MOVED" "$(at '2026-10-13 14:00')" all "$(changes '2026-10-13 14:00' '2026-10-13 15:00' 'Standup' 15m | jq -c '. + {location: "Studio", timesChanged: false}')" | edit update | raw)
+assert_contains "$mloc" "LOCATION:Studio" "all from override, location only: the location changed"
+assert_eq "$(grep -c "$MASTER_TIMES" <<<"$mloc")" 1 "all from override, location only: the master keeps its 10:00 start"
+ma=$(req "$MOVED" "$(at '2026-10-13 14:00')" all "$(changes '2026-10-13 14:00' '2026-10-13 15:00' 'Standup' 30m | jq -c '. + {alertChanged: true, timesChanged: false}')" | edit update | raw)
+assert_eq "$(grep -c "$MASTER_TIMES" <<<"$ma")" 1 "all from override, alert only: the master keeps its 10:00 start"
+# An intentional retime still moves the series, and keeps its first date (Oct 6).
+mr=$(req "$MOVED" "$(at '2026-10-13 14:00')" all "$(changes '2026-10-13 15:00' '2026-10-13 16:00' 'Standup' 30m | jq -c '. + {alertChanged: true, timesChanged: true}')" | edit update | raw)
+assert_contains "$mr" "DTSTART;TZID=Europe/Rome:20261006T150000" "all, retimed: the series moves to the new time"
+assert_contains "$mr" "DTEND;TZID=Europe/Rome:20261006T160000" "all, retimed: the series end moves with it"
+assert_not_contains "$mr" "DTSTART;TZID=Europe/Rome:20261006T100000" "all, retimed: the old series time is gone"
 
 # A display alarm that repeats or carries a duration is not a plain preset: it is custom.
 REP="$TMP/repeat-alarm.ics"

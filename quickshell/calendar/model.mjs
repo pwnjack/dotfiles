@@ -268,13 +268,20 @@ export function draftFromEvent(e, info, defaults) {
         mode: 'edit', uid: e.uid, occurrence: e.startEpoch, recurring: !!info.recurring,
         readOnly: !!info.readOnly, invitation: !!info.invitation, originalCalendar: e.calendar,
         hash: info.hash, hadCustom: info.alert === 'custom', originalAlert: info.alert,
+        originalStart: e.startEpoch, originalEnd: e.endEpoch, originalAllDay: !!e.allDay,
+        originalStartDay: dayKey(e.startEpoch), originalEndDay: e.allDay ? dayKey(e.endEpoch - 1) : dayKey(e.endEpoch),
     }
 }
 // alertChanged tells the helper whether to rewrite the alarms: the alert the card
 // inspected (originalAlert) may belong to an override, not the event being saved.
+// timesChanged does the same for a series' times: the draft starts at the shown
+// instance's times, which may be an override's, so the helper writes the master's
+// DTSTART/DTEND only when the user moved them.
 export function changesOf(d) {
+    const timesChanged = d.allDay !== d.originalAllDay || d.start !== d.originalStart || d.end !== d.originalEnd
+        || d.startDay !== d.originalStartDay || d.endDay !== d.originalEndDay
     return { title: d.title.trim(), location: String(d.location).trim(), allDay: d.allDay, start: d.start, end: d.end,
-        startDay: d.startDay, endDay: d.endDay, alert: d.alert, alertChanged: d.alert !== d.originalAlert }
+        startDay: d.startDay, endDay: d.endDay, alert: d.alert, alertChanged: d.alert !== d.originalAlert, timesChanged: timesChanged }
 }
 // The scopes a save offers: none for a one-off; a calendar change moves the whole series.
 export function scopeChoices(d) {

@@ -329,7 +329,12 @@ def run():
         apply(master, changes, like)
     elif scope == "all":
         # Dates and All day are locked for a series: keep its first date, move the time.
-        apply(master, changes, like, keep_date=None if is_date(like) else like.date(), times=not is_date(like))
+        # The times are written only when the user moved them: the card's draft starts at
+        # the shown instance's times, which for an override are not the series'. A request
+        # without timesChanged predates the key, so it counts as changed.
+        moved = changes.get("timesChanged", True)
+        apply(master, changes, like, keep_date=None if is_date(like) else like.date(),
+              times=not is_date(like) and moved)
     else:
         target, slot = instance_for(cal, master, occurrence)
         if target is None:

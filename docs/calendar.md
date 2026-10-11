@@ -244,7 +244,9 @@ file. The sheet then opens with the event's values, under *Cancel · Edit event
   only* or *All events*, and asks *All events* alone when the calendar changed.
   *This event only* writes a `RECURRENCE-ID` override for that date, or updates
   the existing override. *All events* changes the series, keeps its first date
-  and changes only its time of day.
+  and changes only its time of day. The series' times are written only when
+  the times were moved, so a title, location or alert edit opened from an
+  override leaves them alone.
 - **Delete.** This confirms with *Delete event?*. A repeating event asks *This
   event only*, which adds an `EXDATE` and drops any override for that date, or
   *All events*, which removes the file.

@@ -221,7 +221,18 @@ assert.deepEqual(M.scopeChoices(Object.assign({}, e1, { calendar: 'Work' })), ['
 assert.deepEqual(M.scopeChoices(Object.assign({}, e1, { recurring: false })), [])
 assert.deepEqual(M.clashes(e1, [listed]), [])                                   // never with itself
 assert.deepEqual(M.clashes(e1, [Object.assign({}, listed, { uid: 'other' })]).length, 1)
-assert.deepEqual(Object.keys(M.changesOf(e1)).sort(), ['alert', 'alertChanged', 'allDay', 'end', 'endDay', 'location', 'start', 'startDay', 'title'])
+assert.deepEqual(Object.keys(M.changesOf(e1)).sort(), ['alert', 'alertChanged', 'allDay', 'end', 'endDay', 'location', 'start', 'startDay', 'timesChanged', 'title'])
+// The times count as changed only when the user moved them: the draft starts at the shown instance's times.
+assert.equal(M.changesOf(e1).timesChanged, false)
+assert.equal(M.changesOf(Object.assign({}, e1, { title: 'Renamed', location: 'Elsewhere', alert: '30m' })).timesChanged, false)
+assert.equal(M.changesOf(M.moveStart(e1, e1.start + 3600)).timesChanged, true)
+assert.equal(M.changesOf(M.setEnd(e1, e1.end + 1800)).timesChanged, true)
+assert.equal(M.changesOf(M.setEndDay(e1, '2026-10-21')).timesChanged, true)
+assert.equal(M.changesOf(M.moveStart(e1, e1.start + 3600)).start, e1.start + 3600)
+// A moved override: its draft starts at the override's times, so a title-only save is unchanged.
+const moved = M.draftFromEvent(Object.assign({}, listed, { startEpoch: at('2026-10-13T14:00'), endEpoch: at('2026-10-13T15:00') }), info, defaults)
+assert.equal(M.changesOf(Object.assign({}, moved, { title: 'Standup renamed' })).timesChanged, false)
+assert.equal(M.changesOf(M.setAllDay(moved, true)).timesChanged, true)
 // The alert counts as changed only when the user picked another one: a series' inspected alert can be an override's.
 assert.equal(M.changesOf(e1).alertChanged, false)
 assert.equal(M.changesOf(Object.assign({}, e1, { alert: '30m' })).alertChanged, true)
