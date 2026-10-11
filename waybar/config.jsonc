@@ -35,7 +35,7 @@
   ],
 
   // Modules Center
-  "modules-center": ["clock", "custom/weather"],
+  "modules-center": ["group/calendar", "custom/weather"],
 
   // Modules Right
   "modules-right": [
@@ -143,34 +143,33 @@
     "spacing": 10,
   },
 
+  // Clock and next event: one capsule, two doors into the calendar card
+  // (quickshell/calendar). The clock opens the month, the pill the upcoming
+  // list; each segment's second click closes. No tooltips: the card is one
+  // click away (docs/calendar.md).
+  "group/calendar": {
+    "orientation": "horizontal",
+    "modules": ["clock", "custom/agenda"],
+  },
+
   // Clock
   "clock": {
-    // The long date on click, in the session's LC_TIME like the short one.
-    "format-alt": "{:L%A %d %B %Y}",
-    "tooltip": true,
-    "tooltip-format": "<tt><small>{calendar}</small></tt>",
-    "calendar": {
-      "mode": "month",
-      "mode-mon-col": 3,
-      "on-scroll": 1,
-      // Hierarchy by alpha, never by hue. config.jsonc cannot reach the
-      // pywal palette -- @foreground is a CSS variable and these are Pango
-      // markup -- so a literal colour here would be the one thing on the bar
-      // that ignores the wallpaper. alpha dims whatever colour the tooltip
-      // already inherited from `tooltip label` in style.css.
-      "format": {
-        "months": "{}",
-        "days": "{}",
-        "weeks": "<span alpha='55%'>W{}</span>",
-        "weekdays": "<span alpha='75%'>{}</span>",
-        "today": "<b>{}</b>",
-      },
-    },
-    "actions": {
-      "on-click-middle": "mode",
-      "on-scroll-up": "shift_down",
-      "on-scroll-down": "shift_up",
-    },
+    // format, interval: rendered by scripts/waybar/clock-format.sh into the
+    // clock.jsonc include; the main config must not set them.
+    "tooltip": false,
+    "on-click": "~/.config/scripts/hyprland/calendar-card.sh month",
+  },
+
+  // Next event (scripts/waybar/agenda-bar.sh; Bar page: bar-agenda). Signal 12
+  // comes from scripts/calendar/sync.sh after every sync or add.
+  "custom/agenda": {
+    "exec": "~/.config/scripts/waybar/agenda-bar.sh",
+    "return-type": "json",
+    "interval": 60,
+    "signal": 12,
+    "tooltip": false,
+    "on-click": "~/.config/scripts/hyprland/calendar-card.sh upcoming",
+    "on-click-right": "setsid -f ~/.config/scripts/calendar/sync.sh >/dev/null 2>&1",
   },
 
   // Weather

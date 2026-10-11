@@ -86,6 +86,7 @@ window#waybar {
 #window,
 #taskbar,
 #clock,
+#custom-agenda,
 #custom-weather,
 #custom-media,
 #cpu,
@@ -120,6 +121,7 @@ window#waybar {
 #window,
 #taskbar,
 #clock,
+#custom-agenda,
 #custom-weather,
 #custom-media,
 #cpu,
@@ -146,6 +148,31 @@ window#waybar {
 /* group-opening edges */
 #custom-nightlight {
     padding-left: 15px;
+}
+
+/* Clock and next event read as one capsule (group/calendar). The divider is
+   the pill's own left edge, so it disappears with the pill. Hover tints only
+   the segment under the pointer: each is its own door into the card. */
+#calendar {
+    background: alpha(@foreground, 0.06);
+    border-radius: 9px;
+    margin: 4px 0px;
+}
+#calendar #clock,
+#calendar #custom-agenda {
+    margin: 0px;
+    border-radius: 9px;
+}
+#calendar #custom-agenda {
+    border-left: 1px solid alpha(@foreground, 0.18);
+    border-radius: 0px 9px 9px 0px;
+}
+#calendar #clock:hover,
+#calendar #custom-agenda:hover {
+    background: alpha(@foreground, 0.12);
+}
+#custom-agenda.now {
+    color: @color4;
 }
 
 /* The workspace row ends with #workspaces' 3px right margin (1px in numbers
