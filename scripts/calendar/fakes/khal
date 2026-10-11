@@ -5,7 +5,7 @@
 # given to $FAKE_LOG/imported.ics.
 printf '%s\n' "$*" >> "$FAKE_LOG/khal.argv"
 case $1 in
-    list) cat "${FAKE_KHAL_LIST:-/dev/null}" ;;
+    list) [[ ${FAKE_KHAL_LIST_FAIL:-} ]] && { echo 'Unknown calendar: X' >&2; exit 2; }; cat "${FAKE_KHAL_LIST:-/dev/null}" ;;
     printcalendars) printf '%s\n' "${FAKE_KHAL_CALENDARS:-Home}" ;;
     import) cp -- "${!#}" "$FAKE_LOG/imported.ics"; [[ ${FAKE_KHAL_IMPORT_FAIL:-} ]] && { echo 'import failed' >&2; exit 1; }; exit 0 ;;
 esac

@@ -42,11 +42,45 @@ printf 'Promemoria\n' > "$CALENDAR_STATE_DIR/skip"
 run_cal range 2026-10-11 8 >/dev/null
 assert_contains "$(tail -n1 "$FAKE_LOG/khal.argv")" "-d Promemoria" "range: skipped collections excluded"
 
+# Stale, duplicate and doubled names never reach khal; they would exit it 2.
+printf 'Gone\nWork\nWork\nPromemoria\n' > "$CALENDAR_OPTIONS/calendar-hidden"
+run_cal range 2026-10-11 8 >/dev/null
+last=$(tail -n1 "$FAKE_LOG/khal.argv")
+assert_eq "$([[ $last == *"-d Gone"* ]] && echo yes || echo no)" no "range: an unknown hidden name is not passed"
+assert_eq "$(grep -o -- '-d Work' <<<"$last" | wc -l)" 1 "range: a duplicate name is passed once"
+assert_eq "$(grep -o -- '-d Promemoria' <<<"$last" | wc -l)" 1 "range: a name hidden and skipped is passed once"
+rm "$CALENDAR_OPTIONS/calendar-hidden"
+
+# Every calendar excluded: khal would list them all, so it is not asked.
+printf 'Home\nWork\n' > "$CALENDAR_OPTIONS/calendar-hidden"
+: > "$FAKE_LOG/khal.argv"
+assert_eq "$(run_cal range 2026-10-11 8)" '[]' "all excluded: range is empty"
+assert_eq "$(run_cal month 2026-10)" '{"busy":[]}' "all excluded: month is empty"
+assert_eq "$(run_cal year 2026)" '{"counts":[0,0,0,0,0,0,0,0,0,0,0,0]}' "all excluded: year has zero counts"
+assert_eq "$(wc -c < "$FAKE_LOG/khal.argv")" 0 "all excluded: khal is never called"
+rm "$CALENDAR_OPTIONS/calendar-hidden"
+
+# A failing khal is an error, not an empty agenda.
+out=$(FAKE_KHAL_LIST_FAIL=1 run_cal range 2026-10-11 8); code=$?
+assert_eq "$code" 1 "khal fails: range exits 1"
+assert_json_field "$out" '.ok' false "khal fails: range reports ok false"
+assert_json_contains "$out" '.error' "Unknown calendar" "khal fails: range carries khal's message"
+out=$(FAKE_KHAL_LIST_FAIL=1 run_cal month 2026-10); code=$?
+assert_eq "$code" 1 "khal fails: month exits 1"
+assert_json_field "$out" '.ok' false "khal fails: month reports ok false"
+out=$(FAKE_KHAL_LIST_FAIL=1 run_cal year 2026); code=$?
+assert_eq "$code" 1 "khal fails: year exits 1"
+
 assert_json_field "$(run_cal day 2026-10-13)" 'length' 4 "day: passes the fixture through (khal does the filtering)"
 assert_contains "$(tail -n1 "$FAKE_LOG/khal.argv")" "2026-10-13 1d" "day: one day"
 assert_json_field "$(run_cal month 2026-10)" '.busy | join(",")' "11,13,24,25" "month: every covered day once"
 assert_json_field "$(run_cal year 2026)" '.counts | length' 12 "year: twelve counts"
 assert_json_field "$(run_cal year 2026)" '.counts[9]' 4 "year: October counts events by start"
+
+# An event that starts in 2025 and runs into January counts for 2025 only.
+out=$(FAKE_KHAL_LIST="$TEST_DIR/fixtures/khal-year-boundary.json" run_cal year 2026)
+assert_json_field "$out" '.counts[0]' 1 "year: January counts only events starting that year"
+assert_json_field "$out" '.counts[11]' 0 "year: a spill-over from last year does not hit December"
 
 echo Work > "$CALENDAR_STATE_DIR/readonly"
 cals=$(run_cal calendars)

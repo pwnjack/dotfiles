@@ -30,16 +30,49 @@ with_epochs() {
         '[to_entries[] | .value + {startEpoch: $s[2 * .key], endEpoch: $s[2 * .key + 1]}]' <<<"$events"
 }
 
-# list <from> <days> — visible events from khal, normalized. Hidden and
-# skipped calendars are left out by khal itself.
-list() {
-    local name
-    local -a exclude=()
-    while IFS= read -r name; do exclude+=(-d "$name"); done < <(cal_excluded)
-    "$khal" list --day-format '' --json uid --json title --json location --json calendar --json calendar-color \
-        --json start --json end --json repeat-pattern "${exclude[@]}" "$1" "${2}d" 2>/dev/null \
-        | jq -s -f "$cal_dir/khal-events.jq" | with_epochs
+# known_calendars — display names of every collection in the local copy.
+known_calendars() {
+    local dir
+    for dir in "$cal_data"/*/; do
+        [[ -d $dir ]] || continue
+        cat "$dir/displayname" 2>/dev/null || basename "$dir"
+    done
 }
+
+# list <from> <days> — visible events from khal, normalized. Hidden and
+# skipped calendars are left out by khal itself. khal exits 2 on a -d name it
+# does not know or is given twice, and lists everything when -d covers every
+# calendar, so the names are deduplicated, limited to existing calendars, and
+# an all-excluded set never reaches khal.
+list() {
+    local name known remaining=0 raw err
+    local -a exclude=() seen=()
+    known=$(known_calendars)
+    while IFS= read -r name; do
+        [[ -n $name ]] || continue
+        grep -qxF -- "$name" <<<"$known" || continue
+        if ((${#seen[@]})) && printf '%s\n' "${seen[@]}" | grep -qxF -- "$name"; then continue; fi
+        seen+=("$name"); exclude+=(-d "$name")
+    done < <(cal_excluded)
+    while IFS= read -r name; do
+        [[ -n $name ]] || continue
+        if ! ((${#seen[@]})) || ! printf '%s\n' "${seen[@]}" | grep -qxF -- "$name"; then remaining=1; fi
+    done <<<"$known"
+    if [[ -n $known ]] && ((!remaining)); then echo '[]'; return; fi
+    err=$(mktemp "${TMPDIR:-/tmp}/cal-khal.XXXXXX")
+    if ! raw=$("$khal" list --day-format '' --json uid --json title --json location --json calendar --json calendar-color \
+        --json start --json end --json repeat-pattern "${exclude[@]}" "$1" "${2}d" 2>"$err"); then
+        name=$(grep -v '^[[:space:]]*$' "$err" | tail -n1 || true)
+        rm -f "$err"
+        die "${name:-khal could not list events}"
+    fi
+    rm -f "$err"
+    jq -s -f "$cal_dir/khal-events.jq" <<<"$raw" | with_epochs
+}
+
+# need_list <from> <days> — list into $events; on failure print its error
+# JSON and exit, which a pipeline into jq would swallow.
+need_list() { events=$(list "$@") || { printf '%s\n' "$events"; exit 1; }; }
 
 # calendars — from vdirsyncer's metadata, so names match khal's. Skipped
 # collections are omitted; colours are cut from #RRGGBBAA to #RRGGBB.
@@ -89,16 +122,19 @@ add() {
 }
 
 case ${1:-} in
-    range) [[ $# == 3 ]] || die 'Usage: cal.sh range DATE DAYS'; list "$2" "$3" ;;
-    day) [[ $# == 2 ]] || die 'Usage: cal.sh day DATE'; list "$2" 1 ;;
+    range) [[ $# == 3 ]] || die 'Usage: cal.sh range DATE DAYS'; need_list "$2" "$3"; printf '%s\n' "$events" ;;
+    day) [[ $# == 2 ]] || die 'Usage: cal.sh day DATE'; need_list "$2" 1; printf '%s\n' "$events" ;;
     month)
         [[ $# == 2 && $2 =~ ^[0-9]{4}-[0-9]{2}$ ]] || die 'Usage: cal.sh month YYYY-MM'
         days=$(date -d "$2-01 +1 month -1 day" +%d)
-        list "$2-01" "$((10#$days))" | jq -c --arg month "$2" -f "$cal_dir/busy.jq" ;;
+        need_list "$2-01" "$((10#$days))"
+        jq -c --arg month "$2" -f "$cal_dir/busy.jq" <<<"$events" ;;
     year)
         [[ $# == 2 && $2 =~ ^[0-9]{4}$ ]] || die 'Usage: cal.sh year YYYY'
         days=$(( ($(date -d "$(( $2 + 1 ))-01-01" +%s) - $(date -d "$2-01-01" +%s) + 43200) / 86400 ))
-        list "$2-01-01" "$days" | jq -c '[range(1; 13) as $m | [.[] | select((.start[5:7] | tonumber) == $m)] | length] | {counts: .}' ;;
+        need_list "$2-01-01" "$days"
+        jq -c --arg year "$2" '[.[] | select(.start[0:4] == $year)] as $e
+            | [range(1; 13) as $m | [$e[] | select((.start[5:7] | tonumber) == $m)] | length] | {counts: .}' <<<"$events" ;;
     calendars) calendars ;;
     add) add ;;
     *) die 'Usage: cal.sh range|day|month|year|calendars|add' ;;
