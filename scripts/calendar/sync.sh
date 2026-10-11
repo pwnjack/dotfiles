@@ -38,17 +38,18 @@ write_status() {
 }
 
 # scan_declined — rebuilds $cal_state/declined (the instances the account declined,
-# which cal.sh hides). Written through a temp file, so a failed scan keeps the
-# last list and logs one line; never fatal.
+# which cal.sh hides). Written through a temp file, so a failed scan or publish
+# keeps the last list and logs one line; never fatal, so the sync stays ok.
 scan_declined() {
     local tmp
     tmp=$(mktemp "$cal_state/declined.XXXXXX") || return 0
-    if python3 -I "$cal_dir/declined.py" "$cal_data" "$cal_state/addresses" "$(cal_account)" > "$tmp" 2>/dev/null; then
-        mv -f "$tmp" "$cal_state/declined"
-    else
-        rm -f "$tmp"
-        echo 'calendar: could not scan declined invitations; keeping the previous list' >&2
+    if python3 -I "$cal_dir/declined.py" "$cal_data" "$cal_state/addresses" "$(cal_account)" > "$tmp" 2>/dev/null \
+        && mv -f "$tmp" "$cal_state/declined"; then
+        return 0
     fi
+    rm -f "$tmp"
+    echo 'calendar: could not scan declined invitations; keeping the previous list' >&2
+    return 0
 }
 
 if [[ ${1:-} == --render ]]; then

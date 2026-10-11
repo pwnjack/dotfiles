@@ -132,4 +132,18 @@ assert_json_contains "$out" '.error' "import failed" "add: khal's error is repor
 out=$(CAL_KHAL=khal-missing run_cal range 2026-10-11 8); code=$?
 assert_eq "$code" 1 "no khal: exit 1"
 assert_json_field "$out" '.error' "khal is not installed" "no khal: says so"
+
+# Scale: 30,000 events over 600 UIDs, 300 of them declined as a whole. Filtering
+# is one indexed pass, so this stays well under 3 s; a rule scan per event would not.
+big="$TMP/khal-large.json"
+jq -nc 'range(30000) | [{uid: "syn-\(. % 600)", title: "E\(.)", location: "", calendar: "Work",
+    "calendar-color": "#30B0C7FF", start: "2026-10-05 09:00", end: "2026-10-05 09:30", "repeat-pattern": ""}]' > "$big"
+for ((n = 0; n < 300; n++)); do printf 'Work\tsyn-%d\t*\n' "$n"; done > "$CALENDAR_STATE_DIR/declined"
+t0=$(date +%s%N)
+out=$(FAKE_KHAL_LIST="$big" run_cal range 2026-10-05 1); code=$?
+t1=$(date +%s%N)
+rm -f "$CALENDAR_STATE_DIR/declined"
+assert_eq "$code" 0 "large: range exits 0"
+assert_json_field "$out" 'length' 15000 "large: 30,000 events, 300 declined series: 15,000 remain"
+assert_eq "$(( (t1 - t0) < 3000000000 ? 1 : 0 ))" 1 "large: 30,000 events and 300 rules finish in under 3 s"
 test_summary cal

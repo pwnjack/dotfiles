@@ -29,8 +29,10 @@ with_epochs() {
     if [[ $(jq 'length' <<<"$events") == 0 ]]; then echo '[]'; return; fi
     stamps=$(jq -r '.[] | .start, (if .allDay then .end + " tomorrow" else .end end)' <<<"$events" | date -f - +%s) \
         || die 'Cannot read event times'
-    jq -c --argjson s "$(jq -Rs 'split("\n") | map(select(length > 0) | tonumber)' <<<"$stamps")" \
-        '[to_entries[] | .value + {startEpoch: $s[2 * .key], endEpoch: $s[2 * .key + 1]}]' <<<"$events"
+    # The stamps come from a file, not --argjson: a year of events exceeds the argument size limit.
+    jq -c --rawfile st <(printf '%s\n' "$stamps") \
+        '($st | split("\n") | map(select(length > 0) | tonumber)) as $s
+        | [to_entries[] | .value + {startEpoch: $s[2 * .key], endEpoch: $s[2 * .key + 1]}]' <<<"$events"
 }
 
 # known_calendars — display names of every collection in the local copy.
@@ -49,13 +51,20 @@ known_calendars() {
 hide_declined() {
     local declined=$cal_state/declined
     [[ -r $declined ]] || declined=/dev/null
+    # The rules are indexed once, by "calendar<TAB>uid": {all, hide, show}, so each
+    # event is a constant-time lookup, not a scan of every rule.
     jq -c --rawfile declined "$declined" '
-        ($declined | split("\n") | map(select(length > 0) | split("\t"))) as $rules
+        ($declined | split("\n") | map(select(length > 0) | split("\t")) | map(select(length == 3))
+            | reduce .[] as $r ({};
+                ($r[0] + "\t" + $r[1]) as $k
+                | (.[$k] // {all: false, hide: {}, show: {}}) as $v
+                | .[$k] = (if $r[2] == "*" then $v | .all = true
+                           elif $r[2][0:1] == "!" then $v | .show[$r[2][1:]] = true
+                           else $v | .hide[$r[2]] = true end))) as $index
         | map(. as $e
-            | ($rules | any(.[0] == $e.calendar and .[1] == $e.uid and .[2] == $e.start)) as $declined_here
-            | ($rules | any(.[0] == $e.calendar and .[1] == $e.uid and .[2] == "*")) as $series_declined
-            | ($rules | any(.[0] == $e.calendar and .[1] == $e.uid and .[2] == ("!" + $e.start))) as $shown_again
-            | select(($declined_here or ($series_declined and ($shown_again | not))) | not))'
+            | ($index[$e.calendar + "\t" + $e.uid] // {all: false, hide: {}, show: {}}) as $r
+            | ($e.start // "") as $s
+            | select((($r.hide[$s] // false) or ($r.all and (($r.show[$s] // false) | not))) | not))'
 }
 
 # list <from> <days> — visible events from khal, normalized. Hidden and

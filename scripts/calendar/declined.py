@@ -71,22 +71,24 @@ def is_declined(event, mine):
 
 
 def instance_start(event):
-    """The override's own start in khal's format: local wall time."""
-    if "DTSTART" in event:
-        value = event.decoded("DTSTART")
-    elif "RECURRENCE-ID" in event:
-        value = event.decoded("RECURRENCE-ID")
-    else:
-        return None
+    """The override's own DTSTART in khal's format: local wall time. Never its
+    RECURRENCE-ID, which keeps the original slot of a moved occurrence. Raises
+    ValueError when DTSTART is missing or not a date, so the file is skipped."""
+    if "DTSTART" not in event:
+        raise ValueError("override without DTSTART")
+    value = event.decoded("DTSTART")
     if isinstance(value, dt.datetime):
         if value.tzinfo is not None:
             value = value.astimezone()
         return value.strftime("%Y-%m-%d %H:%M")
-    return value.isoformat()
+    if isinstance(value, dt.date):
+        return value.isoformat()
+    raise ValueError("override DTSTART is not a date")
 
 
 def rules_for(cal, mine):
-    """(UID, key) rules for one file: its main events and their overrides."""
+    """(UID, key) rules for one file: its main events and their overrides. Any
+    malformed override raises, so the caller drops the whole file."""
     masters = {}
     overrides = []
     for event in cal.walk("VEVENT"):
@@ -99,8 +101,6 @@ def rules_for(cal, mine):
             masters[uid] = masters.get(uid, False) or is_declined(event, mine)
     for uid, event in overrides:
         start = instance_start(event)
-        if start is None:
-            continue
         if is_declined(event, mine):
             yield uid, start
         elif masters.get(uid, False):
@@ -118,12 +118,15 @@ def declined_rules(path, mine):
     for name in names:
         if not name.endswith(".ics"):
             continue
+        # Materialised inside the guard: a file that breaks part-way through
+        # contributes no rules at all, never a partial list.
         try:
             with open(os.path.join(path, name), "rb") as handle:
                 cal = icalendar.Calendar.from_ical(handle.read())
+            rules = list(rules_for(cal, mine))
         except Exception:
             continue
-        yield from rules_for(cal, mine)
+        yield from rules
 
 
 def main():

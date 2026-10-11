@@ -37,6 +37,12 @@ assert_eq "$out" "$expected_fixtures" "fixtures: exact rule lines, named Home"
 assert_eq "$(grep -c 'MOVED-OVERRIDE	2026-10-12 10:00' <<<"$out")" 0 "moved override: no rule for its old RECURRENCE-ID slot"
 assert_eq "$(grep -c 'MOVED-OVERRIDE	2026-10-12 14:00' <<<"$out")" 1 "moved override: the rule sits at its DTSTART"
 
+# Malformed overrides never fall back to RECURRENCE-ID: a missing DTSTART emits no rule
+# (not even for the old slot), and a non-date DTSTART drops its whole file, master's "*"
+# included. The valid files beside them still print: the exact list above proves that.
+assert_eq "$(grep -c 'OVERRIDE-NO-DTSTART' <<<"$out")" 0 "missing DTSTART: no rule for its RECURRENCE-ID slot"
+assert_eq "$(grep -c 'OVERRIDE-BAD-DTSTART' <<<"$out")" 0 "non-date DTSTART: its file contributes no rules at all"
+
 # Without an addresses file the Apple ID stands for mailto:.
 out=$(scan "$FIX" "$TMP/missing" me@example.com)
 assert_eq "$(grep -c 'DECLINED-DAILY	\*' <<<"$out")" 1 "no addresses file: the Apple ID fallback matches the daily invitation"
