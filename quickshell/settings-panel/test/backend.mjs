@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { registerHooks } from 'node:module'
+import * as C from '../calendar.mjs'
 
 // Built, not literal: the doctor's path scan would flag fixture files that do not exist.
 const autostartUserDir = '~/.config' + '/autostart'
@@ -92,7 +93,7 @@ let showEnvironment = 'XDG_CURRENT_DESKTOP=Hyprland\nPATH=/usr/local/bin:/usr/bi
 const raceOnce = new Set()
 let events = [], failingPath = '', failingReadPath = '', failReload = false, failingGsettingsSets = 0, failNextSpawn = ''
 // The calendar's keyring account, cal.sh's listing (null: cal.sh fails) and setup.sh's sign-in failure.
-let keyringAccount = '', calendarsListing = null, signInError = '', failCalendarRenders = 0
+let keyringAccount = '', keyringFailure = '', calendarsListing = null, signInError = '', failCalendarRenders = 0
 // Shapes copied from `hyprctl getoption -j` on Hyprland 0.56: the value field
 // is named after its type, and `set` is only whether the config assigns it.
 const hyprOptions = {
@@ -298,8 +299,16 @@ globalThis.settingsMocks = {
         if (args[0] === 'systemctl' && args[2] === 'show-environment') return showEnvironment
         if (args[0] === 'systemctl' && args[2] === 'list-units') return JSON.stringify([{unit:'app-nm\\x2dapplet@autostart.service',active:'active',sub:'running'}])
         if (args[0] === 'fc-list') return 'FiraCode Nerd Font,FiraCode Nerd Font Med\nAdwaita Sans\n'
-        if (args[0] === 'secret-tool') { if (!keyringAccount) throw new Error('secret not found'); return keyringAccount }
-        if (String(args[1]).endsWith('/scripts/calendar/cal.sh')) { if (calendarsListing === null) throw new Error('{"ok":false}'); return calendarsListing }
+        // The failure shapes execAsync gives: secret-tool exits 1 with no output for a missing item; cal.sh prints its JSON error on stdout.
+        if (args[0] === 'secret-tool') {
+            if (keyringFailure) throw Object.assign(new Error(keyringFailure), {status: 2, stdout: '', stderr: keyringFailure})
+            if (!keyringAccount) throw Object.assign(new Error('secret-tool failed'), {status: 1, stdout: '', stderr: ''})
+            return keyringAccount
+        }
+        if (String(args[1]).endsWith('/scripts/calendar/cal.sh')) {
+            if (calendarsListing === null) throw Object.assign(new Error('bash failed'), {status: 1, stdout: '{"ok":false,"error":"khal is not installed"}', stderr: ''})
+            return calendarsListing
+        }
         if (String(args[1]).endsWith('/scripts/calendar/sync.sh') && failCalendarRenders > 0) { failCalendarRenders--; throw new Error('sync.sh --render failed') }
         if (args[0] === 'pkill') { running.delete(args[2]); return ''; }
         if (args[0] === 'pgrep') { if (!running.has(args[2])) throw new Error('not running'); return '123'; }
@@ -1531,6 +1540,21 @@ const signedOut = await dispatch({op:'calendarStatus'})
 assert.deepEqual(signedOut.calendar.calendars,[])
 assert.equal(signedOut.calendar.account,'')
 console.log('ok: calendar status lists the writable and shown calendars')
+
+// A keyring that cannot be read is a failure, not a signed-out account: the reader keeps its model and shows the error.
+keyringFailure = 'fatal: keyring locked'
+await assert.rejects(dispatch({op:'calendarStatus'}),/keyring locked/)
+keyringFailure = ''
+// cal.sh failing to list is a failure too, with cal.sh's own message. panel-request.sh prints it as {ok:false,error} and exits 1.
+keyringAccount = 'me@icloud.com'
+const listing = calendarsListing
+calendarsListing = null
+const listFailure = await dispatch({op:'calendarStatus'}).then(() => null, error => error)
+assert.equal(listFailure.message,'khal is not installed')
+assert.deepEqual(C.readReply(JSON.stringify({ok:false,error:listFailure.message}),'',1),{error:'khal is not installed'})
+calendarsListing = listing
+keyringAccount = ''
+console.log('ok: a keyring or listing failure reaches the calendar reader')
 
 events = []
 await dispatch({op:'calendarSignIn',appleId:' me@icloud.com ',password:'abcd-efgh'})

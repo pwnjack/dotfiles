@@ -8,12 +8,23 @@ export function execAsync(args) {
             child.communicate_utf8_async(null, null, (proc, result) => {
                 try {
                     const [, stdout, stderr] = proc.communicate_utf8_finish(result)
-                    if (!proc.get_successful()) throw new Error(stderr.trim() || `${args[0]} failed`)
+                    if (!proc.get_successful()) throw failure(args, proc, stdout, stderr, stderr.trim())
                     resolve(stdout.trim())
                 } catch (error) { reject(error) }
             })
         } catch (error) { reject(error) }
     })
+}
+
+// A failed command's error carries its exit status and both streams: a caller
+// that must tell "not stored" (secret-tool, status 1, no output) from "could not
+// read" needs more than the message.
+function failure(args, proc, stdout, stderr, message = stderr.trim().split("\n").pop()) {
+    const error = new Error(message || `${args[0]} failed`)
+    error.status = proc.get_exit_status()
+    error.stdout = stdout.trim()
+    error.stderr = stderr.trim()
+    return error
 }
 
 // execInput(args, input): like execAsync, with `input` written to stdin (the
@@ -25,7 +36,7 @@ export function execInput(args, input) {
             child.communicate_utf8_async(input, null, (proc, result) => {
                 try {
                     const [, stdout, stderr] = proc.communicate_utf8_finish(result)
-                    if (!proc.get_successful()) throw new Error(stderr.trim().split("\n").pop() || `${args[0]} failed`)
+                    if (!proc.get_successful()) throw failure(args, proc, stdout, stderr)
                     resolve(stdout.trim())
                 } catch (error) { reject(error) }
             })

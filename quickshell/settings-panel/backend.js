@@ -988,13 +988,18 @@ export async function dispatch(request) {
         const runtime = GLib.getenv("CALENDAR_RUNTIME_DIR") || (GLib.getenv("XDG_RUNTIME_DIR") || "/tmp") + "/calendar"
         let status = null
         try { status = JSON.parse(read(runtime + "/status.json")) } catch (error) { status = null }
+        // secret-tool exits 1 with no output for an item that is not stored: that is signed out.
+        // Any other failure means the keyring could not be read, and the reader must say so.
         let account = ""
-        try { account = await execAsync(["secret-tool", "lookup", "service", "calendar-icloud", "field", "username"]) } catch (error) { account = "" }
+        try { account = await execAsync(["secret-tool", "lookup", "service", "calendar-icloud", "field", "username"]) }
+        catch (error) { if (error.status !== 1 || error.stderr) throw error }
         let calendars = []
         if (account) {
-            try { calendars = JSON.parse(await execAsync(["bash", configDir + "/scripts/calendar/cal.sh", "calendars"])) } catch (error) { calendars = [] }
+            // cal.sh prints {"ok":false,"error":…} and exits 1 when it cannot list.
+            try { calendars = JSON.parse(await execAsync(["bash", configDir + "/scripts/calendar/cal.sh", "calendars"])) }
+            catch (error) { throw new Error(helperFailure(error)) }
+            if (!Array.isArray(calendars)) throw new Error("cal.sh did not list the calendars")
         }
-        if (!Array.isArray(calendars)) calendars = []
         const hidden = exists(optionPath("calendar-hidden")) ? readOption("calendar-hidden").split("\n").map(s => s.trim()).filter(Boolean) : []
         return { calendar: { account, status, line: calendar.statusLine(status, Math.floor(Date.now() / 1000), account),
             calendars: calendars.map(c => ({ ...c, shown: !hidden.includes(c.name) })) } }
@@ -1015,6 +1020,11 @@ export async function dispatch(request) {
         return {}
     }
     throw new Error("Unknown operation")
+}
+// The message cal.sh (or any helper that prints {"ok":false,"error"}) gave for a failed run.
+function helperFailure(error) {
+    try { const reply = JSON.parse(error.stdout); if (reply && reply.error) return String(reply.error) } catch (_) { /* not JSON */ }
+    return error.message
 }
 async function persistReload() {
     await checkedHyprctl(["reload"])
