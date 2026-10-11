@@ -116,6 +116,16 @@ def rid_for(master, occurrence):
     return in_form(occurrence, start)
 
 
+def epoch_of(value):
+    """The instant a DTSTART value starts at, in the epochs cal.sh reports: an
+    all-day date is its local midnight, floating time is local time."""
+    if is_date(value):
+        return dt.datetime.combine(value, dt.time(0), tzinfo=local_zone()).timestamp()
+    if value.tzinfo is None:
+        return value.replace(tzinfo=local_zone()).timestamp()
+    return value.timestamp()
+
+
 def override_for(cal, rid):
     for event in vevents(cal):
         if "RECURRENCE-ID" in event and event.decoded("RECURRENCE-ID") == rid:
@@ -123,20 +133,43 @@ def override_for(cal, rid):
     return None
 
 
+def instance_for(cal, master, occurrence):
+    """The override the card shows at `occurrence` (or None) and its series slot.
+    A moved override is shown where it was moved to, so it is found by its own
+    start first; otherwise the slot the occurrence falls on decides. The slot is
+    the RECURRENCE-ID, which an override keeps whatever its start."""
+    for event in vevents(cal):
+        if "RECURRENCE-ID" in event and "DTSTART" in event \
+                and epoch_of(event.decoded("DTSTART")) == occurrence:
+            return event, event.decoded("RECURRENCE-ID")
+    slot = rid_for(master, occurrence)
+    return override_for(cal, slot), slot
+
+
 def alarms(event):
     return [c for c in event.subcomponents if c.name == "VALARM"]
 
 
 def alert_of(event):
+    """A preset id when the event's one alarm is a plain display alarm at a preset
+    duration from the start; "custom" for anything else (several alarms, a
+    trigger from the end, another action, or a duration no preset offers)."""
     found = alarms(event)
     if not found:
         return "none"
+    if len(found) != 1:
+        return "custom"
+    alarm = found[0]
+    action = alarm.get("ACTION")
+    if action is not None and str(action).upper() != "DISPLAY":
+        return "custom"
+    trigger = alarm.get("TRIGGER")
+    if trigger is None or trigger.params.get("RELATED", "START").upper() == "END":
+        return "custom"
     table = ALLDAY if is_date(event.decoded("DTSTART")) else TIMED
-    if len(found) == 1:
-        trigger = found[0].decoded("TRIGGER")
-        for key, value in table.items():
-            if isinstance(trigger, dt.timedelta) and trigger == value:
-                return key
+    for key, value in table.items():
+        if isinstance(trigger.dt, dt.timedelta) and trigger.dt == value:
+            return key
     return "custom"
 
 
@@ -203,11 +236,15 @@ def set_times(event, changes, like, keep_date=None):
 
 
 def apply(event, changes, like, keep_date=None, times=True):
+    before, was_date = alert_of(event), is_date(event.decoded("DTSTART"))
     replace(event, "SUMMARY", changes["title"])
     replace(event, "LOCATION", changes["location"] or None)
     if times:
         set_times(event, changes, like, keep_date)
-    set_alert(event, changes["alert"], changes["title"])
+    # The alarms are rewritten only when the alert changed, or the event switched
+    # between all-day and timed (the presets differ), so other edits keep them.
+    if changes["alert"] != before or is_date(event.decoded("DTSTART")) != was_date:
+        set_alert(event, changes["alert"], changes["title"])
     touch(event)
 
 
@@ -260,7 +297,7 @@ def run():
     scope = request.get("scope") or "all"
 
     if sys.argv[1] == "inspect":
-        target = (override_for(cal, rid_for(master, occurrence)) if recurring and occurrence else None) or master
+        target = (instance_for(cal, master, occurrence)[0] if recurring and occurrence else None) or master
         print(json.dumps({"ok": True, "alert": alert_of(target), "recurring": recurring,
                           "invitation": invitation(master, own_addresses(request)),
                           "allDay": is_date(master.decoded("DTSTART")),
@@ -271,11 +308,10 @@ def run():
         if not recurring or scope == "all":
             print(json.dumps({"ok": True, "raw": ""}))
             return
-        rid = rid_for(master, occurrence)
-        old = override_for(cal, rid)
+        old, slot = instance_for(cal, master, occurrence)
         if old is not None:
             cal.subcomponents.remove(old)
-        master.add("EXDATE", rid)
+        master.add("EXDATE", slot)
         touch(master)
         print(json.dumps({"ok": True, "raw": cal.to_ical().decode()}))
         return
@@ -290,17 +326,19 @@ def run():
         # Dates and All day are locked for a series: keep its first date, move the time.
         apply(master, changes, like, keep_date=None if is_date(like) else like.date(), times=not is_date(like))
     else:
-        rid = rid_for(master, occurrence)
-        target = override_for(cal, rid)
+        target, slot = instance_for(cal, master, occurrence)
         if target is None:
             target = copy.deepcopy(master)
             for name in ("RRULE", "RDATE", "EXDATE", "RECURRENCE-ID"):
                 if name in target:
                     del target[name]
-            target.add("RECURRENCE-ID", rid)
-            place_override(target, master, rid)
+            target.add("RECURRENCE-ID", slot)
+            place_override(target, master, slot)
             cal.add_component(target)
-        apply(target, changes, like, times=not is_date(like))
+            apply(target, changes, like, times=not is_date(like))
+        else:
+            # An existing override keeps its own zone and form, not the series'.
+            apply(target, changes, target.decoded("DTSTART"), times=not is_date(like))
     print(json.dumps({"ok": True, "raw": cal.to_ical().decode()}))
 
 

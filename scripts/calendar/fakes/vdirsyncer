@@ -1,5 +1,9 @@
 #!/bin/bash
 # Logs argv; fails with $FAKE_VDIR_ERROR on stderr when it is set.
 printf '%s\n' "$*" >> "$FAKE_LOG/vdirsyncer.argv"
+# Test seams: FAKE_VDIR_WAIT holds metasync until a line arrives on that fifo;
+# FAKE_VDIR_FORGET removes the account from the keyring, as a sign-out would.
+if [[ ${FAKE_VDIR_WAIT:-} && $1 == metasync ]]; then read -r _ < "$FAKE_VDIR_WAIT"; fi
+if [[ ${FAKE_VDIR_FORGET:-} ]]; then rm -f -- "$FAKE_KEYRING/username"; fi
 if [[ ${FAKE_VDIR_SILENT:-} ]]; then exit 1; fi
 if [[ ${FAKE_VDIR_ERROR:-} ]]; then printf '%s\n' "$FAKE_VDIR_ERROR" >&2; exit 1; fi

@@ -13,8 +13,9 @@ export TZ=Europe/Rome FAKE_LOG="$TMP/log" PATH="$TEST_DIR/fakes:$PATH"
 export CALENDAR_RUNTIME_DIR="$TMP/run" CALENDAR_STATE_DIR="$TMP/state" CALENDAR_OPTIONS="$TMP/options" CALENDAR_DATA="$TMP/data"
 export FAKE_KHAL_LIST="$TEST_DIR/fixtures/khal-week.json" CALENDAR_NO_SYNC=1 FAKE_KEYRING="$TMP/keyring"
 mkdir -p "$FAKE_LOG" "$CALENDAR_RUNTIME_DIR" "$CALENDAR_STATE_DIR" "$CALENDAR_OPTIONS" "$CALENDAR_DATA/home-uuid" "$CALENDAR_DATA/work-uuid"
-echo Home > "$CALENDAR_DATA/home-uuid/displayname"; echo '#FF9F0AFF' > "$CALENDAR_DATA/home-uuid/color"
-echo Work > "$CALENDAR_DATA/work-uuid/displayname"; echo '#30B0C7FF' > "$CALENDAR_DATA/work-uuid/color"
+# vdirsyncer writes displayname without a trailing newline, so the names are printf'd.
+printf Home > "$CALENDAR_DATA/home-uuid/displayname"; echo '#FF9F0AFF' > "$CALENDAR_DATA/home-uuid/color"
+printf Work > "$CALENDAR_DATA/work-uuid/displayname"; echo '#30B0C7FF' > "$CALENDAR_DATA/work-uuid/color"
 run_cal() { bash "$TEST_DIR/cal.sh" "$@"; }
 
 out=$(run_cal range 2026-10-11 8)
@@ -34,6 +35,7 @@ assert_contains "$(tail -n1 "$FAKE_LOG/khal.argv")" "2026-10-11 8d" "range: star
 printf 'Work\n\n' > "$CALENDAR_OPTIONS/calendar-hidden"
 run_cal range 2026-10-11 8 >/dev/null
 assert_contains "$(tail -n1 "$FAKE_LOG/khal.argv")" "-d Work" "range: hidden calendars excluded"
+assert_eq "$(grep -c -- '-d Home' <<<"$(tail -n1 "$FAKE_LOG/khal.argv")")" 0 "range: a visible calendar is not excluded with its neighbour's name (no-newline metadata)"
 rm "$CALENDAR_OPTIONS/calendar-hidden"
 
 mkdir -p "$CALENDAR_DATA/promemoria-uuid"
@@ -128,6 +130,18 @@ out=$(req Home "hello" | run_cal add)
 assert_json_contains "$out" '.error' "not a calendar event" "add: a non-VCALENDAR payload is refused"
 out=$(FAKE_KHAL_IMPORT_FAIL=1 run_cal add < <(req Home "$ics"))
 assert_json_contains "$out" '.error' "import failed" "add: khal's error is reported"
+
+# A sync holding sync.lock refuses an add: nothing is imported while iCloud is being written.
+lock="$CALENDAR_RUNTIME_DIR/sync.lock"; mkdir -p "$CALENDAR_RUNTIME_DIR"
+( exec 9>"$lock"; flock 9 && exec sleep 30 ) &
+holder=$!
+for ((n = 0; n < 100; n++)); do flock -n "$lock" true || break; sleep 0.05; done
+: > "$FAKE_LOG/khal.argv"; rm -f "$FAKE_LOG/imported.ics"
+out=$(req Home "$ics" | CALENDAR_LOCK_WAIT=1 run_cal add); code=$?
+assert_eq "$code" 1 "add under a running sync: exit 1"
+assert_json_contains "$out" '.error' "A sync with iCloud is running" "add under a running sync: says why"
+assert_eq "$(wc -c < "$FAKE_LOG/khal.argv")" 0 "add under a running sync: khal is never called"
+kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null || true
 
 out=$(CAL_KHAL=khal-missing run_cal range 2026-10-11 8); code=$?
 assert_eq "$code" 1 "no khal: exit 1"

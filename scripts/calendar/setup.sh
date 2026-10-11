@@ -78,6 +78,16 @@ case ${1:-} in
         ;;
     --sign-out)
         systemctl --user disable --now calendar-sync.timer >/dev/null 2>&1 || true
+        systemctl --user stop calendar-sync.service >/dev/null 2>&1 || true
+        # A sync that is still running (a detached one is outside the unit the stop
+        # reaches) holds sync.lock. The removal waits for it, and touches nothing if
+        # it cannot get the lock.
+        mkdir -p "$cal_runtime"
+        exec 8>"$cal_runtime/sync.lock"
+        if ! flock -w "${CALENDAR_LOCK_WAIT:-120}" 8; then
+            echo 'A sync with iCloud is running; try again in a moment' >&2
+            exit 1
+        fi
         forget
         rm -rf -- "$cal_data" "$cal_state" "${CALENDAR_VDIR_STATUS:-${XDG_STATE_HOME:-$HOME/.local/state}/vdirsyncer/status}"
         rm -f -- "$cal_runtime/agenda.json" "$cal_runtime/status.json"

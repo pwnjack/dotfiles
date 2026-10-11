@@ -162,6 +162,71 @@ assert_contains "$(cat "$TMP/rmerr")" "keeping the previous list" "failed publis
 assert_json_field "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" 'length' 4 "failed publish and cleanup: agenda rendered"
 assert_contains "$(cat "$FAKE_LOG/pkill")" "-RTMIN+12 waybar" "failed publish and cleanup: Waybar signalled"
 
+# Tools: a missing khal is its own failure, and removes the agenda it can no longer back.
+printf '[{"stale":true}]' > "$CALENDAR_RUNTIME_DIR/agenda.json"
+CAL_KHAL=khal-missing sync_run
+assert_json_field "$(status)" '.state' failed "no khal: state failed"
+assert_json_field "$(status)" '.kind' tool "no khal: kind tool"
+assert_json_field "$(status)" '.message' "Calendar tools not installed" "no khal: the tools message"
+assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "no khal: the agenda is removed"
+
+# A failed render is not success: the sync records it, with khal's own message, and keeps the
+# last agenda that rendered.
+sync_run
+good=$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")
+FAKE_KHAL_LIST_FAIL=1 sync_run; code=$?
+assert_eq "$code" 0 "failed render: the sync itself exits 0"
+assert_json_field "$(status)" '.state' failed "failed render: state failed, not ok"
+assert_json_field "$(status)" '.kind' other "failed render: kind other"
+assert_json_field "$(status)" '.message' "Unknown calendar: X" "failed render: khal's message"
+assert_eq "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" "$good" "failed render: the last agenda is kept"
+
+# --render reports a failed render with exit 1, which is what the panel rolls back on.
+FAKE_KHAL_LIST_FAIL=1 sync_run --render; code=$?
+assert_eq "$code" 1 "--render: exit 1 when khal fails"
+assert_eq "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" "$good" "--render: a failed render keeps the agenda"
+printf 'not json' > "$TMP/garbage.json"
+FAKE_KHAL_LIST="$TMP/garbage.json" sync_run --render; code=$?
+assert_eq "$code" 1 "--render: exit 1 when khal's output is not JSON"
+assert_eq "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" "$good" "--render: unreadable output keeps the agenda"
+sync_run --render; code=$?
+assert_eq "$code" 0 "--render: exit 0 when the render works"
+
+# A render that cannot get the render lock fails too, rather than reporting success.
+mkdir -p "$CALENDAR_RUNTIME_DIR"
+( exec 9>"$CALENDAR_RUNTIME_DIR/render.lock"; flock 9 && exec sleep 30 ) & holder=$!
+for ((n = 0; n < 100; n++)); do flock -n "$CALENDAR_RUNTIME_DIR/render.lock" true || break; sleep 0.05; done
+CALENDAR_LOCK_WAIT=1 sync_run --render; code=$?
+assert_eq "$code" 1 "--render: exit 1 when the render lock is busy"
+kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null || true
+
+# Signed out while this sync ran (its vdirsyncer forgets the account): it writes no status
+# and no agenda, and signals nothing.
+rm -f "$CALENDAR_RUNTIME_DIR/status.json" "$CALENDAR_RUNTIME_DIR/agenda.json"; : > "$FAKE_LOG/pkill"
+FAKE_VDIR_FORGET=1 sync_run; code=$?
+assert_eq "$code" 0 "signed out mid-sync: exit 0"
+assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/status.json ]] && echo yes || echo no)" no "signed out mid-sync: no status written"
+assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "signed out mid-sync: no agenda written"
+assert_eq "$(wc -c < "$FAKE_LOG/pkill")" 0 "signed out mid-sync: Waybar not signalled"
+printf 'me@example.com' > "$FAKE_KEYRING/username"
+
+# Signed out while this sync waited for sync.lock: once it gets the lock it writes nothing.
+lock="$CALENDAR_RUNTIME_DIR/sync.lock"
+( exec 9>"$lock"; flock 9 && exec sleep 30 ) & holder=$!
+for ((n = 0; n < 100; n++)); do flock -n "$lock" true || break; sleep 0.05; done
+rm -f "$CALENDAR_RUNTIME_DIR/status.json" "$CALENDAR_RUNTIME_DIR/agenda.json"; : > "$FAKE_LOG/pkill"
+CALENDAR_LOCK_WAIT=10 sync_run & waiter=$!
+sleep 0.5
+rm -f "$FAKE_KEYRING/username"
+kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null || true
+wait "$waiter"; code=$?
+assert_eq "$code" 0 "signed out while waiting: exit 0"
+assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/status.json ]] && echo yes || echo no)" no "signed out while waiting: no status written"
+assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "signed out while waiting: no agenda written"
+assert_eq "$(wc -c < "$FAKE_LOG/pkill")" 0 "signed out while waiting: Waybar not signalled"
+printf 'me@example.com' > "$FAKE_KEYRING/username"
+sync_run
+
 # Units.
 svc=$(cat "$TEST_DIR/calendar-sync.service"); tmr=$(cat "$TEST_DIR/calendar-sync.timer")
 assert_contains "$svc" "ExecStart=/usr/bin/bash %h/.config/scripts/calendar/sync.sh" "service: runs sync.sh"

@@ -185,9 +185,12 @@ stay in the terminal (`scripts/updates/terminal.sh`). See `docs/updates.md`.
 `scripts/calendar/sync.sh` is the normal path to iCloud: a `flock`, then
 `vdirsyncer metasync` and `sync` into `~/.local/share/calendars/icloud/`, a daily
 discover, `writable.sh` and `declined.py`, then `agenda.json` and `status.json`
-in `$XDG_RUNTIME_DIR/calendar/` and signal 12. `setup.sh --sign-in` is the
-exception: it runs discover and `writable.sh` outside that lock, and `writable.sh`'s
-PROPFINDs use `curl` directly. `sync.sh --render` does no network.
+in `$XDG_RUNTIME_DIR/calendar/` and signal 12. A failed render is a failed sync,
+and `sync.sh --render` exits 1 so the panel can roll back. `cal.sh` add, update
+and delete take the same `sync.lock` (or are refused), and `setup.sh --sign-out`
+stops the service and takes that lock before clearing anything.
+`setup.sh --sign-in` is the exception: it runs discover and `writable.sh` outside
+that lock, and `writable.sh`'s PROPFINDs use `curl` directly. `sync.sh --render` does no network.
 `cal.sh` is the only khal reader and writer; `khal/config` holds the ISO formats
 it parses, and everything shown is localised from `LC_TIME`. Adds go through
 `khal import --batch -a`, never `khal new`, which splits the summary on ` :: `.

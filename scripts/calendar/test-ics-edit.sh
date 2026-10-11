@@ -111,6 +111,43 @@ bad=$(req "$FIX/iphone-weekly.ics" "$(at '2026-10-20 20:00')" one | edit update)
 assert_json_field "$bad" '.ok' false "update: null changes refused"
 assert_eq "$(jq -r '.error | length > 0' <<<"$bad")" true "update: null changes give a reason"
 
+# moved and cross-zone overrides: the instance the card shows is the override, found by
+# its own start, and it keeps its series slot (RECURRENCE-ID) for every later edit.
+MOVED="$FIX/moved-override.ics"
+out=$(req "$MOVED" "$(at '2026-10-13 14:00')" | edit inspect)
+assert_json_field "$out" '.alert' 30m "moved inspect: reads the moved override's own alarm"
+out=$(req "$MOVED" "$(at '2026-10-20 15:00')" | edit inspect)
+assert_json_field "$out" '.alert' 10m "cross-zone inspect: found by its start, with its own alarm"
+mv_new=$(req "$MOVED" "$(at '2026-10-13 14:00')" one "$(changes '2026-10-13 15:00' '2026-10-13 16:00' 'Standup moved' 30m)" | edit update | raw)
+assert_eq "$(grep -c '^BEGIN:VEVENT' <<<"$mv_new")" 3 "moved update: no second override is added"
+assert_contains "$mv_new" "RECURRENCE-ID;TZID=Europe/Rome:20261013T100000" "moved update: keeps its original slot"
+assert_contains "$mv_new" "DTSTART;TZID=Europe/Rome:20261013T150000" "moved update: moves it again"
+xz=$(req "$MOVED" "$(at '2026-10-20 15:00')" one "$(changes '2026-10-20 16:00' '2026-10-20 17:00' 'Standup abroad' 10m)" | edit update | raw)
+assert_eq "$(grep -c '^BEGIN:VEVENT' <<<"$xz")" 3 "cross-zone update: no second override is added"
+assert_contains "$xz" "DTSTART;TZID=America/New_York:20261020T100000" "cross-zone update: keeps its own zone"
+assert_contains "$xz" "RECURRENCE-ID;TZID=Europe/Rome:20261020T100000" "cross-zone update: keeps its slot"
+dm=$(req "$MOVED" "$(at '2026-10-13 14:00')" one | edit delete | raw)
+assert_eq "$(grep -c '^BEGIN:VEVENT' <<<"$dm")" 2 "moved delete: its override goes"
+assert_contains "$dm" "EXDATE;TZID=Europe/Rome:20261013T100000" "moved delete: excludes its original slot"
+assert_not_contains "$dm" "EXDATE;TZID=Europe/Rome:20261013T140000" "moved delete: never excludes the new time"
+dx=$(req "$MOVED" "$(at '2026-10-20 15:00')" one | edit delete | raw)
+assert_eq "$(grep -c '^BEGIN:VEVENT' <<<"$dx")" 2 "cross-zone delete: its override goes"
+assert_contains "$dx" "EXDATE;TZID=Europe/Rome:20261020T100000" "cross-zone delete: excludes its slot"
+
+# alarms: a title-only edit never rewrites them, and an end-relative alarm is custom
+END="$FIX/end-alarm.ics"
+out=$(req "$END" "$(at '2026-10-15 19:00')" | edit inspect)
+assert_json_field "$out" '.alert' custom "end-relative alarm: inspect reports custom, not a preset"
+# The card sends back the alert inspect reported, so a title-only edit carries that value.
+shown=$(jq -r .alert <<<"$out")
+tonly=$(req "$END" "$(at '2026-10-15 19:00')" all "$(changes '2026-10-15 19:00' '2026-10-15 20:00' 'Review with Sam' "$shown")" | edit update | raw)
+assert_contains "$tonly" "SUMMARY:Review with Sam" "title-only edit: the title changed"
+assert_contains "$tonly" "TRIGGER;RELATED=END:-PT15M" "title-only edit: the end-relative trigger survives"
+assert_contains "$tonly" "X-APPLE-DEFAULT-ALARM:TRUE" "title-only edit: Apple's alarm property survives"
+assert_contains "$tonly" "X-WR-ALARMUID:B1" "title-only edit: the alarm keeps its UID"
+assert_eq "$(grep -c '^BEGIN:VALARM' <<<"$tonly")" 1 "title-only edit: still one alarm"
+assert_contains "$new" "X-WR-ALARMUID:A1" "all: a custom alarm keeps its properties"
+
 # cal.sh: hash check, atomic write, move, delete
 mkdir -p "$CALENDAR_DATA/home" "$CALENDAR_DATA/work"
 echo Home > "$CALENDAR_DATA/home/displayname"; echo Work > "$CALENDAR_DATA/work/displayname"
@@ -158,4 +195,57 @@ cp "$FIX/iphone-invite.ics" "$CALENDAR_DATA/home/invite.ics"
 info=$(bash "$TEST_DIR/cal.sh" inspect Home INVITE-0001 "$(at '2026-10-15 19:00')")
 assert_json_field "$info" '.invitation' true "cal.sh inspect: Luca's invitation is not mine"
 rm -f "$CALENDAR_DATA/home/invite.ics"
+
+# Locked writes. A sync that holds sync.lock refuses the write, and a file that changes
+# between cal.sh's check and its locked recheck is refused, for update, delete and move.
+export CALENDAR_LOCK_WAIT=1
+lock="$CALENDAR_RUNTIME_DIR/sync.lock"
+sed 's/^SUMMARY:Calcetto/SUMMARY:Phone edit/' "$FIX/iphone-weekly.ics" > "$TMP/phone.ics"
+cp "$FIX/iphone-weekly.ics" "$CALENDAR_DATA/home/calcetto.ics"
+hash=$(sha256sum < "$CALENDAR_DATA/home/calcetto.ics" | cut -d' ' -f1)
+( exec 9>"$lock"; flock 9 && exec sleep 30 ) &
+holder=$!
+for ((n = 0; n < 100; n++)); do flock -n "$lock" true || break; sleep 0.05; done
+out=$(upd "$hash")
+assert_json_contains "$out" '.error' "A sync with iCloud is running" "locked: a write is refused while a sync holds sync.lock"
+assert_eq "$(sha256sum < "$CALENDAR_DATA/home/calcetto.ics" | cut -d' ' -f1)" "$hash" "locked: the file is untouched"
+kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null || true
+
+racepy="$TMP/racepy"; mkdir -p "$racepy"; export REAL_PY; REAL_PY=$(command -v python3)
+cat > "$racepy/python3" <<'RACE'
+#!/bin/bash
+# Test seam: a phone change lands after cal.sh's check and before its locked recheck.
+if [[ -n ${RACE_FILE:-} ]]; then
+    cp -- "$RACE_SRC" "$RACE_FILE.new" && mv -f -- "$RACE_FILE.new" "$RACE_FILE"
+fi
+exec "$REAL_PY" "$@"
+RACE
+chmod +x "$racepy/python3"
+phone=$(sha256sum < "$TMP/phone.ics" | cut -d' ' -f1)
+race_home="$CALENDAR_DATA/home/calcetto.ics"
+reset_home() { cp "$FIX/iphone-weekly.ics" "$race_home"; }
+phone_wins() { [[ "$(sha256sum < "$race_home" | cut -d' ' -f1)" == "$phone" ]]; }
+RACE_SRC="$TMP/phone.ics"; export RACE_SRC
+
+reset_home
+out=$(PATH="$racepy:$PATH" RACE_FILE="$race_home" upd "$hash")
+assert_json_contains "$out" '.error' "changed on your iPhone" "race update: a file replaced before the locked recheck is refused"
+assert_eq "$(phone_wins && echo yes || echo no)" yes "race update: the phone's version is left as it is"
+assert_eq "$(count_ics "$CALENDAR_DATA/home")" 1 "race update: nothing new is written"
+
+reset_home
+out=$(jq -cn --arg h "$hash" --arg uid "$uid" --argjson occ "$(at '2026-10-20 20:00')" \
+    '{calendar: "Home", uid: $uid, occurrence: $occ, scope: "all", hash: $h}' \
+    | PATH="$racepy:$PATH" RACE_FILE="$race_home" bash "$TEST_DIR/cal.sh" delete)
+assert_json_contains "$out" '.error' "changed on your iPhone" "race delete: refused, not deleted"
+assert_eq "$(phone_wins && echo yes || echo no)" yes "race delete: the phone's version is kept"
+
+reset_home
+out=$(PATH="$racepy:$PATH" RACE_FILE="$race_home" upd "$hash" Work)
+assert_json_contains "$out" '.error' "changed on your iPhone" "race move: refused"
+assert_eq "$(phone_wins && echo yes || echo no)" yes "race move: the file stays in Home, unchanged"
+assert_eq "$(count_ics "$CALENDAR_DATA/work")" 0 "race move: nothing lands in Work"
+reset_home
+rm -f "$race_home"
+
 test_summary ics-edit

@@ -10,6 +10,9 @@
 #   cal.sh inspect CALENDAR UID EPOCH  {"alert","recurring","invitation","allDay","hash"}
 #   cal.sh update                      one stdin line {"calendar","uid","occurrence","scope","hash","changes","moveTo"?}
 #   cal.sh delete                      one stdin line {"calendar","uid","occurrence","scope","hash"}
+# add, update and delete hold sync.lock, the lock sync.sh holds while it talks to
+# iCloud and rewrites the copy, so a write never lands between a sync and its
+# publish; a busy lock refuses the write rather than waiting for it.
 # Errors print {"ok":false,"error":"..."} and exit 1.
 # shellcheck disable=SC2154  # cal_* paths come from lib.sh
 set -euo pipefail
@@ -19,6 +22,16 @@ khal=${CAL_KHAL:-khal}
 
 die() { jq -cn --arg m "$1" '{ok:false, error:$m}'; exit 1; }
 command -v "$khal" >/dev/null 2>&1 || die 'khal is not installed'
+
+# lock_sync — takes sync.lock for a write. Waits briefly (CALENDAR_LOCK_WAIT seconds,
+# for the suites), then refuses, leaving the copy untouched.
+lock_sync() {
+    mkdir -p "$cal_runtime"
+    exec 8>"$cal_runtime/sync.lock"
+    flock -w "${CALENDAR_LOCK_WAIT:-15}" 8 || die 'A sync with iCloud is running; try again in a moment'
+}
+# unchanged <file> <hash> — the file still holds the snapshot the card read.
+unchanged() { [[ -f $1 && $(sha256sum < "$1" | cut -d' ' -f1) == "$2" ]]; }
 
 # with_epochs — adds startEpoch/endEpoch to normalized events. One date(1)
 # call for all stamps; an all-day end becomes the midnight after its last day
@@ -35,12 +48,15 @@ with_epochs() {
         | [to_entries[] | .value + {startEpoch: $s[2 * .key], endEpoch: $s[2 * .key + 1]}]' <<<"$events"
 }
 
-# known_calendars — display names of every collection in the local copy.
+# known_calendars — display names of every collection in the local copy, one per
+# line. vdirsyncer writes displayname without a trailing newline, so each name is
+# read as a whole (command substitution strips it) and then terminated here.
 known_calendars() {
-    local dir
+    local dir name
     for dir in "$cal_data"/*/; do
         [[ -d $dir ]] || continue
-        cat "$dir/displayname" 2>/dev/null || basename "$dir"
+        name=$(cat "$dir/displayname" 2>/dev/null || basename "$dir")
+        [[ -n $name ]] && printf '%s\n' "$name"
     done
 }
 
@@ -123,7 +139,7 @@ calendars() {
     printf '%s\n' "${rows[@]}" | jq -cs 'sort_by(.name)'
 }
 
-add() {
+add() {   # the caller holds sync.lock
     local line calendar ics tmp known err
     IFS= read -r line || true
     calendar=$(jq -r '.calendar // ""' <<<"$line" 2>/dev/null) || die 'Expected one JSON request'
@@ -175,6 +191,7 @@ account_addresses() {
 }
 # after_write — the same local-first finish as an add.
 after_write() {
+    exec 8>&-   # the sync started below must not wait on this write's lock
     bash "$cal_dir/sync.sh" --render >/dev/null 2>&1 || true
     [[ ${CALENDAR_NO_SYNC:-} ]] || setsid -f bash "$cal_dir/sync.sh" </dev/null >/dev/null 2>&1
     echo '{"ok":true}'
@@ -202,16 +219,19 @@ inspect() {
     helper inspect "$file" --argjson req "$(jq -cn --argjson o "${3:-0}" '{occurrence: $o}')"
 }
 
-edit() {   # edit update|delete — one JSON request line on stdin
-    local op=$1 line calendar uid file out new target dir tmp
+edit() {   # edit update|delete — one JSON request line on stdin; the caller holds sync.lock
+    local op=$1 line calendar uid hash file out new target dir tmp
     IFS= read -r line || true
     calendar=$(jq -r '.calendar // ""' <<<"$line" 2>/dev/null) || die 'Expected one JSON request'
     uid=$(jq -r '.uid // ""' <<<"$line")
+    hash=$(jq -r '.hash // ""' <<<"$line")
     [[ $(calendars | jq -r --arg n "$calendar" '.[] | select(.name == $n) | .writable') == true ]] || die "$calendar is read-only"
     file=$(find_event "$calendar" "$uid") || die "That event is no longer in $calendar"
-    [[ $(sha256sum < "$file" | cut -d' ' -f1) == "$(jq -r '.hash // ""' <<<"$line")" ]] \
-        || die 'This event changed on your iPhone; open it again'
+    unchanged "$file" "$hash" || die 'This event changed on your iPhone; open it again'
     out=$(helper "$op" "$file" --argjson req "$(jq -c '{occurrence, scope, changes}' <<<"$line")") || { printf '%s\n' "$out"; exit 1; }
+    # The check above is before the helper ran; the lock stops sync.sh, not a
+    # phone-side change that lands in between, so the snapshot is checked again.
+    unchanged "$file" "$hash" || die 'This event changed on your iPhone; open it again'
     new=$(jq -r '.raw' <<<"$out")
     if [[ -z $new ]]; then rm -f -- "$file"; after_write; return; fi
     target=$(jq -r '.moveTo // ""' <<<"$line")
@@ -244,9 +264,9 @@ case ${1:-} in
         jq -c --arg year "$2" '[.[] | select(.start[0:4] == $year)] as $e
             | [range(1; 13) as $m | [$e[] | select((.start[5:7] | tonumber) == $m)] | length] | {counts: .}' <<<"$events" ;;
     calendars) calendars ;;
-    add) add ;;
+    add) lock_sync; add ;;
     inspect) [[ $# == 4 ]] || die 'Usage: cal.sh inspect CALENDAR UID OCCURRENCE'; inspect "$2" "$3" "$4" ;;
-    update) edit update ;;
-    delete) edit delete ;;
+    update) lock_sync; edit update ;;
+    delete) lock_sync; edit delete ;;
     *) die 'Usage: cal.sh range|day|month|year|calendars|add|inspect|update|delete' ;;
 esac

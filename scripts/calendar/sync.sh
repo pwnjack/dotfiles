@@ -3,29 +3,42 @@
 # add), the bar's right-click and the settings panel all run this.
 #   sync.sh            discover (daily), metasync + sync, then render and signal
 #   sync.sh --render   render agenda.json and signal only: no network
-# Locks: a second sync waits for the first (sync.lock); rendering has its own
-# lock, so an add renders at once even while a slow sync runs.
+# Locks: a second sync waits for the first (sync.lock), and so do cal.sh's writes;
+# rendering has its own lock, so an add renders at once even while a slow sync runs.
+# A sync whose account is removed while it runs (a sign-out) writes nothing.
 # shellcheck disable=SC2154  # cal_* paths come from lib.sh
 set -euo pipefail
 # shellcheck source=scripts/calendar/lib.sh
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 mkdir -p "$cal_runtime" "$cal_state"
 status_file=$cal_runtime/status.json
+khal=${CAL_KHAL:-khal}
 now=$(date +%s)
 
 signal() { pkill -RTMIN+12 waybar 2>/dev/null || true; }
 
+# render — writes agenda.json from cal.sh. Returns 1 with render_error set when the
+# render lock stays busy, cal.sh fails or its output is not an array; the last agenda
+# then stays in place, so the bar keeps what it showed.
 render() {
+    local tmp out
+    render_error=''
     exec 7>"$cal_runtime/render.lock"
-    flock -w 30 7 || return 0
+    flock -w "${CALENDAR_LOCK_WAIT:-30}" 7 || { render_error='Calendar is busy; try again in a moment'; return 1; }
     if [[ -z $(cal_account) ]]; then rm -f "$cal_runtime/agenda.json"; return 0; fi
-    local tmp
     tmp=$(mktemp "$cal_runtime/agenda.XXXXXX")
-    if bash "$cal_dir/cal.sh" range "$(date +%F)" 8 > "$tmp" && jq -e 'type == "array"' "$tmp" >/dev/null; then
-        mv -f "$tmp" "$cal_runtime/agenda.json"
+    if out=$(bash "$cal_dir/cal.sh" range "$(date +%F)" 8); then
+        if jq -e 'type == "array"' <<<"$out" >/dev/null && printf '%s\n' "$out" > "$tmp" \
+            && mv -f "$tmp" "$cal_runtime/agenda.json"; then
+            return 0
+        fi
+        render_error='Calendar output was not understood'
     else
-        rm -f "$tmp"
+        render_error=$(jq -r '.error // empty' <<<"$out" 2>/dev/null || true)
+        render_error=${render_error:-Calendar could not be read}
     fi
+    rm -f "$tmp"
+    return 1
 }
 
 # write_status <state> <kind> <message> <lastSuccess|null>
@@ -54,21 +67,26 @@ scan_declined() {
 
 if [[ ${1:-} == --render ]]; then
     [[ -e $cal_state/declined ]] || scan_declined
-    render
+    rc=0
+    render || rc=1
     signal
-    exit 0
+    exit "$rc"
 fi
 
+# Read before the lock: an account removed while this sync waited for it is the
+# sign-out's doing, and the sync writes nothing.
+had_account=$(cal_account)
 exec 8>"$cal_runtime/sync.lock"
 # Another sync holding the lock for two minutes is stuck or slow; the timer
 # catches up next time.
-flock -w 120 8 || exit 0
+flock -w "${CALENDAR_LOCK_WAIT:-120}" 8 || exit 0
 prev_state=$(jq -r '.state // ""' "$status_file" 2>/dev/null || true)
 last_success=$(jq -c '.lastSuccess // null' "$status_file" 2>/dev/null || echo null)
 
 if [[ -z $(cal_account) ]]; then
+    [[ -z $had_account ]] || exit 0
     write_status none "" "" null
-    render
+    render || true
     signal
     exit 0
 fi
@@ -76,6 +94,9 @@ fi
 state=ok kind='' message=''
 if ! command -v vdirsyncer >/dev/null 2>&1; then
     state=failed kind=tool message='vdirsyncer is not installed'
+elif ! command -v "$khal" >/dev/null 2>&1; then
+    state=failed kind=tool message='Calendar tools not installed'
+    rm -f "$cal_runtime/agenda.json"
 else
     out=''
     stamp=$cal_state/discovered
@@ -107,14 +128,21 @@ else
     fi
 fi
 
+# Signed out while the sync ran: the copy is being removed, so nothing is published.
+[[ -n $(cal_account) ]] || exit 0
+if [[ $state == ok ]]; then
+    scan_declined
+    # A render that fails is a failed sync, not a quiet stale agenda.
+    render || { state=failed kind=other message=$render_error; }
+else
+    render || true
+fi
 if [[ $state == ok ]]; then
     write_status ok "" "" "$now"
-    scan_declined
 else
     write_status failed "$kind" "$message" "$last_success"
     if [[ $prev_state != failed ]]; then
         notify-send -a Calendar -i x-office-calendar 'Calendar' "Sync with iCloud failed: $message" 2>/dev/null || true
     fi
 fi
-render
 signal

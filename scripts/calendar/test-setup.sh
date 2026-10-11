@@ -78,4 +78,34 @@ assert_eq "$([[ -e $CALENDAR_DATA ]] && echo yes || echo no)" no "sign-out: loca
 assert_eq "$([[ -e $CALENDAR_STATE_DIR ]] && echo yes || echo no)" no "sign-out: state dir removed"
 assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "sign-out: agenda removed"
 assert_contains "$(tail -n1 "$FAKE_LOG/pkill")" "-RTMIN+12 waybar" "sign-out: Waybar signalled"
+# Sign-out while a sync is paused in vdirsyncer (a detached sync is outside the unit, so
+# stopping the unit does not reach it): the removal waits for sync.lock, and when it cannot
+# get it, it touches nothing. Once the sync ends, sign-out removes the copy for good.
+mkdir -p "$FAKE_KEYRING" "$CALENDAR_DATA/home" "$CALENDAR_STATE_DIR"
+printf 'me@example.com' > "$FAKE_KEYRING/username"; printf '%s' "$secret" > "$FAKE_KEYRING/password"
+echo Home > "$CALENDAR_DATA/home/displayname"; echo 'BEGIN:VCALENDAR' > "$CALENDAR_DATA/home/x.ics"
+touch "$CALENDAR_STATE_DIR/discovered"
+gate="$TMP/gate"; mkfifo "$gate"
+metasyncs=$(grep -c metasync "$FAKE_LOG/vdirsyncer.argv" 2>/dev/null || true)
+FAKE_VDIR_WAIT="$gate" bash "$TEST_DIR/sync.sh" & syncpid=$!
+# Wait for this sync's own metasync (the log already holds earlier ones), so it is paused in vdirsyncer.
+for ((n = 0; n < 100; n++)); do [[ $(grep -c metasync "$FAKE_LOG/vdirsyncer.argv") -gt $metasyncs ]] && break; sleep 0.05; done
+before=$(wc -l < "$FAKE_LOG/systemctl.argv")
+out=$(CALENDAR_LOCK_WAIT=1 setup --sign-out 2>&1); code=$?
+assert_eq "$code" 1 "sign-out during a sync: exit 1"
+assert_contains "$out" "A sync with iCloud is running; try again in a moment" "sign-out during a sync: says why"
+assert_eq "$(cat "$FAKE_KEYRING/username")" "me@example.com" "sign-out during a sync: username kept"
+assert_eq "$(cat "$FAKE_KEYRING/password")" "$secret" "sign-out during a sync: password kept"
+assert_eq "$([[ -e $CALENDAR_DATA/home/x.ics ]] && echo yes || echo no)" yes "sign-out during a sync: local copy kept"
+assert_eq "$([[ -e $CALENDAR_STATE_DIR/discovered ]] && echo yes || echo no)" yes "sign-out during a sync: state kept"
+new_calls=$(tail -n +"$((before + 1))" "$FAKE_LOG/systemctl.argv")
+assert_contains "$new_calls" "--user stop calendar-sync.service" "sign-out during a sync: the service is stopped first"
+timeout 5 sh -c "echo go > '$gate'" || true
+wait "$syncpid"
+setup --sign-out; code=$?
+assert_eq "$code" 0 "sign-out after the sync: exit 0"
+assert_eq "$([[ -e $CALENDAR_DATA ]] && echo yes || echo no)" no "sign-out after the sync: copy gone"
+assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "sign-out after the sync: no agenda left"
+sleep 0.2
+assert_eq "$([[ -e $CALENDAR_DATA ]] && echo yes || echo no)" no "sign-out after the sync: nothing recreated"
 test_summary setup
