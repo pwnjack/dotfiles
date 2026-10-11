@@ -283,8 +283,11 @@ ShellRoot {
             if (CalendarRead.fresh(generation, root.calendarGeneration, root.calendarShown)) {
                 const result = CalendarRead.readReply(calendarReader.reply, calendarReader.errorText, code);
                 // A failed read keeps the model already shown; the banner says it is out of date.
-                if (result.calendar) { root.calendar = result.calendar; if (root.problem === root.calendarError) root.problem = ""; root.calendarError = ""; }
-                else { root.calendarError = "Could not read calendars: " + result.error; root.problem = root.calendarError; }
+                // The banner is shared with write errors, so the helper decides who owns it.
+                if (result.calendar) root.calendar = result.calendar;
+                const next = CalendarRead.nextProblem(root.problem, root.calendarError, result.calendar ? "" : "Could not read calendars: " + result.error);
+                root.problem = next.problem;
+                root.calendarError = next.shownRead;
             }
             calendarReader.reply = "";
             calendarReader.errorText = "";

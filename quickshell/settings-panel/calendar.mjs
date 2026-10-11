@@ -29,6 +29,19 @@ export function readReply(stdout, stderr, code) {
     const detail = String(stderr || '').trim().split('\n').pop()
     return { error: detail || `the settings helper exited ${code} without a reply` }
 }
+// The panel's one problem banner has two independent sources: a write or sign-in failure, and a
+// calendar read failure. nextProblem(current, shownRead, readError) -> {problem, shownRead}, where
+// `current` is the banner now, `shownRead` the read error it shows ("" if none), and `readError` the
+// new read failure ("" for a successful read). A read failure only takes the banner when it is
+// empty or already shows a read error; a recovery clears the banner only when it shows that error.
+export function nextProblem(current, shownRead, readError) {
+    if (readError) {
+        if (!current || current === shownRead) return { problem: readError, shownRead: readError }
+        return { problem: current, shownRead: '' }
+    }
+    if (shownRead && current === shownRead) return { problem: '', shownRead: '' }
+    return { problem: current, shownRead: '' }
+}
 // "Last synced 3 min ago" / the failure, from status.json.
 export function statusLine(status, now, account) {
     // A stored account with no status yet has never synced.

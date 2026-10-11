@@ -26,4 +26,27 @@ assert.deepEqual(C.readReply(JSON.stringify({ ok: false, error: 'cal.sh is not i
 assert.deepEqual(C.readReply('not json', 'bash: warning\nfatal: keyring locked\n', 1), { error: 'fatal: keyring locked' })
 assert.deepEqual(C.readReply('', '', 2), { error: 'the settings helper exited 2 without a reply' })
 assert.ok(C.readReply(JSON.stringify({ ok: true, calendar }), '', 1).error, 'a non-zero exit is never applied')
+// The banner's two sources: a sign-in failure must survive a failed and a successful calendar read.
+const R = 'Could not read calendars: keyring locked'
+const W = 'Sign-in rejected: wrong password'
+let banner = { problem: '', shownRead: '' }
+banner = C.nextProblem(W, banner.shownRead, '')                       // sign-in fails (write error)
+assert.deepEqual(banner, { problem: W, shownRead: '' })
+banner = C.nextProblem(banner.problem, banner.shownRead, R)           // periodic read fails
+assert.deepEqual(banner, { problem: W, shownRead: '' }, 'a read failure never hides a sign-in failure')
+banner = C.nextProblem(banner.problem, banner.shownRead, '')          // periodic read succeeds
+assert.deepEqual(banner, { problem: W, shownRead: '' }, 'a read recovery never clears a sign-in failure')
+// A plain read error, then recovery.
+banner = C.nextProblem('', '', R)
+assert.deepEqual(banner, { problem: R, shownRead: R })
+banner = C.nextProblem(banner.problem, banner.shownRead, R)           // still failing: unchanged
+assert.deepEqual(banner, { problem: R, shownRead: R })
+banner = C.nextProblem(banner.problem, banner.shownRead, '')          // recovers: cleared
+assert.deepEqual(banner, { problem: '', shownRead: '' })
+// A write error that lands over a shown read error stays after the read recovers.
+banner = C.nextProblem('', '', R)
+banner = C.nextProblem(W, banner.shownRead, '')
+assert.deepEqual(banner, { problem: W, shownRead: '' })
+banner = C.nextProblem(banner.problem, banner.shownRead, '')
+assert.deepEqual(banner, { problem: W, shownRead: '' })
 console.log('calendar: ok')
