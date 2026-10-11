@@ -43,7 +43,11 @@ Item {
         function pickMonth(m) { lastMonth = m; } function shiftMonth(d) { lastShift = d; } function shiftYear(d) { lastShift = d; }
         function loadPeek(key) { peekFor = key; }
         function toggleUpcoming() { state = Object.assign({}, state, { unfolded: !state.unfolded }); }
-        function openSettings() {} function cancelSheet() {} function add() {}
+        function openSettings() {}
+        property int adds: 0; property int cancels: 0
+        function setDraft(d) { draft = d; }
+        function add() { if (Model.validate(draft).ok) adds += 1; }
+        function cancelSheet() { cancels += 1; }
     }
     Card { id: card; controller: controller; x: Math.round((host.width - width) / 2) }
     TestCase {
@@ -120,6 +124,8 @@ Item {
             controller.dayFor = ""; controller.dayEvents = []; controller.clock = "24h";
             controller.status = { state: "ok", kind: "", message: "", lastSuccess: 1000, lastAttempt: 1000 };
             controller.state = Model.transition(Model.CLOSED, "clock");
+            controller.draft = null; controller.adds = 0; controller.cancels = 0;
+            controller.calendars = [{ name: "Home", color: "#ff9f0a", writable: true }];
             card.peekEvents = []; card.peekAnchor = null; card.peekPending = "";
         }
         function rowsNamed(item, name) {
@@ -321,6 +327,124 @@ Item {
             hoverAt(11.5);
             compare(card.peekEvents.map(e => e.title).join(), "A,B");
             card.unpeek(block);
+        }
+
+        // ── The new-event sheet.
+        function openSheet(key, minutes) {
+            controller.state = Model.openSheet(Model.transition(Model.CLOSED, "clock"));
+            controller.draft = Model.newDraft(Math.floor(new Date(2026, 9, 11, 16, 52).getTime() / 1000),
+                { duration: 60, alert: "15m", calendar: "Home" }, key || "2026-10-13", minutes === undefined ? 20 * 60 + 30 : minutes);
+            controller.dayFor = controller.draft.startDay;
+            controller.dayEvents = [{ title: "Calcetto", calendar: "Home", color: "#ff9f0a", location: "", allDay: false,
+                startEpoch: Math.floor(new Date(2026, 9, 13, 20, 0).getTime() / 1000), endEpoch: Math.floor(new Date(2026, 9, 13, 22, 30).getTime() / 1000) }];
+            waitForRendering(card);
+        }
+        // The name of the focused item that has one, so tab order can be read back.
+        function focusedName(item) {
+            for (const c of item.children) {
+                if (c.activeFocus && c.objectName) return c.objectName;
+                const n = focusedName(c);
+                if (n) return n;
+            }
+            return "";
+        }
+        function test_add_disabled_without_title() {
+            openSheet();
+            verify(!find("addButton").enabled);
+            find("titleField").text = "Match";
+            verify(find("addButton").enabled);
+            keyClick(Qt.Key_Return);
+            compare(controller.adds, 1);
+        }
+        function test_overlap_line() {
+            openSheet();
+            verify(find("overlap0").text.indexOf("Calcetto") >= 0);
+            verify(find("overlap0").text.indexOf("20:00–22:30") >= 0);
+        }
+        function test_end_before_start_is_struck() {
+            openSheet();
+            controller.draft = Model.setEnd(controller.draft, controller.draft.start - 600);
+            verify(find("endTime").strikeout);
+            verify(find("endDate").strikeout);
+        }
+        function test_all_day_hides_times_and_switches_alerts() {
+            openSheet();
+            mouseClick(find("allDaySwitch"));
+            verify(controller.draft.allDay);
+            verify(!find("startTime").visible);
+            compare(find("alertValue").text, "On the day (09:00)");
+        }
+        function test_date_pill_opens_the_picker_and_escape_closes_it_first() {
+            openSheet();
+            mouseClick(find("startDate"));
+            verify(find("startPicker").visible);
+            keyClick(Qt.Key_Escape);
+            verify(!find("startPicker").visible);
+            verify(controller.state.sheet);                  // the sheet itself stays
+        }
+        function test_time_typing() {
+            openSheet();
+            mouseClick(find("startTime"));
+            const field = find("startTimeField");
+            field.selectAll(); keyClick(Qt.Key_1); keyClick(Qt.Key_9); keyClick(Qt.Key_Return);
+            compare(Model.minutesOf(controller.draft.start), 19 * 60);
+            compare(controller.draft.end - controller.draft.start, 3600);
+        }
+        function test_italian_date_pill() {
+            openSheet();
+            compare(find("startDate").text, Qt.locale("it_IT").toString(new Date(2026, 9, 13), "ddd d MMM yyyy"));
+        }
+        function test_wheel_on_the_start_time_moves_by_fifteen_minutes() {
+            openSheet();
+            const before = controller.draft.start;
+            mouseWheel(find("startTime"), 5, 5, 0, 120, 0, 0);
+            compare(controller.draft.start - before, 900);
+            compare(controller.draft.end - controller.draft.start, 3600);
+        }
+        function test_cancel_calls_the_controller() {
+            openSheet();
+            mouseClick(find("cancelButton"));
+            compare(controller.cancels, 1);
+        }
+        function test_rows_fit_the_card_in_12h_italian() {
+            controller.clock = "12h";
+            openSheet("2026-09-30", 18 * 60 + 30);
+            compare(find("startTime").text, "06:30 " + Qt.locale("it_IT").pmText);
+            for (const n of ["startDate", "startTime", "endDate", "endTime"]) {
+                const p = find(n);
+                const right = p.mapToItem(card, p.width, 0).x;
+                verify(right <= card.width - card.px(12), n + " reaches x=" + right + " on a " + card.width + " px card");
+            }
+        }
+        function test_tab_order_runs_to_add() {
+            openSheet();
+            find("titleField").text = "Match";           // Add is disabled, and so unfocusable, until there is a title
+            find("titleField").forceActiveFocus();
+            verify(find("addButton").enabled);
+            const seen = [];
+            for (let i = 0; i < 9; i++) { keyClick(Qt.Key_Tab); seen.push(focusedName(card)); }
+            compare(seen.join(), "locationField,allDaySwitch,startDate,startTime,endDate,endTime,calendarValue,alertPill,addButton");
+        }
+        function test_calendar_menu_lists_only_writable_calendars() {
+            openSheet();
+            controller.calendars = [{ name: "Home", color: "#ff9f0a", writable: true }, { name: "Work", color: "#00ff00", writable: false }];
+            mouseClick(find("calendarValue"));
+            verify(shown(find("calendarMenu")));
+            compare(rowsNamed(find("calendarMenu"), "menuItem0").length, 1);
+            compare(rowsNamed(find("calendarMenu"), "menuItem1").length, 0);
+        }
+        function test_no_writable_calendar_disables_add() {
+            openSheet();
+            controller.draft = Object.assign({}, controller.draft, { calendar: "" });
+            compare(find("calendarValue").text, "No writable calendar");
+            verify(!find("addButton").enabled);
+        }
+        function test_alert_menu_ticks_the_current_preset() {
+            openSheet();
+            mouseClick(find("alertPill"));
+            verify(shown(find("alertMenu")));
+            verify(rowsNamed(find("alertMenu"), "tick4")[0].visible);     // 15m is the fifth timed preset
+            verify(!rowsNamed(find("alertMenu"), "tick0")[0].visible);
         }
     }
 }

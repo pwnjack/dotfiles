@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import "model.mjs" as Model
 
 // The card's frame: header (long date, sync status, Today, +) over the body
-// for the current state. The reading views sit in `body`; the sheet (Task 11) replaces them.
+// for the current state. The reading views sit in `body`; the sheet replaces them.
 FocusScope {
     id: card
     required property var controller
@@ -134,6 +134,7 @@ FocusScope {
                 Upcoming { visible: !card.c.state.day || (!!card.c.status && card.c.status.state === "none"); Layout.fillWidth: true; card: card }
                 DayView { visible: !!card.c.state.day; Layout.fillWidth: true; card: card }
             }
+            Sheet { visible: card.c.state.sheet && !!card.c.draft; Layout.fillWidth: true; card: card; focus: card.c.state.sheet }
         }
     }
 }

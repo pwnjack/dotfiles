@@ -84,8 +84,15 @@ ShellRoot {
     function startSheet(dayKey, minutes) {
         let restored = null;
         try { restored = JSON.parse(draftFile.text()); } catch (e) { restored = null; }
-        if (restored && !dayKey && minutes === undefined) { draft = restored; return; }
-        draft = Model.newDraft(Date.now() / 1000, defaults(), dayKey || null, minutes);
+        if (restored && !dayKey && minutes === undefined) draft = restored;
+        else draft = Model.newDraft(Date.now() / 1000, defaults(), dayKey || null, minutes);
+        loadDay(draft.startDay);
+    }
+    // The sheet's edits come back here: a new start day reloads the timeline's events.
+    function setDraft(d) {
+        const dayChanged = !draft || draft.startDay !== d.startDay;
+        draft = d;
+        if (dayChanged) loadDay(d.startDay);
     }
     function newEvent(dayKey, minutes) {        // "+", "New event on …", a timeline gap
         state = Model.openSheet(state);
@@ -118,7 +125,7 @@ ShellRoot {
         if (verb === "month") { const b = Object.assign({}, busy); b[key] = parseBusy(body); busy = b; }
         else if (verb === "year") { const c = Object.assign({}, counts); c[key] = parseCounts(body); counts = c; }
         else if (verb === "peek") { if (key === peekFor) peekEvents = asArray(parseJson(body)); }   // only the newest hover's day is kept
-        else if (key === state.day) { dayEvents = asArray(parseJson(body)); dayFor = key; }   // a day the card no longer shows is dropped
+        else if (key === state.day || (state.sheet && draft && key === draft.startDay)) { dayEvents = asArray(parseJson(body)); dayFor = key; }   // a day neither view shows is dropped
     }
     // The helpers print {"ok":false,"error":…} on failure: any other shape reads as empty.
     function parseJson(body) { try { return JSON.parse(body); } catch (e) { return null; } }
@@ -150,7 +157,7 @@ ShellRoot {
     function toggleUpcoming() { state = Object.assign({}, state, { unfolded: !state.unfolded }); }
     function cancelSheet() { draftFile.setText(""); draft = null; act("esc"); }
     function add() {
-        if (!draft || !Model.validate(draft).ok || adder.running) return;
+        if (!draft || !Model.validate(draft).ok || !draft.calendar || adder.running) return;
         addError = "";
         const nowS = Math.floor(Date.now() / 1000);
         adder.request = JSON.stringify({ calendar: draft.calendar, ics: Model.buildIcs(draft, nowS, Model.newUid(nowS)) });
@@ -182,7 +189,7 @@ ShellRoot {
 
     // blockAllReads: text() waits for reload(), so a read after a change sees the new file.
     FileView { id: agendaFile; path: root.runtimeDir + "/agenda.json"; blockLoading: true; blockAllReads: true; printErrors: false; watchChanges: true
-        onFileChanged: { reload(); root.readAgenda(); root.loadMonth(); if (root.state.year) root.loadYear(); if (root.state.day) root.loadDay(root.state.day); } }
+        onFileChanged: { reload(); root.readAgenda(); root.loadMonth(); if (root.state.year) root.loadYear(); if (root.state.day) root.loadDay(root.state.day); if (root.state.sheet && root.draft) root.loadDay(root.draft.startDay); } }
     FileView { id: statusFile; path: root.runtimeDir + "/status.json"; blockLoading: true; blockAllReads: true; printErrors: false; watchChanges: true
         onFileChanged: { reload(); root.readStatus(); } }
     FileView { id: draftFile; path: root.runtimeDir + "/draft.json"; blockLoading: true; printErrors: false; atomicWrites: true }
