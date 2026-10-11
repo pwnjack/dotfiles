@@ -175,4 +175,10 @@ assert.deepEqual(M.timelineRange(dstShort, null, '2027-03-28'), { from: 8, to: 2
 assert.deepEqual(M.segment(dstShort[0], '2027-03-28', { from: 8, to: 23 }), { left: 12 / 15, width: 2.5 / 15, cut: false })
 assert.equal(M.escapeText('a;b'), 'a\\;b')
 
+// Drafts: only a new event with a title is kept
+assert.equal(M.keepsDraft(Object.assign({}, draft, { title: 'Match' })), true)
+assert.equal(M.keepsDraft(Object.assign({}, draft, { title: '   ' })), false)
+assert.equal(M.keepsDraft(Object.assign({}, draft, { title: 'Match', mode: 'edit' })), false)
+assert.equal(M.keepsDraft(null), false)
+
 console.log('model: ok')

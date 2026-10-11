@@ -117,6 +117,8 @@ export function setAllDay(d, on) {
     return Object.assign({}, d, { allDay: false, alert: d.timedAlert || '15m', start: start, end: end,
         startDay: dayKey(start), endDay: dayKey(end) })
 }
+// A new-event draft with a title is kept when the sheet is left by any route.
+export function keepsDraft(d) { return !!d && d.mode !== 'edit' && !!String(d.title).trim() }
 export function validate(d) {
     const endBeforeStart = d.allDay ? d.endDay < d.startDay : d.end <= d.start
     return { ok: !!String(d.title).trim() && !endBeforeStart, endBeforeStart: endBeforeStart }

@@ -57,12 +57,16 @@ FocusScope {
                 visible: !card.c.state.sheet
                 Layout.fillWidth: true
                 spacing: card.px(10)
+                // The text column gives up width (elided) so Today and + keep their places.
                 ColumnLayout {
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     spacing: 0
-                    Text { objectName: "longDate"; text: card.c.locale.toString(new Date(), "dddd d MMMM yyyy")
+                    Text { objectName: "longDate"; Layout.fillWidth: true; elide: Text.ElideRight
+                        text: card.c.locale.toString(new Date(), "dddd d MMMM yyyy")
                         color: card.c.foreground; font.family: card.c.monoFont; font.pixelSize: card.px(15); font.weight: Font.DemiBold }
-                    Text { objectName: "syncStatus"; text: card.c.headerStatus()
+                    Text { objectName: "syncStatus"; Layout.fillWidth: true; elide: Text.ElideRight
+                        text: card.c.headerStatus()
                         color: card.c.status && card.c.status.state === "failed" ? "#eaa3a4" : card.dim
                         font.family: card.c.monoFont; font.pixelSize: card.px(12.5) }
                 }

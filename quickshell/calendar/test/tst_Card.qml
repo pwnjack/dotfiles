@@ -31,7 +31,8 @@ Item {
         function headerStatus() {
             if (!syncGaveUp && (!status || (status.lastAttempt || 0) < openedAt - 1)) return "syncing…";
             if (!status || status.state === "none") return "Not signed in";
-            if (status.state === "failed") return status.kind === "auth" ? "Sign-in rejected · Fix in Settings" : "Offline";
+            if (status.state === "failed") return status.kind === "auth" ? "Sign-in rejected · Fix in Settings"
+                : "Offline · showing events from " + Model.formatTime(Model.minutesOf(status.lastSuccess), clock, "AM", "PM");
             return "iCloud · synced " + Math.round((now - status.lastSuccess) / 60) + " min ago";
         }
         function goToday() {} function newEvent() { state = Model.openSheet(state); }
@@ -82,6 +83,19 @@ Item {
         function test_long_date_is_italian() {
             const expected = Qt.locale("it_IT").toString(new Date(), "dddd d MMMM yyyy");
             compare(find("longDate").text, expected);
+        }
+        function test_long_status_keeps_plus_inside_the_frame() {
+            const month = controller.viewMonth;
+            controller.status = { state: "failed", kind: "network", message: "", lastSuccess: 1000, lastAttempt: 1000 };
+            controller.viewMonth = (month + 1) % 12;          // away from this month: Today shows
+            waitForRendering(card);
+            verify(find("todayButton").visible);
+            const plus = find("plusButton");
+            const right = plus.mapToItem(card, plus.width, 0).x;
+            verify(right <= card.width - 16, "the + button reaches x=" + right + " on a " + card.width + " px card");
+            controller.viewMonth = month;
+            controller.status = { state: "ok", kind: "", message: "", lastSuccess: 1000, lastAttempt: 1000 };
+            waitForRendering(card);
         }
         function test_x_is_fixed_across_views() {
             const x0 = card.x;

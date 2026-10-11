@@ -51,8 +51,12 @@ ShellRoot {
         const next = Model.transition(state, action);
         if (!next.open) { close(); return; }
         if (!before.open) open();
+        if (before.sheet && !next.sheet) keepDraft();      // Esc, a bar segment or a click leaves the sheet
         if (next.sheet && !before.sheet) startSheet(next.day);
         state = next;
+    }
+    function keepDraft() {
+        if (Model.keepsDraft(draft)) draftFile.setText(JSON.stringify(draft));
     }
     function open() {
         const focused = Hyprland.focusedMonitor;
@@ -70,7 +74,7 @@ ShellRoot {
         card.appear();
     }
     function close() {
-        if (state.sheet && draft && String(draft.title).trim()) draftFile.setText(JSON.stringify(draft));
+        keepDraft();
         state = Model.CLOSED;
         closing = true;
         card.disappear();
@@ -96,22 +100,32 @@ ShellRoot {
     }
     function readAgenda() { try { agenda = asArray(JSON.parse(agendaFile.text())); } catch (e) { agenda = []; } }
     function readStatus() { try { status = JSON.parse(statusFile.text()); } catch (e) { status = null; } }
+    // A reader runs one cal.sh verb at a time. The request's key is echoed on the
+    // first output line, so a result is stored under the key it was asked for,
+    // whatever was requested while it ran; the newest request runs when it ends.
+    function startReader(reader, key) {
+        if (reader.running) { reader.queued = key; return; }
+        reader.queued = "";
+        reader.command = ["bash", "-c", 'printf "%s\\n" "$2"; "$1" "$3" "$2"', "bash", calSh, key, reader.verb];
+        reader.running = true;
+    }
+    function readerDone(verb, text) {
+        const cut = text.indexOf("\n");
+        if (cut < 0) return;
+        const key = text.slice(0, cut), body = text.slice(cut + 1);
+        if (verb === "month") { const b = Object.assign({}, busy); b[key] = parseBusy(body); busy = b; }
+        else if (verb === "year") { const c = Object.assign({}, counts); c[key] = parseCounts(body); counts = c; }
+        else if (key === state.day) { dayEvents = asArray(parseJson(body)); dayFor = key; }   // a day the card no longer shows is dropped
+    }
+    // The helpers print {"ok":false,"error":…} on failure: any other shape reads as empty.
+    function parseJson(body) { try { return JSON.parse(body); } catch (e) { return null; } }
+    function parseBusy(body) { const r = parseJson(body); return r && Array.isArray(r.busy) ? r.busy : []; }
+    function parseCounts(body) { const r = parseJson(body); return r && Array.isArray(r.counts) && r.counts.length === 12 ? r.counts : []; }
     function loadMonth() {
-        monthReader.key = viewYear + "-" + String(viewMonth + 1).padStart(2, "0");
-        monthReader.command = [calSh, "month", monthReader.key];
-        monthReader.running = true;
+        startReader(monthReader, viewYear + "-" + String(viewMonth + 1).padStart(2, "0"));
     }
-    function loadYear() {
-        yearReader.key = String(viewYear);
-        yearReader.command = [calSh, "year", yearReader.key];
-        yearReader.running = true;
-    }
-    function loadDay(key) {
-        if (!key) return;
-        dayReader.key = key;
-        dayReader.command = [calSh, "day", key];
-        dayReader.running = true;
-    }
+    function loadYear() { startReader(yearReader, String(viewYear)); }
+    function loadDay(key) { if (key) startReader(dayReader, key); }
     function loadCalendars() { calendarReader.running = true; }
     function shiftMonth(delta) {
         const d = new Date(viewYear, viewMonth + delta, 1);
@@ -161,9 +175,10 @@ ShellRoot {
     // fallback ends the "syncing…" header, past sync.sh's 120 s lock wait.
     Timer { id: syncGiveUp; interval: 130000; onTriggered: root.syncGaveUp = true }
 
-    FileView { id: agendaFile; path: root.runtimeDir + "/agenda.json"; blockLoading: true; printErrors: false; watchChanges: true
+    // blockAllReads: text() waits for reload(), so a read after a change sees the new file.
+    FileView { id: agendaFile; path: root.runtimeDir + "/agenda.json"; blockLoading: true; blockAllReads: true; printErrors: false; watchChanges: true
         onFileChanged: { reload(); root.readAgenda(); root.loadMonth(); if (root.state.day) root.loadDay(root.state.day); } }
-    FileView { id: statusFile; path: root.runtimeDir + "/status.json"; blockLoading: true; printErrors: false; watchChanges: true
+    FileView { id: statusFile; path: root.runtimeDir + "/status.json"; blockLoading: true; blockAllReads: true; printErrors: false; watchChanges: true
         onFileChanged: { reload(); root.readStatus(); } }
     FileView { id: draftFile; path: root.runtimeDir + "/draft.json"; blockLoading: true; printErrors: false; atomicWrites: true }
     FileView { id: optionDefault; path: root.configDir + "/options/calendar-default"; blockLoading: true; printErrors: false }
@@ -176,29 +191,34 @@ ShellRoot {
     Process { id: settingsLauncher; command: ["setsid", "-f", root.configDir + "/scripts/hyprland/settings-panel.sh", "calendar"] }
     Process {
         id: monthReader
-        property string key: ""
-        stdout: StdioCollector { onStreamFinished: {
-            try { const r = JSON.parse(text); const b = Object.assign({}, root.busy); b[monthReader.key] = root.asArray(r.busy); root.busy = b; } catch (e) {}
-        } }
+        property string verb: "month"
+        property string queued: ""
+        onRunningChanged: if (!running && queued) root.startReader(monthReader, queued)
+        stdout: StdioCollector { onStreamFinished: root.readerDone(monthReader.verb, text) }
     }
     Process {
         id: yearReader
-        property string key: ""
-        stdout: StdioCollector { onStreamFinished: {
-            try { const r = JSON.parse(text); const c = Object.assign({}, root.counts); c[yearReader.key] = root.asArray(r.counts); root.counts = c; } catch (e) {}
-        } }
+        property string verb: "year"
+        property string queued: ""
+        onRunningChanged: if (!running && queued) root.startReader(yearReader, queued)
+        stdout: StdioCollector { onStreamFinished: root.readerDone(yearReader.verb, text) }
     }
     Process {
         id: dayReader
-        property string key: ""
-        stdout: StdioCollector { onStreamFinished: {
-            try { root.dayEvents = root.asArray(JSON.parse(text)); root.dayFor = dayReader.key; } catch (e) { root.dayEvents = []; }
-        } }
+        property string verb: "day"
+        property string queued: ""
+        onRunningChanged: if (!running && queued) root.startReader(dayReader, queued)
+        stdout: StdioCollector { onStreamFinished: root.readerDone(dayReader.verb, text) }
     }
     Process {
         id: calendarReader
         command: [root.calSh, "calendars"]
-        stdout: StdioCollector { onStreamFinished: { try { root.calendars = root.asArray(JSON.parse(text)); } catch (e) { root.calendars = []; } } }
+        stdout: StdioCollector { onStreamFinished: {
+            try { root.calendars = root.asArray(JSON.parse(text)); } catch (e) { root.calendars = []; }
+            // A sheet opened before this read landed has no calendar yet: take the default now.
+            if (root.draft && root.draft.mode !== "edit" && !root.draft.calendar)
+                root.draft = Object.assign({}, root.draft, { calendar: root.defaults().calendar });
+        } }
     }
     Process {
         id: adder
