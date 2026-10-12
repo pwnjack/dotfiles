@@ -3,6 +3,16 @@
     "type": "command",
     "command": "bash ~/.config/claude/statusline.sh"
   },
+  "permissions": {
+    "deny": [
+      "Read(**/.env)",
+      "Read(~/.config/.env)",
+      "Read(~/.ssh/**)",
+      "Read(~/.gnupg/**)",
+      "Read(~/.local/share/calendars/**)",
+      "Read(~/.local/share/vdirsyncer/**)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
