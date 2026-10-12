@@ -456,7 +456,7 @@ directory symlinks and file/directory conflicts are rejected before copying:
 
 ```bash
 # Clone anywhere (a fresh ~/.config is never empty, so use a staging dir)
-git clone https://github.com/pwnjack/.config.git ~/dotfiles
+git clone https://github.com/pwnjack/dotfiles.git ~/dotfiles
 cd ~/dotfiles
 ./install.sh            # interactive; use --dry-run to preview
 ```
@@ -469,7 +469,7 @@ live there):
 ```bash
 cd ~/.config
 git init -b main
-git remote add origin https://github.com/pwnjack/.config.git
+git remote add origin https://github.com/pwnjack/dotfiles.git
 git fetch origin
 git reset origin/main   # marks repo files as tracked without touching them
 ```
