@@ -103,9 +103,8 @@ reason to trust it more than Codex.
 
 ## Step 7: Hand off to review
 
-Non-trivial changes go to `delegate-review`, paired against whoever implemented:
-Claude-written code is reviewed by Codex, Codex-written code by Claude (`sonnet`
-or `opus` per *Review tier* in the shared contract).
+Non-trivial changes go to `delegate-review`, which pairs the reviewer against
+whoever implemented and picks the tier (`~/.claude/skills/_shared/review.md`).
 
 `delegate-review` Step 0 deduplicates by diff hash, so invoking it here is cheap
 even if another mandate already reviewed this exact diff — it will report the
@@ -113,7 +112,7 @@ existing result instead of dispatching. Invoke it rather than reasoning about
 whether a review already happened; the marker is what knows.
 
 **Pass the reviewer the diff, the goal and the acceptance criteria — never the
-implementer's report.** See the blindness rule in the shared contract.
+implementer's report** (*Blindness rule*, `review.md`).
 
 ## Step 8: Report
 

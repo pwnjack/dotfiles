@@ -6,7 +6,7 @@ description: Use when the user explicitly asks to spawn or watch a separate, vis
 # Claude Review
 
 Alias. Invoke `delegate-review` with **reviewer `claude`**. The Claude alias
-comes from *Review tier* in `~/.claude/skills/_shared/handoff.md`, the single
+comes from *Review tier* in `~/.claude/skills/_shared/review.md`, the single
 authority on it — or, with no usable Codex, from the degraded cross-model
 pairing there. `fable` only when the user explicitly asks for it.
 
@@ -22,4 +22,4 @@ cross-model plus fresh context.
 The review is blind — it gets the diff, the goal and the acceptance criteria,
 never the implementer's report. Verify every finding against the actual code
 before relaying it. See `delegate-review` and
-`~/.claude/skills/_shared/handoff.md`.
+`~/.claude/skills/_shared/review.md`.

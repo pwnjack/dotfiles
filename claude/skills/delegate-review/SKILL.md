@@ -5,8 +5,11 @@ description: Use when a diff needs review by an independent subagent - after any
 
 # Delegate Review
 
-Read `~/.claude/skills/_shared/handoff.md` first — it owns the brief template,
-report schema, capability probe, pane mechanics and model rules.
+Read both shared files first. `~/.claude/skills/_shared/handoff.md` owns the
+brief template, report schema, capability probe, pane mechanics and model
+rules. `~/.claude/skills/_shared/review.md` owns the pairing table, the
+blindness rule, review idempotency and the review tier. This file owns only the
+workflow.
 
 **Announce at start:** "Using delegate-review to get an independent review from
 \<reviewer\>."
@@ -15,63 +18,28 @@ report schema, capability probe, pane mechanics and model rules.
 
 | Input | Values |
 |---|---|
-| Reviewer family | `codex` \| `claude`, or chosen by the pairing rule below |
+| Reviewer family | `codex` \| `claude`, or chosen by the pairing rule |
 
 `auto-subagent-routing` or an alias normally supplies it; the pairing rule
 overrides a pinned family that would mean self-review.
 
 ## Two invariants
 
-These come before any mechanics. Where convenience conflicts with them,
-they win.
+Both are defined in `review.md`. They come before any mechanics, and where
+convenience conflicts with them, they win.
 
-### 1. Adversarial pairing
-
-**Whenever both families are available, the reviewer is never from the same
-family as the implementer.** That conditional is load-bearing and is stated
-honestly here: when Codex is unavailable there is only one family left, so the
-guarantee cannot hold and degrades to the weaker rule below. Never describe the
-degraded form as though it were the full guarantee.
-
-| Implementer | Reviewer |
-|---|---|
-| Claude, any tier | **Codex** |
-| **Codex** | **Claude**, fresh context |
-| The orchestrator itself | **Codex** |
-
-**This table picks the family only. It does not set effort or which model
-reviews** — *Review tier* in the shared contract is the single authority on
-both, keyed to the size of the payload and whether a trigger
-path is touched. Naming a value here as well would give an LLM two instructions
-that both claim authority and licence to pick either, which defeats the point of
-scaling effort at all.
-
-This makes same-family self-review structurally impossible rather than merely
-discouraged. **If an alias or the user names an executor that would violate the
-pairing, the pairing wins — and say so rather than silently overriding.**
-
-When there is no usable Codex — axis 2 fails, or axis 1 does, since Codex runs
-only in a Herdr pane — the rule degrades to cross-**model** plus
-fresh context: `opus` reviews Sonnet's work, `sonnet` reviews Opus's. This is
-same-family review and is genuinely weaker — an independent *context* and a
-different *tier*, but not an independent vendor. Announce it once, and say which
-form you got when reporting.
-
-### 2. Blind review
-
-The reviewer receives exactly three things:
-
-1. the raw diff
-2. the original goal
-3. the acceptance criteria from the original brief
-
-**Never pass the implementer's `summary`, `tests_run`, `blockers` or
-`concerns` into a review brief.** Those go only to you, for reconciliation.
-
-A reviewer told "the implementer was worried about X" will find X and stop
-looking. The disagreement between an uncontaminated review and the implementer's
-self-report is the highest-signal output of this workflow, and it exists only if
-the two were blind to each other.
+1. **Adversarial pairing.** Whenever both families are available the reviewer is
+   never from the implementer's family: Claude-written code (or the
+   orchestrator's) goes to Codex, Codex-written code to Claude in a fresh
+   context. If an alias or the user names a reviewer that would violate this,
+   the pairing wins and you say so. With no usable Codex the rule degrades to
+   cross-model plus fresh context; announce it once and never present it as the
+   full guarantee.
+2. **Blind review.** The reviewer gets the raw diff, the original goal and the
+   acceptance criteria, and nothing from the implementer's `summary`,
+   `tests_run`, `blockers` or `concerns`. Those go only to you, for
+   reconciliation. The gap between an uncontaminated review and the
+   implementer's self-report is the highest-signal output of this workflow.
 
 ## Dual review
 
@@ -98,14 +66,13 @@ exactly when the user needs to know the guarantee was weaker than usual.
 
 ## Step 0: Has this exact diff already been reviewed?
 
-**Run this before anything else.** Four separate instructions each mandate a
-review and none can see the others fire; without this check a single unchanged
-diff gets reviewed two or three times. See *Review idempotency* in the shared
-contract.
+**Run this before anything else.** Several separate instructions each mandate a
+review and none can see the others fire; this check is what stops one unchanged
+diff being reviewed two or three times. See *Review idempotency* in `review.md`
+for the payload snippet, the four traps it avoids and the marker format.
 
-Determine the target first — Step 1's target selection feeds this, so read it
-before running anything here. Then build the payload and key on it, using the
-snippet in *Review idempotency* in the shared contract:
+Determine the target first (Step 1's target selection feeds this). Then build
+the payload once and key on it:
 
 ```bash
 # TARGET empty = working tree; otherwise a commit / branch / range
@@ -116,22 +83,13 @@ MARKER="/tmp/codex-handoff/reviewed-${DIFF_SHA}.json"
 
 **`$PAYLOAD` is both what you hash and what you send the reviewer.** Do not
 rebuild, re-derive or re-diff it at Step 3 — a payload derived twice can differ
-twice, and then the marker certifies something the reviewer never saw. Build it
-once, here.
-
-The shared contract explains the four traps this shape avoids: keying on the
-working tree while reviewing a named commit, untracked files reaching the hash
-but not the reviewer, `xargs sha256sum` treating a file named `--help` as a
-flag, and `git status --porcelain` not being a content hash.
+twice, and then the marker certifies something the reviewer never saw.
 
 If the marker exists, **stop here.** Report its verified findings and say
 "already reviewed at this diff state" — a suppressed review is announced, never
-silent. Do not dispatch a reviewer.
-
-If it is absent, continue. You will write the marker in Step 5.
-
-Any working-tree edit changes `DIFF_SHA`, so a fix always earns a fresh review
-with no invalidation logic to maintain.
+silent. Do not dispatch a reviewer. If it is absent, continue; you write the
+marker in Step 6. Any working-tree edit changes `DIFF_SHA`, so a fix always
+earns a fresh review.
 
 ## Step 1: Determine the target, the pairing and the tier
 
@@ -139,14 +97,11 @@ Default target is the uncommitted diff (staged plus unstaged). If the user names
 a commit, branch or range, describe that target in the brief — the worker
 receives text, not CLI flags.
 
-Establish who implemented, then read the pairing off the table. Check the diff
-against the dual-review list.
-
-Then read the reviewing model and effort off *Review tier* in the shared
-contract, using the payload's size — **that table is the only authority on
-both**, so it is not restated here. Codex `astra` and Claude `fable` are never
-chosen here — only on the user's explicit request. The cross-family guarantee holds at every tier: effort is the
-dial, not whether an independent family looks at all.
+Establish who implemented, then read the pairing off *Adversarial pairing* in
+`review.md`. Check the diff against the dual-review list. Then read the
+reviewing model and effort off *Review tier* in `review.md`, using the payload's
+size — that table is the only authority on both. Codex `astra` and Claude
+`fable` are never chosen here, only on the user's explicit request.
 
 ```bash
 grep -c '^[+-][^+-]' "$PAYLOAD"
@@ -158,19 +113,19 @@ measure zero and be tiered "routine".
 
 ## Step 2: Get a reviewer
 
-Spawn a fresh pane per the shared contract — `herdr-spawn.sh codex <alias> <effort> <slug>`
+Spawn a fresh pane per `handoff.md` — `herdr-spawn.sh codex <alias> <effort> <slug>`
 or `herdr-spawn.sh claude <alias> <slug>`, with the model from *Review tier* (or,
 with no usable Codex, the degraded cross-model pairing). Panes are never reused, so a reviewer
 structurally has no memory of having written the code. Exit `3` (no Herdr) means
 the native `Agent` path.
 
 Write the brief to a file, prompt the pane with a pointer to it, and start
-`herdr-await.sh` with `run_in_background: true` (shared contract, **Dispatch and
+`herdr-await.sh` with `run_in_background: true` (`handoff.md`, **Dispatch and
 wait**). You are re-invoked on its verdict; do not block or poll.
 
 ## Step 3: Write the review brief
 
-Use the shared template, with Context carrying **only** diff, goal and
+Use the template in `handoff.md`, with Context carrying **only** diff, goal and
 acceptance criteria. Point the reviewer at `$PAYLOAD` — the file built in Step 0
 — rather than describing a command for it to re-derive the diff itself. That
 file is what `$DIFF_SHA` covers, so sending anything else breaks the guarantee
@@ -195,8 +150,7 @@ Read the report file, then **check every finding against the actual code.**
 - Drop whatever does not hold up.
 - **Scope this to the lines the review named.** `delegate-implement` Step 6
   already read the diff as a whole against the goal; re-reading all of it here
-  buys nothing and is one of the duplicated passes this workflow was spending
-  tokens on. Verifying a claim means opening what the claim points at.
+  buys nothing. Verifying a claim means opening what the claim points at.
 - Do not hedge with "the reviewer thinks maybe" on something you have verified.
   Either it is a real issue — state it directly — or it is not, and you do not
   mention it.
@@ -215,10 +169,8 @@ If nothing survived verification, say that plainly rather than padding.
 ## Step 6: Record the review, then close the pane
 
 Write the marker so the remaining mandates for this same diff are satisfied
-without another round trip:
-
-Write the findings **that survived Step 4**, as a JSON array you construct
-yourself:
+without another round trip. Write the findings **that survived Step 4**, as a
+JSON array you construct yourself:
 
 ```bash
 mkdir -p /tmp/codex-handoff
@@ -237,8 +189,8 @@ it as confirmed. The marker stands in for a completed review, so it carries the
 same standard as one.
 
 Then, **if the reviewer ran in a Herdr pane**, close it: `herdr pane close "$P"`
-(shared contract, Rule 2). Do this on failure paths too, so no finished
-reviewer lingers in the tab.
+(`handoff.md`, Rule 2). Do this on failure paths too, so no finished reviewer
+lingers in the tab.
 
 Skip this on the native `Agent` path — there is no pane, and reaching for pane
 commands is precisely wrong at the moment the pane mechanism was unavailable.
