@@ -37,58 +37,38 @@ subagent pane is a real `claude` CLI process, so it loads this same file and
 would delegate in turn, without bound. The depth variable and the brief marker
 are what terminate that.
 
-## Subagent routing overrides superpowers' own dispatch
+## Subagent routing
 
-Superpowers states its own priority order: **user instructions outrank skills.**
-This section uses that.
+Whenever any skill (`subagent-driven-development`, `executing-plans`,
+`dispatching-parallel-agents`, `requesting-code-review`, or anything else) tells
+you to "dispatch an implementer subagent" or "dispatch a reviewer subagent",
+**that is about the role, not the mechanism.** User instructions outrank skills,
+so decide the mechanism through `auto-subagent-routing` first, then follow the
+skill's prompt guidance for whichever mechanism you picked.
 
-Whenever any skill — `subagent-driven-development`, `executing-plans`,
-`dispatching-parallel-agents`, or anything else — tells you to "dispatch an
-implementer subagent" or "dispatch a reviewer subagent", **that instruction is
-about the role, not the mechanism.** Decide the mechanism through
-`auto-subagent-routing` first, then follow the skill's prompt guidance for
-whichever mechanism you picked.
-
-**`auto-subagent-routing` is the single source of truth** for who implements,
-who reviews, which capability tier each gets, and how the workflow degrades when
-Codex or Herdr is unavailable. Do not restate its tables here — read the skill.
-The four invariants it enforces:
-
-1. **Adversarial review** — the reviewer is never from the same family as the
-   implementer. Claude-written code goes to Codex; Codex-written code goes to
-   Claude.
-2. **Blind review** — the reviewer gets the diff, the goal and the acceptance
-   criteria, never the implementer's own report.
-3. **Graceful degradation** — losing Codex, or Herdr, or both, weakens the
-   workflow by one notch and never breaks it. It works in a fresh repo with no
-   setup.
-4. **No hardcoded model identity** — skills name roles and reasoning efforts,
-   never model strings.
-
-Mechanics live in `~/.claude/skills/_shared/handoff.md`; `delegate-implement`
-and `delegate-review` are the two paths. `/codex-implement`, `/codex-review`,
-`/claude-implement` and `/claude-review` are thin aliases over those.
+`auto-subagent-routing` is the single source of truth for who implements, who
+reviews, which tier each gets and how the workflow degrades without Codex or
+Herdr; do not restate its tables here. The two rules to hold even before you
+load it: the reviewer is never from the same family as the implementer, and it
+never sees the implementer's report. Mechanics are in
+`~/.claude/skills/_shared/handoff.md` and `review.md`; `/codex-implement`,
+`/codex-review`, `/claude-implement` and `/claude-review` are thin aliases over
+`delegate-implement` and `delegate-review`.
 
 **Trivial work — a one-line fix, a config tweak, a rename — you do directly.**
-Delegating costs more than the change is worth, which defeats the point.
+Delegating costs more than the change is worth.
 
 **Before reporting any non-trivial change done**, get an independent review
 through `delegate-review` on the diff, whoever wrote it. Verify its findings
-yourself and reconcile them into one report. A review is an input, not a
-verdict.
+yourself and reconcile them into one report; a review is an input, not a
+verdict. Invoke it rather than deciding for yourself whether a review already
+happened: it deduplicates by diff hash, so an unchanged diff reports the
+existing verified result instead of dispatching a second reviewer.
 
-Invoke it rather than deciding for yourself whether a review already happened.
-This instruction is one of four that independently mandate a review, so
-`delegate-review` deduplicates by diff hash: on an unchanged diff it reports the
-existing verified result instead of dispatching a second reviewer. Reasoning
-about it yourself is what produced triple reviews; the marker is what knows.
-
-A `PreToolUse` hook on the `Agent` tool
-(`~/.claude/hooks/auto-subagent-reminder.sh`) reinforces this at the moment of
-dispatch, inside a Herdr session only. It is advisory, not blocking, and **it
-does not fire on the Codex path** — `delegate-implement` and `delegate-review`
-drive a Herdr pane through Bash, not through `Agent` — so its silence is not
-permission to skip the routing decision.
+A `PreToolUse` hook on the `Agent` tool (`~/.claude/hooks/auto-subagent-reminder.sh`)
+reminds you at the moment of dispatch, inside a Herdr session only. It is
+advisory and does not fire on the Codex path, which drives a Herdr pane through
+Bash, so its silence is not permission to skip the routing decision.
 
 ## Verification
 

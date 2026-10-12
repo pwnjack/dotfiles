@@ -7,8 +7,9 @@ description: Use at the start of any implementation or code-review task, and bef
 
 Decides **who** does a piece of work and **who reviews it**.
 `delegate-implement` and `delegate-review` define how each mechanism works; this
-skill decides which to reach for. Mechanics live in
-`~/.claude/skills/_shared/handoff.md`.
+skill decides which to reach for. Worker mechanics live in
+`~/.claude/skills/_shared/handoff.md`, review rules in
+`~/.claude/skills/_shared/review.md`.
 
 This skill applies **everywhere**: outside a Herdr session it selects the
 native `Agent` tool rather than switching itself off.
@@ -28,30 +29,11 @@ Where a later section appears to conflict with one of these, the invariant wins.
 
 ## Step 1: Probe capability, once
 
-Two axes, not one ladder. They fail separately, but Codex runs only in a Herdr
-pane, so cross-family review needs both to pass.
-
-```bash
-# Axis 1 — mechanism: can I actually drive a pane?
-[ "${HERDR_ENV:-}" = "1" ] && command -v herdr >/dev/null 2>&1 && herdr agent list >/dev/null 2>&1
-
-# Axis 2 — reviewer: is Codex usable?
-command -v codex >/dev/null 2>&1 && codex login status >/dev/null 2>&1
-```
-
-| Axis 1 | Mechanism |
-|---|---|
-| pass | Herdr panes |
-| fail | native `Agent` tool |
-
-| Axis 2 | Review pairing |
-|---|---|
-| pass (and axis 1 passes) | Cross-**family** — the full guarantee |
-| fail, or axis 1 fails | **Degraded:** cross-**model** + fresh context |
-
-Cache both for the session. Probe the `herdr` command, not just `$HERDR_ENV`:
-the variable can be set while the binary or session is gone, which would select
-panes and then fail on the first command.
+Run both probes in `handoff.md` (**Capability probe**) and cache the answers for
+the session: **axis 1**, can I drive a Herdr pane (otherwise the native `Agent`
+tool), and **axis 2**, is Codex usable. Codex runs only in a Herdr pane, so the
+full cross-family review guarantee needs both to pass; otherwise review takes
+the degraded cross-model pairing.
 
 A delegation that fails on auth or quota flips axis 2 for the rest of the
 session. **Announce a degraded axis once**, then carry on. Never stop to ask,
@@ -84,21 +66,18 @@ If the user says they will do it themselves, or tells you to implement directly,
 that overrides this table.
 
 **Codex `astra` and Claude `fable` never come from this table.** They eat the
-user's usage and run only when the user explicitly asks for them; see *Model
-selection* in the shared contract.
+user's usage and run only when the user explicitly asks for them. Aliases
+(`opus`, `sonnet`, `haiku`; `luna`, `terra`, `sol`) and the pinned-id and
+`ultra` bans are covered in *Model selection* in `handoff.md`; every Codex
+delegation names an alias **and** an effort. The orchestrator is whatever model
+this session was launched with and is never selected.
 
 ## Step 3: Pair the reviewer against the implementer
 
-| Implementer | Reviewer |
-|---|---|
-| Claude, any tier | **Codex** |
-| Codex | **Claude**, fresh context |
-| You | **Codex** |
-
-This table picks the reviewing **family** only. Which model reviews — `sonnet`
-or `opus`, and Codex's alias and effort — comes from *Review tier* in the shared
-contract, their single authority; naming one here too would let an LLM choose
-between two competing instructions.
+Claude-written code (any tier) and your own code go to **Codex**; Codex-written
+code goes to **Claude** in a fresh context. The table, the degraded form and
+the review tier (which model and effort) are in `review.md`, their single
+authority — this skill picks neither model nor effort.
 
 Invoke `delegate-review` before declaring any non-trivial change complete,
 regardless of who wrote it. Skip only for genuinely trivial changes — a typo, a
@@ -107,12 +86,8 @@ one-line config edit — where the round trip costs more than the change.
 **Invoke it unconditionally rather than reasoning about whether a review already
 happened.** `delegate-review` Step 0 keys on the diff hash, so a second mandate
 firing on an unchanged diff reports the existing verified result instead of
-dispatching a reviewer. This is what stops the four independent review mandates
-from stacking into three round trips on one diff.
-
-Review effort scales with the diff, per *Review tier* in the shared contract.
-The cross-family guarantee holds at every tier; effort is the dial, not whether
-an independent family looks at the code.
+dispatching a reviewer. This is what stops the independent review mandates from
+stacking into several round trips on one diff.
 
 The reviewer gets the diff, the goal and the acceptance criteria. Never the
 implementer's report.
@@ -127,28 +102,6 @@ explicitly. That gap is why they were run blind.
 
 Re-run the verification commands yourself. `tests_run` is evidence submitted,
 never evidence accepted.
-
-## Model selection
-
-No skill file contains a *pinned* model identifier — nothing of the form
-`claude-<name>-<date>` or `gpt-<version>-<codename>`, which names one generation
-and rots when it is superseded. Aliases are the opposite and are therefore
-required: `sonnet` is a moving pointer, so writing it is what keeps the file
-correct. Claude uses aliases (`opus`, `sonnet`, `haiku`, and `fable` only on the
-user's explicit request), which always resolve to the current generation.
-Codex has no aliases, so its **codenames** serve as them — `luna`, `terra`,
-`sol`, and `astra` only on explicit request — each resolved by `herdr-spawn.sh`
-to the newest listed model of that name at launch, plus `inherit` for the
-user's `config.toml` model. Every Codex delegation names an alias *and* a
-reasoning **effort**; both are stable across model generations in a way slugs
-are not. The resolution rule and the alias table are in *Model selection* in the
-shared contract.
-
-**Effort `ultra` is forbidden everywhere** — it enables automatic task
-delegation and would breach the recursion guard from inside a leaf worker.
-
-The orchestrator is whatever model this session was launched with. It is never
-selected and needs no detection.
 
 ## Superpowers translation
 
