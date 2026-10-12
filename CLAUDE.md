@@ -163,8 +163,9 @@ Four mechanisms, one source each: `mimeapps.list` (tracked, written by the panel
 ### AI agent harness (`claude/`, `codex/`)
 
 The repo tracks only what was authored here for Claude Code and Codex: the
-delegation skills (`claude/skills/`, with `_shared/handoff.md` as the contract
-and `test-codex-model.sh` as its suite), one hook, the global instructions
+delegation skills (`claude/skills/`, with `_shared/handoff.md` for running a
+worker and `_shared/review.md` for reviews as the contracts, and
+`test-codex-model.sh` and `test-skills.sh` as their suites), one hook, the global instructions
 (`claude/CLAUDE.global.md`, `codex/AGENTS.global.md` — named so neither is
 auto-loaded as a nested project file), and curated settings. Logins, history,
 memory, caches, plugin checkouts and anything a tool writes into its own config
@@ -211,41 +212,15 @@ Stored in `~/.config/.env` (git-ignored). Template at `.env.example`. Loaded by 
 - Config is Arch/CachyOS-specific — package management uses `pacman` and `paru`/`yay` for AUR.
 - Every window and workspace keybinding carries `Super`, so `Alt`/`Ctrl` + arrows stay free for apps (browser back/forward, shell word jumps, TUI prompts). On the arrows: `Super` focuses, `+ Shift` moves, `+ Alt` resizes, `+ Ctrl` switches workspace. Keep new navigation binds on that grammar.
 - `.gitignore` is a whitelist: `/*` ignores everything in `~/.config`, then one `!/<entry>` line per tracked top-level file or directory, then the runtime files inside those directories. A new app is therefore ignored with no edit; tracking a new config means adding its `!` line. Never track what a program writes itself (app state, lock files, caches).
-- `scripts/keybinds/keybinds-sheet.sh` is the one parse of `keybinds.lua`: `--json` feeds the Super+H overlay, `--markdown` feeds `docs/keybindings.md`, and `--print` is a terminal preview. Never hand-write rows. Each one-line `hl.bind(...)` has a trailing `--` label (`$vars` inside are resolved); `tst_Overlay` (run on every commit by `test/test-docs.sh`) fails if any real label is elided at 1366×768, 1920×1080, 2560×1440 or portrait 1080×1920, so shorten a label rather than shrinking the type. Media, mouse and wheel keys print their legend (`Volume Up`, `Left button`, `Wheel`); that display table is `_key_display`.
-- `docs/keybindings.md` is **generated** by `scripts/docs/generate-keybindings.sh` from that same parser's `--markdown` mode — never hand-edit it, and regenerate after touching `keybinds.lua`. `test/test-docs.sh` fails on a stale copy, and since it lives in `test/` it runs on every commit. The skins differ in exactly one way: markdown does **not** resolve the options-backed `$terminal`/`$browser`, printing `options/terminal` instead, because a committed file must not freeze one machine's preference as though it were fixed. `scripts/lib/hypr-vars.sh` owns which variables those are (`hypr_var_origin`); do not restate that list anywhere else. README keeps only the five essential binds and links here — it carried the full table by hand once and it drifted.
+- `scripts/keybinds/keybinds-sheet.sh` is the one parser of `keybinds.lua` (it feeds the Super+H overlay and `docs/keybindings.md`); never hand-write rows. Each one-line `hl.bind(...)` carries a trailing `--` label, and `tst_Overlay` fails if the overlay would elide it, so shorten the label rather than the type. Details: `docs/internals/conventions.md`.
+- `docs/keybindings.md` is **generated** by `scripts/docs/generate-keybindings.sh`: never hand-edit it, and regenerate after touching `keybinds.lua` (`test/test-docs.sh` fails on a stale copy). `scripts/lib/hypr-vars.sh` owns which variables stay unresolved; do not restate that list. The README keeps only the five essential binds. Details: `docs/internals/conventions.md`.
 - `doctor.sh` and its check modules derive every target from tracked files. When adding a check, never introduce a hand-written list of paths, binaries, or packages — parse the config that already declares them. A list is a second source of truth and will drift.
 - Check modules must never run their loops in a pipeline (`cmd | while read`); the severity counters are shell variables and would be lost in the subshell, silently discarding every finding. Use `while read ...; do ... done < <(cmd)`. The test harness greps for this and fails the suite.
 - Use `git ls-files -z` with `while IFS= read -r -d ''`, never plain `git ls-files` — git C-quotes paths containing non-ASCII or quote characters, and the quoted form names no file on disk.
 - `scripts/doctor/` and `docs/` are excluded from the doctor's literal-path scan: both deliberately contain example paths that do not exist.
-- `./test.sh` discovers suites rather than listing them: a tracked file is an entry point if it is named `run-tests.sh`, or matches `test-*.sh` and its directory has no `run-tests.sh`. Name a new suite either way and it is picked up — by the runner and by the pre-commit hook — with no registration step. A suite's *owning directory* is its own directory minus a trailing `test/` component, and that is what decides which commits run it; a top-level `test/` maps to the whole repo, which is why `test/test-runner.sh` runs on every commit. Each suite is run as `bash <path>` in its own subshell and the only contract is its exit code, so a sourced-fragment harness and a standalone script coexist unchanged.
-- `scripts/hooks/pre-commit` decides nothing about which suites to run — it passes the staged paths to `test.sh --for`. It builds two staged listings on purpose: `--diff-filter=ACM` for shellcheck (a deleted file cannot be linted) and an unfiltered one for suite selection (a deletion is exactly when a suite most needs to run). Both use `--no-renames`, or git's single `R` record hides one of the two paths. `scripts/hooks/snapshot.sh` exports both listings and the staged contents from a copied index. All checks run in that temporary tree with private Git metadata and blobs (no commit history), never against unstaged working files or a shared writable object store.
+- `./test.sh` discovers suites: a tracked `run-tests.sh`, or a `test-*.sh` in a directory with none, is an entry point, and naming a new file that way is the whole of adding one. Each suite runs as `bash <path>` and its exit code is the only contract. Details: `docs/internals/conventions.md`.
+- `scripts/hooks/pre-commit` passes the staged paths to `test.sh --for` and runs its checks in a snapshot of the staged tree, never against unstaged working files. Details: `docs/internals/conventions.md`.
 
 ## Doctor architecture (`scripts/doctor/`)
 
-```
-doctor.sh                    # Entry point: sources lib + modules, guards the repo, exits 1 on ERROR
-scripts/doctor/
-├── lib.sh                   # group/ok/err/warn/note/summary, counters, doctor_q, doctor_require_repo
-├── checks/                  # Run in this order by doctor.sh
-│   ├── symlinks.sh          # check_symlinks   — from `git ls-files -s` mode 120000
-│   ├── references.sh        # check_references — from Lua require(), Hyprlang source, literal paths
-│   ├── binaries.sh          # check_binaries   — from Lua keybind/autostart hl.exec_cmd() calls
-│   ├── services.sh          # check_services   — from autostart daemons, D-Bus roles, install.sh arrays
-│   ├── sddm.sh              # check_sddm       — from sddm/setup-sudo.sh and the live SDDM configuration
-│   ├── updates.sh           # check_updates    — from updates/setup-sudo.sh and sudo -l
-│   ├── waybar.sh            # check_waybar     — from config.jsonc's modules-* arrays and handler values
-│   ├── workspaces.sh        # check_workspaces — placed cffi/* modules: library present and current
-│   ├── hyprctl.sh           # check_hyprctl    — removed runtime CLI forms under the Lua provider
-│   ├── hardware.sh          # check_hardware   — /sys/class/drm present set vs tracked files
-│   ├── autostart.sh         # check_autostart  — per-user XDG autostart entries whose program is missing
-│   ├── ssh.sh               # check_ssh        — from hypr/config/setup/envvars.lua and scripts/ssh/setup.sh
-│   ├── calendar.sh          # check_calendar   — from scripts/calendar/calendar-sync.timer and the keyring
-│   └── defaults.sh          # check_defaults   — from envvars.lua's hl.env(apps.*) lines, options/, mimeapps.list
-└── test/
-    ├── run-tests.sh         # Dependency-free harness; auto-discovers test-*.sh
-    └── test-*.sh            # One per module, plus lib and entry point; sourced into one shell
-```
-
-All modules are sourced into a single shell, so: one public `check_<name>` function each, private helpers prefixed (`_ref_`, `_bin_`, `_svc_`, `_sddm_`, `_upd_`, `_way_`, `_wsm_`, `_hctl_`, `_hw_`, `_as_`, `_ssh_`, `_def_`), and reserved names (`group ok err warn note summary doctor_reset doctor_q doctor_require_repo _finding`) are never redefined. Host probes (`pgrep`, `pacman`, `busctl`, `command -v` via `_way_have_cmd`, `/sys/class/drm` via `_hw_present_outputs`, `$HOME` via `_wsm_home`, the build script's `--check` via `_wsm_current`) each live in their own tiny function so tests can stub them — or aim them at a fixture, which is what `DOCTOR_DRM_SYSFS` does.
-
-`ok` is the all-clear and nothing else — print it only when a check found nothing at all, never as a consolation summary. Every path in a fix hint goes through `doctor_q`, and hints never contain `<placeholder>` text (the shell parses `<foo>` as a redirection).
+`doctor.sh` sources `scripts/doctor/lib.sh` and one `checks/<name>.sh` per concern. Each module exposes one public `check_<name>` function plus prefixed private helpers, and every host probe (`pgrep`, `pacman`, `/sys/class/drm`, ...) sits in its own tiny function so tests can stub it. Targets are always derived from tracked files, never hand-listed. `ok` is printed only when a check found nothing at all, and every path in a fix hint goes through `doctor_q`. The full module tree, helper prefixes and reserved names: `docs/internals/doctor.md`. Read it before adding or changing a check.
