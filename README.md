@@ -14,7 +14,7 @@ On a fresh Arch Linux or CachyOS system, logged in as your normal user:
 
 ```bash
 sudo pacman -S --needed git
-git clone https://github.com/pwnjack/.config.git ~/dotfiles
+git clone https://github.com/pwnjack/dotfiles.git ~/dotfiles
 cd ~/dotfiles
 ./install.sh
 ```
