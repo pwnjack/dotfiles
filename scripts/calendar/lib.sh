@@ -25,5 +25,13 @@ cal_skipped() {
     grep -v '^[[:space:]]*$' "$cal_state/skip" || true
 }
 
+# cal_show_declined — true when the Calendar page's "Show declined invitations"
+# switch is on (options/calendar-declined says "enabled"). Off by default.
+cal_show_declined() {
+    local value=''
+    read -r value 2>/dev/null < "$cal_options/calendar-declined" || true
+    [[ $value == enabled ]]
+}
+
 # cal_excluded — every name khal must leave out: hidden, then skipped.
 cal_excluded() { cal_hidden; cal_skipped; }

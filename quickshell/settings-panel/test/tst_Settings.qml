@@ -150,11 +150,29 @@ Item {
             verify(!findChild(view,"show-Holidays").checked);
             mouseClick(findChild(view,"show-Work"));
             compare(controller.calls, [{op: "calendarShow", name: "Work", shown: false}]);
+            compare(findChild(view,"providerName").text, "iCloud", "the page does not say what kind of account this is");
+            // The status shown already records an attempt this very second: only a newer one ends the wait.
+            const shownAttempt = Math.floor(Date.now() / 1000);
+            controller.calendar = Object.assign({}, controller.calendar, {status: {state: "ok", lastSuccess: shownAttempt, lastAttempt: shownAttempt}});
             findChild(view,"syncNow").click();
             compare(controller.calls[1], {op: "calendarSync"});
-            findChild(view,"signOut").click();
+            compare(findChild(view,"syncNow").text, "Syncing…");
+            verify(!findChild(view,"syncNow").enabled, "Sync now can be pressed again while its sync runs");
+            controller.calendar = Object.assign({}, controller.calendar);       // a re-read with the same status
+            compare(findChild(view,"syncNow").text, "Syncing…", "an unchanged status ended the wait");
+            // status.json records a newer attempt: the button is offered again.
+            controller.calendar = Object.assign({}, controller.calendar, {status: {state: "ok", lastSuccess: shownAttempt + 4, lastAttempt: shownAttempt + 4}});
+            compare(findChild(view,"syncNow").text, "Sync now");
+            verify(findChild(view,"syncNow").enabled);
+            const signOut = findChild(view,"signOut");
+            verify(signOut.danger, "Sign out is not toned as a removal");
+            signOut.click();
             compare(controller.calls.length, 2, "the first Sign out press only asks");
-            findChild(view,"signOut").click();
+            verify(signOut.primary && signOut.text === "Confirm sign out");
+            tryVerify(() => !signOut.confirm, 6000, "an unanswered confirmation never lapses");
+            signOut.click();
+            compare(controller.calls.length, 2, "a press after the confirmation lapsed signed out");
+            signOut.click();
             compare(controller.calls[2], {op: "calendarSignOut"});
         }
         function test_startup_view() {

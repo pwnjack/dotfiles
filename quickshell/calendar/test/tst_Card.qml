@@ -48,7 +48,9 @@ Item {
             return "iCloud · synced " + Math.round((now - status.lastSuccess) / 60) + " min ago";
         }
         function goToday() {} function newEvent() { state = Model.openSheet(state); }
-        function selectDay(k) { state = Object.assign({}, state, { day: k }); }
+        // The shell's selection, through the same controller.js functions.
+        function selectDay(k) { Controller.selectDay(controller, k); }
+        function closeDay() { lastAction = "closeDay"; Controller.closeDay(controller); }
         function showYear() { state = Object.assign({}, state, { year: true }); }
         property int lastShift: 0; property int lastMonth: -1
         property string peekFor: ""; property var peekEvents: []
@@ -257,7 +259,7 @@ Item {
         function test_invitation_is_read_only() {
             controller.state = Model.transition(Model.CLOSED, "clock");
             openEvent(listed({ invitation: true, recurring: false }));
-            compare(find("readOnlyLine").text, "Invitation · reply or change it on your iPhone");
+            compare(find("readOnlyLine").text, "Invitation · read-only here");
             verify(find("readOnlyLine").visible);
             verify(!find("deleteButton").visible);
             verify(!find("addButton").visible);
@@ -468,10 +470,10 @@ Item {
         }
         function test_failure_with_no_sheet_shows_on_the_card() {
             controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: "2026-10-20" });
-            controller.addError = "This event changed on your iPhone; open it again";
+            controller.addError = "This event changed elsewhere since you opened it; open it again";
             waitForRendering(card);
             verify(find("cardError").visible);
-            compare(find("cardError").text, "This event changed on your iPhone; open it again");
+            compare(find("cardError").text, "This event changed elsewhere since you opened it; open it again");
             controller.state = Model.openSheet(controller.state);
             waitForRendering(card);
             verify(!find("cardError").visible);
@@ -542,6 +544,7 @@ Item {
         }
         function test_year_month_click_picks_that_month() {
             controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { year: true });
+            wait(250);                  // the frame eases its height over 160 ms; a click lands in the settled card
             mouseClick(find("yearMonth3"));
             compare(controller.lastMonth, 3);
             controller.state = Model.transition(Model.CLOSED, "clock");
@@ -605,7 +608,9 @@ Item {
             const key = today();
             controller.now = Model.at(key, 14 * 60);
             controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: key });
-            controller.dayFor = key; controller.dayEvents = [];
+            controller.dayFor = key;
+            controller.dayEvents = [{ title: "Call", calendar: "Home", color: "", location: "", allDay: false,
+                startEpoch: Model.at(key, 16 * 60), endEpoch: Model.at(key, 17 * 60) }];
             waitForRendering(card);
             const hatch = find("pastHatch");
             verify(shown(hatch), "today's past hours have no hatch");
@@ -744,7 +749,7 @@ Item {
             mouseClick(find("startDate"));
             verify(find("startPicker").visible);
             keyClick(Qt.Key_Escape);
-            verify(!find("startPicker").visible);
+            tryVerify(() => !find("startPicker").visible, 500);   // it closes with a short slide
             verify(controller.state.sheet);                  // the sheet itself stays
         }
         function test_time_typing() {
@@ -794,7 +799,7 @@ Item {
             openSheet();
             controller.calendars = [{ name: "Home", color: "#ff9f0a", writable: true }, { name: "Work", color: "#00ff00", writable: false }];
             mouseClick(find("calendarValue"));
-            verify(shown(find("calendarMenu")));
+            tryVerify(() => shown(find("calendarMenu")), 500);
             compare(rowsNamed(find("calendarMenu"), "menuItem0").length, 1);
             compare(rowsNamed(find("calendarMenu"), "menuItem1").length, 0);
         }
@@ -807,7 +812,7 @@ Item {
         function test_alert_menu_ticks_the_current_preset() {
             openSheet();
             mouseClick(find("alertPill"));
-            verify(shown(find("alertMenu")));
+            tryVerify(() => shown(find("alertMenu")), 500);
             verify(rowsNamed(find("alertMenu"), "tick4")[0].visible);     // 15m is the fifth timed preset
             verify(!rowsNamed(find("alertMenu"), "tick0")[0].visible);
         }
@@ -822,6 +827,8 @@ Item {
                 compare(controller.adds - before, 1, n + " did not add on Return");
             }
             verify(!find("startTimeField").visible && !find("endTimeField").visible, "Return opened a time editor");
+            // Opening animates, so anything opened would still be on screen after it settles.
+            wait(300);
             verify(!find("startPicker").visible && !find("endPicker").visible, "Return opened a picker");
             verify(!find("calendarMenu").visible && !find("alertMenu").visible, "Return opened a menu");
         }
@@ -871,7 +878,7 @@ Item {
                 keyClick(Qt.Key_PageDown);
                 compare(picker.month, (before + 1) % 12, pair[0] + ": PgDn did not move the picker");
                 keyClick(Qt.Key_Escape);
-                verify(!picker.visible);
+                tryVerify(() => !picker.visible, 500, pair[1] + " stays open after Esc");
                 verify(pill.activeFocus, pair[0] + ": focus did not return to the pill");
             }
         }
@@ -1045,9 +1052,9 @@ Item {
             controller.editEvent(listed());
             const session = controller.sheetSession;
             controller.shiftMonth(1);
-            controller.saveReply(session, "Calcetto", { ok: false, error: "This event changed on your iPhone; open it again" });
+            controller.saveReply(session, "Calcetto", { ok: false, error: "This event changed elsewhere since you opened it; open it again" });
             compare(controller.addError, "", "a failed earlier save showed on the newer view");
-            compare(controller.lastNotice, "This event changed on your iPhone; open it again", "the failure was lost");
+            compare(controller.lastNotice, "This event changed elsewhere since you opened it; open it again", "the failure was lost");
         }
 
         // ── The calendar list. A slow first discovery, a rename, a writability change, and a failed read.
@@ -1087,6 +1094,287 @@ Item {
             controller.calendarsReply({ ok: false, error: "khal is not installed" });
             compare(controller.calendars, before, "a failed read replaced the list");
             compare(controller.draft.calendar, "Home", "a failed read reset the draft's calendar");
+        }
+
+        // ── Polish: one way in and one way out of each section.
+        function test_day_header_close_puts_upcoming_back() {
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: "2026-10-13" });
+            controller.dayFor = "2026-10-13"; controller.dayEvents = [];
+            waitForRendering(card);
+            verify(!find("todayButton").visible, "a selected day in this month shows Today; the day has its own close");
+            const header = find("dayHeader");
+            mouseClick(header, header.width - 17, header.height / 2);
+            compare(controller.lastAction, "closeDay");
+            compare(controller.state.day, null);
+            controller.state = Model.transition(Model.CLOSED, "clock");
+        }
+        function test_second_click_on_the_selected_day_closes_it() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            const month = controller.viewMonth, year = controller.viewYear;
+            const key = year + "-" + String(month + 1).padStart(2, "0") + "-15";
+            const cell = findCell(key);
+            mouseClick(cell);
+            compare(controller.state.day, key);
+            mouseClick(cell);
+            compare(controller.state.day, null, "a second click on the day left it selected");
+            compare(controller.viewMonth, month, "closing the day moved the month");
+            compare(controller.viewYear, year);
+            waitForRendering(card);
+            verify(shown(find("upcomingHeader")), "Upcoming did not come back");
+        }
+        // The month grid cell for a day: the one whose dot is named for it.
+        function findCell(key) {
+            const [y, m, d] = key.split("-").map(Number);
+            return find("dot-" + y + "-" + String(m).padStart(2, "0") + "-" + d).parent;
+        }
+        function test_day_timeline_click_on_a_gap_adds_nothing() {
+            const key = "2026-10-20";
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: key });
+            controller.dayFor = key; controller.dayEvents = [listed({ recurring: false })];
+            waitForRendering(card);
+            const strip = find("timelineStrip");
+            mouseClick(strip, 4, strip.height / 2);            // 08:00, before Calcetto
+            verify(!controller.state.sheet, "a click on the day's timeline opened a new event");
+            controller.state = Model.transition(Model.CLOSED, "clock");
+        }
+        function test_day_with_no_timed_events_has_no_timeline() {
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: "2026-10-13" });
+            controller.dayFor = "2026-10-13"; controller.dayEvents = [];
+            waitForRendering(card);
+            verify(!shown(find("timeline")), "an empty day draws an empty strip");
+            controller.state = Model.transition(Model.CLOSED, "clock");
+        }
+        function test_upcoming_chevron_keeps_its_place() {
+            const t = Math.floor(Date.now() / 1000);
+            controller.now = t;
+            controller.agenda = [{ title: "Dentist", calendar: "Home", color: "#ff9f0a", location: "", allDay: false,
+                startEpoch: t + 3600, endEpoch: t + 7200 }];
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            waitForRendering(card);
+            const header = find("upcomingHeader");
+            const at = () => header.mapToItem(card, header.width, header.height / 2);
+            const folded = at();
+            controller.toggleUpcoming();
+            waitForRendering(card);
+            compare(at().x, folded.x);
+            compare(find("foldedLine").text, "Upcoming · 7 days");
+            mouseClick(header, header.width - 17, header.height / 2);
+            verify(!controller.state.unfolded, "the chevron does not fold the list");
+            controller.agenda = [];
+        }
+        function test_sheet_rows_leave_room_around_their_pills() {
+            openSheet();
+            for (const name of ["calendarValue", "alertPill", "startDate", "endTime"]) {
+                const pill = find(name), row = pill.parent.parent;
+                const top = pill.mapToItem(row, 0, 0).y;
+                verify(top >= 5, name + " sits " + top + " px from its row's top");
+                verify(row.height - top - pill.height >= 5, name + " sits too close to its row's bottom");
+            }
+            controller.state = Model.transition(Model.CLOSED, "clock");
+        }
+        function test_sheet_timeline_hides_the_event_being_edited() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            const e = listed({ recurring: false });
+            openEvent(e);
+            controller.dayFor = "2026-10-20"; controller.dayEvents = [e];
+            waitForRendering(card);
+            compare(rowsNamed(find("sheetTimeline"), "timeBlock").length, 0, "the edited event is drawn under its own draft");
+            controller.state = Model.transition(Model.CLOSED, "clock");
+        }
+        function test_timeline_tick_labels_never_touch() {
+            const key = "2026-10-20";
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: key });
+            controller.dayFor = key;
+            // 08–22 (20:00 would crowd 22:00), then 01–24 (21:00 would crowd the clamped 00:00), in both clocks.
+            const ranges = [[listed({ recurring: false })],
+                [listed({ recurring: false, startEpoch: Model.at(key, 60), endEpoch: Model.at(Model.addDays(key, 1), 0) })]];
+            for (const clock of ["24h", "12h"]) for (const events of ranges) {
+                controller.clock = clock;
+                controller.dayEvents = events;
+                waitForRendering(card);
+                const ticks = rowsNamed(find("timeline"), "tick").sort((a, b) => a.x - b.x);
+                verify(ticks.length > 2);
+                for (let i = 1; i < ticks.length; i++)
+                    verify(ticks[i].x - (ticks[i - 1].x + ticks[i - 1].implicitWidth) >= 8, clock + ": " + ticks[i - 1].text + " touches " + ticks[i].text);
+            }
+            controller.clock = "24h";
+            controller.state = Model.transition(Model.CLOSED, "clock");
+        }
+
+        // ── The sheet's controls open in place: menus float, pickers slide, the time field keeps the pill's box.
+        function test_menus_float_over_the_sheet() {
+            for (const pair of [["calendarValue", "calendarMenu"], ["alertPill", "alertMenu"]]) {
+                controller.state = Model.transition(Model.CLOSED, "clock");   // a change, so openSheet's wait sees a frame
+                openSheet();
+                const pill = find(pair[0]), menu = find(pair[1]);
+                const sheetHeight = find("sheetTitle").parent.parent.height, pillY = pill.mapToItem(card, 0, 0).y;
+                mouseClick(pill);
+                tryVerify(() => menu.opacity === 1, 500, pair[1] + " did not open");
+                compare(pill.mapToItem(card, 0, 0).y, pillY, pair[1] + " moved its own pill");
+                compare(find("sheetTitle").parent.parent.height, sheetHeight, pair[1] + " grew the sheet");
+                // Inside the sheet, right-aligned with its pill, and clear of it.
+                const top = menu.mapToItem(card, 0, 0).y, bottom = top + menu.height, right = menu.mapToItem(card, menu.width, 0).x;
+                verify(top >= 0 && bottom <= card.height, pair[1] + " runs off the card: " + top + "–" + bottom);
+                compare(Math.round(right), Math.round(pill.mapToItem(card, pill.width, 0).x));
+                verify(bottom <= pillY || top >= pillY + pill.height, pair[1] + " covers its pill");
+                keyClick(Qt.Key_Escape);
+                tryVerify(() => !menu.visible, 500);
+                verify(pill.activeFocus, pair[0] + ": focus did not return to the pill");
+                verify(controller.state.sheet, "Esc on the menu left the sheet");
+            }
+        }
+        function test_menu_keys_choose() {
+            openSheet();
+            mouseClick(find("alertPill"));
+            keyClick(Qt.Key_Down); keyClick(Qt.Key_Return);            // 15 minutes → 30 minutes
+            compare(controller.draft.alert, "30m");
+            tryVerify(() => !find("alertMenu").visible, 500);
+            compare(controller.adds, 0, "Return in the menu also added the event");
+        }
+        function test_click_outside_a_menu_only_closes_it() {
+            openSheet();
+            mouseClick(find("calendarValue"));
+            tryVerify(() => find("calendarMenu").opacity === 1, 500);
+            mouseClick(find("allDaySwitch"));
+            tryVerify(() => !find("calendarMenu").visible, 500);
+            verify(!controller.draft.allDay, "the click that closed the menu also flipped All day");
+        }
+        function test_time_field_keeps_the_pill_box() {
+            for (const clock of ["24h", "12h"]) {
+                controller.clock = clock;
+                openSheet();
+                const pill = find("startTime"), w = pill.width, h = pill.height, x = pill.mapToItem(card, 0, 0).x;
+                mouseClick(pill);
+                const field = find("startTimeField");
+                waitForRendering(card);                    // the row lays the field out on the next frame
+                verify(field.visible);
+                verify(Math.abs(field.width - w) <= 1, clock + ": the field is " + field.width + " px for a " + w + " px pill");
+                compare(field.height, h);
+                verify(Math.abs(field.mapToItem(card, 0, 0).x - x) <= 1, clock + ": the field moved from x=" + x + " to x=" + field.mapToItem(card, 0, 0).x);
+                keyClick(Qt.Key_Escape);
+            }
+            controller.clock = "24h";
+        }
+
+        function test_backtab_in_a_menu_never_adds() {
+            openSheet();
+            find("titleField").text = "Match";
+            mouseClick(find("alertPill"));
+            keyClick(Qt.Key_Backtab); keyClick(Qt.Key_Tab); keyClick(Qt.Key_Down); keyClick(Qt.Key_Return);
+            compare(controller.adds, 0, "Return after Shift+Tab in the menu added the event");
+            compare(controller.draft.alert, "30m");
+        }
+        function test_menu_follows_its_pill_while_a_picker_closes() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            openSheet();
+            mouseClick(find("startDate"));
+            wait(300);                                       // the picker is fully open
+            const pill = find("calendarValue"), menu = find("calendarMenu");
+            mouseClick(pill);
+            wait(400);                                       // the picker has closed under it
+            const pillTop = pill.mapToItem(card, 0, 0).y, top = menu.mapToItem(card, 0, 0).y;
+            const gap = menu.above ? pillTop - (top + menu.height) : top - (pillTop + pill.height);
+            verify(gap >= 0 && gap <= 6, "the menu is " + gap + " px from its pill");
+        }
+        function test_click_outside_the_sheet_or_card_only_closes_the_menu() {
+            openSheet();
+            mouseClick(find("calendarValue"));
+            tryVerify(() => find("calendarMenu").opacity === 1, 500);
+            mouseClick(card, 5, 5);                          // the card's padding, outside the sheet
+            tryVerify(() => !find("calendarMenu").visible, 500);
+            mouseClick(find("calendarValue"));
+            tryVerify(() => find("calendarMenu").opacity === 1, 500);
+            verify(card.closePopup(), "a click outside the card did not go to the menu first");
+            verify(controller.state.sheet);
+            verify(!card.closePopup(), "with no menu open, a click outside must reach the card");
+        }
+        function test_menus_fit_a_short_window_and_many_calendars() {
+            controller.calendars = Array.from({ length: 20 }, (_, i) => ({ name: "Calendario numero " + i + " con un nome lungo", color: "#ff9f0a", writable: true }));
+            host.height = 420;
+            for (const pair of [["calendarValue", "calendarMenu"], ["alertPill", "alertMenu"]]) {
+                controller.state = Model.transition(Model.CLOSED, "clock");
+                openSheet();
+                controller.draft = Object.assign({}, controller.draft, { calendar: controller.calendars[0].name });
+                tryVerify(() => card.height <= host.height, 1000);
+                const pill = find(pair[0]), menu = find(pair[1]);
+                pill.forceActiveFocus(); keyClick(Qt.Key_Space);
+                tryVerify(() => menu.opacity === 1, 500);
+                const pr = pill.mapToItem(card, pill.width, 0).x;
+                verify(pr <= card.width - card.px(16), pair[0] + " runs past the card: right edge at " + pr);
+                const top = menu.mapToItem(card, 0, 0).y, left = menu.mapToItem(card, 0, 0).x;
+                verify(top >= 0 && top + menu.height <= card.height, pair[1] + " runs off the card: " + top + "+" + menu.height + " of " + card.height);
+                verify(left >= 0 && left + menu.width <= card.width, pair[1] + " is wider than the card");
+                keyClick(Qt.Key_Escape);
+                tryVerify(() => !menu.visible, 500);
+            }
+            controller.calendars = [{ name: "Home", color: "#ff9f0a", writable: true }];
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            host.height = 900;
+            wait(300);                                      // the next test starts from a settled card
+        }
+        function test_time_field_keeps_its_size_while_typing() {
+            openSheet();
+            mouseClick(find("startTime"));
+            const field = find("startTimeField");
+            waitForRendering(card);
+            const w = field.width, x = field.mapToItem(card, 0, 0).x;
+            field.selectAll(); keyClick(Qt.Key_1); keyClick(Qt.Key_1); keyClick(Qt.Key_Colon); keyClick(Qt.Key_3); keyClick(Qt.Key_0);
+            keyClick(Qt.Key_Space); keyClick(Qt.Key_P); keyClick(Qt.Key_M);
+            waitForRendering(card);
+            compare(field.width, w, "the field grew while typing");
+            compare(field.mapToItem(card, 0, 0).x, x, "the field moved while typing");
+            keyClick(Qt.Key_Return);
+            compare(Model.minutesOf(controller.draft.start), 23 * 60 + 30);
+        }
+
+        // The date pickers slide: partway through opening and closing, their box is between closed and open.
+        function test_date_picker_opens_and_closes_smoothly() {
+            for (const pair of [["startDate", "startPicker"], ["endDate", "endPicker"]]) {
+                controller.state = Model.transition(Model.CLOSED, "clock");
+                openSheet();
+                const box = find(pair[1]).parent.parent;            // MonthGrid -> holder -> Reveal
+                compare(box.height, 0);
+                mouseClick(find(pair[0]));
+                wait(70);
+                verify(box.height > 0 && box.height < box.fullHeight, pair[1] + " snapped open: " + box.height + " of " + box.fullHeight);
+                tryVerify(() => Math.abs(box.height - box.fullHeight) < 0.5, 1000, pair[1] + " never finished opening: " + box.height + " of " + box.fullHeight);
+                keyClick(Qt.Key_Escape);
+                wait(70);
+                verify(box.height > 0 && box.height < box.fullHeight, pair[1] + " snapped shut: " + box.height);
+                tryVerify(() => box.height < 0.5, 1000, pair[1] + " never finished closing: " + box.height);
+            }
+        }
+        function test_return_in_a_fresh_picker_confirms_the_date_and_never_adds() {
+            openSheet();
+            find("titleField").text = "Match";
+            const day = controller.draft.startDay;
+            mouseClick(find("startDate"));
+            keyClick(Qt.Key_Return);
+            compare(controller.adds, 0, "Return in the picker added the event");
+            compare(controller.draft.startDay, day);
+            tryVerify(() => !find("startPicker").visible, 500, "Return did not close the picker");
+            mouseClick(find("startDate"));
+            mouseClick(find("addButton"));
+            compare(controller.adds, 1, "Add does nothing while a picker is open");
+        }
+        function test_menu_survives_the_sheet_shrinking_under_it() {
+            host.height = 420;
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            openSheet();
+            tryVerify(() => card.height <= host.height, 1000);
+            mouseClick(find("startDate"));
+            wait(300);
+            const scroll = find("sheetScroll");
+            scroll.contentY = scroll.contentHeight - scroll.height;     // down to Calendar, the picker open above
+            waitForRendering(card);
+            mouseClick(find("calendarValue"));
+            wait(400);                                                    // the picker has closed; the sheet clamped its scroll
+            verify(find("calendarMenu").open, "the menu closed itself as the sheet shrank");
+            compare(find("calendarMenu").opacity, 1);
+            keyClick(Qt.Key_Escape);
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            host.height = 900;
+            wait(300);
         }
 
         // ── The card's height is bounded by the screen, and its reading views scroll inside that.

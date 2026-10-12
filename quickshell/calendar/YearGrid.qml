@@ -11,14 +11,16 @@ ColumnLayout {
     spacing: card.px(6)
     // Wheel up goes back a year, as in the month grid.
     WheelHandler { onWheel: event => { if (event.angleDelta.y > 0) year.card.c.shiftYear(-1); else if (event.angleDelta.y < 0) year.card.c.shiftYear(1); } }
-    RowLayout {
+    // ‹ and › centred over the outer columns' ends, at the month grid's height, so the views swap without a jump.
+    Item {
         Layout.fillWidth: true
-        Text { text: "‹"; color: year.card.c.accent; font.pixelSize: year.card.px(18)
-            MouseArea { anchors.fill: parent; anchors.margins: -8; cursorShape: Qt.PointingHandCursor; onClicked: year.card.c.shiftYear(-1) } }
-        Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: year.card.c.viewYear
+        implicitHeight: year.card.px(30)
+        IconButton { card: year.card; glyph: "‹"; glyphSize: 18; x: Math.round(parent.width / 14 - width / 2)
+            anchors.verticalCenter: parent.verticalCenter; onClicked: year.card.c.shiftYear(-1) }
+        Text { anchors.centerIn: parent; text: year.card.c.viewYear
             color: year.card.c.foreground; font.family: year.card.c.monoFont; font.pixelSize: year.card.px(13); font.weight: Font.DemiBold }
-        Text { text: "›"; color: year.card.c.accent; font.pixelSize: year.card.px(18)
-            MouseArea { anchors.fill: parent; anchors.margins: -8; cursorShape: Qt.PointingHandCursor; onClicked: year.card.c.shiftYear(1) } }
+        IconButton { card: year.card; glyph: "›"; glyphSize: 18; x: Math.round(parent.width * 13 / 14 - width / 2)
+            anchors.verticalCenter: parent.verticalCenter; onClicked: year.card.c.shiftYear(1) }
     }
     GridLayout {
         columns: 3; columnSpacing: year.card.px(6); rowSpacing: year.card.px(6)

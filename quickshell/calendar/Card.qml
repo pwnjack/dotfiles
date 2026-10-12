@@ -13,9 +13,10 @@ FocusScope {
     function px(v) { return Math.round(v * c.uiScale); }
     readonly property color dim: Qt.rgba(c.foreground.r, c.foreground.g, c.foreground.b, 0.62)
     readonly property color line: Qt.rgba(c.foreground.r, c.foreground.g, c.foreground.b, 0.10)
+    // Today brings the month back; a selected day has its own × instead.
     readonly property bool browsedAway: {
         const d = new Date();
-        return !!c.state.day || c.state.year || c.viewYear !== d.getFullYear() || c.viewMonth !== d.getMonth();
+        return c.state.year || c.viewYear !== d.getFullYear() || c.viewMonth !== d.getMonth();
     }
     width: px(372)
     height: frame.height
@@ -29,6 +30,8 @@ FocusScope {
     property real lift: 0
     opacity: fade
     transform: Translate { y: (card.c.barAtBottom ? 1 : -1) * card.px(8) * (1 - card.lift) }
+    // A click outside the card closes an open dropdown first, and only that.
+    function closePopup() { return sheet.visible && sheet.closeMenu(); }
     function appear() { leave.stop(); enter.start(); forceActiveFocus(); }
     function disappear() { enter.stop(); leave.start(); }
     ParallelAnimation {
@@ -164,7 +167,7 @@ FocusScope {
                     DayView { visible: !!card.c.state.day; Layout.fillWidth: true; card: card }
                 }
             }
-            Sheet { visible: card.c.state.sheet && !!card.c.draft; Layout.fillWidth: true; card: card; focus: card.c.state.sheet
+            Sheet { id: sheet; visible: card.c.state.sheet && !!card.c.draft; Layout.fillWidth: true; card: card; focus: card.c.state.sheet
                 maxHeight: card.contentRoom }
         }
     }

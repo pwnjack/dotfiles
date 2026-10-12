@@ -9,7 +9,9 @@ Rectangle {
     property bool strikeout: false
     signal clicked()
     signal wheelStep(int steps)
-    implicitWidth: label.implicitWidth + card.px(24)
+    // A long value (a calendar's name) never pushes the pill past its row: it elides.
+    property real maxWidth: Infinity
+    implicitWidth: Math.min(maxWidth, label.implicitWidth + card.px(24))
     implicitHeight: card.px(30)
     radius: card.px(8)
     color: active ? Qt.rgba(card.c.accent.r, card.c.accent.g, card.c.accent.b, 0.30)
@@ -24,6 +26,8 @@ Rectangle {
     Text {
         id: label
         anchors.centerIn: parent
+        width: Math.min(implicitWidth, pill.width - pill.card.px(24))
+        elide: Text.ElideRight
         text: pill.text
         font.strikeout: pill.strikeout
         color: pill.strikeout ? "#e0787a" : pill.card.c.foreground

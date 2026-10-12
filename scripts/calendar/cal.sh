@@ -63,10 +63,11 @@ known_calendars() {
 # hide_declined — reads khal's events on stdin and drops the instances the account
 # declined. $cal_state/declined holds "calendar<TAB>uid<TAB>key" rules, written by
 # sync.sh: "*" hides every instance, "<start>" hides the one starting then, and
-# "!<start>" shows one again under a declined series. A missing file hides nothing.
+# "!<start>" shows one again under a declined series. A missing file hides nothing,
+# and so does the Calendar page's "Show declined invitations" switch.
 hide_declined() {
     local declined=$cal_state/declined
-    [[ -r $declined ]] || declined=/dev/null
+    if [[ ! -r $declined ]] || cal_show_declined; then declined=/dev/null; fi
     # The rules are indexed once, by "calendar<TAB>uid": {all, hide, show}, so each
     # event is a constant-time lookup, not a scan of every rule.
     jq -c --rawfile declined "$declined" '
@@ -227,11 +228,11 @@ edit() {   # edit update|delete — one JSON request line on stdin; the caller h
     hash=$(jq -r '.hash // ""' <<<"$line")
     [[ $(calendars | jq -r --arg n "$calendar" '.[] | select(.name == $n) | .writable') == true ]] || die "$calendar is read-only"
     file=$(find_event "$calendar" "$uid") || die "That event is no longer in $calendar"
-    unchanged "$file" "$hash" || die 'This event changed on your iPhone; open it again'
+    unchanged "$file" "$hash" || die 'This event changed elsewhere since you opened it; open it again'
     out=$(helper "$op" "$file" --argjson req "$(jq -c '{occurrence, scope, changes}' <<<"$line")") || { printf '%s\n' "$out"; exit 1; }
     # The check above is before the helper ran; the lock stops sync.sh, not a
     # phone-side change that lands in between, so the snapshot is checked again.
-    unchanged "$file" "$hash" || die 'This event changed on your iPhone; open it again'
+    unchanged "$file" "$hash" || die 'This event changed elsewhere since you opened it; open it again'
     new=$(jq -r '.raw' <<<"$out")
     if [[ -z $new ]]; then rm -f -- "$file"; after_write; return; fi
     target=$(jq -r '.moveTo // ""' <<<"$line")

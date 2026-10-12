@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import "model.mjs" as Model
 
-// One event: time range (or "all day"), calendar dot, title. Hover -> details.
+// One event: time range (or "all day"), calendar dot, title. Hover -> details, click -> edit.
 Rectangle {
     id: row
     objectName: "eventRow"
@@ -10,16 +10,20 @@ Rectangle {
     required property var event
     readonly property bool lit: card.c.highlight !== "" && event.title === card.c.highlight
     Layout.fillWidth: true
-    implicitHeight: card.px(24)
-    radius: card.px(6)
-    color: lit ? Qt.rgba(card.c.accent.r, card.c.accent.g, card.c.accent.b, 0.25) : "transparent"
-    Behavior on color { ColorAnimation { duration: 400 } }
+    implicitHeight: card.px(28)
+    radius: card.px(8)
+    // A row opens its event, so it lights under the pointer like every other button on the card.
+    color: lit ? Qt.rgba(card.c.accent.r, card.c.accent.g, card.c.accent.b, 0.25)
+        : Qt.rgba(card.c.foreground.r, card.c.foreground.g, card.c.foreground.b, hov.containsMouse ? 0.08 : 0)
+    Behavior on color { ColorAnimation { duration: row.lit ? 400 : 100 } }
     function fmt(s) { return Model.formatTime(Model.minutesOf(s), card.c.clock, card.c.locale.amText, card.c.locale.pmText); }
     // The time column is as wide as the widest range the clock can print, so the dots line up and the title takes the rest.
     TextMetrics { id: widest; font.family: row.card.c.monoFont; font.pixelSize: row.card.px(13)
         text: row.card.c.clock === "12h" ? "00:00 " + row.card.c.locale.pmText + "–00:00 " + row.card.c.locale.pmText : "00:00–00:00" }
     RowLayout {
         anchors.fill: parent
+        anchors.leftMargin: row.card.px(12)
+        anchors.rightMargin: row.card.px(12)
         spacing: row.card.px(10)
         Text { objectName: "eventTime"; Layout.preferredWidth: widest.advanceWidth; Layout.minimumWidth: widest.advanceWidth
             text: row.event.allDay ? "all day" : row.fmt(row.event.startEpoch) + "–" + row.fmt(row.event.endEpoch)

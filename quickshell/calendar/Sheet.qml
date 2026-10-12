@@ -4,7 +4,7 @@ import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import "model.mjs" as Model
 
-// New event, iPhone-style. Every edit goes through the model and back to the
+// New event, in the style of a phone's calendar sheet. Every edit goes through the model and back to the
 // controller (setDraft), so the shell can load the start day's events.
 FocusScope {
     id: sheet
@@ -20,14 +20,16 @@ FocusScope {
     // An event opened for editing; a read-only one (other calendar's, or an invitation) has no Done or Delete.
     readonly property bool editing: !!d && d.mode === "edit"
     readonly property bool readOnly: editing && d.readOnly
-    readonly property var dayEvents: d && card.c.dayFor === d.startDay ? card.c.dayEvents : []
+    // The start day's other events: an event being edited is the draft on the timeline, not a block under it.
+    readonly property var dayEvents: d && card.c.dayFor === d.startDay
+        ? card.c.dayEvents.filter(e => !Model.isDraftOf(d, e)) : []
     readonly property var conflicts: d ? Model.clashes(d, dayEvents) : []
     readonly property var allDayOthers: dayEvents.filter(e => e.allDay)
     property string expanded: ""            // "", "startDate", "endDate", "startTime", "endTime", "calendar", "alert"
     property string prompting: ""           // "", "save", "delete": the scope prompt over the sheet
     property int pickYear: 2026             // the month the open date picker shows
     property int pickMonth: 0
-    property Item datePill: null        // the date pill whose picker is open; focus returns to it
+    property Item opener: null          // the pill whose picker or menu is open; focus returns to it
     implicitHeight: col.implicitHeight
     // The fields show the draft's text. Typing is the only edit that comes from a field, and it
     // already matches the draft, so this writes only when the draft was replaced under them.
@@ -43,13 +45,52 @@ FocusScope {
     }
     onExpandedChanged: {
         if (expanded === "startDate" || expanded === "endDate") {
-            datePill = expanded === "startDate" ? startDatePill : endDatePill;
+            opener = expanded === "startDate" ? startDatePill : endDatePill;
             (expanded === "startDate" ? startPicker : endPicker).forceActiveFocus();
             return;
         }
-        if (expanded === "" && datePill) datePill.forceActiveFocus();
-        datePill = null;
+        if (expanded === "calendar" || expanded === "alert") {
+            opener = expanded === "calendar" ? calendarPill : alertPill;
+            placeMenu(expanded === "calendar" ? calendarMenu : alertMenu, opener);
+            return;
+        }
+        if (expanded === "" && opener) opener.forceActiveFocus();
+        opener = null;
     }
+    // A menu opens under its pill, right edges aligned, or above it when only that
+    // side has room; with room on neither, it takes the roomier side and scrolls.
+    // It stays inside the sheet's visible part, and follows its pill while rows above
+    // still move (a picker closing as it opens); a wheel or drag over the sheet closes it.
+    readonly property bool menuOpen: expanded === "calendar" || expanded === "alert"
+    function placeMenu(menu, pill) {
+        const gap = card.px(4);
+        const viewTop = scroll.mapToItem(sheet, 0, 0).y, viewBottom = viewTop + scroll.height;
+        const top = pill.mapToItem(sheet, 0, 0).y;
+        // The room either side is measured from the part of the pill that is in view.
+        const seenTop = Math.max(viewTop, Math.min(viewBottom, top));
+        const seenBottom = Math.max(viewTop, Math.min(viewBottom, top + pill.height));
+        const below = viewBottom - seenBottom - gap, aboveRoom = seenTop - gap - viewTop;
+        const full = menu.items.length * menu.rowHeight + 2 * menu.pad;
+        menu.maxWidth = width;
+        menu.above = full > below && (full <= aboveRoom || aboveRoom > below);
+        menu.maxHeight = Math.max(menu.rowHeight + 2 * menu.pad, menu.above ? aboveRoom : below);
+        // A sheet row's controls end flush with its right margin (SheetRow: 12 px), whatever
+        // their width, so the menu lines up there rather than on a measurement taken mid-layout.
+        menu.anchorRight = width - card.px(12);
+        menu.anchorY = menu.above ? top - gap : top + pill.height + gap;
+        // A pill scrolled partly out of view still gets its whole menu on screen.
+        menu.bandTop = viewTop;
+        menu.bandBottom = viewBottom;
+    }
+    function replaceMenu() {
+        if (expanded === "calendar") placeMenu(calendarMenu, calendarPill);
+        else if (expanded === "alert") placeMenu(alertMenu, alertPill);
+    }
+    Connections { target: inner; function onImplicitHeightChanged() { sheet.replaceMenu(); } }
+    onHeightChanged: replaceMenu()
+    onWidthChanged: replaceMenu()
+    // An open menu or dropdown is closed by a click anywhere outside it; the card asks here first.
+    function closeMenu() { if (!menuOpen) return false; expanded = ""; return true; }
 
     function set(next) { card.c.setDraft(next); }
     // Done (edit) or Add (new). A repeating event asks which occurrences first; a one-off saves at once.
@@ -59,6 +100,9 @@ FocusScope {
         if (Model.scopeChoices(d).length) { prompting = "save"; return; }
         card.c.save("all");
     }
+    // Return saves only with nothing open: an open dropdown or picker takes its own Return,
+    // and one that passes it on (a picker before any arrow key) must not add the event.
+    function returnPressed() { if (expanded === "") done(); }
     function fmtTime(s) { return Model.formatTime(Model.minutesOf(s), card.c.clock, card.c.locale.amText, card.c.locale.pmText); }
     function fmtDay(key) { return card.c.locale.toString(new Date(Model.dayStart(key) * 1000), "ddd d MMM yyyy"); }
     function stepTime(which, steps) {
@@ -98,8 +142,8 @@ FocusScope {
         else event.accepted = false;
     }
     // Return saves from anywhere in the sheet once valid. Pills and time fields take it first.
-    Keys.onReturnPressed: event => { done(); event.accepted = true; }
-    Keys.onEnterPressed: event => { done(); event.accepted = true; }
+    Keys.onReturnPressed: event => { returnPressed(); event.accepted = true; }
+    Keys.onEnterPressed: event => { returnPressed(); event.accepted = true; }
 
     ColumnLayout {
         id: col
@@ -152,10 +196,14 @@ FocusScope {
         }
         Flickable {
             id: scroll
+            objectName: "sheetScroll"
             Layout.fillWidth: true
             Layout.preferredHeight: Math.min(inner.implicitHeight, Math.max(0, sheet.maxHeight - bar.height - col.spacing))
             contentHeight: inner.implicitHeight
             clip: true
+            // The sheet can scroll under an open menu without the user (a picker closing shrinks
+            // it): the menu follows. A wheel or drag by the user lands on the catcher and closes it.
+            onContentYChanged: sheet.replaceMenu()
             boundsBehavior: Flickable.StopAtBounds
             ColumnLayout {
                 id: inner
@@ -165,7 +213,7 @@ FocusScope {
                 objectName: "readOnlyLine"
                 visible: sheet.readOnly
                 Layout.fillWidth: true
-                text: sheet.d && sheet.d.invitation ? "Invitation · reply or change it on your iPhone" : "Read-only calendar"
+                text: sheet.d && sheet.d.invitation ? "Invitation · read-only here" : "Read-only calendar"
                 color: sheet.card.dim
                 wrapMode: Text.Wrap
                 font.family: sheet.card.c.monoFont
@@ -185,43 +233,50 @@ FocusScope {
             // Group 1: title, location
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: g1.implicitHeight
+                implicitHeight: g1.implicitHeight + sheet.card.px(8)
                 radius: sheet.card.px(12)
                 color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
                 enabled: !sheet.readOnly
                 ColumnLayout {
                     id: g1
+                    y: sheet.card.px(4)
                     width: parent.width
-                    spacing: sheet.card.px(6)
+                    spacing: 0
                     Controls.TextField {
                         id: titleField
                         objectName: "titleField"
                         Layout.fillWidth: true
-                        Layout.margins: sheet.card.px(4)
+                        Layout.preferredHeight: sheet.card.px(40)
+                        leftPadding: sheet.card.px(12); rightPadding: sheet.card.px(12)
+                        topPadding: 0; bottomPadding: 0
+                        verticalAlignment: TextInput.AlignVCenter
                         activeFocusOnTab: true
                         enabled: !sheet.readOnly
                         placeholderText: "Title"
                         onTextChanged: if (sheet.d && text !== sheet.d.title) sheet.set(Object.assign({}, sheet.d, { title: text }))
-                        Keys.onReturnPressed: event => { sheet.done(); event.accepted = true; }
-                        Keys.onEnterPressed: event => { sheet.done(); event.accepted = true; }
+                        Keys.onReturnPressed: event => { sheet.returnPressed(); event.accepted = true; }
+                        Keys.onEnterPressed: event => { sheet.returnPressed(); event.accepted = true; }
                         color: sheet.card.c.foreground
                         placeholderTextColor: sheet.card.dim
                         font.family: sheet.card.c.monoFont
                         font.pixelSize: sheet.card.px(13)
                         background: Item {}
                     }
-                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: sheet.card.line }
+                    Rectangle { Layout.fillWidth: true; Layout.leftMargin: sheet.card.px(12); implicitHeight: 1; color: sheet.card.line }
                     Controls.TextField {
                         id: locationField
                         objectName: "locationField"
                         Layout.fillWidth: true
-                        Layout.margins: sheet.card.px(4)
+                        Layout.preferredHeight: sheet.card.px(40)
+                        leftPadding: sheet.card.px(12); rightPadding: sheet.card.px(12)
+                        topPadding: 0; bottomPadding: 0
+                        verticalAlignment: TextInput.AlignVCenter
                         activeFocusOnTab: true
                         enabled: !sheet.readOnly
                         placeholderText: "Location"
                         onTextChanged: if (sheet.d && text !== sheet.d.location) sheet.set(Object.assign({}, sheet.d, { location: text }))
-                        Keys.onReturnPressed: event => { sheet.done(); event.accepted = true; }
-                        Keys.onEnterPressed: event => { sheet.done(); event.accepted = true; }
+                        Keys.onReturnPressed: event => { sheet.returnPressed(); event.accepted = true; }
+                        Keys.onEnterPressed: event => { sheet.returnPressed(); event.accepted = true; }
                         color: sheet.card.c.foreground
                         placeholderTextColor: sheet.card.dim
                         font.family: sheet.card.c.monoFont
@@ -234,14 +289,15 @@ FocusScope {
             // Group 2: all day, starts, ends, timeline
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: g2.implicitHeight + sheet.card.px(6)
+                implicitHeight: g2.implicitHeight + sheet.card.px(8)
                 radius: sheet.card.px(12)
                 color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
                 enabled: !sheet.readOnly
                 ColumnLayout {
                     id: g2
+                    y: sheet.card.px(4)
                     width: parent.width
-                    spacing: sheet.card.px(6)
+                    spacing: 0
                     SheetRow {
                         card: sheet.card
                         label: "All day"
@@ -283,20 +339,28 @@ FocusScope {
                             onChosen: minutes => { sheet.set(Model.moveStart(sheet.d, Model.at(sheet.d.startDay, minutes))); sheet.expanded = ""; }
                         }
                     }
-                    MonthGrid {
-                        id: startPicker
-                        objectName: "startPicker"
-                        visible: sheet.expanded === "startDate"
+                    Reveal {
                         Layout.fillWidth: true
-                        Layout.margins: sheet.card.px(10)
+                        Layout.preferredHeight: implicitHeight
                         card: sheet.card
-                        peek: false
-                        year: sheet.pickYear
-                        month: sheet.pickMonth
-                        selected: sheet.d ? sheet.d.startDay : ""
-                        onPicked: key => { sheet.set(Model.setStartDay(sheet.d, key)); sheet.expanded = ""; }
-                        onPrev: sheet.shiftPicker(-1)
-                        onNext: sheet.shiftPicker(1)
+                        padding: sheet.card.px(10)
+                        open: sheet.expanded === "startDate"
+                        MonthGrid {
+                            id: startPicker
+                            objectName: "startPicker"
+                            width: parent.width
+                            returnPicksSelected: true
+                            enabled: sheet.expanded === "startDate"
+                            card: sheet.card
+                            peek: false
+                            titleOpens: false
+                            year: sheet.pickYear
+                            month: sheet.pickMonth
+                            selected: sheet.d ? sheet.d.startDay : ""
+                            onPicked: key => { sheet.set(Model.setStartDay(sheet.d, key)); sheet.expanded = ""; }
+                            onPrev: sheet.shiftPicker(-1)
+                            onNext: sheet.shiftPicker(1)
+                        }
                     }
                     SheetRow {
                         card: sheet.card
@@ -330,20 +394,28 @@ FocusScope {
                             onChosen: minutes => { sheet.set(Model.setEnd(sheet.d, Model.at(sheet.d.endDay, minutes))); sheet.expanded = ""; }
                         }
                     }
-                    MonthGrid {
-                        id: endPicker
-                        objectName: "endPicker"
-                        visible: sheet.expanded === "endDate"
+                    Reveal {
                         Layout.fillWidth: true
-                        Layout.margins: sheet.card.px(10)
+                        Layout.preferredHeight: implicitHeight
                         card: sheet.card
-                        peek: false
-                        year: sheet.pickYear
-                        month: sheet.pickMonth
-                        selected: sheet.d ? sheet.d.endDay : ""
-                        onPicked: key => { sheet.set(Model.setEndDay(sheet.d, key)); sheet.expanded = ""; }
-                        onPrev: sheet.shiftPicker(-1)
-                        onNext: sheet.shiftPicker(1)
+                        padding: sheet.card.px(10)
+                        open: sheet.expanded === "endDate"
+                        MonthGrid {
+                            id: endPicker
+                            objectName: "endPicker"
+                            width: parent.width
+                            returnPicksSelected: true
+                            enabled: sheet.expanded === "endDate"
+                            card: sheet.card
+                            peek: false
+                            titleOpens: false
+                            year: sheet.pickYear
+                            month: sheet.pickMonth
+                            selected: sheet.d ? sheet.d.endDay : ""
+                            onPicked: key => { sheet.set(Model.setEndDay(sheet.d, key)); sheet.expanded = ""; }
+                            onPrev: sheet.shiftPicker(-1)
+                            onNext: sheet.shiftPicker(1)
+                        }
                     }
                     ColumnLayout {
                         visible: !!sheet.d && !sheet.d.allDay
@@ -364,6 +436,7 @@ FocusScope {
                             events: sheet.dayEvents
                             draft: sheet.d
                             editable: false      // a click here would leave an edit half-made
+                            pickable: true
                             onGapClicked: minutes => sheet.set(Model.moveStart(sheet.d, Model.at(sheet.d.startDay, minutes)))
                         }
                         Repeater {
@@ -398,18 +471,22 @@ FocusScope {
             // Group 3: calendar, alert
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: g3.implicitHeight
+                implicitHeight: g3.implicitHeight + sheet.card.px(8)
                 radius: sheet.card.px(12)
                 color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
                 enabled: !sheet.readOnly
                 ColumnLayout {
                     id: g3
+                    y: sheet.card.px(4)
                     width: parent.width
-                    spacing: sheet.card.px(6)
+                    spacing: 0
                     SheetRow {
+                        id: calendarRow
                         card: sheet.card
                         label: "Calendar"
                         Pill {
+                            id: calendarPill
+                            maxWidth: calendarRow.room
                             objectName: "calendarValue"
                             card: sheet.card
                             enabled: !sheet.readOnly
@@ -418,20 +495,11 @@ FocusScope {
                             onClicked: sheet.toggle("calendar")
                         }
                     }
-                    Menu {
-                        objectName: "calendarMenu"
-                        Layout.alignment: Qt.AlignRight
-                        Layout.rightMargin: sheet.card.px(8)
-                        visible: sheet.expanded === "calendar"
-                        card: sheet.card
-                        items: sheet.card.c.calendars.filter(c => c.writable).map(c => ({ value: c.name, label: c.name, color: c.color }))
-                        current: sheet.d ? sheet.d.calendar : ""
-                        onChosen: value => { sheet.set(Object.assign({}, sheet.d, { calendar: value })); sheet.expanded = ""; }
-                    }
                     SheetRow {
                         card: sheet.card
                         label: "Alert"
                         Pill {
+                            id: alertPill
                             objectName: "alertPill"
                             card: sheet.card
                             enabled: !sheet.readOnly
@@ -443,16 +511,6 @@ FocusScope {
                             // The label without the chevron, for tests and screen readers.
                             Text { objectName: "alertValue"; visible: false; text: sheet.d ? Model.alertLabel(sheet.d) : "" }
                         }
-                    }
-                    Menu {
-                        objectName: "alertMenu"
-                        Layout.alignment: Qt.AlignRight
-                        Layout.rightMargin: sheet.card.px(8)
-                        visible: sheet.expanded === "alert"
-                        card: sheet.card
-                        items: Model.alertItems(sheet.d || {}).map(a => ({ value: a.id, label: a.label }))
-                        current: sheet.d ? sheet.d.alert : ""
-                        onChosen: value => { sheet.set(Object.assign({}, sheet.d, { alert: value })); sheet.expanded = ""; }
                     }
                 }
             }
@@ -474,6 +532,35 @@ FocusScope {
             }
             }
         }
+    }
+
+    // The dropdowns float over the sheet. A click anywhere else closes the open one
+    // and does nothing more, as a menu does on the desktop.
+    MouseArea {
+        anchors.fill: parent
+        anchors.margins: -sheet.card.px(16)      // the card's padding too: the whole card, not just the sheet
+        z: 39
+        visible: sheet.menuOpen
+        onClicked: sheet.expanded = ""
+        onWheel: wheel => { sheet.expanded = ""; }
+    }
+    Menu {
+        id: calendarMenu
+        objectName: "calendarMenu"
+        open: sheet.expanded === "calendar"
+        card: sheet.card
+        items: sheet.card.c.calendars.filter(c => c.writable).map(c => ({ value: c.name, label: c.name, color: c.color }))
+        current: sheet.d ? sheet.d.calendar : ""
+        onChosen: value => { sheet.set(Object.assign({}, sheet.d, { calendar: value })); sheet.expanded = ""; }
+    }
+    Menu {
+        id: alertMenu
+        objectName: "alertMenu"
+        open: sheet.expanded === "alert"
+        card: sheet.card
+        items: Model.alertItems(sheet.d || {}).map(a => ({ value: a.id, label: a.label }))
+        current: sheet.d ? sheet.d.alert : ""
+        onChosen: value => { sheet.set(Object.assign({}, sheet.d, { alert: value })); sheet.expanded = ""; }
     }
 
     // Last child, so it covers the whole sheet while a repeating event asks its scope.

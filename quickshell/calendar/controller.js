@@ -15,6 +15,16 @@ function invalidate(c) {
     c.addError = "";
 }
 
+// A click on a month day selects it, and a second click on the selected day closes
+// it again, as the day header's × does; the month stays where it is either way.
+// Returns true when a day was selected, so the caller loads its events.
+function selectDay(c, key) {
+    if (key === c.state.day) { closeDay(c); return false; }
+    c.state = Object.assign({}, c.state, { day: key, year: false });
+    return true;
+}
+function closeDay(c) { c.state = Object.assign({}, c.state, { day: null }); }
+
 // A typed new-event draft is written to draft.json; an edit or a blank title is not.
 function keepDraft(M, c, w) {
     const text = M.draftToKeep(c.draft);

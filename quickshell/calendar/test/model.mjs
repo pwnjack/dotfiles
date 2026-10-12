@@ -176,8 +176,10 @@ assert.deepEqual(M.timelineRange([], null, '2026-10-12'), { from: 8, to: 22 })
 assert.deepEqual(M.timelineRange(day13, draft, '2026-10-13'), { from: 8, to: 23 })
 const early = [ev('Gym', '2026-10-14T07:00', '2026-10-14T08:00'), ev('Flight', '2026-10-14T23:30', '2026-10-15T02:00')]
 assert.deepEqual(M.timelineRange(early, null, '2026-10-14'), { from: 7, to: 24 })
-assert.deepEqual(M.ticks(8, 22), [8, 12, 16, 20, 22])
-assert.deepEqual(M.ticks(6, 24), [6, 10, 14, 18, 22, 24])
+assert.deepEqual(M.ticks(8, 22), [8, 12, 16, 22])                     // 20:00 and 22:00 would touch
+assert.deepEqual(M.ticks(6, 24), [6, 12, 18, 24])                     // past 16 hours: every 6
+assert.deepEqual(M.ticks(0, 24), [0, 6, 12, 18, 24])
+assert.deepEqual(M.ticks(1, 24), [1, 7, 13, 19, 24])
 assert.deepEqual(M.ticks(8, 23), [8, 12, 16, 20, 23])
 assert.deepEqual(M.ticks(8, 21), [8, 12, 16, 21])                     // 20 is too close to the end
 const laned = M.lanes([ev('A', '2026-10-13T10:00', '2026-10-13T13:00'), ev('B', '2026-10-13T11:00', '2026-10-13T12:00'),
@@ -221,6 +223,11 @@ assert.deepEqual(M.scopeChoices(Object.assign({}, e1, { calendar: 'Work' })), ['
 assert.deepEqual(M.scopeChoices(Object.assign({}, e1, { recurring: false })), [])
 assert.deepEqual(M.clashes(e1, [listed]), [])                                   // never with itself
 assert.deepEqual(M.clashes(e1, [Object.assign({}, listed, { uid: 'other' })]).length, 1)
+// A copy with the same UID in another calendar is a different stored event: it still clashes,
+// and moving the draft to that calendar does not make it the draft.
+assert.deepEqual(M.clashes(e1, [Object.assign({}, listed, { calendar: 'Work' })]).length, 1)
+assert.equal(M.isDraftOf(Object.assign({}, e1, { calendar: 'Work' }), listed), true)
+assert.equal(M.isDraftOf(e1, Object.assign({}, listed, { calendar: 'Work' })), false)
 assert.deepEqual(Object.keys(M.changesOf(e1)).sort(), ['alert', 'alertChanged', 'allDay', 'end', 'endDay', 'location', 'start', 'startDay', 'timesChanged', 'title'])
 // The times count as changed only when the user moved them: the draft starts at the shown instance's times.
 assert.equal(M.changesOf(e1).timesChanged, false)

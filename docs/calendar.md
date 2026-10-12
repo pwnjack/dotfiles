@@ -21,7 +21,11 @@ of these methods.
   and the app-specific password, and choose *Sign in*. The password goes to the
   helper on stdin and into the GNOME keyring. The helper then discovers the
   calendars, records which of them are read-only, enables the sync timer and
-  syncs once.
+  syncs once. Signed in, the page's Account group names the account type
+  (iCloud) and the address, then the sync state with *Sync now* (it reads
+  *Syncing…* until the sync records its attempt), then *Sign out*. Sign out is
+  red and asks for a second press, and that confirmation lapses after five
+  seconds.
 - **Terminal fallback.** Run `scripts/calendar/setup.sh --sign-in`. It asks for
   the same two values, with the password hidden, and does the same steps.
 
@@ -96,9 +100,13 @@ iCloud ⇄ vdirsyncer ⇄ ~/.local/share/calendars/icloud/ ⇄ khal ⇄ cal.sh �
 
 The clock and `custom/agenda` sit in one `group/calendar`, styled as a single
 capsule with a thin divider. Hovering tints only the segment under the pointer.
-Neither segment has a lit state. The clock's hover tooltip is gone. Clicking
-the clock opens the card on the month. Clicking the pill opens it with the
-coming week unfolded.
+Neither segment has a lit state. Clicking the clock opens the card on the
+month. Clicking the pill opens it with the coming week unfolded. Hovering
+previews without a click: the clock's tooltip is Waybar's month calendar (the
+wheel moves its month, the middle button shows the year), and the pill's is
+the shown event in full, with its whole title, its time range, its calendar and
+its location. It names the day when the event is not within today, and both
+days when it runs past midnight.
 
 `scripts/waybar/agenda-bar.sh` reads only `agenda.json`, `options/bar-agenda`
 and `options/clock`. It runs once a minute and starts no Python and no network
@@ -139,19 +147,25 @@ moves from *syncing…* to *iCloud · synced just now* (or *synced N min ago*), 
 the views refresh.
 
 The header shows the long date, the sync status, a **Today** button when you
-have browsed away from today, and **+**. The views are:
+have browsed to another month or the year view, and **+**. The views are:
 
 - **Month.** A localised week row, starting on the locale's first day. Today is
   filled, and a dot marks each day with events. The wheel moves a month, and
   the arrow keys move a day focus. Return opens the day. The month name opens
-  the year view, with twelve months and their event counts.
-- **Upcoming.** Folded, it is one line: *Next · 18:00 Dentist · +3 this week*,
-  or *Nothing in the next 7 days*. Unfolded, it lists the next seven days under
-  *Today*, *Tomorrow* and the date. Each event shows its time range, its
+  the year view, with twelve months and their event counts. The arrows sit over
+  the first and last weekday columns.
+- **Upcoming.** Folded, it is one bar: *Next · 18:00 Dentist · +3 more*, or
+  *Nothing in the next 7 days*. With something to list, a click anywhere on the
+  bar unfolds it, and its chevron stays in the same place and turns as it folds
+  and unfolds. Unfolded, the bar reads *Upcoming · 7 days* and the list follows,
+  under *Today*, *Tomorrow* and the date. Each event shows its time range, its
   calendar colour and its title, and hovering shows its details.
-- **Day.** It replaces Upcoming while a day is selected. It has that day's
-  timeline and events, a *New event on …* row, and a click on a free gap opens
-  the sheet at that time.
+- **Day.** It replaces Upcoming while a day is selected, under a bar of the
+  same shape that names the day. The bar's **×**, Esc, or a second click on the
+  same day closes it and puts Upcoming back, and the month stays where it is.
+  It has that day's timeline (only when the day has a timed event) and its
+  events, and a *New event on …* row. A click on the timeline's free space does
+  nothing: **+** and *New event on …* are the only ways to start an event.
 
 Clicking an event in Upcoming, in the day view or on a timeline block opens the
 sheet in edit mode. Hovering only previews it.
@@ -188,20 +202,26 @@ set). Moving the start moves the end and keeps the duration. Editing the end
 changes the duration. An end before the start shows the end struck through and
 disables Add.
 
-A time pill takes `18`, `18:00`, `18.30` or `6pm`, and the wheel or the arrow
-keys step it by 15 minutes. A date pill opens an inline month picker with busy
-dots, and only one pill is open at a time. Esc closes an open picker before it
-closes anything else. With **All day** on, the times disappear, Ends is the
-last day, inclusive, and the alert presets become *None*, *On the day (09:00)*,
-*1 day before (09:00)*, *2 days before (09:00)* and *1 week before (09:00)*. The
-timed presets run from *None* to *1 week before*, with *At time of event*.
+A time pill takes `18`, `18:00`, `18.30` or `6pm`, typed into a field the same
+size as the pill, and the wheel or the arrow keys step it by 15 minutes. A date
+pill slides open an inline month picker with busy dots. Calendar and Alert open
+dropdowns that float over the sheet, under their pill or above it when the sheet
+has no room below, and move nothing else; the arrow keys and Return choose, and
+a click outside only closes them. Only one pill is open at a time. Esc closes an
+open picker or dropdown before it closes anything else. With **All day** on, the
+times disappear, Ends is the last day, inclusive, and the alert presets become
+*None*, *On the day (09:00)*, *1 day before (09:00)*, *2 days before (09:00)*
+and *1 week before (09:00)*. The timed presets run from *None* to *1 week
+before*, with *At time of event*.
 
 The **timeline** shows the day's events as blocks in their calendar colours,
-and the new event as a dashed outline. Its window is 08–22, stretched to the
+and the new event as an accent outline. Its window is 08–22, stretched to the
 earliest and latest times involved and rounded out to whole hours, and it is
 clamped to 00–24. Overlapping events fill a second lane, and a block's details
 appear on hover. A click on a free gap moves the new event there, snapped to
-the quarter hour. Below the timeline, lines name each overlap, as *⚠ Overlaps
+the quarter hour. The hour labels run every four hours, or every six on a
+window longer than 16 hours. The strip measures them, so no two ever touch, and
+one that would crowd the end label gives way to it. Below the timeline, lines name each overlap, as *⚠ Overlaps
 Calcetto 20:00–22:30*, and *Also that day* lists the all-day events, which never
 clash with timed ones. Overlaps warn and never block.
 
@@ -230,7 +250,7 @@ file. The sheet then opens with the event's values, under *Cancel · Edit event
 
 - **Read-only.** Events in a read-only calendar, and invitations, open the same
   sheet with every field disabled and no Delete. The sheet shows *Read-only
-  calendar*, or *Invitation · reply or change it on your iPhone*. An invitation
+  calendar*, or *Invitation · read-only here*. An invitation
   is an event whose ORGANIZER is not one of the account's own addresses.
 - **What can change.** The title, location, start and end, the all-day flag,
   the alert and the calendar. A repeating event keeps its dates and its all-day
@@ -252,8 +272,9 @@ file. The sheet then opens with the event's values, under *Cancel · Edit event
   *All events*, which removes the file.
 
 `cal.sh update` and `cal.sh delete` first compare the hash from `inspect`. If
-the file changed on the iPhone in the meantime, they refuse with *This event
-changed on your iPhone; open it again*. `scripts/calendar/ics-edit.py` then
+the file changed elsewhere in the meantime (another device, through iCloud),
+they refuse with *This event changed elsewhere since you opened it; open it
+again*. `scripts/calendar/ics-edit.py` then
 patches the parsed file. Python handles this because time zones and recurrence
 exceptions need a real iCalendar library, and khal already brings `icalendar`.
 The patch keeps the event's own `TZID`, so a repeating event keeps its wall time
@@ -263,11 +284,14 @@ a temporary name and renamed over the old one, which gives it a new inode.
 vdirsyncer notices that change. A calendar change moves the file to the other
 calendar's folder, with the same UID.
 
-In edit mode the timeline never counts the event as clashing with itself. The
+In edit mode the timeline never counts the event as clashing with itself, and
+it draws the event only once, as the draft, never as a block under it. The
 edit then goes through the same local-first path as an add.
 
-Declined invitations are hidden everywhere: the bar, the dots, the day view and
-the timeline. `scripts/calendar/declined.py` runs after each sync. It finds the
+Declined invitations are hidden everywhere by default: the bar, the dots, the
+day view and the timeline. The Calendar page's *Show declined invitations*
+switch (`options/calendar-declined`, `enabled` to show them) lists them again
+without touching the rules, and the change re-renders the bar at once. `scripts/calendar/declined.py` runs after each sync. It finds the
 attendee entries that match one of the account's addresses and are
 `PARTSTAT=DECLINED`. It writes one rule per occurrence into
 `$CALENDAR_STATE_DIR/declined`, keyed on the local start. Nothing is changed in
@@ -290,7 +314,7 @@ comes from `options/clock`. UI words are English, as in the rest of the panel.
 | Sign-in rejected | The header shows *Sign-in rejected · Fix in Settings*. One notification appears on the change to failure. The doctor warns. |
 | Local save fails | The sheet stays open, with the error under Add. Nothing is lost. |
 | Read-only calendar | It is left out of the Calendar menu, and its events open read-only. |
-| Changed on the iPhone | Done or Delete is refused, with *This event changed on your iPhone; open it again*. |
+| Changed on another device | Done or Delete is refused, with *This event changed elsewhere since you opened it; open it again*. |
 | Edit cannot be written | The sheet stays open with the error. The file is untouched, because the write is atomic. |
 | A sync is running | An add, edit or delete waits up to 15 seconds for the sync, then is refused with *A sync with iCloud is running; try again in a moment*. The file is untouched. |
 | A render fails | The header shows the sync as failed, with khal's message, and the bar keeps its last agenda. An option change that needed the render is rolled back. |
@@ -313,7 +337,7 @@ comes from `options/clock`. UI words are English, as in the rest of the panel.
 | `scripts/hyprland/calendar-card.sh` | Launches or toggles the card (`month`, `upcoming`, `new`). |
 | `quickshell/calendar/` | The card, its views and `model.mjs`, which holds the transition table. |
 | `options/bar-agenda` | The pill's mode. Tracked. |
-| `options/calendar-hidden`, `-default`, `-alert`, `-duration` | The calendars to hide, the default calendar, alert and duration. Untracked, because calendar names are personal. |
+| `options/calendar-hidden`, `-default`, `-alert`, `-duration`, `-declined` | The calendars to hide, the default calendar, alert and duration, and whether declined invitations show. Untracked, because calendar names are personal. |
 
 The runtime files are `agenda.json`, `status.json` and `draft.json` in
 `$XDG_RUNTIME_DIR/calendar/`. The state files are `readonly`, `skip`,

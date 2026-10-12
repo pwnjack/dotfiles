@@ -2,9 +2,10 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "model.mjs" as Model
 
-// One day as a strip: existing events as blocks, an optional draft as a dashed
+// One day as a strip: existing events as blocks, an optional draft as an accent
 // outline with its clashes hatched, today's past hatched with a now line.
-// Clicking a free spot emits gapClicked(minutes); hovering a block shows its events.
+// With `pickable` (the sheet only) a click on a free spot emits gapClicked(minutes);
+// hovering a block shows its events.
 Item {
     id: tl
     required property var card
@@ -13,6 +14,9 @@ Item {
     property var draft: null
     // Off inside the sheet: a click on another event there would leave the edit half-made.
     property bool editable: true
+    // The sheet moves its draft with a click on the strip. The day view never
+    // starts an event from a click: that is what + and "New event on…" are for.
+    property bool pickable: false
     signal gapClicked(int minutes)
     readonly property var timed: Model.lanes(events.filter(e => !e.allDay))
     readonly property var range: Model.timelineRange(events, draft, day)
@@ -42,6 +46,7 @@ Item {
         MouseArea {
             id: free
             anchors.fill: parent
+            enabled: tl.pickable
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: mouse => tl.gapClicked(Model.minutesAt(mouse.x / width, tl.range))
@@ -110,8 +115,8 @@ Item {
             readonly property var seg: tl.draft ? Model.segment({ startEpoch: tl.draft.start, endEpoch: tl.draft.end }, tl.day, tl.range) : ({ left: 0, width: 0 })
             x: seg.left * strip.width; width: seg.width * strip.width
             y: tl.card.px(1); height: strip.height - tl.card.px(2)
-            radius: tl.card.px(6); color: Qt.rgba(1, 1, 1, 0.10)
-            border.width: 2; border.color: tl.card.c.foreground
+            radius: tl.card.px(6); color: Qt.rgba(tl.card.c.accent.r, tl.card.c.accent.g, tl.card.c.accent.b, 0.45)
+            border.width: 2; border.color: tl.card.c.accent
         }
         Rectangle {   // where a click would put the event
             visible: free.containsMouse && !!tl.draft
@@ -126,18 +131,35 @@ Item {
         Rectangle { visible: tl.isToday && tl.nowX > 0 && tl.nowX < 1; x: tl.nowX * strip.width; y: -tl.card.px(3)
             width: 2; height: strip.height + tl.card.px(6); color: tl.card.c.foreground }
     }
+    // The hour labels that fit: measured, so no two ever touch, whatever the
+    // range, font or clock. The first and the last always show; a label that
+    // would crowd the last gives way to it.
+    FontMetrics { id: tickMetrics; font.family: tl.card.c.monoFont; font.pixelSize: tl.card.px(12) }
+    function tickLeft(h) {
+        const w = tickMetrics.advanceWidth(tickText(h));
+        return Math.max(0, Math.min(ticksRow.width - w, (h - range.from) / (range.to - range.from) * ticksRow.width - w / 2));
+    }
+    readonly property var shownTicks: {
+        const all = day && ticksRow.width > 0 ? Model.ticks(range.from, range.to) : [];
+        const gap = card.px(8), right = h => tickLeft(h) + tickMetrics.advanceWidth(tickText(h));
+        const kept = [];
+        for (let i = 0; i < all.length; i++) {
+            const last = i === all.length - 1;
+            while (last && kept.length > 1 && right(kept[kept.length - 1]) + gap > tickLeft(all[i])) kept.pop();
+            if (!kept.length || last || right(kept[kept.length - 1]) + gap <= tickLeft(all[i])) kept.push(all[i]);
+        }
+        return kept;
+    }
     Item {
         id: ticksRow
         anchors.top: strip.bottom; anchors.topMargin: tl.card.px(4)
         width: parent.width; height: tl.card.px(16)
         Repeater {
-            model: tl.day ? Model.ticks(tl.range.from, tl.range.to) : []
+            model: tl.shownTicks
             delegate: Text {
                 objectName: "tick"
                 required property int modelData
-                required property int index
-                readonly property real fx: (modelData - tl.range.from) / (tl.range.to - tl.range.from)
-                x: Math.max(0, Math.min(ticksRow.width - implicitWidth, fx * ticksRow.width - implicitWidth / 2))
+                x: tl.tickLeft(modelData)
                 text: tl.tickText(modelData)
                 color: tl.card.dim; font.family: tl.card.c.monoFont; font.pixelSize: tl.card.px(12)
             }

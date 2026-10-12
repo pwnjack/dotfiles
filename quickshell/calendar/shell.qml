@@ -204,7 +204,8 @@ ShellRoot {
         state = Object.assign({}, state, { day: null, year: false });
         loadMonth();
     }
-    function selectDay(key) { state = Object.assign({}, state, { day: key, year: false }); loadDay(key); }
+    function selectDay(key) { if (Controller.selectDay(root, key)) loadDay(key); }
+    function closeDay() { Controller.closeDay(root); }
     function showYear() { state = Object.assign({}, state, { year: true }); loadYear(); }
     function pickMonth(m) { viewMonth = m; state = Object.assign({}, state, { year: false }); loadMonth(); }
     function toggleUpcoming() { state = Object.assign({}, state, { unfolded: !state.unfolded }); }
@@ -376,7 +377,7 @@ ShellRoot {
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: root.state.open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-        MouseArea { anchors.fill: parent; onClicked: root.act("outside") }
+        MouseArea { anchors.fill: parent; onClicked: if (!card.closePopup()) root.act("outside") }
 
         Card {
             id: card

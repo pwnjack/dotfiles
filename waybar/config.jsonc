@@ -145,8 +145,8 @@
 
   // Clock and next event: one capsule, two doors into the calendar card
   // (quickshell/calendar). The clock opens the month, the pill the upcoming
-  // list; each segment's second click closes. No tooltips: the card is one
-  // click away (docs/calendar.md).
+  // list; each segment's second click closes. Hovering previews without a
+  // click: the clock shows the month, the pill its event in full.
   "group/calendar": {
     "orientation": "horizontal",
     "modules": ["clock", "custom/agenda"],
@@ -156,8 +156,32 @@
   "clock": {
     // format, interval: rendered by scripts/waybar/clock-format.sh into the
     // clock.jsonc include; the main config must not set them.
-    "tooltip": false,
     "on-click": "~/.config/scripts/hyprland/calendar-card.sh month",
+    "tooltip": true,
+    "tooltip-format": "<tt><small>{calendar}</small></tt>",
+    "calendar": {
+      "mode": "month",
+      "mode-mon-col": 3,
+      "on-scroll": 1,
+      // Hierarchy by alpha, never by hue. config.jsonc cannot reach the
+      // pywal palette -- @foreground is a CSS variable and these are Pango
+      // markup -- so a literal colour here would be the one thing on the bar
+      // that ignores the wallpaper. alpha dims whatever colour the tooltip
+      // already inherited from `tooltip label` in style.css.
+      "format": {
+        "months": "{}",
+        "days": "{}",
+        "weeks": "<span alpha='55%'>W{}</span>",
+        "weekdays": "<span alpha='75%'>{}</span>",
+        "today": "<b>{}</b>",
+      },
+    },
+    // The wheel moves the tooltip's month, the middle button shows the year.
+    "actions": {
+      "on-click-middle": "mode",
+      "on-scroll-up": "shift_down",
+      "on-scroll-down": "shift_up",
+    },
   },
 
   // Next event (scripts/waybar/agenda-bar.sh; Bar page: bar-agenda). Signal 12
@@ -167,7 +191,7 @@
     "return-type": "json",
     "interval": 60,
     "signal": 12,
-    "tooltip": false,
+    "tooltip": true,
     "on-click": "~/.config/scripts/hyprland/calendar-card.sh upcoming",
     "on-click-right": "setsid -f ~/.config/scripts/calendar/sync.sh >/dev/null 2>&1",
   },

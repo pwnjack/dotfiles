@@ -12,6 +12,10 @@ FocusScope {
     property int month: card.c.viewMonth
     property string selected: ""
     property bool peek: true
+    // The month name opens the year in the card; the sheet's pickers have no year view.
+    property bool titleOpens: true
+    // Return before any arrow key picks the selected day (the sheet's pickers: it confirms the shown date).
+    property bool returnPicksSelected: false
     signal picked(string key)
     signal prev()
     signal next()
@@ -32,6 +36,8 @@ FocusScope {
             event.accepted = true;
         } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && focusIndex >= 0) {
             grid.picked(cells[focusIndex].key); event.accepted = true;
+        } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && returnPicksSelected && selected) {
+            grid.picked(selected); event.accepted = true;
         } else if (event.key === Qt.Key_PageUp) { grid.prev(); event.accepted = true; }
         else if (event.key === Qt.Key_PageDown) { grid.next(); event.accepted = true; }
         else event.accepted = false;
@@ -40,17 +46,27 @@ FocusScope {
         id: col
         width: parent.width
         spacing: grid.card.px(4)
-        RowLayout {
+        // ‹ and › sit centred over the first and last weekday columns.
+        Item {
             Layout.fillWidth: true
-            Text { text: "‹"; color: grid.card.c.accent; font.pixelSize: grid.card.px(18)
-                MouseArea { anchors.fill: parent; anchors.margins: -8; cursorShape: Qt.PointingHandCursor; onClicked: grid.prev() } }
-            Item { Layout.fillWidth: true; implicitHeight: name.implicitHeight
+            implicitHeight: grid.card.px(30)
+            IconButton { objectName: "prevMonth"; card: grid.card; glyph: "‹"; glyphSize: 18
+                x: Math.round(parent.width / 14 - width / 2); anchors.verticalCenter: parent.verticalCenter; onClicked: grid.prev() }
+            Rectangle {
+                id: titleChip
+                anchors.centerIn: parent
+                width: name.implicitWidth + grid.card.px(20); height: grid.card.px(26); radius: grid.card.px(8)
+                color: Qt.rgba(grid.card.c.foreground.r, grid.card.c.foreground.g, grid.card.c.foreground.b,
+                    grid.titleOpens && titleHover.containsMouse ? 0.10 : 0)
+                Behavior on color { ColorAnimation { duration: 100 } }
                 Text { id: name; objectName: "monthName"; anchors.centerIn: parent
                     text: grid.card.c.locale.standaloneMonthName(grid.month, Locale.LongFormat) + " " + grid.year
-                    color: grid.card.c.foreground; font.family: grid.card.c.monoFont; font.pixelSize: grid.card.px(13); font.weight: Font.DemiBold
-                    MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: grid.titleClicked() } } }
-            Text { text: "›"; color: grid.card.c.accent; font.pixelSize: grid.card.px(18)
-                MouseArea { anchors.fill: parent; anchors.margins: -8; cursorShape: Qt.PointingHandCursor; onClicked: grid.next() } }
+                    color: grid.card.c.foreground; font.family: grid.card.c.monoFont; font.pixelSize: grid.card.px(13); font.weight: Font.DemiBold }
+                MouseArea { id: titleHover; anchors.fill: parent; enabled: grid.titleOpens; hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor; onClicked: grid.titleClicked() }
+            }
+            IconButton { objectName: "nextMonth"; card: grid.card; glyph: "›"; glyphSize: 18
+                x: Math.round(parent.width * 13 / 14 - width / 2); anchors.verticalCenter: parent.verticalCenter; onClicked: grid.next() }
         }
         GridLayout {
             columns: 7; columnSpacing: 0; rowSpacing: grid.card.px(3)

@@ -343,10 +343,11 @@ async function restart(name) {
     }
     else await execAsync(["pgrep", "-x", name])
 }
-// A select whose unset file reads as a default (bar-agenda, calendar-alert, calendar-duration) or
-// as the first writable calendar (calendar-default). Other rows keep reporting a missing file, so
-// a save never recreates a file it has not read.
-const unsetReadsDefault = row => row.source === "option" && row.kind === "select" && (row.default !== undefined || row.choices === "calendars")
+// A select or switch whose unset file reads as a default (bar-agenda, calendar-alert,
+// calendar-duration, calendar-declined) or as the first writable calendar (calendar-default).
+// Other rows keep reporting a missing file, so a save never recreates a file it has not read.
+const unsetReadsDefault = row => row.source === "option" && (row.kind === "select" || row.kind === "toggle")
+    && (row.default !== undefined || row.choices === "calendars")
 // The file did not exist: a rollback removes it again, so the row reads its default afterwards.
 async function saveNew(path, text, apply) {
     write(path, text)
@@ -570,7 +571,9 @@ async function snapshot(ids, includeMonitors, views = {}) {
                 // A select with a default (bar-agenda, calendar-alert, calendar-duration) and the calendar
                 // choice read a missing file as what their scripts use. Other rows still report it as missing,
                 // so a save never recreates a file it has not read.
-                if (unsetReadsDefault(row)) value = exists(optionPath(row.key)) ? readOption(row.key) : (row.default ?? "")
+                // A switch's default is a boolean; its file holds "enabled" or "disabled".
+                if (unsetReadsDefault(row)) value = exists(optionPath(row.key)) ? readOption(row.key)
+                    : row.kind === "toggle" ? (row.default ? "enabled" : "disabled") : (row.default ?? "")
                 else value = readOption(row.key)
                 if (row.kind === "slider") {
                     // Read the way scripts/waybar/bar-modes.sh does: plain digits in

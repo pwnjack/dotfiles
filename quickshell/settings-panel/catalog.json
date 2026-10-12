@@ -256,6 +256,10 @@
       "description": "Your iCloud calendars on the bar and in the calendar card",
       "sections": [
         {
+          "id": "events",
+          "title": "Events"
+        },
+        {
           "id": "newevents",
           "title": "New events",
           "footer": "Used by the calendar card's new-event sheet."
@@ -1978,6 +1982,18 @@
       "kind": "text",
       "check": "command",
       "keywords": ["paru", "yay", "pacman", "update"]
+    },
+    {
+      "category": "calendar",
+      "section": "events",
+      "id": "calendar.declined",
+      "title": "Show declined invitations",
+      "description": "Invitations you declined stay hidden unless this is on",
+      "source": "option",
+      "key": "calendar-declined",
+      "kind": "toggle",
+      "default": false,
+      "keywords": ["invitation", "declined", "refused", "hidden"]
     },
     {
       "category": "calendar",

@@ -1,6 +1,6 @@
 [
  {"title":"Dentist","location":"","calendar":"Home","color":"#ff9f0a","start":"2026-10-11 18:00","end":"2026-10-11 19:00","allDay":false,"startEpoch":1791734400,"endEpoch":1791738000},
- {"title":"Mum's birthday","location":"","calendar":"Family","color":"#ff2d55","start":"2026-10-11","end":"2026-10-11","allDay":true,"startEpoch":1791669600,"endEpoch":1791756000},
+ {"title":"Mum's birthday","location":"","calendar":"","color":"#ff2d55","start":"2026-10-11","end":"2026-10-11","allDay":true,"startEpoch":1791669600,"endEpoch":1791756000},
  {"title":"Weekend away with the whole family","location":"","calendar":"Home","color":"#ff9f0a","start":"2026-10-17 10:00","end":"2026-10-17 12:00","allDay":false,"startEpoch":1792224000,"endEpoch":1792231200},
- {"title":"R&D <sync>","location":"","calendar":"Work","color":"#30b0c7","start":"2026-10-12 06:00","end":"2026-10-12 07:00","allDay":false,"startEpoch":1791777600,"endEpoch":1791781200}
+ {"title":"R&D <sync>","location":"Lab & co","calendar":"Work","color":"#30b0c7","start":"2026-10-12 06:00","end":"2026-10-12 07:00","allDay":false,"startEpoch":1791777600,"endEpoch":1791781200}
 ]

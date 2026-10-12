@@ -210,7 +210,7 @@ hash=$(jq -r .hash <<<"$info")
 upd() { jq -cn --arg h "$1" --arg m "${2:-}" --arg uid "$uid" --argjson occ "$(at '2026-10-20 20:00')" --argjson c "$(changes '2026-10-20 19:00' '2026-10-20 21:00' 'Calcetto' custom)" \
     '{calendar: "Home", uid: $uid, occurrence: $occ, scope: "all", hash: $h, moveTo: $m, changes: $c}' | bash "$TEST_DIR/cal.sh" update; }
 out=$(upd stale)
-assert_json_contains "$out" '.error' "changed on your iPhone" "cal.sh update: stale hash refused"
+assert_json_contains "$out" '.error' "changed elsewhere since you opened it" "cal.sh update: stale hash refused"
 assert_eq "$(sha256sum < "$CALENDAR_DATA/home/calcetto.ics" | cut -d' ' -f1)" "$hash" "cal.sh update: file untouched when refused"
 out=$(jq -cn --arg h "$hash" --arg uid "$uid" --argjson occ "$(at '2026-10-20 20:00')" \
     '{calendar: "Home", uid: $uid, occurrence: $occ, scope: "all", hash: $h, changes: null}' | bash "$TEST_DIR/cal.sh" update)
@@ -280,7 +280,7 @@ RACE_SRC="$TMP/phone.ics"; export RACE_SRC
 
 reset_home
 out=$(PATH="$racepy:$PATH" RACE_FILE="$race_home" upd "$hash")
-assert_json_contains "$out" '.error' "changed on your iPhone" "race update: a file replaced before the locked recheck is refused"
+assert_json_contains "$out" '.error' "changed elsewhere since you opened it" "race update: a file replaced before the locked recheck is refused"
 assert_eq "$(phone_wins && echo yes || echo no)" yes "race update: the phone's version is left as it is"
 assert_eq "$(count_ics "$CALENDAR_DATA/home")" 1 "race update: nothing new is written"
 
@@ -288,12 +288,12 @@ reset_home
 out=$(jq -cn --arg h "$hash" --arg uid "$uid" --argjson occ "$(at '2026-10-20 20:00')" \
     '{calendar: "Home", uid: $uid, occurrence: $occ, scope: "all", hash: $h}' \
     | PATH="$racepy:$PATH" RACE_FILE="$race_home" bash "$TEST_DIR/cal.sh" delete)
-assert_json_contains "$out" '.error' "changed on your iPhone" "race delete: refused, not deleted"
+assert_json_contains "$out" '.error' "changed elsewhere since you opened it" "race delete: refused, not deleted"
 assert_eq "$(phone_wins && echo yes || echo no)" yes "race delete: the phone's version is kept"
 
 reset_home
 out=$(PATH="$racepy:$PATH" RACE_FILE="$race_home" upd "$hash" Work)
-assert_json_contains "$out" '.error' "changed on your iPhone" "race move: refused"
+assert_json_contains "$out" '.error' "changed elsewhere since you opened it" "race move: refused"
 assert_eq "$(phone_wins && echo yes || echo no)" yes "race move: the file stays in Home, unchanged"
 assert_eq "$(count_ics "$CALENDAR_DATA/work")" 0 "race move: nothing lands in Work"
 reset_home

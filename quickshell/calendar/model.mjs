@@ -238,9 +238,12 @@ export function timelineRange(events, draft, key) {
     }
     return { from: Math.max(0, from), to: Math.min(24, to) }
 }
+// Every 4 hours from the start (every 6 past a 16-hour span, so the labels stay
+// evenly spaced at the card's width), and the end. A tick under 3 hours from the
+// end gives way to it. The timeline still measures what it draws.
 export function ticks(from, to) {
-    const out = []
-    for (let h = from; h < to; h += 4) if (to - h > 1 || h === from) out.push(h)
+    const out = [], step = to - from > 16 ? 6 : 4
+    for (let h = from; h < to; h += step) if (to - h >= 3 || h === from) out.push(h)
     if (out[out.length - 1] !== to) out.push(to)
     return out
 }
@@ -253,10 +256,16 @@ export function lanes(events) {
         return Object.assign({}, e, { lane: 1 })
     })
 }
+// The listed event an edit draft was opened from. Stored events are named by
+// calendar and UID (a copy in another calendar can share the UID), and the
+// draft's own calendar may already be changed, so the match uses the original.
+export function isDraftOf(draft, e) {
+    return !!draft && !!draft.uid && e.uid === draft.uid && e.startEpoch === draft.occurrence
+        && e.calendar === draft.originalCalendar
+}
 export function clashes(draft, events) {
     if (!draft || draft.allDay) return []
-    const self = e => draft.uid && e.uid === draft.uid && e.startEpoch === draft.occurrence
-    return events.filter(e => !e.allDay && !self(e) && e.startEpoch < draft.end && e.endEpoch > draft.start)
+    return events.filter(e => !e.allDay && !isDraftOf(draft, e) && e.startEpoch < draft.end && e.endEpoch > draft.start)
 }
 // ── Editing. A draft built from a listed event and what `cal.sh inspect` found.
 export function draftFromEvent(e, info, defaults) {

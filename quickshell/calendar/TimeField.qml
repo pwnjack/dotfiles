@@ -10,11 +10,26 @@ TextField {
     property int value: 0
     signal chosen(int minutes)
     activeFocusOnTab: true
-    implicitWidth: card.px(90)
+    // The pill's own box (Pill.qml: label + 24, 30 tall, text centred), so the
+    // pill turns into a field in place. It keeps that size while you type: a
+    // longer entry scrolls inside it rather than moving the row.
+    TextMetrics { id: shownWidth; font: field.font; text: field.shown() }
+    implicitWidth: shownWidth.advanceWidth + card.px(24)
+    clip: true
+    implicitHeight: card.px(30)
+    padding: 0
+    leftPadding: card.px(12)
+    rightPadding: card.px(12)
+    horizontalAlignment: TextInput.AlignHCenter
+    verticalAlignment: TextInput.AlignVCenter
     color: card.c.foreground
+    selectionColor: card.c.accent
+    selectedTextColor: card.c.accentInk
     font.family: card.c.monoFont
     font.pixelSize: card.px(13)
     background: Rectangle {
+        implicitWidth: 0
+        implicitHeight: 0
         radius: field.card.px(8)
         color: Qt.rgba(field.card.c.accent.r, field.card.c.accent.g, field.card.c.accent.b, 0.30)
         border.width: 1

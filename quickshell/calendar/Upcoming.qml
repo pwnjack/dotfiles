@@ -13,6 +13,11 @@ ColumnLayout {
     readonly property string todayKey: Model.dayKey(card.c.now)
     readonly property bool noAccount: !!card.c.status && card.c.status.state === "none"
     spacing: card.px(4)
+    // The list fades in as the card grows to hold it, rather than appearing ahead of the frame.
+    Connections { target: up.card.c; function onStateChanged() { if (up.card.c.state.unfolded && !up.wasUnfolded) reveal.restart(); up.wasUnfolded = up.card.c.state.unfolded; } }
+    property bool wasUnfolded: card.c.state.unfolded
+    property real listOpacity: 1
+    NumberAnimation { id: reveal; target: up; property: "listOpacity"; from: 0; to: 1; duration: 200; easing.type: Easing.OutCubic }
     function dayTitle(key) {
         if (key === todayKey) return "Today";
         if (key === Model.addDays(todayKey, 1)) return "Tomorrow";
@@ -27,41 +32,41 @@ ColumnLayout {
             font.family: up.card.c.monoFont; font.pixelSize: up.card.px(13) }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: up.card.c.openSettings() }
     }
-    Rectangle {
-        visible: !up.noAccount && !up.card.c.state.unfolded
-        Layout.fillWidth: true; implicitHeight: up.card.px(34); radius: up.card.px(10)
-        color: Qt.rgba(up.card.c.foreground.r, up.card.c.foreground.g, up.card.c.foreground.b, foldHover.containsMouse ? 0.10 : 0.06)
-        Text {
-            objectName: "foldedLine"
-            x: up.card.px(10); anchors.verticalCenter: parent.verticalCenter; width: parent.width - up.card.px(20)
-            elide: Text.ElideRight; textFormat: Text.PlainText
-            text: up.summary.next
+    // Folded it answers "what's next?"; unfolded it titles the list. The chevron
+    // stays in one place and turns, so the bar reads as one control either way.
+    SectionHeader {
+        objectName: "upcomingHeader"
+        visible: !up.noAccount
+        Layout.fillWidth: true
+        card: up.card
+        whole: !!up.summary.next || up.card.c.state.unfolded
+        showButton: whole
+        turn: up.card.c.state.unfolded ? -90 : 90
+        text: up.card.c.state.unfolded ? "Upcoming · 7 days"
+            : up.summary.next
                 ? "Next · " + (up.summary.next.allDay ? "" : Model.formatTime(Model.minutesOf(up.summary.next.startEpoch), up.card.c.clock,
                     up.card.c.locale.amText, up.card.c.locale.pmText) + " ") + up.summary.next.title
-                  + (up.summary.more ? " · +" + up.summary.more + " this week" : "") + "  ⌄"
+                  + (up.summary.more ? " · +" + up.summary.more + " more" : "")
                 : "Nothing in the next 7 days"
-            color: up.card.c.foreground; font.family: up.card.c.monoFont; font.pixelSize: up.card.px(13)
-        }
-        MouseArea { id: foldHover; anchors.fill: parent; hoverEnabled: true; cursorShape: up.summary.next ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: if (up.summary.next) up.card.c.toggleUpcoming() }
-    }
-    RowLayout {
-        visible: !up.noAccount && up.card.c.state.unfolded
-        Layout.fillWidth: true
-        Text { text: "Upcoming · 7 days"; color: up.card.dim; font.family: up.card.c.monoFont; font.pixelSize: up.card.px(12); Layout.fillWidth: true }
-        Text { text: "⌃"; color: up.card.c.accent; font.pixelSize: up.card.px(14)
-            MouseArea { anchors.fill: parent; anchors.margins: -8; cursorShape: Qt.PointingHandCursor; onClicked: up.card.c.toggleUpcoming() } }
+        label.objectName: "foldedLine"
+        label.color: up.summary.next || up.card.c.state.unfolded ? up.card.c.foreground : up.card.dim
+        onClicked: up.card.c.toggleUpcoming()
     }
     Text { visible: !up.noAccount && up.card.c.state.unfolded && !up.groups.length; text: "Nothing in the next 7 days"
+        Layout.leftMargin: up.card.px(12); Layout.topMargin: up.card.px(6)
         color: up.card.dim; font.family: up.card.c.monoFont; font.pixelSize: up.card.px(13) }
     Repeater {
+        id: list
         model: !up.noAccount && up.card.c.state.unfolded ? up.groups : []
         delegate: ColumnLayout {
             id: group
             required property var modelData
             Layout.fillWidth: true
-            spacing: up.card.px(1)
+            opacity: up.listOpacity
+            spacing: 0
             Text { text: up.dayTitle(group.modelData.key); color: up.card.dim; font.family: up.card.c.monoFont
-                font.pixelSize: up.card.px(12); Layout.topMargin: up.card.px(6) }
+                font.pixelSize: up.card.px(12); Layout.topMargin: up.card.px(8); Layout.leftMargin: up.card.px(12)
+                Layout.bottomMargin: up.card.px(2) }
             Repeater { model: group.modelData.events; delegate: EventRow { required property var modelData; card: up.card; event: modelData } }
         }
     }
