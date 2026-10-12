@@ -35,7 +35,7 @@
   ],
 
   // Modules Center
-  "modules-center": ["clock", "custom/weather"],
+  "modules-center": ["group/calendar", "custom/weather"],
 
   // Modules Right
   "modules-right": [
@@ -143,10 +143,20 @@
     "spacing": 10,
   },
 
+  // Clock and next event: one capsule, two doors into the calendar card
+  // (quickshell/calendar). The clock opens the month, the pill the upcoming
+  // list; each segment's second click closes. Hovering previews without a
+  // click: the clock shows the month, the pill its event in full.
+  "group/calendar": {
+    "orientation": "horizontal",
+    "modules": ["clock", "custom/agenda"],
+  },
+
   // Clock
   "clock": {
-    // The long date on click, in the session's LC_TIME like the short one.
-    "format-alt": "{:L%A %d %B %Y}",
+    // format, interval: rendered by scripts/waybar/clock-format.sh into the
+    // clock.jsonc include; the main config must not set them.
+    "on-click": "~/.config/scripts/hyprland/calendar-card.sh month",
     "tooltip": true,
     "tooltip-format": "<tt><small>{calendar}</small></tt>",
     "calendar": {
@@ -166,11 +176,24 @@
         "today": "<b>{}</b>",
       },
     },
+    // The wheel moves the tooltip's month, the middle button shows the year.
     "actions": {
       "on-click-middle": "mode",
       "on-scroll-up": "shift_down",
       "on-scroll-down": "shift_up",
     },
+  },
+
+  // Next event (scripts/waybar/agenda-bar.sh; Bar page: bar-agenda). Signal 12
+  // comes from scripts/calendar/sync.sh after every sync or add.
+  "custom/agenda": {
+    "exec": "~/.config/scripts/waybar/agenda-bar.sh",
+    "return-type": "json",
+    "interval": 60,
+    "signal": 12,
+    "tooltip": true,
+    "on-click": "~/.config/scripts/hyprland/calendar-card.sh upcoming",
+    "on-click-right": "setsid -f ~/.config/scripts/calendar/sync.sh >/dev/null 2>&1",
   },
 
   // Weather

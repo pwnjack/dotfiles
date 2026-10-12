@@ -109,6 +109,8 @@ PACKAGES=(
     # Applets and controls
     "pavucontrol" "blueman" "nm-connection-editor"
     "gnome-calculator"
+    # Calendar sync (scripts/calendar, docs/calendar.md)
+    "khal" "vdirsyncer"
     # Headset battery, for scripts/devices/devices.sh
     "headsetcontrol"
     # Script dependencies
@@ -342,6 +344,12 @@ if command -v claude &> /dev/null || command -v codex &> /dev/null; then
             bash "$CONFIG_DIR/scripts/agents/setup.sh" || warning "Agent harness setup reported a problem (see above)"
         fi
     fi
+fi
+
+# iCloud calendar: never prompts. Enables the sync timer when an account is
+# already stored; otherwise points at Settings > Calendar.
+if ! execute bash "$CONFIG_DIR/scripts/calendar/setup.sh"; then
+    warning "Calendar sync timer not enabled; run scripts/calendar/setup.sh to retry"
 fi
 
 # API keys template

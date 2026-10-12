@@ -249,6 +249,24 @@
       ]
     },
     {
+      "id": "calendar",
+      "group": "system",
+      "icon": "f00ed",
+      "title": "Calendar",
+      "description": "Your iCloud calendars on the bar and in the calendar card",
+      "sections": [
+        {
+          "id": "events",
+          "title": "Events"
+        },
+        {
+          "id": "newevents",
+          "title": "New events",
+          "footer": "Used by the calendar card's new-event sheet."
+        }
+      ]
+    },
+    {
       "id": "startup",
       "group": "system",
       "icon": "f14df",
@@ -1042,6 +1060,36 @@
       "keywords": ["waybar", "packages", "pacman", "aur", "hide", "show"]
     },
     {
+      "category": "bar",
+      "section": "modules",
+      "id": "bar.agenda",
+      "title": "Calendar",
+      "description": "Next event beside the clock",
+      "source": "option",
+      "key": "bar-agenda",
+      "kind": "select",
+      "default": "soon",
+      "items": [
+        {
+          "label": "Within 12 hours",
+          "value": "soon"
+        },
+        {
+          "label": "Today only",
+          "value": "today"
+        },
+        {
+          "label": "Next event",
+          "value": "next"
+        },
+        {
+          "label": "Hidden",
+          "value": "hidden"
+        }
+      ],
+      "keywords": ["waybar", "events", "agenda", "icloud", "hide", "show"]
+    },
+    {
       "category": "windows",
       "section": "tiling",
       "id": "win.layout",
@@ -1676,7 +1724,7 @@
       "section": "datetime",
       "id": "region.clock",
       "title": "Clock format",
-      "description": "Bar and lock screen",
+      "description": "Bar, calendar and lock screen",
       "source": "option",
       "key": "clock",
       "kind": "select",
@@ -1934,6 +1982,115 @@
       "kind": "text",
       "check": "command",
       "keywords": ["paru", "yay", "pacman", "update"]
+    },
+    {
+      "category": "calendar",
+      "section": "events",
+      "id": "calendar.declined",
+      "title": "Show declined invitations",
+      "description": "Invitations you declined stay hidden unless this is on",
+      "source": "option",
+      "key": "calendar-declined",
+      "kind": "toggle",
+      "default": false,
+      "keywords": ["invitation", "declined", "refused", "hidden"]
+    },
+    {
+      "category": "calendar",
+      "section": "newevents",
+      "id": "calendar.default",
+      "title": "Default calendar",
+      "source": "option",
+      "key": "calendar-default",
+      "kind": "select",
+      "choices": "calendars",
+      "keywords": ["icloud", "event"]
+    },
+    {
+      "category": "calendar",
+      "section": "newevents",
+      "id": "calendar.alert",
+      "title": "Default alert",
+      "source": "option",
+      "key": "calendar-alert",
+      "kind": "select",
+      "default": "15m",
+      "items": [
+        {
+          "label": "None",
+          "value": "none"
+        },
+        {
+          "label": "At time of event",
+          "value": "0m"
+        },
+        {
+          "label": "5 minutes before",
+          "value": "5m"
+        },
+        {
+          "label": "10 minutes before",
+          "value": "10m"
+        },
+        {
+          "label": "15 minutes before",
+          "value": "15m"
+        },
+        {
+          "label": "30 minutes before",
+          "value": "30m"
+        },
+        {
+          "label": "1 hour before",
+          "value": "1h"
+        },
+        {
+          "label": "2 hours before",
+          "value": "2h"
+        },
+        {
+          "label": "1 day before",
+          "value": "1d"
+        },
+        {
+          "label": "2 days before",
+          "value": "2d"
+        },
+        {
+          "label": "1 week before",
+          "value": "1w"
+        }
+      ],
+      "keywords": ["reminder", "notification", "event"]
+    },
+    {
+      "category": "calendar",
+      "section": "newevents",
+      "id": "calendar.duration",
+      "title": "Default duration",
+      "source": "option",
+      "key": "calendar-duration",
+      "kind": "select",
+      "default": "60",
+      "items": [
+        {
+          "label": "15 minutes",
+          "value": "15"
+        },
+        {
+          "label": "30 minutes",
+          "value": "30"
+        },
+        {
+          "label": "1 hour",
+          "value": "60"
+        },
+        {
+          "label": "2 hours",
+          "value": "120"
+        }
+      ],
+      "keywords": ["length", "event"]
     }
   ]
 }

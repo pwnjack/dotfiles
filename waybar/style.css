@@ -86,6 +86,7 @@ window#waybar {
 #window,
 #taskbar,
 #clock,
+#custom-agenda,
 #custom-weather,
 #custom-media,
 #cpu,
@@ -111,6 +112,11 @@ window#waybar {
 #custom-sidebar,
 #custom-power {
     font-size: 17px;
+    /* The same glyphs at the same size, but with an advance that matches their
+       ink. FiraCode Nerd Font gives every icon a 10px cell and draws 12-15px
+       of ink from its left edge, so the 2-4px overflow pushed each glyph off
+       centre in its hover pill (measured on the live bar). */
+    font-family: "Symbols Nerd Font";
 }
 
 /* ── RHYTHM ──────────────────────────────────────────────────────────
@@ -120,6 +126,7 @@ window#waybar {
 #window,
 #taskbar,
 #clock,
+#custom-agenda,
 #custom-weather,
 #custom-media,
 #cpu,
@@ -143,23 +150,45 @@ window#waybar {
     padding: 0px 10px;
 }
 
-/* group-opening edges */
+/* group-opening edges. 15px of space is 5px of margin and 10px of padding, so
+   the hover pill (HOVER below) sits 10px around the glyph like every other. */
 #custom-nightlight {
-    padding-left: 15px;
+    margin-left: 5px;
+}
+
+/* Clock and next event read as one capsule (group/calendar). The divider is
+   the pill's own left edge, so it disappears with the pill. Each segment is
+   its own door into the card and takes the bar's hover pill on its own. */
+#calendar {
+    background: transparent;
+    border-radius: 9px;
+    margin: 4px 0px;
+}
+#calendar #clock,
+#calendar #custom-agenda {
+    margin: 0px;
+    border-radius: 9px;
+}
+#calendar #custom-agenda {
+    border-left: 1px solid alpha(@foreground, 0.18);
+    border-radius: 0px 9px 9px 0px;
+}
+#custom-agenda.now {
+    color: @color4;
 }
 
 /* The workspace row ends with #workspaces' 3px right margin (1px in numbers
-   mode). The taskbar's buttons carry 5px of their own padding, which is why
+   mode). The taskbar's buttons carry 10px of their own padding, which is why
    these read as the 30px group gap (28px in numbers mode). #taskbar.empty
-   drops to zero below, and the window title then opens the group on its
-   own. */
+   drops to its 5px right margin below, and the window title's 20px then
+   opens the group with the same 25px it always had. */
 #taskbar {
-    padding-left: 22px;
+    padding-left: 17px;
     padding-right: 0px;
 }
 
 #window {
-    padding-left: 25px;
+    padding-left: 20px;
     /* Read rarely: dim like a paused track, so it sits behind the dots. */
     color: @color8;
 }
@@ -169,11 +198,11 @@ window#waybar {
    hidden from the Bar page and the gap stays 30px. Padding on the group box
    itself was measured leaving a 10px gap behind when all four are hidden. */
 #resources > :first-child > * {
-    padding-left: 15px;
+    margin-left: 5px;
 }
 
 #resources > :last-child > * {
-    padding-right: 15px;
+    margin-right: 5px;
 }
 
 /* self-contained groups.
@@ -190,13 +219,14 @@ window#waybar {
 #custom-battery,
 #pulseaudio,
 #tray {
-    padding-left: 15px;
-    padding-right: 15px;
+    margin-left: 5px;
+    margin-right: 5px;
 }
 
 /* bar borders -- the first dot's edge is #workspaces' left margin below */
 #custom-power {
-    padding-right: 16px;
+    margin-right: 5px;
+    padding-right: 11px;     /* its ink runs 1px past its advance (measured live) */
 }
 
 /* ── WORKSPACES ──────────────────────────────────────────────────────
@@ -238,21 +268,76 @@ window#waybar {
 /* ── TASKBAR ─────────────────────────────────────────────────────────
    icon-size is set in config.jsonc (16) to match the icon tier. */
 
+/* Each button is the full module height with 10px either side of its icon, so
+   its hover pill matches every other and icons sit 20px apart, the bar's gap
+   inside a group. No negative margins: GTK clips a pill drawn past the
+   taskbar's edge. The 5px each end gains is given back by #taskbar's left
+   padding and #window's (with #taskbar.empty's margin for the no-window case). */
 #taskbar button {
-    margin: 4px 0px;
-    border-radius: 8px;
-    padding: 2px 5px;
+    margin: 0px;
+    padding: 2px 10px;
 }
 
-#taskbar button:hover {
-    background: @color4;
-}
+/* Hover: the bar's shared pill (HOVER below). */
 
 #taskbar.empty {
     background: transparent;
     border: 0;
     padding: 0;
-    margin: 0;
+    margin: 0px 5px 0px 0px;
+}
+
+/* ── HOVER ───────────────────────────────────────────────────────────
+   One pill for everything that answers a click, and nothing else: the
+   window title and the weather have no click, so they never light. Only the
+   background changes, so nothing moves; every pill sits 10px around its
+   content (see RHYTHM: the 15px edges are 5px margin + 10px padding). It
+   comes on at once and fades out, like a desktop menu bar. The tray and the
+   workspace dots light their own items. A recording's red pill keeps its
+   colour. */
+
+#taskbar button,
+#clock,
+#custom-agenda,
+#custom-nightlight,
+#custom-settings,
+#cpu,
+#memory,
+#custom-gpu,
+#disk,
+#custom-updates,
+#custom-network,
+#custom-battery,
+#bluetooth,
+#pulseaudio,
+#custom-media,
+#custom-recording,
+#custom-sidebar,
+#custom-power {
+    border-radius: 9px;
+    transition: background-color 120ms ease-out;
+}
+
+#taskbar button:hover,
+#clock:hover,
+#custom-agenda:hover,
+#custom-nightlight:hover,
+#custom-settings:hover,
+#cpu:hover,
+#memory:hover,
+#custom-gpu:hover,
+#disk:hover,
+#custom-updates:hover,
+#custom-network:hover,
+#custom-battery:hover,
+#bluetooth:hover,
+#pulseaudio:hover,
+#custom-media:hover,
+#custom-recording.countdown:hover,
+#custom-sidebar:hover,
+#custom-power:hover {
+    background: alpha(@foreground, 0.12);
+    transition: none;
 }
 
 /* ── TOOLTIPS ────────────────────────────────────────────────────────*/

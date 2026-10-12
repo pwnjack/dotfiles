@@ -15,6 +15,7 @@ return function(apps)
     hl.bind("SUPER + ALT + S", hl.dsp.exec_cmd("~/.config/scripts/hyprland/screenshot.sh region --annotate")) -- Screenshot a region and annotate
     hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd("~/.config/scripts/hyprland/capture-bar.sh screenshot")) -- Capture bar: screenshot
     hl.bind("SUPER + SHIFT + R", hl.dsp.exec_cmd("~/.config/scripts/hyprland/capture-bar.sh record")) -- Capture bar: record, or stop
+    hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd("~/.config/scripts/hyprland/calendar-card.sh new")) -- New calendar event
     hl.bind("SUPER + G", hl.dsp.exec_cmd(apps.codeeditor)) -- Code editor ($codeeditor)
     hl.bind("SUPER + K", hl.dsp.exec_cmd("gnome-calculator")) -- Calculator
     hl.bind("SUPER + A", hl.dsp.exec_cmd("~/.config/scripts/hyprland/launch-chatbox.sh")) -- AI assistant sidebar

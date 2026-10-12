@@ -1,0 +1,169 @@
+#!/bin/bash
+#
+# Tests for scripts/calendar/cal.sh against a fake khal (scripts/calendar/fakes).
+#
+set -uo pipefail
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+# shellcheck source=scripts/lib/assert.sh
+. "$TEST_DIR/../lib/assert.sh"
+
+export TZ=Europe/Rome FAKE_LOG="$TMP/log" PATH="$TEST_DIR/fakes:$PATH"
+export CALENDAR_RUNTIME_DIR="$TMP/run" CALENDAR_STATE_DIR="$TMP/state" CALENDAR_OPTIONS="$TMP/options" CALENDAR_DATA="$TMP/data"
+export FAKE_KHAL_LIST="$TEST_DIR/fixtures/khal-week.json" CALENDAR_NO_SYNC=1 FAKE_KEYRING="$TMP/keyring"
+mkdir -p "$FAKE_LOG" "$CALENDAR_RUNTIME_DIR" "$CALENDAR_STATE_DIR" "$CALENDAR_OPTIONS" "$CALENDAR_DATA/home-uuid" "$CALENDAR_DATA/work-uuid"
+# vdirsyncer writes displayname without a trailing newline, so the names are printf'd.
+printf Home > "$CALENDAR_DATA/home-uuid/displayname"; echo '#FF9F0AFF' > "$CALENDAR_DATA/home-uuid/color"
+printf Work > "$CALENDAR_DATA/work-uuid/displayname"; echo '#30B0C7FF' > "$CALENDAR_DATA/work-uuid/color"
+run_cal() { bash "$TEST_DIR/cal.sh" "$@"; }
+
+out=$(run_cal range 2026-10-11 8)
+assert_json_field "$out" 'length' 4 "range: four events, the two-day one once"
+assert_json_field "$out" '.[0].title' "Dentist" "range: sorted by start"
+assert_json_field "$out" '.[0].startEpoch' "$(date -d '2026-10-11 18:00' +%s)" "range: local start epoch"
+assert_json_field "$out" '.[0].allDay' false "range: a timed event"
+assert_json_field "$out" '.[3].allDay' true "range: an all-day event"
+assert_json_field "$out" '.[3].endEpoch - .[3].startEpoch' $((48 * 3600 + 3600)) "range: all-day end is the next midnight across the 25 h DST day"
+assert_contains "$(tail -n1 "$FAKE_LOG/khal.argv")" "list --day-format  --json uid --json title" "range: asks khal for JSON without day headers"
+assert_json_field "$out" '.[0].uid' "dentist-1" "range: keeps the UID (editing finds the file by it)"
+assert_json_field "$out" '.[0].color' "#FF9F0A" "range: an 8-digit colour is cut to 6"
+assert_json_field "$out" '.[0] | has("organizer")' false "range: no organizer field"
+assert_json_field "$out" '[.[] | select(.recurring)] | length' 1 "range: a repeating event is marked"
+assert_contains "$(tail -n1 "$FAKE_LOG/khal.argv")" "2026-10-11 8d" "range: start and length"
+
+printf 'Work\n\n' > "$CALENDAR_OPTIONS/calendar-hidden"
+run_cal range 2026-10-11 8 >/dev/null
+assert_contains "$(tail -n1 "$FAKE_LOG/khal.argv")" "-d Work" "range: hidden calendars excluded"
+assert_eq "$(grep -c -- '-d Home' <<<"$(tail -n1 "$FAKE_LOG/khal.argv")")" 0 "range: a visible calendar is not excluded with its neighbour's name (no-newline metadata)"
+rm "$CALENDAR_OPTIONS/calendar-hidden"
+
+mkdir -p "$CALENDAR_DATA/promemoria-uuid"
+echo Promemoria > "$CALENDAR_DATA/promemoria-uuid/displayname"; echo '#FF3B30FF' > "$CALENDAR_DATA/promemoria-uuid/color"
+printf 'Promemoria\n' > "$CALENDAR_STATE_DIR/skip"
+run_cal range 2026-10-11 8 >/dev/null
+assert_contains "$(tail -n1 "$FAKE_LOG/khal.argv")" "-d Promemoria" "range: skipped collections excluded"
+
+# Stale, duplicate and doubled names never reach khal; they would exit it 2.
+printf 'Gone\nWork\nWork\nPromemoria\n' > "$CALENDAR_OPTIONS/calendar-hidden"
+run_cal range 2026-10-11 8 >/dev/null
+last=$(tail -n1 "$FAKE_LOG/khal.argv")
+assert_eq "$([[ $last == *"-d Gone"* ]] && echo yes || echo no)" no "range: an unknown hidden name is not passed"
+assert_eq "$(grep -o -- '-d Work' <<<"$last" | wc -l)" 1 "range: a duplicate name is passed once"
+assert_eq "$(grep -o -- '-d Promemoria' <<<"$last" | wc -l)" 1 "range: a name hidden and skipped is passed once"
+rm "$CALENDAR_OPTIONS/calendar-hidden"
+
+# Every calendar excluded: khal would list them all, so it is not asked.
+printf 'Home\nWork\n' > "$CALENDAR_OPTIONS/calendar-hidden"
+: > "$FAKE_LOG/khal.argv"
+assert_eq "$(run_cal range 2026-10-11 8)" '[]' "all excluded: range is empty"
+assert_eq "$(run_cal month 2026-10)" '{"busy":[]}' "all excluded: month is empty"
+assert_eq "$(run_cal year 2026)" '{"counts":[0,0,0,0,0,0,0,0,0,0,0,0]}' "all excluded: year has zero counts"
+assert_eq "$(wc -c < "$FAKE_LOG/khal.argv")" 0 "all excluded: khal is never called"
+rm "$CALENDAR_OPTIONS/calendar-hidden"
+
+# A failing khal is an error, not an empty agenda.
+out=$(FAKE_KHAL_LIST_FAIL=1 run_cal range 2026-10-11 8); code=$?
+assert_eq "$code" 1 "khal fails: range exits 1"
+assert_json_field "$out" '.ok' false "khal fails: range reports ok false"
+assert_json_contains "$out" '.error' "Unknown calendar" "khal fails: range carries khal's message"
+out=$(FAKE_KHAL_LIST_FAIL=1 run_cal month 2026-10); code=$?
+assert_eq "$code" 1 "khal fails: month exits 1"
+assert_json_field "$out" '.ok' false "khal fails: month reports ok false"
+out=$(FAKE_KHAL_LIST_FAIL=1 run_cal year 2026); code=$?
+assert_eq "$code" 1 "khal fails: year exits 1"
+
+assert_json_field "$(run_cal day 2026-10-13)" 'length' 4 "day: passes the fixture through (khal does the filtering)"
+assert_contains "$(tail -n1 "$FAKE_LOG/khal.argv")" "2026-10-13 1d" "day: one day"
+assert_json_field "$(run_cal month 2026-10)" '.busy | join(",")' "11,13,24,25" "month: every covered day once"
+assert_json_field "$(run_cal year 2026)" '.counts | length' 12 "year: twelve counts"
+assert_json_field "$(run_cal year 2026)" '.counts[9]' 4 "year: October counts events by start"
+
+# An event that starts in 2025 and runs into January counts for 2025 only.
+out=$(FAKE_KHAL_LIST="$TEST_DIR/fixtures/khal-year-boundary.json" run_cal year 2026)
+assert_json_field "$out" '.counts[0]' 1 "year: January counts only events starting that year"
+assert_json_field "$out" '.counts[11]' 0 "year: a spill-over from last year does not hit December"
+
+# Declined instances are dropped in every view. series-1 (Home) is accepted but its
+# 12th is declined; series-2 (Work) is declined except its 19th, which is accepted.
+rules=$(printf 'Home\tseries-1\t2026-10-12 09:00\nWork\tseries-2\t*\nWork\tseries-2\t!2026-10-19 09:00\n')
+printf '%s\n' "$rules" > "$CALENDAR_STATE_DIR/declined"
+export FAKE_KHAL_LIST="$TEST_DIR/fixtures/khal-declined.json"
+out=$(run_cal range 2026-10-01 30)
+assert_json_field "$out" 'length' 3 "declined: range keeps the accepted instances only"
+assert_json_field "$out" '[.[] | select(.uid == "series-2") | .start] | join(",")' "2026-10-19 09:00" "declined: a declined series shows its accepted instance again"
+assert_json_field "$out" '[.[] | select(.uid == "series-1") | .start] | join(",")' "2026-10-05 09:00,2026-10-19 09:00" "declined: only the declined override is hidden"
+assert_json_field "$(run_cal month 2026-10)" '.busy | join(",")' "5,19" "declined: month dots skip the declined days"
+assert_json_field "$(run_cal day 2026-10-12)" '[.[] | select(.start | startswith("2026-10-12"))] | length' 0 "declined: the day view drops the declined instances"
+assert_json_field "$(run_cal year 2026)" '.counts[9]' 3 "declined: year counts drop the declined instances"
+# The Calendar page's switch shows them all again, without touching the rules.
+printf 'enabled\n' > "$CALENDAR_OPTIONS/calendar-declined"
+assert_json_field "$(run_cal range 2026-10-01 31)" 'length' 6 "declined shown: the switch lists every instance"
+printf 'disabled\n' > "$CALENDAR_OPTIONS/calendar-declined"
+assert_json_field "$(run_cal range 2026-10-01 31)" 'length' 3 "declined hidden: any other value hides them"
+rm "$CALENDAR_OPTIONS/calendar-declined"
+rm "$CALENDAR_STATE_DIR/declined"
+assert_json_field "$(run_cal range 2026-10-01 30)" 'length' 6 "no declined file: nothing is dropped"
+assert_json_field "$(run_cal month 2026-10)" '.busy | join(",")' "5,12,19" "no declined file: month dots are unchanged"
+unset FAKE_KHAL_LIST
+export FAKE_KHAL_LIST="$TEST_DIR/fixtures/khal-week.json"
+
+echo Work > "$CALENDAR_STATE_DIR/readonly"
+cals=$(run_cal calendars)
+assert_json_field "$cals" '[.[] | .name] | join(",")' "Home,Work" "calendars: names from displayname, skipped collection omitted"
+assert_json_field "$cals" '.[0].color' "#FF9F0A" "calendars: colour cut to 6 digits"
+assert_json_field "$cals" '.[1].color' "#30B0C7" "calendars: second colour"
+assert_json_field "$cals" '.[1].writable' false "calendars: read-only list honoured"
+
+mkdir -p "$CALENDAR_DATA/odd-uuid"
+echo Odd > "$CALENDAR_DATA/odd-uuid/displayname"; echo 'not-a-colour' > "$CALENDAR_DATA/odd-uuid/color"
+assert_json_field "$(run_cal calendars)" '[.[] | select(.name == "Odd")][0].color' "" "calendars: a malformed colour becomes empty"
+rm -r "$CALENDAR_DATA/odd-uuid"
+
+ics=$'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n'
+req() { jq -cn --arg c "$1" --arg i "$2" '{calendar:$c, ics:$i}'; }
+out=$(req Home "$ics" | run_cal add); code=$?
+assert_eq "$code" 0 "add: exit 0"
+assert_json_field "$out" '.ok' true "add: ok"
+assert_contains "$(tail -n1 "$FAKE_LOG/khal.argv")" "import --batch -a Home" "add: batch import into the chosen calendar"
+assert_eq "$(cat "$FAKE_LOG/imported.ics"; printf x)" "${ics}x" "add: the payload reaches khal unchanged"
+out=$(req Work "$ics" | run_cal add); code=$?
+assert_eq "$code" 1 "add: a read-only calendar is refused"
+assert_json_contains "$out" '.error' "read-only" "add: says why"
+out=$(req Nope "$ics" | run_cal add)
+assert_json_contains "$out" '.error' "Unknown calendar" "add: an unknown calendar is refused"
+out=$(req Home "hello" | run_cal add)
+assert_json_contains "$out" '.error' "not a calendar event" "add: a non-VCALENDAR payload is refused"
+out=$(FAKE_KHAL_IMPORT_FAIL=1 run_cal add < <(req Home "$ics"))
+assert_json_contains "$out" '.error' "import failed" "add: khal's error is reported"
+
+# A sync holding sync.lock refuses an add: nothing is imported while iCloud is being written.
+lock="$CALENDAR_RUNTIME_DIR/sync.lock"; mkdir -p "$CALENDAR_RUNTIME_DIR"
+( exec 9>"$lock"; flock 9 && exec sleep 30 ) &
+holder=$!
+for ((n = 0; n < 100; n++)); do flock -n "$lock" true || break; sleep 0.05; done
+: > "$FAKE_LOG/khal.argv"; rm -f "$FAKE_LOG/imported.ics"
+out=$(req Home "$ics" | CALENDAR_LOCK_WAIT=1 run_cal add); code=$?
+assert_eq "$code" 1 "add under a running sync: exit 1"
+assert_json_contains "$out" '.error' "A sync with iCloud is running" "add under a running sync: says why"
+assert_eq "$(wc -c < "$FAKE_LOG/khal.argv")" 0 "add under a running sync: khal is never called"
+kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null || true
+
+out=$(CAL_KHAL=khal-missing run_cal range 2026-10-11 8); code=$?
+assert_eq "$code" 1 "no khal: exit 1"
+assert_json_field "$out" '.error' "khal is not installed" "no khal: says so"
+
+# Scale: 30,000 events over 600 UIDs, 300 of them declined as a whole. Filtering
+# is one indexed pass, so this stays well under 3 s; a rule scan per event would not.
+big="$TMP/khal-large.json"
+jq -nc 'range(30000) | [{uid: "syn-\(. % 600)", title: "E\(.)", location: "", calendar: "Work",
+    "calendar-color": "#30B0C7FF", start: "2026-10-05 09:00", end: "2026-10-05 09:30", "repeat-pattern": ""}]' > "$big"
+for ((n = 0; n < 300; n++)); do printf 'Work\tsyn-%d\t*\n' "$n"; done > "$CALENDAR_STATE_DIR/declined"
+t0=$(date +%s%N)
+out=$(FAKE_KHAL_LIST="$big" run_cal range 2026-10-05 1); code=$?
+t1=$(date +%s%N)
+rm -f "$CALENDAR_STATE_DIR/declined"
+assert_eq "$code" 0 "large: range exits 0"
+assert_json_field "$out" 'length' 15000 "large: 30,000 events, 300 declined series: 15,000 remain"
+assert_eq "$(( (t1 - t0) < 3000000000 ? 1 : 0 ))" 1 "large: 30,000 events and 300 rules finish in under 3 s"
+test_summary cal

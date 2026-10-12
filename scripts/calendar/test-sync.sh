@@ -1,0 +1,235 @@
+#!/bin/bash
+#
+# Tests for scripts/calendar/sync.sh with fake vdirsyncer, khal, secret-tool,
+# notify-send and pkill: nothing reaches iCloud, no toast appears, the real
+# Waybar is never signalled.
+#
+set -uo pipefail
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+# shellcheck source=scripts/lib/assert.sh
+. "$TEST_DIR/../lib/assert.sh"
+export TZ=Europe/Rome FAKE_LOG="$TMP/log" FAKE_KEYRING="$TMP/keyring" PATH="$TEST_DIR/fakes:$PATH"
+export CALENDAR_RUNTIME_DIR="$TMP/run" CALENDAR_STATE_DIR="$TMP/state" CALENDAR_OPTIONS="$TMP/options" CALENDAR_DATA="$TMP/data"
+export FAKE_KHAL_LIST="$TEST_DIR/fixtures/khal-week.json" CALENDAR_NO_SYNC=1
+export CALENDAR_WRITABLE="$TEST_DIR/fakes/writable"
+mkdir -p "$FAKE_LOG" "$CALENDAR_STATE_DIR" "$CALENDAR_OPTIONS"
+sync_run() { bash "$TEST_DIR/sync.sh" "$@"; }
+status() { cat "$CALENDAR_RUNTIME_DIR/status.json"; }
+count() { [[ -f $FAKE_LOG/$1 ]] && wc -l < "$FAKE_LOG/$1" || echo 0; }
+
+# No account.
+sync_run; code=$?
+assert_eq "$code" 0 "no account: exit 0"
+assert_json_field "$(status)" '.state' none "no account: state none"
+assert_eq "$(count vdirsyncer.argv)" 0 "no account: vdirsyncer never runs"
+assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "no account: no agenda"
+assert_contains "$(cat "$FAKE_LOG/pkill")" "-RTMIN+12 waybar" "no account: Waybar signalled"
+
+# Success, first run discovers.
+mkdir -p "$FAKE_KEYRING"; printf 'me@example.com' > "$FAKE_KEYRING/username"
+sync_run
+assert_contains "$(cat "$FAKE_LOG/vdirsyncer.argv")" "discover icloud" "first run: discovers"
+assert_contains "$(cat "$FAKE_LOG/vdirsyncer.argv")" "metasync" "success: metasync"
+assert_contains "$(tail -n1 "$FAKE_LOG/vdirsyncer.argv")" "sync" "success: sync last"
+assert_json_field "$(status)" '.state' ok "success: state ok"
+assert_json_field "$(status)" '(.lastSuccess - now | fabs) < 5' true "success: lastSuccess is now"
+assert_json_field "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" 'length' 4 "success: agenda rendered"
+assert_eq "$(count writable.argv)" 1 "first run: calendars re-classified after discover"
+sync_run
+assert_eq "$(grep -c discover "$FAKE_LOG/vdirsyncer.argv")" 1 "second run within 24 h: no discover"
+assert_eq "$(count writable.argv)" 1 "second run within 24 h: no re-classify"
+touch -d '25 hours ago' "$CALENDAR_STATE_DIR/discovered"; FAKE_WRITABLE_FAIL=1 sync_run
+assert_eq "$(grep -c discover "$FAKE_LOG/vdirsyncer.argv")" 2 "after 24 h: discovers again"
+assert_eq "$(count writable.argv)" 2 "after 24 h: re-classifies again"
+assert_json_field "$(status)" '.state' ok "failing writable.sh: state stays ok"
+touch -d "25 hours ago" "$CALENDAR_STATE_DIR/discovered"; CALENDAR_WRITABLE="$TMP/missing" sync_run
+assert_json_field "$(status)" '.state' ok "missing writable.sh: state stays ok"
+
+# Failures: classification, kept lastSuccess, one toast.
+ok_at=$(jq .lastSuccess "$CALENDAR_RUNTIME_DIR/status.json")
+FAKE_VDIR_ERROR='error: 401 Unauthorized' sync_run
+assert_json_field "$(status)" '.state' failed "auth: failed"
+assert_json_field "$(status)" '.kind' auth "auth: kind"
+assert_json_field "$(status)" '.message' "Sign-in rejected" "auth: message"
+assert_json_field "$(status)" '.lastSuccess' "$ok_at" "auth: lastSuccess kept"
+FAKE_VDIR_ERROR='Temporary failure in name resolution' sync_run
+assert_json_field "$(status)" '.kind' network "network: kind"
+assert_eq "$(count notify-send)" 1 "two failures in a row: one toast"
+sync_run
+FAKE_VDIR_ERROR='something odd happened' sync_run
+assert_json_field "$(status)" '.kind' other "other: kind"
+assert_json_field "$(status)" '.message' "something odd happened" "other: the last error line"
+assert_eq "$(count notify-send)" 2 "success then failure: toasts again"
+
+sync_run
+FAKE_VDIR_SILENT=1 sync_run
+assert_json_field "$(status)" '.state' failed "silent failure: state failed"
+assert_json_field "$(status)" '.kind' other "silent failure: kind other"
+assert_json_field "$(status)" '.message' "Sync failed" "silent failure: generic message"
+assert_eq "$(count notify-send)" 3 "silent failure: toast sent"
+tail -n1 "$FAKE_LOG/pkill" | grep -q RTMIN+12 && ok=yes || ok=no
+assert_eq "$ok" yes "silent failure: Waybar signalled"
+FAKE_VDIR_ERROR=' ' sync_run
+assert_json_field "$(status)" '.message' "Sync failed" "whitespace-only output: generic message"
+FAKE_VDIR_ERROR=$'Syncing icloud/5ED4A843-0156-401A-B358-578AEDC71C5E\nerror: Temporary failure in name resolution' sync_run
+assert_json_field "$(status)" '.kind' network "a 401 inside a collection id is not an auth failure"
+FAKE_VDIR_ERROR=$'Syncing icloud/x\nerror: HTTP 401' sync_run
+assert_json_field "$(status)" '.kind' auth "a 401 on an error line is an auth failure"
+
+# Render only: no network.
+before=$(count vdirsyncer.argv)
+sync_run --render
+assert_eq "$(count vdirsyncer.argv)" "$before" "--render: no vdirsyncer"
+assert_contains "$(tail -n1 "$FAKE_LOG/pkill")" "-RTMIN+12 waybar" "--render: signals"
+
+# Declined invitations: a successful sync writes the list and the agenda omits them.
+mkdir -p "$CALENDAR_DATA/home"; echo Home > "$CALENDAR_DATA/home/displayname"
+cat > "$CALENDAR_DATA/home/dentist-declined.ics" <<'EOF'
+BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:dentist-1
+DTSTART:20261011T160000Z
+DTEND:20261011T170000Z
+SUMMARY:Dentist
+ATTENDEE;PARTSTAT=DECLINED:mailto:me@example.com
+END:VEVENT
+END:VCALENDAR
+EOF
+rm -f "$CALENDAR_STATE_DIR/declined"
+sync_run
+assert_eq "$(cat "$CALENDAR_STATE_DIR/declined")" "$(printf 'Home\tdentist-1\t*')" "success: writes the declined list"
+assert_json_field "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" '[.[] | select(.uid == "dentist-1")] | length' 0 "success: agenda.json omits the declined event"
+assert_json_field "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" 'length' 3 "success: agenda.json keeps the other events"
+
+# --render keeps an existing list (its mtime is untouched) and writes a missing one.
+touch -d '2001-01-01' "$CALENDAR_STATE_DIR/declined"
+sync_run --render
+assert_eq "$(stat -c %Y "$CALENDAR_STATE_DIR/declined")" "$(date -d 2001-01-01 +%s)" "--render: an existing declined list is not rewritten"
+rm -f "$CALENDAR_STATE_DIR/declined"; sync_run --render
+assert_eq "$([[ -e $CALENDAR_STATE_DIR/declined ]] && echo yes || echo no)" yes "--render: a missing declined list is written"
+
+# A failing scan keeps the previous list, logs one line, and leaves the sync ok.
+mkdir -p "$TMP/badpy"; printf '#!/bin/sh\nexit 1\n' > "$TMP/badpy/python3"; chmod +x "$TMP/badpy/python3"
+err=$(PATH="$TMP/badpy:$PATH" sync_run 2>&1 >/dev/null)
+assert_eq "$(cat "$CALENDAR_STATE_DIR/declined")" "$(printf 'Home\tdentist-1\t*')" "failing scan: the previous list is kept"
+assert_contains "$err" "keeping the previous list" "failing scan: one line on stderr"
+assert_json_field "$(status)" '.state' ok "failing scan: the sync stays ok"
+
+# A failed publish (the rename onto declined) is not fatal: the sync exits 0, stays ok,
+# keeps the previous list, removes its temp file, and still renders and signals.
+# A fake mv fails only for that destination; every other rename is the real one.
+real_mv=$(command -v mv)
+mkdir -p "$TMP/badmv"
+cat > "$TMP/badmv/mv" <<EOF
+#!/bin/bash
+for a; do :; done
+[[ \$a == */declined ]] && exit 1
+exec $real_mv "\$@"
+EOF
+chmod +x "$TMP/badmv/mv"
+printf 'Home\tstale\t*\n' > "$CALENDAR_STATE_DIR/declined"
+rm -f "$CALENDAR_RUNTIME_DIR/agenda.json"; : > "$FAKE_LOG/pkill"
+rc=0; PATH="$TMP/badmv:$PATH" sync_run 2>"$TMP/mverr" || rc=$?
+assert_eq "$rc" 0 "failed publish: sync exits 0"
+assert_json_field "$(status)" '.state' ok "failed publish: state stays ok"
+assert_eq "$(cat "$CALENDAR_STATE_DIR/declined")" "$(printf 'Home\tstale\t*')" "failed publish: the previous list is kept"
+assert_eq "$(find "$CALENDAR_STATE_DIR" -name 'declined.*' | wc -l)" 0 "failed publish: the temp file is removed"
+assert_contains "$(cat "$TMP/mverr")" "keeping the previous list" "failed publish: one line on stderr"
+assert_json_field "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" 'length' 4 "failed publish: agenda still rendered (the kept list hides nothing here)"
+assert_contains "$(cat "$FAKE_LOG/pkill")" "-RTMIN+12 waybar" "failed publish: Waybar still signalled"
+
+# The rename and the temp-file cleanup both fail (a state dir that lost write permission):
+# still not fatal, so the sync exits 0, stays ok, renders and signals.
+# A fake rm fails only for the temp file; every other removal is the real one.
+real_rm=$(command -v rm)
+mkdir -p "$TMP/badrm"
+cat > "$TMP/badrm/rm" <<EOF
+#!/bin/bash
+for a; do [[ \$a == */declined.* ]] && exit 1; done
+exec $real_rm "\$@"
+EOF
+chmod +x "$TMP/badrm/rm"
+printf 'Home\tstale\t*\n' > "$CALENDAR_STATE_DIR/declined"
+rm -f "$CALENDAR_RUNTIME_DIR/agenda.json"; : > "$FAKE_LOG/pkill"
+rc=0; PATH="$TMP/badrm:$TMP/badmv:$PATH" sync_run 2>"$TMP/rmerr" || rc=$?
+assert_eq "$rc" 0 "failed publish and cleanup: sync exits 0"
+assert_json_field "$(status)" '.state' ok "failed publish and cleanup: state stays ok"
+assert_eq "$(cat "$CALENDAR_STATE_DIR/declined")" "$(printf 'Home\tstale\t*')" "failed publish and cleanup: the previous list is kept"
+assert_contains "$(cat "$TMP/rmerr")" "keeping the previous list" "failed publish and cleanup: one line on stderr"
+assert_json_field "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" 'length' 4 "failed publish and cleanup: agenda rendered"
+assert_contains "$(cat "$FAKE_LOG/pkill")" "-RTMIN+12 waybar" "failed publish and cleanup: Waybar signalled"
+
+# Tools: a missing khal is its own failure, and removes the agenda it can no longer back.
+printf '[{"stale":true}]' > "$CALENDAR_RUNTIME_DIR/agenda.json"
+CAL_KHAL=khal-missing sync_run
+assert_json_field "$(status)" '.state' failed "no khal: state failed"
+assert_json_field "$(status)" '.kind' tool "no khal: kind tool"
+assert_json_field "$(status)" '.message' "Calendar tools not installed" "no khal: the tools message"
+assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "no khal: the agenda is removed"
+
+# A failed render is not success: the sync records it, with khal's own message, and keeps the
+# last agenda that rendered.
+sync_run
+good=$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")
+FAKE_KHAL_LIST_FAIL=1 sync_run; code=$?
+assert_eq "$code" 0 "failed render: the sync itself exits 0"
+assert_json_field "$(status)" '.state' failed "failed render: state failed, not ok"
+assert_json_field "$(status)" '.kind' other "failed render: kind other"
+assert_json_field "$(status)" '.message' "Unknown calendar: X" "failed render: khal's message"
+assert_eq "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" "$good" "failed render: the last agenda is kept"
+
+# --render reports a failed render with exit 1, which is what the panel rolls back on.
+FAKE_KHAL_LIST_FAIL=1 sync_run --render; code=$?
+assert_eq "$code" 1 "--render: exit 1 when khal fails"
+assert_eq "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" "$good" "--render: a failed render keeps the agenda"
+printf 'not json' > "$TMP/garbage.json"
+FAKE_KHAL_LIST="$TMP/garbage.json" sync_run --render; code=$?
+assert_eq "$code" 1 "--render: exit 1 when khal's output is not JSON"
+assert_eq "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" "$good" "--render: unreadable output keeps the agenda"
+sync_run --render; code=$?
+assert_eq "$code" 0 "--render: exit 0 when the render works"
+
+# A render that cannot get the render lock fails too, rather than reporting success.
+mkdir -p "$CALENDAR_RUNTIME_DIR"
+( exec 9>"$CALENDAR_RUNTIME_DIR/render.lock"; flock 9 && exec sleep 30 ) & holder=$!
+for ((n = 0; n < 100; n++)); do flock -n "$CALENDAR_RUNTIME_DIR/render.lock" true || break; sleep 0.05; done
+CALENDAR_LOCK_WAIT=1 sync_run --render; code=$?
+assert_eq "$code" 1 "--render: exit 1 when the render lock is busy"
+kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null || true
+
+# Signed out while this sync ran (its vdirsyncer forgets the account): it writes no status
+# and no agenda, and signals nothing.
+rm -f "$CALENDAR_RUNTIME_DIR/status.json" "$CALENDAR_RUNTIME_DIR/agenda.json"; : > "$FAKE_LOG/pkill"
+FAKE_VDIR_FORGET=1 sync_run; code=$?
+assert_eq "$code" 0 "signed out mid-sync: exit 0"
+assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/status.json ]] && echo yes || echo no)" no "signed out mid-sync: no status written"
+assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "signed out mid-sync: no agenda written"
+assert_eq "$(wc -c < "$FAKE_LOG/pkill")" 0 "signed out mid-sync: Waybar not signalled"
+printf 'me@example.com' > "$FAKE_KEYRING/username"
+
+# Signed out while this sync waited for sync.lock: once it gets the lock it writes nothing.
+lock="$CALENDAR_RUNTIME_DIR/sync.lock"
+( exec 9>"$lock"; flock 9 && exec sleep 30 ) & holder=$!
+for ((n = 0; n < 100; n++)); do flock -n "$lock" true || break; sleep 0.05; done
+rm -f "$CALENDAR_RUNTIME_DIR/status.json" "$CALENDAR_RUNTIME_DIR/agenda.json"; : > "$FAKE_LOG/pkill"
+CALENDAR_LOCK_WAIT=10 sync_run & waiter=$!
+sleep 0.5
+rm -f "$FAKE_KEYRING/username"
+kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null || true
+wait "$waiter"; code=$?
+assert_eq "$code" 0 "signed out while waiting: exit 0"
+assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/status.json ]] && echo yes || echo no)" no "signed out while waiting: no status written"
+assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "signed out while waiting: no agenda written"
+assert_eq "$(wc -c < "$FAKE_LOG/pkill")" 0 "signed out while waiting: Waybar not signalled"
+printf 'me@example.com' > "$FAKE_KEYRING/username"
+sync_run
+
+# Units.
+svc=$(cat "$TEST_DIR/calendar-sync.service"); tmr=$(cat "$TEST_DIR/calendar-sync.timer")
+assert_contains "$svc" "ExecStart=/usr/bin/bash %h/.config/scripts/calendar/sync.sh" "service: runs sync.sh"
+assert_contains "$tmr" "OnStartupSec=2min" "timer: after login"
+assert_contains "$tmr" "OnUnitActiveSec=15min" "timer: every 15 min"
+test_summary sync

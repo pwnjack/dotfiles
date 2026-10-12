@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { registerHooks } from 'node:module'
+import * as C from '../calendar.mjs'
 
 // Built, not literal: the doctor's path scan would flag fixture files that do not exist.
 const autostartUserDir = '~/.config' + '/autostart'
@@ -91,6 +92,8 @@ dirs.set(base + '/autostart', ['arch-update-tray.desktop', 'manual.desktop'])
 let showEnvironment = 'XDG_CURRENT_DESKTOP=Hyprland\nPATH=/usr/local/bin:/usr/bin\n'
 const raceOnce = new Set()
 let events = [], failingPath = '', failingReadPath = '', failReload = false, failingGsettingsSets = 0, failNextSpawn = ''
+// The calendar's keyring account, cal.sh's listing (null: cal.sh fails) and setup.sh's sign-in failure.
+let keyringAccount = '', keyringFailure = '', calendarsListing = null, signInError = '', failCalendarRenders = 0
 // Shapes copied from `hyprctl getoption -j` on Hyprland 0.56: the value field
 // is named after its type, and `set` is only whether the config assigns it.
 const hyprOptions = {
@@ -296,6 +299,17 @@ globalThis.settingsMocks = {
         if (args[0] === 'systemctl' && args[2] === 'show-environment') return showEnvironment
         if (args[0] === 'systemctl' && args[2] === 'list-units') return JSON.stringify([{unit:'app-nm\\x2dapplet@autostart.service',active:'active',sub:'running'}])
         if (args[0] === 'fc-list') return 'FiraCode Nerd Font,FiraCode Nerd Font Med\nAdwaita Sans\n'
+        // The failure shapes execAsync gives: secret-tool exits 1 with no output for a missing item; cal.sh prints its JSON error on stdout.
+        if (args[0] === 'secret-tool') {
+            if (keyringFailure) throw Object.assign(new Error(keyringFailure), {status: 2, stdout: '', stderr: keyringFailure})
+            if (!keyringAccount) throw Object.assign(new Error('secret-tool failed'), {status: 1, stdout: '', stderr: ''})
+            return keyringAccount
+        }
+        if (String(args[1]).endsWith('/scripts/calendar/cal.sh')) {
+            if (calendarsListing === null) throw Object.assign(new Error('bash failed'), {status: 1, stdout: '{"ok":false,"error":"khal is not installed"}', stderr: ''})
+            return calendarsListing
+        }
+        if (String(args[1]).endsWith('/scripts/calendar/sync.sh') && failCalendarRenders > 0) { failCalendarRenders--; throw new Error('sync.sh --render failed') }
         if (args[0] === 'pkill') { running.delete(args[2]); return ''; }
         if (args[0] === 'pgrep') { if (!running.has(args[2])) throw new Error('not running'); return '123'; }
         if (args[1] === 'getoption') return JSON.stringify(hyprOptions[args[2]] ?? {int:1,set:true})
@@ -335,13 +349,15 @@ globalThis.settingsMocks = {
         }
         return 'ok'
     },
+    // Credentials travel on stdin only: the mock records what the child would read.
+    execInput: async (args, input) => { events.push(['stdin', args, input]); if (signInError) throw new Error(signInError); return '' },
     nm: nmMock,
     dbus: dbusMock,
 }
 registerHooks({resolve(specifier,context,next) {
     const names = {'gi://GLib':'GLib','gi://Gio':'Gio','gi://GioUnix':'GioUnix'}
     if (names[specifier]) return {url:'data:text/javascript,'+encodeURIComponent(`export default globalThis.settingsMocks.${names[specifier]}`),shortCircuit:true}
-    if (specifier === './process.js') return {url:'data:text/javascript,export const execAsync = globalThis.settingsMocks.execAsync',shortCircuit:true}
+    if (specifier === './process.js') return {url:'data:text/javascript,export const execAsync = globalThis.settingsMocks.execAsync, execInput = (...a) => globalThis.settingsMocks.execInput(...a)',shortCircuit:true}
     if (specifier === './nm.js') return {url:'data:text/javascript,'+encodeURIComponent('const m = () => globalThis.settingsMocks.nm; export const nmSnapshot = (...a) => m().nmSnapshot(...a), setWifiEnabled = (...a) => m().setWifiEnabled(...a), requestScan = (...a) => m().requestScan(...a), activate = (...a) => m().activate(...a), addAndActivate = (...a) => m().addAndActivate(...a), deactivate = (...a) => m().deactivate(...a), removeConnections = (...a) => m().removeConnections(...a)'),shortCircuit:true}
     if (specifier === './dbus.js') return {url:'data:text/javascript,'+encodeURIComponent('const m = () => globalThis.settingsMocks.dbus; export const callSystem = (...a) => m().callSystem(...a), getProperty = (...a) => m().getProperty(...a); export const CANCELLED = "Authentication was cancelled; nothing changed."'),shortCircuit:true}
     return next(specifier,context)
@@ -440,7 +456,7 @@ await dispatch({op:'set',id:'bar.updates',value:'hidden'})
 assert.equal(files.get(base+'/options/bar-updates'), 'hidden\n')
 assert.ok(catalog.categories.some(c => c.id === 'bar'))
 assert.deepEqual(catalog.rows.filter(r => r.category === 'bar').map(r => r.key).sort(),
-    ['bar-border','bar-cpu','bar-disk','bar-gpu','bar-memory','bar-network','bar-opacity','bar-output',
+    ['bar-agenda','bar-border','bar-cpu','bar-disk','bar-gpu','bar-memory','bar-network','bar-opacity','bar-output',
      'bar-position','bar-style','bar-updates','bar-workspaces','clock-seconds'])
 files.set(base+'/options/bar-disk','banana\n')
 result = await dispatch({op:'read',ids:['bar.disk','bar.updates']})
@@ -1497,3 +1513,93 @@ assert.equal(missingAbout.avatar,'')
 assert.equal(missingAbout.error,undefined)
 assert.equal(events.some(e => e[0] === 'accounts-dbus'),false,'About never contacts AccountsService, even for missing or unreadable avatars')
 console.log('ok: about backend')
+
+// Calendar page: options that may be missing read as their defaults, the account and calendars come from the keyring and cal.sh.
+events = []
+files.delete(base+'/options/bar-agenda')
+files.delete(base+'/options/calendar-declined')
+const calendarDefaults = await dispatch({op:'read',ids:['bar.agenda','calendar.alert','calendar.duration','calendar.default','calendar.declined']})
+assert.deepEqual(calendarDefaults.values['calendar.declined'],{value:false,reset:false},'an unset declined switch reads off, not as a missing file')
+assert.equal(calendarDefaults.values['bar.agenda'].value,'soon')
+assert.equal(calendarDefaults.values['bar.agenda'].reset,false)
+assert.equal(calendarDefaults.values['calendar.alert'].value,'15m')
+assert.equal(calendarDefaults.values['calendar.duration'].value,'60')
+assert.deepEqual(calendarDefaults.values['calendar.default'],{value:'',reset:false,choices:[]},'no listing offers no calendar')
+console.log('ok: calendar options read their defaults when unset')
+
+calendarsListing = JSON.stringify([{name:'Work',color:'#ff0000',writable:true},{name:'Holidays',color:'',writable:false},{name:'Home',color:'#00ff00',writable:true}])
+files.set(base+'/options/calendar-hidden','Home\n')
+const calendarPage = await dispatch({op:'read',ids:['calendar.default']})
+assert.deepEqual(calendarPage.values['calendar.default'].choices,[{label:'Work',value:'Work'},{label:'Home',value:'Home'}],'only writable calendars are offered')
+assert.equal(calendarPage.values['calendar.default'].value,'Work','an unset default is the first writable calendar, as the card picks it')
+keyringAccount = 'me@icloud.com'
+events = []
+const shown = await dispatch({op:'calendarStatus'})
+assert.equal(shown.calendar.account,'me@icloud.com')
+assert.deepEqual(shown.calendar.calendars.map(c => [c.name,c.shown]),[['Work',true],['Holidays',true],['Home',false]])
+keyringAccount = ''
+const signedOut = await dispatch({op:'calendarStatus'})
+assert.deepEqual(signedOut.calendar.calendars,[])
+assert.equal(signedOut.calendar.account,'')
+console.log('ok: calendar status lists the writable and shown calendars')
+
+// A keyring that cannot be read is a failure, not a signed-out account: the reader keeps its model and shows the error.
+keyringFailure = 'fatal: keyring locked'
+await assert.rejects(dispatch({op:'calendarStatus'}),/keyring locked/)
+keyringFailure = ''
+// cal.sh failing to list is a failure too, with cal.sh's own message. panel-request.sh prints it as {ok:false,error} and exits 1.
+keyringAccount = 'me@icloud.com'
+const listing = calendarsListing
+calendarsListing = null
+const listFailure = await dispatch({op:'calendarStatus'}).then(() => null, error => error)
+assert.equal(listFailure.message,'khal is not installed')
+assert.deepEqual(C.readReply(JSON.stringify({ok:false,error:listFailure.message}),'',1),{error:'khal is not installed'})
+calendarsListing = listing
+keyringAccount = ''
+console.log('ok: a keyring or listing failure reaches the calendar reader')
+
+events = []
+await dispatch({op:'calendarSignIn',appleId:' me@icloud.com ',password:'abcd-efgh'})
+const signIn = events.find(e => e[0] === 'stdin')
+assert.equal(signIn[1][1].endsWith('/scripts/calendar/setup.sh'),true)
+assert.deepEqual(signIn[1].slice(2),['--sign-in','--stdin'])
+assert.equal(signIn[1].join(' ').includes('abcd-efgh'),false,'the password is never in argv')
+assert.equal(signIn[2],'me@icloud.com\nabcd-efgh\n')
+signInError = 'Sign-in rejected: check the Apple ID and the app-specific password.'
+await assert.rejects(dispatch({op:'calendarSignIn',appleId:'me@icloud.com',password:'wrong'}),/Sign-in rejected/)
+signInError = ''
+console.log('ok: sign-in sends credentials on stdin only')
+
+events = []
+await dispatch({op:'calendarSignOut'})
+assert.ok(events.some(e => e[0] === 'bash' && String(e[1]).endsWith('/scripts/calendar/setup.sh') && e[2] === '--sign-out'))
+console.log('ok: sign-out runs setup.sh --sign-out')
+
+events = []
+await dispatch({op:'calendarShow',name:'Work',shown:false})
+assert.equal(files.get(base+'/options/calendar-hidden'),'Home\nWork\n')
+assert.ok(events.some(e => e[0] === 'bash' && String(e[1]).endsWith('/scripts/calendar/sync.sh') && e[2] === '--render'))
+await dispatch({op:'calendarShow',name:'Home',shown:true})
+assert.equal(files.get(base+'/options/calendar-hidden'),'Work\n')
+await assert.rejects(dispatch({op:'calendarShow',name:'a\nb',shown:true}),/Invalid calendar name/)
+// A failed render puts the previous list back (the rollback's own render succeeds), and a list that did not exist is removed again.
+failCalendarRenders = 1
+await assert.rejects(dispatch({op:'calendarShow',name:'Home',shown:false}),/Previous settings restored/)
+assert.equal(files.get(base+'/options/calendar-hidden'),'Work\n','a failed render restores the previous bytes')
+files.delete(base+'/options/calendar-hidden')
+failCalendarRenders = 1
+await assert.rejects(dispatch({op:'calendarShow',name:'Work',shown:false}),/Previous settings restored/)
+assert.equal(files.has(base+'/options/calendar-hidden'),false,'a failed render removes the file it created')
+console.log('ok: calendar visibility edits the hidden list and re-renders')
+console.log('ok: a failed calendar render restores the hidden list')
+
+events = []
+await dispatch({op:'set',id:'calendar.default',value:'Work'})
+assert.equal(files.get(base+'/options/calendar-default'),'Work\n', 'a never-set calendar-default is created by its first save')
+await assert.rejects(dispatch({op:'set',id:'calendar.default',value:'Holidays'}),/Unknown choice/)
+await dispatch({op:'set',id:'calendar.alert',value:'1h'})
+assert.equal(files.get(base+'/options/calendar-alert'),'1h\n')
+await dispatch({op:'set',id:'calendar.declined',value:true})
+assert.equal(files.get(base+'/options/calendar-declined'),'enabled\n','the declined switch writes what cal.sh reads')
+assert.equal(events.filter(e => e[0] === 'bash' && String(e[1]).endsWith('/scripts/calendar/sync.sh') && e[2] === '--render').length,3,'one render per save')
+console.log('ok: calendar defaults save and re-render')

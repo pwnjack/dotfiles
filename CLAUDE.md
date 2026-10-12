@@ -180,6 +180,40 @@ by `updates/setup-sudo.sh`, one no-argument NOPASSWD rule), then Flatpak, and
 the pure `model.mjs` the card also imports, so card and bar agree. AUR updates
 stay in the terminal (`scripts/updates/terminal.sh`). See `docs/updates.md`.
 
+### Calendar (clock capsule, Super+Shift+E)
+
+`scripts/calendar/sync.sh` is the normal path to iCloud: a `flock`, then
+`vdirsyncer metasync` and `sync` into `~/.local/share/calendars/icloud/`, a daily
+discover, `writable.sh` and `declined.py`, then `agenda.json` and `status.json`
+in `$XDG_RUNTIME_DIR/calendar/` and signal 12. A failed render is a failed sync,
+and `sync.sh --render` exits 1 so the panel can roll back. `cal.sh` add, update
+and delete take the same `sync.lock` (or are refused), and `setup.sh --sign-out`
+stops the service and takes that lock before clearing anything.
+`setup.sh --sign-in` is the exception: it runs discover and `writable.sh` outside
+that lock, and `writable.sh`'s PROPFINDs use `curl` directly. `sync.sh --render` does no network.
+`cal.sh` is the only khal reader and writer; `khal/config` holds the ISO formats
+it parses, and everything shown is localised from `LC_TIME`. Adds go through
+`khal import --batch -a`, never `khal new`, which splits the summary on ` :: `.
+Passwords live only in the keyring and reach vdirsyncer, `curl -K -` and
+`secret-tool store` on stdin, never in argv. `secret-tool lookup` exits 1 with no
+output for a missing item, and anything else means the keyring could not be read.
+`agenda-bar.sh` reads only `agenda.json` and the options. `model.mjs` holds the
+card's transition table, and the card is centred on the monitor, not the capsule. Edits
+go through `ics-edit.py`: the event's own TZID, overrides and EXDATEs, the hash
+check and an atomic rename, since vdirsyncer notices a new inode. iCloud colours
+arrive as `#RRGGBBAA` and are cut to `#RRGGBB`, because Qt reads eight digits as
+ARGB. The iCloud Reminders list is a VTODO-only collection, so `writable.sh`
+records it in `skip`. Read-only calendars come from the PROPFIND probe. iCloud
+writes ORGANIZER as a principal path with `EMAIL=`, so addresses are normalised
+the same way in `addresses`, `declined.py` and `ics-edit.py`. Declined invitations
+are hidden through the `declined` rules in `cal.sh list()`, unless `options/calendar-declined` says `enabled`. khal 0.14.1 exits 2
+on an unknown or duplicated `-d` name, and excluding every calendar means no
+filter. `sync.sh` matches 401 only as a whole word, because UUID collection names
+contain digit runs. `options/calendar-*` is untracked because calendar names are
+personal. The card runs `cal.sh` directly, so it must stay mode 100755. Its
+FileViews use `blockAllReads`, and its month, year and day readers queue per key.
+See `docs/calendar.md`.
+
 ### Capture bar (Super+Shift+S / Super+Shift+R)
 
 `quickshell/capture/shell.qml` is the on-demand screenshot/recording strip
@@ -406,7 +440,7 @@ skipped, since lookups fall back past them.
 
 ### User preferences (`options/`)
 
-Simple text files (one value per file) that scripts read at runtime: `browser`, `terminal`, `editor`, `codeeditor`, `filemanager`, `font`, `font-gtk`, `launchertype`, `mainmonitor`, `cursortheme`, `aurhelper` (the AUR update command, `paru -Syu` by default), the login switches `autologin` (lock the screen after an autologin), `protonvpn` and `randomwallpaper` (on when the file says `enabled`, off otherwise, empty included), `capture-freeze`, `capture-shot-target`, `capture-rec-target`, `capture-delay`, `capture-annotate`, `capture-audio`, `capture-mic` (the capture strip's, untracked: a missing file is the default), `clock`, and the settings panel's Bar page modes `bar-cpu`, `bar-memory`, `bar-gpu`, `bar-disk`, `bar-network`, `bar-updates` and layout `bar-position`, `bar-style`, `bar-opacity`, `bar-border`, `bar-output` (empty = every monitor), `clock-seconds`, `bar-workspaces` (see `docs/settings-panel.md`). `wallpaper` is a symlink to `~/.cache/current_wallpaper`, maintained by `wall.sh`. Scripts read these directly (`cat` or `read -r`) and use the value as-is. `mainmonitor` and `bar-output` are the value preferences that are legitimately empty: empty means "no preference" (for `bar-output`, every monitor), and every consumer resolves it itself. hyprlock draws on every monitor via `$monitor =` in `hardware/primary.conf`; `wall.sh`, `restore-wallpaper.sh`, and both SDDM scripts fall back to whichever monitor awww reports first. Nothing guesses a connector name: a tracked default such as `DP-1` or `eDP-1` is wrong on the next machine, which `scripts/doctor/checks/hardware.sh` guards. `hypr/config/hardware/monitor.lua` is host-neutral for the same reason (per-machine rules live in the untracked `~/.local/state/hypr/monitors.lua`, written by the settings panel's Displays page and loaded if present) and uses `highres@highrr`, not `preferred` or bare `highrr`: measured on a 2560x1440 144 Hz panel, `preferred` selected 2560x1440@59.951, while applying the combined form from 1024x768@60 selected 2560x1440@143.998.
+Simple text files (one value per file) that scripts read at runtime: `browser`, `terminal`, `editor`, `codeeditor`, `filemanager`, `font`, `font-gtk`, `launchertype`, `mainmonitor`, `cursortheme`, `aurhelper` (the AUR update command, `paru -Syu` by default), the login switches `autologin` (lock the screen after an autologin), `protonvpn` and `randomwallpaper` (on when the file says `enabled`, off otherwise, empty included), `capture-freeze`, `capture-shot-target`, `capture-rec-target`, `capture-delay`, `capture-annotate`, `capture-audio`, `capture-mic` (the capture strip's, untracked: a missing file is the default), `clock`, the calendar's `calendar-hidden`, `calendar-default`, `calendar-alert`, `calendar-duration` and `calendar-declined` (untracked, since calendar names are personal), and the settings panel's Bar page modes `bar-cpu`, `bar-memory`, `bar-gpu`, `bar-disk`, `bar-network`, `bar-updates`, `bar-agenda` and layout `bar-position`, `bar-style`, `bar-opacity`, `bar-border`, `bar-output` (empty = every monitor), `clock-seconds`, `bar-workspaces` (see `docs/settings-panel.md`). `wallpaper` is a symlink to `~/.cache/current_wallpaper`, maintained by `wall.sh`. Scripts read these directly (`cat` or `read -r`) and use the value as-is. `mainmonitor` and `bar-output` are the value preferences that are legitimately empty: empty means "no preference" (for `bar-output`, every monitor), and every consumer resolves it itself. hyprlock draws on every monitor via `$monitor =` in `hardware/primary.conf`; `wall.sh`, `restore-wallpaper.sh`, and both SDDM scripts fall back to whichever monitor awww reports first. Nothing guesses a connector name: a tracked default such as `DP-1` or `eDP-1` is wrong on the next machine, which `scripts/doctor/checks/hardware.sh` guards. `hypr/config/hardware/monitor.lua` is host-neutral for the same reason (per-machine rules live in the untracked `~/.local/state/hypr/monitors.lua`, written by the settings panel's Displays page and loaded if present) and uses `highres@highrr`, not `preferred` or bare `highrr`: measured on a 2560x1440 144 Hz panel, `preferred` selected 2560x1440@59.951, while applying the combined form from 1024x768@60 selected 2560x1440@143.998.
 
 ### AI agent harness (`claude/`, `codex/`)
 
@@ -438,6 +472,7 @@ is the Claude Code status line.
   - Media: `medialib.sh` is a sourced helper that picks *which* player the waybar module follows (first `Playing`, else first with a title). `mediaexec.sh` renders it (waybar JSON, or one plain line for hyprlock with `--plain`) and `mediactl.sh` drives transport through the same choice, so the title shown and the player controlled can never diverge. Successful local controls signal Waybar for an immediate refresh; the five-second poll only catches changes made inside a player. There is deliberately no stored player preference — bare `playerctl` picks by bus registration order, and selecting per-poll is what removed the old left-click scope toggle.
 - `waybar/` — Bar management (`waybar.sh`, `waybartoggle.sh`), the Bar page renderers (`bar-modes.sh`, `clock-format.sh`), the `network.sh` and `updates.sh` modules, `build-workspaces.sh`, plus `battery.sh`: the battery module for the whole machine. It reads `/sys/class/power_supply` directly because waybar's own module counts only `SCOPE=System` and so reports nothing on a desktop whose only batteries are peripherals. `SCOPE` selects behaviour rather than filtering — `Device` peripherals stay hidden until they fall below 25% (the module appearing is the warning, which is what keeps it stateless), while system batteries are always visible and accumulate, with the alert class taking the minimum across discharging ones. A powered-off peripheral keeps its node *and* its last reading, so `POWER_SUPPLY_ONLINE` present-and-`0` is the skip test; a laptop battery has no `ONLINE` at all and must not be caught by it. Charge state is trusted for system batteries only. `BATTERY_SYSFS` overrides the scan root — that seam is how `test-battery.sh` runs without hardware, and how the bar is screenshotted with the module forced visible without editing a tracked file.
 - `devices/` — `devices.sh`, the one reader of wireless peripheral batteries and connection state (USB headsets through the optional `headsetcontrol`); Waybar's battery module, the low-battery toast (`battery-alert.sh`) and the panel's Devices page all consume its JSON
+- `calendar/` — `sync.sh`, the only iCloud path, and `cal.sh`, the only khal reader and writer (see Calendar); `ics-edit.py` and `declined.py` are the Python helpers
 - `capture/` — `record.sh`, the only driver of gpu-screen-recorder, and `toast.sh`, the shared saved toast (see Capture bar); `fakes/` are test stubs
 - `updates/` — the update card's planner and runner (`updates-plan.sh`, `updates-run.sh`), `terminal.sh` for the terminal paths, and the Node modules `fold.mjs` and `tooltip.mjs` (see Update card)
 - `settings/` — the panel's request runner (`panel-request.sh`), default file manager and terminal wiring (`file-manager.sh`, `terminal.sh`), and `update.sh`, the terminal update (AUR helper from `options/aurhelper`, then Flatpak)
@@ -451,7 +486,7 @@ is the Claude Code status line.
 - `hooks/` — the git hooks (`pre-commit`, `post-merge`, with `post-checkout` a symlink to it) and `snapshot.sh`
 - `lib/` — sourced helpers: `assert.sh` (test assertions), `deploy.sh` (the installer's copy and backup plan), `hypr-vars.sh`, and `wallpaper.sh` (which image is the current wallpaper)
 
-Scripts are bash, apart from the two Node modules in `updates/` and one Python test stub in `capture/fakes/`. They check for command existence before running and read preferences from `options/`.
+Scripts are bash, apart from the two Node modules in `updates/`, one Python test stub in `capture/fakes/`, and `calendar/ics-edit.py` and `calendar/declined.py`, which are Python because time zones and recurrence exceptions need khal's `icalendar`. They check for command existence before running and read preferences from `options/`.
 
 ### API keys
 
@@ -504,6 +539,7 @@ scripts/doctor/
 │   ├── hardware.sh          # check_hardware   — /sys/class/drm present set vs tracked files
 │   ├── autostart.sh         # check_autostart  — per-user XDG autostart entries whose program is missing
 │   ├── ssh.sh               # check_ssh        — from hypr/config/setup/envvars.lua and scripts/ssh/setup.sh
+│   ├── calendar.sh          # check_calendar   — from scripts/calendar/calendar-sync.timer and the keyring
 │   └── defaults.sh          # check_defaults   — from envvars.lua's hl.env(apps.*) lines, options/, mimeapps.list
 └── test/
     ├── run-tests.sh         # Dependency-free harness; auto-discovers test-*.sh

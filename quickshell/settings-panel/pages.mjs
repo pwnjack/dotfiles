@@ -6,7 +6,7 @@
 // Sidebar clusters, in order. A gap is drawn wherever the group changes.
 export const GROUPS = ["look", "connectivity", "hardware", "input", "system"]
 // Pages drawn mostly by their own view; they need no catalog sections.
-export const CUSTOM_PAGES = ["monitors", "network", "devices", "startup", "about"]
+export const CUSTOM_PAGES = ["monitors", "network", "devices", "calendar", "startup", "about"]
 // controller.action() ids a catalog section button may run (backend.js op "action").
 export const SECTION_ACTIONS = ["reload", "waybar", "update"]
 

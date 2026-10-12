@@ -32,6 +32,7 @@ checkout.
 | `Super + Alt + S` | Screenshot a region and annotate |
 | `Super + Shift + S` | Capture bar: screenshot |
 | `Super + Shift + R` | Capture bar: record, or stop |
+| `Super + Shift + E` | New calendar event |
 | `Super + G` | Code editor (`options/codeeditor`) |
 | `Super + K` | Calculator |
 | `Super + A` | AI assistant sidebar |

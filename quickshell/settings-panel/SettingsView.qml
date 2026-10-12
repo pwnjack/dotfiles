@@ -424,6 +424,12 @@ FocusScope {
                             controller: view.controller
                             theme: view
                         }
+                        CalendarView {
+                            visible: view.customPage === "calendar"
+                            Layout.fillWidth: true
+                            controller: view.controller
+                            theme: view
+                        }
                         Label {
                             objectName: "noSettingsMatch"
                             // Never under a custom view: its rows are legitimately empty of generic controls.

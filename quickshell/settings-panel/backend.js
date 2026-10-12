@@ -1,7 +1,7 @@
 import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import GioUnix from "gi://GioUnix"
-import { execAsync } from "./process.js"
+import { execAsync, execInput } from "./process.js"
 import { checkedHyprctl } from "./hyprctl.js"
 import * as persist from "./persist.js"
 import { pulseState, pulseValue, pulseEnumerators, setPulse } from "./pulse.js"
@@ -12,6 +12,7 @@ import { nmSnapshot, setWifiEnabled, requestScan, activate, addAndActivate, deac
 import * as network from "./network.mjs"
 import * as autostart from "./autostart.mjs"
 import { regionValue, regionEnumerators, setRegion } from "./region.js"
+import * as calendar from "./calendar.mjs"
 
 const configDir = GLib.get_home_dir() + "/.config"
 const catalog = JSON.parse(read(configDir + "/quickshell/settings-panel/catalog.json"))
@@ -245,6 +246,12 @@ const enumerators = {
     "power-profiles": async () => (await execAsync(["powerprofilesctl", "list"])).split("\n")
         .map(line => line.match(/^\*?\s*([\w-]+):$/)).filter(Boolean)
         .map(([, name]) => ({ label: name.replace(/(^|-)(\w)/g, (_, dash, c) => (dash ? " " : "") + c.toUpperCase()), value: name })),
+    calendars: async () => {
+        // cal.sh exits 1 with {"ok":false} when it cannot list; that leaves the row with no choices.
+        let calendars = []
+        try { calendars = JSON.parse(await execAsync(["bash", configDir + "/scripts/calendar/cal.sh", "calendars"])) } catch (_) {}
+        return Array.isArray(calendars) ? calendars.filter(c => c.writable).map(c => ({ label: c.name, value: c.name })) : []
+    },
     ...pulseEnumerators,
     ...regionEnumerators,
 }
@@ -336,7 +343,23 @@ async function restart(name) {
     }
     else await execAsync(["pgrep", "-x", name])
 }
-async function saveAndApply(path, text, apply) {
+// A select or switch whose unset file reads as a default (bar-agenda, calendar-alert,
+// calendar-duration, calendar-declined) or as the first writable calendar (calendar-default).
+// Other rows keep reporting a missing file, so a save never recreates a file it has not read.
+const unsetReadsDefault = row => row.source === "option" && (row.kind === "select" || row.kind === "toggle")
+    && (row.default !== undefined || row.choices === "calendars")
+// The file did not exist: a rollback removes it again, so the row reads its default afterwards.
+async function saveNew(path, text, apply) {
+    write(path, text)
+    try { await apply() }
+    catch (error) {
+        try { remove(path); await apply() }
+        catch (rollback) { throw new Error(`${error.message}. Restoring the previous settings also failed: ${rollback.message}`) }
+        throw new Error(`${error.message}. Previous settings restored.`)
+    }
+}
+async function saveAndApply(path, text, apply, createMissing = false) {
+    if (createMissing && !exists(path)) return saveNew(path, text, apply)
     const before = read(path)
     write(path, text)
     try { await apply() }
@@ -545,7 +568,13 @@ async function snapshot(ids, includeMonitors, views = {}) {
                 break
             }
             case "option":
-                value = readOption(row.key)
+                // A select with a default (bar-agenda, calendar-alert, calendar-duration) and the calendar
+                // choice read a missing file as what their scripts use. Other rows still report it as missing,
+                // so a save never recreates a file it has not read.
+                // A switch's default is a boolean; its file holds "enabled" or "disabled".
+                if (unsetReadsDefault(row)) value = exists(optionPath(row.key)) ? readOption(row.key)
+                    : row.kind === "toggle" ? (row.default ? "enabled" : "disabled") : (row.default ?? "")
+                else value = readOption(row.key)
                 if (row.kind === "slider") {
                     // Read the way scripts/waybar/bar-modes.sh does: plain digits in
                     // range, anything else is the default the bar actually uses.
@@ -574,7 +603,13 @@ async function snapshot(ids, includeMonitors, views = {}) {
             }
             if (row.default !== undefined) reset = value !== row.default
             const extra = note ? { note } : {}
-            values[id] = row.choices ? { value, reset, ...extra, choices: await choicesFor(row, value, once) } : { value, reset, ...extra }
+            if (!row.choices) values[id] = { value, reset, ...extra }
+            else {
+                const choices = await choicesFor(row, value, once)
+                // An unset or vanished calendar-default is the first writable calendar, which is what the card uses.
+                if (row.choices === "calendars" && !choices.some(item => item.value === value)) value = choices[0]?.value ?? ""
+                values[id] = { value, reset, ...extra, choices }
+            }
         } catch (error) { values[id] = { error: error.message } }
     }))
     const result = { values }
@@ -681,6 +716,7 @@ async function change(request) {
             if (row.key === "font" || row.key === "font-gtk") await execAsync(["bash", configDir + "/scripts/fonts/apply-font.sh"])
             if (row.key === "clock" || row.key === "clock-seconds") await execAsync(["bash", configDir + "/scripts/waybar/clock-format.sh"])
             if (row.key.startsWith("bar-")) await execAsync(["bash", configDir + "/scripts/waybar/bar-modes.sh"])
+            if (row.key === "bar-agenda" || row.key.startsWith("calendar-")) await execAsync(["bash", configDir + "/scripts/calendar/sync.sh", "--render"])
             // Every app's "Show in folder" asks D-Bus, which this points at the new choice.
             if (row.key === "filemanager") await execAsync(["bash", configDir + "/scripts/settings/file-manager.sh"])
             // Desktop entries with Terminal=true open through xdg-terminal-exec, which this points at the new choice.
@@ -688,7 +724,7 @@ async function change(request) {
             // The Lua configuration reads these options at parse time.
             if (row.reload) await persistReload()
             if (row.key === "cursortheme") await cursor(readOption(row.key), Number(await execAsync(["gsettings", "get", ...gsettingsArgs("cursor-size")])))
-        })
+        }, unsetReadsDefault(row))
     }
     case "cursor": {
         const size = Number(await execAsync(["gsettings", "get", ...gsettingsArgs("cursor-size")]))
@@ -951,7 +987,47 @@ export async function dispatch(request) {
         detached(request.id === "waybar" ? ["bash", path] : [readOption("terminal") || "ghostty", "-e", path])
         return {}
     }
+    if (request.op === "calendarStatus") {
+        const runtime = GLib.getenv("CALENDAR_RUNTIME_DIR") || (GLib.getenv("XDG_RUNTIME_DIR") || "/tmp") + "/calendar"
+        let status = null
+        try { status = JSON.parse(read(runtime + "/status.json")) } catch (error) { status = null }
+        // secret-tool exits 1 with no output for an item that is not stored: that is signed out.
+        // Any other failure means the keyring could not be read, and the reader must say so.
+        let account = ""
+        try { account = await execAsync(["secret-tool", "lookup", "service", "calendar-icloud", "field", "username"]) }
+        catch (error) { if (error.status !== 1 || error.stderr) throw error }
+        let calendars = []
+        if (account) {
+            // cal.sh prints {"ok":false,"error":…} and exits 1 when it cannot list.
+            try { calendars = JSON.parse(await execAsync(["bash", configDir + "/scripts/calendar/cal.sh", "calendars"])) }
+            catch (error) { throw new Error(helperFailure(error)) }
+            if (!Array.isArray(calendars)) throw new Error("cal.sh did not list the calendars")
+        }
+        const hidden = exists(optionPath("calendar-hidden")) ? readOption("calendar-hidden").split("\n").map(s => s.trim()).filter(Boolean) : []
+        return { calendar: { account, status, line: calendar.statusLine(status, Math.floor(Date.now() / 1000), account),
+            calendars: calendars.map(c => ({ ...c, shown: !hidden.includes(c.name) })) } }
+    }
+    if (request.op === "calendarSignIn") {
+        await execInput(calendar.signInCommand(configDir), calendar.signInInput(String(request.appleId || ""), String(request.password || "")))
+        return {}
+    }
+    if (request.op === "calendarSignOut") { await execAsync(["bash", configDir + calendar.SETUP, "--sign-out"]); return {} }
+    if (request.op === "calendarSync") { detached(["bash", configDir + "/scripts/calendar/sync.sh"]); return {} }
+    if (request.op === "calendarShow") {
+        if (typeof request.name !== "string" || /[\r\n]/.test(request.name)) throw new Error("Invalid calendar name")
+        // A failed render restores the list (or removes a file that did not exist), as an option save does.
+        const path = optionPath("calendar-hidden")
+        const before = exists(path) ? readOption("calendar-hidden") : ""
+        await saveAndApply(path, calendar.toggleHidden(before, request.name, request.shown === true),
+            () => execAsync(["bash", configDir + "/scripts/calendar/sync.sh", "--render"]), true)
+        return {}
+    }
     throw new Error("Unknown operation")
+}
+// The message cal.sh (or any helper that prints {"ok":false,"error"}) gave for a failed run.
+function helperFailure(error) {
+    try { const reply = JSON.parse(error.stdout); if (reply && reply.error) return String(reply.error) } catch (_) { /* not JSON */ }
+    return error.message
 }
 async function persistReload() {
     await checkedHyprctl(["reload"])

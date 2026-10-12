@@ -1,0 +1,7 @@
+[Unit]
+Description=Sync iCloud calendars (scripts/calendar/sync.sh)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash %h/.config/scripts/calendar/sync.sh

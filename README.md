@@ -39,6 +39,8 @@ you have no login manager, type `start-hyprland` in the console.
   accessibility, date and region, startup apps and default apps, without
   editing config files.
 - **Capture bar** for screenshots and screen recording, with annotation.
+- **iCloud calendar** beside the clock, with the next event on the bar and a
+  card to add, edit and delete events ([docs](docs/calendar.md)).
 - **Wallpaper carousel**, a searchable **keybindings overlay**, and an
   **update card** that runs system updates from the bar.
 - **Native workspace dots** on the bar, with smooth animation.

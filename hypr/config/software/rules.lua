@@ -133,5 +133,6 @@ layer("blur-wallpaper-carousel", "^(wallpaper-carousel)$", { blur = true, ignore
 layer("blur-keybinds-overlay", "^(keybinds-overlay)$", { blur = true, ignore_alpha = 0.1, xray = false })
 layer("blur-updates-popover", "^(updates-popover)$", { blur = true, ignore_alpha = 0.1, xray = false })
 layer("blur-capture-bar", "^(capture-bar)$", { blur = true, ignore_alpha = 0.1, xray = false })
+layer("blur-calendar-card", "^(calendar-card)$", { blur = true, ignore_alpha = 0.1, xray = false })
 -- No close animation: the strip must be gone from the screen before its capture starts.
 layer("noanim-capture-bar", "^(capture-bar)$", { no_anim = true })

@@ -6,7 +6,7 @@ const catalog = JSON.parse(fs.readFileSync(new URL('../catalog.json', import.met
 assert.deepEqual(pages.validateCatalog(catalog), [])
 // Appearance leads: it is the page the panel opens on, so the panel opens at the top of the list.
 assert.deepEqual(catalog.categories.map(c => c.id), ['appearance', 'bar', 'windows', 'animations', 'notifications',
-    'network', 'devices', 'monitors', 'sound', 'power', 'input', 'accessibility', 'region', 'startup', 'apps', 'about'])
+    'network', 'devices', 'monitors', 'sound', 'power', 'input', 'accessibility', 'region', 'calendar', 'startup', 'apps', 'about'])
 // Row ids are API: requests, live tags and saved overrides name them. A re-home never renames one.
 assert.deepEqual(catalog.rows.map(row => row.id).sort(), ["a11y.text-scale", "a11y.zoom", "anim.border", "anim.fade",
     "anim.master", "anim.windows", "anim.windowsIn", "anim.windowsMove", "anim.windowsOut", "anim.workspaces",
@@ -15,8 +15,9 @@ assert.deepEqual(catalog.rows.map(row => row.id).sort(), ["a11y.text-scale", "a1
     "appearance.gaps-out", "appearance.gtk-theme", "appearance.icon-theme", "appearance.kvantum",
     "appearance.opacity-active", "appearance.opacity-inactive", "appearance.rounding", "appearance.shadows",
     "apps.aurhelper", "apps.browser", "apps.codeeditor", "apps.editor", "apps.filemanager", "apps.launcher",
-    "apps.terminal", "bar.border", "bar.clock-seconds", "bar.cpu", "bar.disk", "bar.gpu", "bar.memory", "bar.network",
-    "bar.opacity", "bar.output", "bar.position", "bar.style", "bar.updates", "bar.workspaces", "input.accel-profile",
+    "apps.terminal", "bar.agenda", "bar.border", "bar.clock-seconds", "bar.cpu", "bar.disk", "bar.gpu", "bar.memory", "bar.network",
+    "bar.opacity", "bar.output", "bar.position", "bar.style", "bar.updates", "bar.workspaces",
+    "calendar.alert", "calendar.declined", "calendar.default", "calendar.duration", "input.accel-profile",
     "input.dwt", "input.follow-mouse", "input.hide-cursor", "input.kb-layout", "input.kb-options", "input.kb-variant",
     "input.left-handed", "input.natural-scroll", "input.no-warps", "input.numlock", "input.repeat-delay",
     "input.repeat-rate", "input.scroll-factor", "input.sensitivity", "input.tap-to-click", "mime.archives", "mime.audio",

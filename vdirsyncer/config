@@ -1,0 +1,27 @@
+# iCloud calendars <-> a local copy that khal, the bar and the calendar card read.
+# Run only through scripts/calendar/sync.sh (timer, card, panel). Nothing personal
+# lives here: the Apple ID and the app-specific password come from the GNOME
+# keyring (scripts/calendar/setup.sh stores them).
+[general]
+status_path = "~/.local/state/vdirsyncer/status/"
+
+[pair icloud]
+a = "icloud_remote"
+b = "icloud_local"
+collections = ["from a"]
+metadata = ["displayname", "color"]
+# Edited on both sides between two syncs: the phone's version is kept.
+conflict_resolution = "a wins"
+
+[storage icloud_remote]
+type = "caldav"
+url = "https://caldav.icloud.com/"
+username.fetch = ["command", "secret-tool", "lookup", "service", "calendar-icloud", "field", "username"]
+password.fetch = ["command", "secret-tool", "lookup", "service", "calendar-icloud", "field", "password"]
+# Reminders lists are CalDAV collections too; only events are wanted.
+item_types = ["VEVENT"]
+
+[storage icloud_local]
+type = "filesystem"
+path = "~/.local/share/calendars/icloud/"
+fileext = ".ics"
