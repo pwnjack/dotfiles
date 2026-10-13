@@ -18,13 +18,16 @@
 #
 # First stdout line: <VERDICT> pane=... report=... elapsed=...
 #   REPORT 0  report written; pane closed      BLOCKED 3  approval or question
-#   NOREPORT 4  worked, wrote no report        QUOTA 5  usage limit; pane closed
+#   NOREPORT 4  worked, no valid report        QUOTA 5  usage limit; pane closed
 #   GONE 6  pane vanished   NOSTART 7  prompt never landed, or a start gate
 #   NOHERDR 8  no pane made  TIMEOUT 124      usage errors exit 2, no verdict
 # The pane stays open on BLOCKED, NOREPORT, NOSTART and TIMEOUT: read it,
 # answer or re-prompt with `herdr agent prompt`, then run --wait, and close it
 # with `herdr pane close` when done with it. DELEGATE_KEEP=1 keeps it open on
 # REPORT too, for a fix round that resumes it; QUOTA still closes it.
+# A report that breaks the contract (a missing or extra key, concerns as one
+# string, two objects) is NOREPORT: it is moved to <report>.invalid, so a
+# --wait after re-prompting waits for a fresh one. It is judged from one read.
 # --resume sends the message plus the report request with a fresh report path
 # (an old path would return the previous report at once) and keeps the pane.
 #
@@ -36,7 +39,7 @@ set -uo pipefail
 
 here=$(dirname "$(readlink -f "$0")")
 poll=${DELEGATE_POLL:-3} quiet=${DELEGATE_QUIET:-20} land=${DELEGATE_LAND:-45}
-start=$(date +%s) kind='' pane='' report='' model='' effort='' msg='' waiting='' landed=0
+start=$(date +%s) kind='' pane='' report='' model='' effort='' msg='' waiting='' landed=0 note='' body=
 
 CLAUDE_STANDARD="haiku sonnet opus"
 CLAUDE_PLUGINS_OFF='{"enabledPlugins":{"superpowers@anthropic-plugin-directory":false}}'
@@ -46,6 +49,19 @@ usage() { echo "usage: $0 claude|codex <alias> <effort> <slug> <brief> | --wait 
 newreport() { local f; f=$(mktemp "$dir/$1-XXXXXXXX.json") && rm -f "$f" && echo "$f"; }
 # The report request every prompt ends with; the report path is always new.
 ask() { echo "Finally, even if you failed, write your report to $report as JSON with exactly these keys: status (complete|partial|failed), summary, files_changed, commands_run, tests_run, blockers, concerns."; }
+# Judges one snapshot of the report (the worker may still be writing it):
+# prints what breaks the contract, nothing when it holds, and fails while the
+# snapshot is not yet complete JSON.
+invalid() {
+  jq -rs 'if length == 0 then error("empty") elif length > 1 then "not one JSON object"
+    else .[0] | if type != "object" then "not an object" else
+      [ (keys - ["status", "summary", "files_changed", "commands_run", "tests_run",
+                 "blockers", "concerns"])[],
+        (select((.status | IN("complete", "partial", "failed")) | not) | "status"),
+        (select((.summary | type) != "string") | "summary"),
+        ("files_changed", "commands_run", "tests_run", "blockers", "concerns") as $k
+          | select((.[$k] | type) != "array") | $k ] | join(" ") end end' <<<"$body" 2>/dev/null
+}
 screen() { herdr agent read "$pane" --source visible --format text 2>/dev/null | tail -n "${1:-40}"; }
 status() { herdr agent get "$pane" 2>/dev/null | jq -r '.result.agent.agent_status // "gone"' 2>/dev/null || echo gone; }
 # Checked only once the worker is idle, on the bottom of the screen, for the
@@ -53,8 +69,9 @@ status() { herdr agent get "$pane" 2>/dev/null | jq -r '.result.agent.agent_stat
 quota() { screen 15 | grep -qiE "hit your usage limit|(usage|rate) limit (reached|exceeded)|not supported when using codex"; }
 finish() { # verdict exit-code [close]
   echo "$1 pane=$pane report=$report${model:+ model=$model}${effort:+ effort=$effort} elapsed=$(( $(date +%s) - start ))s"
+  [ -z "$note" ] || echo "$note"
   if [ "$1" = REPORT ]; then
-    jq '{status, summary, files_changed, blockers, concerns}' "$report" 2>/dev/null || cat "$report"
+    jq '{status, summary, files_changed, blockers, concerns}' <<<"$body"
   else
     echo "--- screen ---"; screen 40
   fi
@@ -179,7 +196,11 @@ while :; do
     sleep "$poll"; continue
   fi
   st=$(status)
-  if [ "$st" != working ] && jq -e . "$report" >/dev/null 2>&1; then
+  if [ "$st" != working ] && body=$(cat "$report" 2>/dev/null) && bad=$(invalid); then
+    if [ -n "$bad" ]; then
+      mv -f "$report" "$report.invalid"
+      note="report invalid ($bad); moved to $report.invalid"; finish NOREPORT 4
+    fi
     [ "${DELEGATE_KEEP:-}" = 1 ] && finish REPORT 0; finish REPORT 0 close
   fi
   case "$st" in

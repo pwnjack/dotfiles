@@ -85,7 +85,8 @@ and exits with one verdict line (meanings in the script header):
 - `REPORT`: the report is printed; `jq . <report>` for the rest.
 - `BLOCKED`: answer with `herdr agent prompt <pane> "..."` when the answer is
   unambiguous, otherwise ask the user; then rerun with `--wait <pane> <report>`.
-- `NOREPORT`: prompt once for the report only, then `--wait`.
+- `NOREPORT`: no valid report (a malformed one is moved to `<report>.invalid`
+  and the bad keys printed). Prompt once for the report only, then `--wait`.
 - `QUOTA`: that family is out for the rest of the session; re-route.
 - `NOSTART`, `GONE`, `TIMEOUT`: read the printed screen and report; do not
   silently retry.

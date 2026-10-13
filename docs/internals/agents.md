@@ -73,7 +73,9 @@ task, it belongs in a skill or in this directory.
   path or the marker is present.
 - **The report contract travels in the prompt.** `pane.sh` names the report
   path and its JSON keys in the one-line prompt, so it holds for Claude, which
-  has no `AGENTS.md` report section.
+  has no `AGENTS.md` report section. It also checks the shape: 4 of the first
+  28 reports broke it (`concerns` as one string, `tests_run` as an object), so
+  a malformed report is `NOREPORT` and is moved aside for a fresh one.
 - **Model names.** Skills name aliases (`sonnet`) and Codex codenames (`sol`),
   never pinned IDs, so they survive new generations; `test-skills.sh` enforces
   this. `codex-model.sh` resolves a codename to the newest listed model of that
@@ -174,7 +176,7 @@ task, it belongs in a skill or in this directory.
 - `claude/skills/delegate/test-delegate.sh`: model resolution, the opt-in gate,
   and every `pane.sh` verdict against a stub `herdr`, including the
   hook-review recovery (one Escape, one resend), limit text that is not a quota
-  hit, a resumed `--wait`, `DELEGATE_KEEP`, `--resume`, and the Claude
+  hit, a malformed report (NOREPORT, moved aside), a resumed `--wait`, `DELEGATE_KEEP`, `--resume`, and the Claude
   plugin-off launch argument.
 - `claude/skills/delegate/test-sdd-brief.sh`: every brief kind is filled and
   blind, bad ranges and changed templates are refused, hostile titles and file

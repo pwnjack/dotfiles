@@ -196,6 +196,12 @@ case "$1 $2" in
           { echo "fixing the quota check, upgrade to the new usage limit text"; seq 20; echo "Allow command? y/n"; } > "$S/screen" ;;
         tailmention) st=blocked; printf 'Run: grep "usage limit reached" pane.sh\nAllow command? y/n\n' > "$S/screen" ;;
         noreport) st=idle ;;
+        # a report whose shape breaks the contract (seen: concerns as one string)
+        badreport) echo "${report/\"concerns\":[]/\"concerns\":\"x\"}" > "$(cat "$S/report")"; st=idle ;;
+        extrakey) echo "${report%\}},\"extra\":1}" > "$(cat "$S/report")"; st=idle ;;
+        twoobjects) printf '%s\n%s\n' "$report" "$report" > "$(cat "$S/report")"; st=idle ;;
+        # a report caught mid-write is not complete JSON yet: wait, never REPORT
+        truncreport) echo '{"status":' > "$(cat "$S/report")"; st=idle ;;
         gone) exit 1 ;;
       esac
       echo "$st" > "$S/status"
@@ -254,6 +260,18 @@ verdict mentions    3 BLOCKED  no     # a task that talks about limits is not a 
 verdict tailmention 3 BLOCKED  no     # not even with the words at the bottom of the screen
 verdict earlyblock  3 BLOCKED  no     # an approval question before the first poll
 verdict noreport    4 NOREPORT no
+# A malformed report is no report: moved aside so a --wait after re-prompting
+# waits for a fresh one, and the reason is printed.
+for sc in badreport extrakey twoobjects; do
+  verdict "$sc" 4 NOREPORT no
+  bad=$(cat "$tmp/state-$sc/report")
+  if [ ! -e "$bad" ] && [ -s "$bad.invalid" ]
+  then echo "ok   pane $sc: moved to .invalid"; else echo "FAIL pane $sc: not moved aside"; fail=1; fi
+done
+verdict truncreport 4 NOREPORT no
+bad=$(cat "$tmp/state-truncreport/report")
+if [ -e "$bad" ] && [ ! -e "$bad.invalid" ]
+then echo "ok   pane truncreport: left in place, not judged"; else echo "FAIL pane truncreport: judged a partial write"; fail=1; fi
 verdict nostart     7 NOSTART  no
 verdict gate        7 NOSTART  no
 verdict splitfail   7 NOSTART  no
