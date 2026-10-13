@@ -6,7 +6,12 @@
 #
 #   derived.sh <config dir>
 set -uo pipefail
-# shellcheck disable=SC2034 # used by the steps added to this file
 config_dir=${1:?usage: derived.sh <config dir>}
 status=0
+
+# Font includes for rofi, Waybar and Ghostty (tracked symlinks point at them).
+# The script is absent only in isolated test fixtures.
+if [ -f "$config_dir/scripts/fonts/apply-font.sh" ]; then
+    bash "$config_dir/scripts/fonts/apply-font.sh" --includes >/dev/null || status=1
+fi
 exit "$status"

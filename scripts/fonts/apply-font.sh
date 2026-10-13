@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 #
-# Apply options/font and options/font-gtk to every config that names a font.
-# Run by the settings panel after either option changes; a nonzero exit makes
-# the panel restore the previous option.
+# Render options/font and options/font-gtk into the font includes
+# (~/.local/state/{rofi,waybar,ghostty}, reached through tracked symlinks),
+# Alacritty, GTK and gsettings. `--includes` renders only the three includes
+# (scripts/state/derived.sh runs that after every sync). Tracked files are never
+# edited. Run by the settings panel after either option changes; a nonzero exit
+# makes the panel restore the previous option.
 #
 # Every rofi theme imports rofi/options/font.rasi, so rofi needs one file
 # rewritten rather than each theme. Other fonts named inside themes (the
@@ -35,32 +38,29 @@ sed_escape() { printf '%s' "$1" | sed 's/[\\&|]/\\&/g'; }
 main_sed=$(sed_escape "$main_font")
 gtk_sed=$(sed_escape "$gtk_font")
 
-echo "Main font: $main_font"
-echo "GTK font:  $gtk_font"
-
 failed=0
 
-# Rofi
-printf 'configuration { font: "%s 10"; }\n' "$main_font" > "$config_dir/rofi/options/font.rasi" || failed=1
+state_dir="$HOME/.local/state"
 
-# Waybar. The declaration may be wrapped over several lines, so the substitution
-# runs on the whole file (-z) and [^;]* spans the line break.
-waybar_css="$config_dir/waybar/style.css"
-if [[ -f "$waybar_css" ]]; then
-    sed -z -i -E \
-        "s|font-family:[^;]*;|font-family: \"$main_sed\", \"JetbrainsMono Nerd\", \"Hack Nerd\", sans-serif;|" \
-        "$waybar_css" || failed=1
+# write_if_changed <file> <content> — the include, rewritten only on change so
+# Waybar's style watcher fires for a real change and nothing else.
+write_if_changed() {
+    mkdir -p "$(dirname "$1")" || return 1
+    [ -f "$1" ] && [ "$(cat "$1")" = "$2" ] && return 0
+    printf '%s\n' "$2" > "$1.tmp" && mv -f "$1.tmp" "$1"
+}
+
+write_if_changed "$state_dir/rofi/font.rasi" "configuration { font: \"$main_font 10\"; }" || failed=1
+write_if_changed "$state_dir/waybar/font.css" "$(printf '* {\n    font-family: "%s", "JetbrainsMono Nerd", "Hack Nerd", sans-serif;\n}' "$main_font")" || failed=1
+write_if_changed "$state_dir/ghostty/font" "font-family = \"$main_font\"" || failed=1
+
+if [ "${1:-}" = --includes ]; then
+    [ "$failed" -eq 0 ] || { echo "Some font includes could not be written" >&2; exit 1; }
+    exit 0
 fi
 
-# Ghostty
-ghostty_conf="$config_dir/ghostty/config"
-if [[ -f "$ghostty_conf" ]]; then
-    if grep -q '^font-family = ' "$ghostty_conf"; then
-        sed -i "s|^font-family = .*|font-family = \"$main_sed\"|" "$ghostty_conf" || failed=1
-    else
-        printf '\nfont-family = "%s"\n' "$main_font" >> "$ghostty_conf" || failed=1
-    fi
-fi
+echo "Main font: $main_font"
+echo "GTK font:  $gtk_font"
 
 # Alacritty (untracked, optional)
 alacritty_conf="$config_dir/alacritty/alacritty.toml"
@@ -84,6 +84,13 @@ for gtk_conf in "$config_dir/gtk-3.0/settings.ini" "$config_dir/gtk-4.0/settings
         echo "gtk-font-name=$gtk_font $size$weight" >> "$gtk_conf" || failed=1
     fi
 done
+
+# The GTK files are rendered by the settings overlay; record the change as this
+# machine's override. Absent only in isolated test fixtures.
+overlay="$config_dir/scripts/state/overlay.sh"
+if [[ -f "$overlay" ]]; then
+    bash "$overlay" sync gtk-3.0/settings.ini gtk-4.0/settings.ini >/dev/null || failed=1
+fi
 
 # GTK 4, libadwaita and the settings portal read gsettings, not settings.ini.
 if command -v gsettings >/dev/null; then

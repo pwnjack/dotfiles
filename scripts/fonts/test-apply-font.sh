@@ -17,6 +17,26 @@ HOME="$tmp" PATH="$tmp/bin:$PATH" bash "$script" >/dev/null
 assert_eq "$(cat "$tmp/gsettings.log")" "set org.gnome.desktop.interface font-name Gtk Font 12 @wght=600" \
     "the GTK font, size and weight reach gsettings"
 
+mkdir -p "$tmp/.config/waybar" "$tmp/.config/ghostty"
+printf '* {\n    border: none;\n}\n' > "$tmp/.config/waybar/style.css"
+printf 'config-file = ?font\n' > "$tmp/.config/ghostty/config"
+style_before=$(cat "$tmp/.config/waybar/style.css"); ghostty_before=$(cat "$tmp/.config/ghostty/config")
+HOME="$tmp" PATH="$tmp/bin:$PATH" bash "$script" >/dev/null
+assert_eq "$(cat "$tmp/.local/state/rofi/font.rasi")" 'configuration { font: "Main Font 10"; }' "rofi include rendered"
+assert_eq "$(cat "$tmp/.local/state/waybar/font.css")" "$(printf '* {\n    font-family: "Main Font", "JetbrainsMono Nerd", "Hack Nerd", sans-serif;\n}')" "waybar include rendered"
+assert_eq "$(cat "$tmp/.local/state/ghostty/font")" 'font-family = "Main Font"' "ghostty include rendered"
+assert_eq "$(cat "$tmp/.config/waybar/style.css")" "$style_before" "style.css is never edited"
+assert_eq "$(cat "$tmp/.config/ghostty/config")" "$ghostty_before" "ghostty/config is never edited"
+
+rm -rf "$tmp/.local/state" "$tmp/gsettings.log"
+rm "$tmp/.config/options/font"
+gtk_before=$(cat "$tmp/.config/gtk-3.0/settings.ini")
+HOME="$tmp" PATH="$tmp/bin:$PATH" bash "$script" --includes >/dev/null
+assert_contains "$(cat "$tmp/.local/state/rofi/font.rasi")" "FiraCode Nerd Font" "--includes falls back to the default font"
+assert_eq "$(cat "$tmp/.config/gtk-3.0/settings.ini")" "$gtk_before" "--includes leaves GTK alone"
+assert_eq "$([ -e "$tmp/gsettings.log" ] && echo yes || echo no)" "no" "--includes leaves gsettings alone"
+echo "Main Font" > "$tmp/.config/options/font"
+
 printf '#!/bin/sh\nexit 1\n' > "$tmp/bin/gsettings"
 if HOME="$tmp" PATH="$tmp/bin:$PATH" bash "$script" >/dev/null 2>&1; then
     fail "a failed gsettings write must fail the script"

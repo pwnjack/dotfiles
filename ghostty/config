@@ -7,8 +7,6 @@
 # included below via `config-file = ?colors` (ghostty/colors is a symlink
 # to the rendered file).
 
-font-family = "FiraCode Nerd Font"
-
 # Conventional keybinds
 keybind = ctrl+shift+c=copy_to_clipboard
 keybind = ctrl+shift+v=paste_from_clipboard
@@ -19,5 +17,8 @@ keybind = ctrl+enter=unbind
 
 # pywal colors
 config-file = ?colors
+# The font, rendered from options/font by scripts/fonts/apply-font.sh
+# (ghostty/font is a symlink into ~/.local/state).
+config-file = ?font
 # Every wallpaper change reloads the config; keep that silent
 app-notifications = no-config-reload
