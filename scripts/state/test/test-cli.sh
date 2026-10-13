@@ -80,11 +80,25 @@ assert_eq "$(readlink "$fresh/options/wallpaper")" "../../.cache/current_wallpap
 # --replace '' replaces without any backup.
 bare="$tmp/bare"
 make_tree "$bare"
-mkdir -p "$bare/gtk-3.0"
+mkdir -p "$bare/gtk-3.0" "$tmp/nobackup"
 printf '[Settings]\ngtk-theme-name=Old\n' > "$bare/gtk-3.0/settings.ini"
-(cd "$tmp" && env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state3" bash "$bare/scripts/state/overlay.sh" sync --replace '')
+env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state3" bash "$bare/scripts/state/overlay.sh" sync --replace ''
 assert_eq "$(cat "$bare/gtk-3.0/settings.ini")" "$(printf '[Settings]\ngtk-theme-name=Kripton')" "--replace '' replaces the stale file"
-assert_eq "$(find "$tmp" -maxdepth 1 -name 'backup*' | wc -l)" "1" "--replace '' creates no backup directory"
+assert_eq "$(find "$tmp/nobackup" -mindepth 1 | wc -l)" "0" "--replace '' creates nothing under an unused backup parent"
+assert_eq "$([ -e "$tmp/backup3" ] && echo yes || echo no)" "no" "--replace '' creates no backup directory"
+
+# --replace ignores stale live content but keeps recorded overrides.
+keep="$tmp/keep"
+make_tree "$keep"
+mkdir -p "$keep/gtk-3.0" "$tmp/state6/overrides/options" "$tmp/state6/overrides/gtk-3.0"
+printf 'firefox\n' > "$tmp/state6/overrides/options/browser"
+printf 'old\n' > "$keep/options/browser"
+printf '[Settings]\ngtk-theme-name=Adwaita\n' > "$tmp/state6/overrides/gtk-3.0/settings.ini"
+printf '[Settings]\ngtk-theme-name=Old\n' > "$keep/gtk-3.0/settings.ini"
+env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state6" bash "$keep/scripts/state/overlay.sh" sync --replace ''
+assert_eq "$(cat "$keep/options/browser")" "firefox" "--replace keeps a recorded option override"
+assert_eq "$(cat "$tmp/state6/overrides/options/browser")" "firefox" "--replace keeps the option override recorded"
+assert_contains "$(cat "$keep/gtk-3.0/settings.ini")" "gtk-theme-name=Adwaita" "--replace keeps a recorded ini override"
 
 # --replace on options: declared keys are replaced, per-machine keys stay live.
 opt="$tmp/opt"

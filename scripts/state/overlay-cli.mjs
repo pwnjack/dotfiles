@@ -117,7 +117,9 @@ function syncTarget(target, replace) {
         // start from the defaults; options the defaults do not declare are
         // per-machine and stay live, to be adopted as overrides.
         backupLive(target, p.live, replace, defaults)
-        live = isDir ? new Map([...(readDir(p.live) ?? [])].filter(([name]) => !defaults.has(name))) : null
+        // Declared keys carry their default, so harvest sees no change for them
+        // and recorded overrides survive; null skips harvest for file targets.
+        live = isDir ? new Map([...(readDir(p.live) ?? []), ...defaults]) : null
     } else {
         live = load(p.live) // throws on a malformed file: the target is skipped untouched
     }
