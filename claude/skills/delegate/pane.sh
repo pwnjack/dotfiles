@@ -22,7 +22,11 @@
 #   NOHERDR 8  no pane made  TIMEOUT 124      usage errors exit 2, no verdict
 # The pane stays open on BLOCKED, NOREPORT, NOSTART and TIMEOUT: read it,
 # answer or re-prompt with `herdr agent prompt`, then run --wait, and close it
-# with `herdr pane close` when done with it.
+# with `herdr pane close` when done with it. DELEGATE_KEEP=1 keeps it open on
+# REPORT too, for a fix round that resumes it; QUOTA still closes it.
+#
+# Workers start with Superpowers off: a leaf that brainstorms waits for an
+# approval no one gives, and its session text would fill every worker.
 set -uo pipefail
 
 here=$(dirname "$(readlink -f "$0")")
@@ -30,6 +34,8 @@ poll=${DELEGATE_POLL:-3} quiet=${DELEGATE_QUIET:-20} land=${DELEGATE_LAND:-45}
 start=$(date +%s) kind='' pane='' report='' model='' effort='' msg='' waiting='' landed=0
 
 CLAUDE_STANDARD="haiku sonnet opus"
+CLAUDE_PLUGINS_OFF='{"enabledPlugins":{"superpowers@anthropic-plugin-directory":false}}'
+CODEX_PLUGINS_OFF='plugins."superpowers@openai-curated-remote".enabled=false'
 
 usage() { echo "usage: $0 claude|codex <alias> <effort> <slug> <brief> | --wait <pane> <report> [minutes]" >&2; exit 2; }
 screen() { herdr agent read "$pane" --source visible --format text 2>/dev/null | tail -n "${1:-40}"; }
@@ -73,7 +79,8 @@ if [ "$kind" = claude ]; then
     echo "claude $alias runs only on the user's explicit request (DELEGATE_EXPENSIVE=1)" >&2; exit 2; }
   model=$alias
   args=(--model "$alias" --effort "$effort" --append-system-prompt
-        'You are a leaf worker. Do not delegate, spawn subagents, or start other agents. Do the work yourself.')
+        'You are a leaf worker. Do not delegate, spawn subagents, or start other agents. Do the work yourself.'
+        --settings "$CLAUDE_PLUGINS_OFF")
 elif [ "$kind" = codex ]; then
   rc=0; resolved=$("$here/codex-model.sh" "$alias" "$effort") || rc=$?
   case "$rc" in
@@ -106,7 +113,7 @@ print(m if isinstance(m, str) else "")' "${CODEX_CONFIG:-${CODEX_HOME:-$HOME/.co
     fi
   done
   model=${model:-$launched}
-  args=(-c "model_reasoning_effort=$effort")
+  args=(-c "$CODEX_PLUGINS_OFF" -c "model_reasoning_effort=$effort")
   [ -z "$model" ] || args=(-m "$model" "${args[@]}")
 fi
 
@@ -155,7 +162,9 @@ while :; do
     sleep "$poll"; continue
   fi
   st=$(status)
-  if [ "$st" != working ] && jq -e . "$report" >/dev/null 2>&1; then finish REPORT 0 close; fi
+  if [ "$st" != working ] && jq -e . "$report" >/dev/null 2>&1; then
+    [ "${DELEGATE_KEEP:-}" = 1 ] && finish REPORT 0; finish REPORT 0 close
+  fi
   case "$st" in
     working) landed=1 quiet_since= ;;
     blocked) # after --wait, the question just answered can linger for a moment

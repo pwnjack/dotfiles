@@ -185,13 +185,13 @@ case "$1 $2" in
     g=$(( $(cat "$S/gets" 2>/dev/null || echo 0) + 1 )); echo "$g" > "$S/gets"
     st=$(cat "$S/status" 2>/dev/null || echo idle)
     # --wait: the answered question lingers as blocked for two polls, then work resumes
-    if [ "$SCEN" = wait ] && [ "$st" = blocked ] && [ "$g" -ge 2 ]; then st=working g=0; echo 0 > "$S/gets"; echo working > "$S/status"; fi
+    if { [ "$SCEN" = wait ] || [ "$SCEN" = keepwait ]; } && [ "$st" = blocked ] && [ "$g" -ge 2 ]; then st=working g=0; echo 0 > "$S/gets"; echo working > "$S/status"; fi
     if [ "$st" = working ] && [ "$g" -ge 3 ]; then
       case "$SCEN" in
-        happy|wait|claude) echo "$report" > "$(cat "$S/report")"; st=idle ;;
+        happy|wait|claude|keep|keepwait) echo "$report" > "$(cat "$S/report")"; st=idle ;;
         # only a recovered prompt (escape, then exactly one resend) produces the report
         hooks) [ ! -s "$S/screen" ] && [ "$(cat "$S/prompts")" = 2 ] && { echo "$report" > "$(cat "$S/report")"; st=idle; } ;;
-        quota) st=idle; printf 'working\nYou have hit your usage limit. Try again later.\n' > "$S/screen" ;;
+        quota|keepquota) st=idle; printf 'working\nYou have hit your usage limit. Try again later.\n' > "$S/screen" ;;
         mentions) st=blocked
           { echo "fixing the quota check, upgrade to the new usage limit text"; seq 20; echo "Allow command? y/n"; } > "$S/screen" ;;
         tailmention) st=blocked; printf 'Run: grep "usage limit reached" pane.sh\nAllow command? y/n\n' > "$S/screen" ;;
@@ -212,9 +212,10 @@ verdict() {
   mkdir -p "$st"
   [ $# -gt 0 ] || set -- codex sol medium "t-$sc" "$b"
   [ "$sc" = wait ] && { echo blocked > "$st/status"; echo "$tmp/handoff/w.json" > "$st/report"; }
+  [ "$sc" = keepwait ] && { echo blocked > "$st/status"; echo "$tmp/handoff/kw.json" > "$st/report"; }
   out=$(env SCEN="$sc" STATE="$st" PATH="$tmp/bin:$PATH" HERDR_ENV=1 HERDR_PANE_ID=p0 HERDR_TAB_ID=t0 \
     DELEGATE_HANDOFF_DIR="$tmp/handoff" CODEX_MODELS_CACHE="$tmp/real.json" CODEX_CONFIG="$tmp/config-ok.toml" \
-    DELEGATE_POLL=0.1 DELEGATE_QUIET=2 DELEGATE_LAND=3 \
+    DELEGATE_POLL=0.1 DELEGATE_QUIET=2 DELEGATE_LAND=3 DELEGATE_KEEP="${KEEP:-}" \
     "$here/pane.sh" "$@" 2>/dev/null); rc=$?
   [ -e "$st/closed" ] && closed=yes
   if [ "$rc" = "$want" ] && [ "${out%% *}" = "$word" ] && [ "$closed" = "$close" ]; then echo "ok   pane $sc -> $word"
@@ -230,6 +231,13 @@ if grep -qx -- claude "$tmp/state-claude/start" && grep -A1 -x -- --model "$tmp/
 then echo "ok   pane claude: launched as a sonnet leaf worker"; else echo "FAIL pane claude: launch args $(cat "$tmp/state-claude/start")"; fail=1; fi
 if grep -qx -- codex "$tmp/state-happy/start" && grep -A1 -x -- -m "$tmp/state-happy/start" | grep -qx gen9-sol
 then echo "ok   pane codex: launched with the resolved model"; else echo "FAIL pane codex: launch args $(cat "$tmp/state-happy/start")"; fail=1; fi
+# Workers start with Superpowers off: a leaf that brainstorms waits for an
+# approval no one gives. The Codex value must arrive as one argument.
+if grep -A1 -x -- --settings "$tmp/state-claude/start" | tail -1 \
+     | grep -qxF -- '{"enabledPlugins":{"superpowers@anthropic-plugin-directory":false}}'
+then echo "ok   pane claude: Superpowers off in the worker"; else echo "FAIL pane claude: no plugin override"; fail=1; fi
+if grep -A1 -x -- -c "$tmp/state-happy/start" | grep -qxF -- 'plugins."superpowers@openai-curated-remote".enabled=false'
+then echo "ok   pane codex: Superpowers off in the worker"; else echo "FAIL pane codex: no plugin override"; fail=1; fi
 missing=
 for k in status summary files_changed commands_run tests_run blockers concerns; do
   grep -q "\b$k\b" "$tmp/state-claude/msg" || missing="$missing $k"
@@ -251,5 +259,8 @@ verdict splitfail   7 NOSTART  no
 verdict gone        6 GONE     no
 verdict wait        0 REPORT   yes --wait p1 "$tmp/handoff/w.json"   # stale blocked state is not a new block
 verdict timeout     124 TIMEOUT no --wait p1 "$tmp/handoff/none.json" 0
+KEEP=1 verdict keep      0 REPORT  no     # kept open for a fix round
+KEEP=1 verdict keepwait  0 REPORT  no --wait p1 "$tmp/handoff/kw.json"   # and again after the round
+KEEP=1 verdict keepquota 5 QUOTA   yes    # a pane out of quota is closed regardless
 
 exit $fail
