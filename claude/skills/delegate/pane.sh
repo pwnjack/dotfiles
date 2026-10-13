@@ -25,8 +25,10 @@
 # with `herdr pane close` when done with it. DELEGATE_KEEP=1 keeps it open on
 # REPORT too, for a fix round that resumes it; QUOTA still closes it.
 #
-# Workers start with Superpowers off: a leaf that brainstorms waits for an
-# approval no one gives, and its session text would fill every worker.
+# Claude workers start with Superpowers off: a leaf that brainstorms waits for
+# an approval no one gives, and its session text would fill every worker.
+# Codex ignores config switches for a remote plugin, so its workers keep the
+# skill list (no session hook there); the leaf contract in AGENTS.md governs.
 set -uo pipefail
 
 here=$(dirname "$(readlink -f "$0")")
@@ -35,7 +37,6 @@ start=$(date +%s) kind='' pane='' report='' model='' effort='' msg='' waiting=''
 
 CLAUDE_STANDARD="haiku sonnet opus"
 CLAUDE_PLUGINS_OFF='{"enabledPlugins":{"superpowers@anthropic-plugin-directory":false}}'
-CODEX_PLUGINS_OFF='plugins."superpowers@openai-curated-remote".enabled=false'
 
 usage() { echo "usage: $0 claude|codex <alias> <effort> <slug> <brief> | --wait <pane> <report> [minutes]" >&2; exit 2; }
 screen() { herdr agent read "$pane" --source visible --format text 2>/dev/null | tail -n "${1:-40}"; }
@@ -113,7 +114,7 @@ print(m if isinstance(m, str) else "")' "${CODEX_CONFIG:-${CODEX_HOME:-$HOME/.co
     fi
   done
   model=${model:-$launched}
-  args=(-c "$CODEX_PLUGINS_OFF" -c "model_reasoning_effort=$effort")
+  args=(-c "model_reasoning_effort=$effort")
   [ -z "$model" ] || args=(-m "$model" "${args[@]}")
 fi
 

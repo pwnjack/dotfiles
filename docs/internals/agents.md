@@ -119,9 +119,10 @@ task, it belongs in a skill or in this directory.
   treated like `idle`.
 - Headless `codex exec` waits for stdin forever unless given `< /dev/null` (or
   the prompt on stdin), so wrap it in a timeout.
-- `codex exec` does not load remote plugins such as Superpowers (2026-10-13),
-  and `codex plugin list -c ...` ignores the override, so neither probes what a
-  pane worker loads.
+- Codex ignores `plugins."<id>".enabled` for a remote plugin, in
+  `config.toml` and through `-c` alike: `google-drive` set to `false` still
+  loaded in a pane worker (2026-10-13). `codex exec` loads no remote plugins at
+  all, so only a real pane shows what a worker sees.
 - `claude/apply-settings.sh` merges objects key by key, and a tracked hook
   group replaces live hooks that run the same script file. It drops a live hook
   whose `~/.claude/hooks` script is gone, but otherwise never removes a key: a
@@ -136,9 +137,12 @@ task, it belongs in a skill or in this directory.
 - **Superpowers** drives the development workflow: brainstorm, spec, plan,
   test first, review, verify. On Claude it is enabled in the tracked settings
   and `setup.sh` installs it; on Codex it is a remote plugin, installed with
-  `codex plugin add superpowers@openai-curated-remote`, and not tracked. Pane
-  workers start with it off (`pane.sh`): a leaf that brainstorms waits for an
-  approval no one gives, and its session text would fill every worker. Its
+  `codex plugin add superpowers@openai-curated-remote`, and not tracked. Claude
+  pane workers start with it off (`pane.sh`): a leaf that brainstorms waits
+  for an approval no one gives, and its session text would fill every worker.
+  Codex has no working switch for a remote plugin, but its Superpowers ships
+  no session hook, so Codex workers see only the skill list and follow the
+  leaf contract. Its
   plans and specs in `docs/superpowers/` stay local and untracked.
 - **mgrep** was removed on 2026-10-13. Its session hook told agents never to
   use Grep or WebSearch, contradicting the `rg` guidance, and it uploaded every
@@ -161,7 +165,7 @@ task, it belongs in a skill or in this directory.
 - `claude/skills/delegate/test-delegate.sh`: model resolution, the opt-in gate,
   and every `pane.sh` verdict against a stub `herdr`, including the
   hook-review recovery (one Escape, one resend), limit text that is not a quota
-  hit, a resumed `--wait`, `DELEGATE_KEEP`, and the plugin-off launch arguments.
+  hit, a resumed `--wait`, `DELEGATE_KEEP`, and the Claude plugin-off launch argument.
 - `claude/hooks/test-agent-guard.sh`: the guard denies inside Herdr, is silent
   outside it, and is registered once even after two settings merges.
 
