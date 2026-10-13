@@ -336,7 +336,7 @@ comes from `options/clock`. UI words are English, as in the rest of the panel.
 | `scripts/waybar/agenda-bar.sh` | Renders the next-event pill. |
 | `scripts/hyprland/calendar-card.sh` | Launches or toggles the card (`month`, `upcoming`, `new`). |
 | `quickshell/calendar/` | The card, its views and `model.mjs`, which holds the transition table. |
-| `options/bar-agenda` | The pill's mode. Tracked. |
+| `options/bar-agenda` | The pill's mode. Its default is in `defaults/options/`. |
 | `options/calendar-hidden`, `-default`, `-alert`, `-duration`, `-declined` | The calendars to hide, the default calendar, alert and duration, and whether declined invitations show. Untracked, because calendar names are personal. |
 
 The runtime files are `agenda.json`, `status.json` and `draft.json` in

@@ -52,7 +52,8 @@ Deep dives, one per component:
 ├── fish/ ghostty/ nvim/ btop/ cava/ starship/ bat/ fastfetch/ git/
 │                  # Per-app config (starship.toml is a generated symlink)
 ├── gtk-3.0/ gtk-4.0/ qt5ct/ qt6ct/ Thunar/ swappy/ waypaper/ aichat/
-│                  # Toolkit themes and small utilities
+│                  # Toolkit themes and small utilities (their settings files
+│                  # are rendered from defaults/, not tracked)
 ├── spicetify/ vesktop/ zen/   # Spotify, Discord and Zen themes
 ├── pipewire/      # The virtual surround sink
 ├── sddm/          # Login-screen wallpaper sync (see its README)

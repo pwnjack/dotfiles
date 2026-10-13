@@ -24,19 +24,19 @@ In a Hyprlang file a value ends at a `#` comment (`##` is a literal `#`), and a 
 
 `scripts/state/overlay.sh sync` runs, under the lock, for each target:
 
-1. Harvest: a live value that differs from `last/` is a change made here (by a panel, an app or `echo`). It becomes an override, unless it equals the default, in which case the override is dropped. A key missing from the live file is recorded as removed; deleting `options/<key>` therefore resets it to the default.
+1. Harvest: a live value that differs from `last/` is a change made here (by a panel, an app or `echo`). It becomes an override, unless it equals the default, in which case the override is dropped. A key missing from the live file always drops its override. For INI and JSON files the deletion is also recorded in `.removed` and the key stays absent. For `options/` and Hyprlang variables a missing key is a reset, so deleting `options/<key>` returns it to the default.
 2. Render: default plus overrides is written to the live file and to `last/`.
 
 An override equal to its default never survives a sync, so promoting a value to the default needs no clean-up. To make a value the repo default, edit the file under `defaults/` and commit it.
 
-`overlay.sh check` reports overrides that no longer apply. The script does nothing in a tree without `defaults/`, refuses to run unless its tree is `~/.config` (or `OVERLAY_STATE_DIR` is set, which tests use), and needs `node` and `flock`.
+`overlay.sh check` reports an overrides file that does not parse. The script does nothing in a tree without `defaults/`, refuses to run unless its tree is `~/.config` (or `OVERLAY_STATE_DIR` is set, which tests use), and needs `node` and `flock`.
 
 Sync runs:
 
 - at login, from `scripts/hyprland/startup.sh`, in the background so it never delays the lock on autologin;
 - after a pull or branch switch, from the `post-merge` and `post-checkout` hook;
 - on install, with `--replace <backup dir>` (or `--no-backup`, which copies nothing). A live file that predates the overlay is copied to the backup and replaced. `--replace` never deletes before rendering, keeps recorded overrides, and acts only on keys that `defaults/options` declares: per-machine keys with no default (`calendar-*`, `capture-*`) stay and are adopted;
-- from the settings panel after each write it makes.
+- from the settings panel after each write to a rendered file.
 
 Some writers (the calendar and capture Quickshell apps, `echo firefox > options/browser`) write live files directly. The next sync records them; nothing is lost in between.
 
@@ -51,12 +51,14 @@ After each sync `scripts/state/derived.sh` renders what is computed from options
 
 `hypr/hypridle.conf` is tracked and never written. It defines `$lock_timeout` and `$dpms_timeout`, then `source`s `~/.local/state/hypr/hypridle.conf`, which the settings panel writes and which may redefine them and add a suspend listener. The path is fixed because Hyprlang does not expand `XDG_STATE_HOME`.
 
-`hypr/hyprsunset.conf` is rendered from `defaults/hypr/hyprsunset.conf`. Its schedule is four `$variables` (times and temperatures) that the panel's Power page overrides; the profiles refer to them. Edits to the live file outside the `$` lines are replaced on the next render, so change the default instead. `nightlight.sh` resolves profile temperatures through the variables.
+`hypr/hyprsunset.conf` is rendered from `defaults/hypr/hyprsunset.conf`. Its schedule is four `$variables` (times and temperatures) that the panel's Power page overrides; the profiles refer to them. Only variables the default declares are kept. Edits to the live file outside the `$` lines are replaced on the next render, so change the default instead. `nightlight.sh` resolves profile temperatures through the variables.
 
 ## Pull transition
 
 The merge that moved these files into `defaults/` makes git delete the old tracked live files, and `post-merge` renders them again. A pull refuses if one of them has local edits. Recovery: move the files aside, pull, move them back, then run `bash ~/.config/scripts/state/overlay.sh sync`. Adoption records the differences as overrides.
 
+`hypr/hypridle.conf` is the exception. Before the overlay the panel wrote timeouts into that tracked file, so a machine may have it modified, and the pull refuses. Note the timeouts, discard the local edit with `git checkout -- hypr/hypridle.conf`, pull, then set them again in the panel's Power page (or write `$lock_timeout = N` and `$dpms_timeout = N` lines, and any suspend listener, into `~/.local/state/hypr/hypridle.conf`). Moving the old file back would drop the new `source` line, and sync never adopts it.
+
 ## Doctor
 
-`check_state` derives its targets from `defaults/`. It reports a live file that is not rendered, is tracked, or is not ignored, and a tracked `defaults/` path matched by an ignore rule.
+`check_state` derives its targets from `defaults/`. It reports a live file that is not rendered, is tracked, or is not ignored, and a tracked `defaults/` path matched by an ignore rule. It warns about an overrides file that does not parse, and when `XDG_STATE_HOME` differs from `~/.local/state`, because hypridle's `source` path is fixed.

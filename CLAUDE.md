@@ -114,7 +114,7 @@ The workspace dots are one native Waybar CFFI module in `waybar/workspaces/` (C)
 
 ### Machine state (overlay)
 
-Settings a machine changes are not tracked: `defaults/` holds the tracked default of each, the live file at the same path (`options/*`, GTK and Qt settings, `mimeapps.list`, `swaync/config.json`, `hypr/hyprsunset.conf`) is rendered and git-ignored, and this machine's differences live in `~/.local/state/dotfiles/overrides`. `scripts/state/overlay.sh sync` harvests live edits into overrides and re-renders; it runs at login (in the background), after a pull (`post-merge`), on install (`--replace`) and after panel writes. To change a repo default, edit `defaults/` and commit; never track a live file. Never run the overlay scripts against the real `HOME` from a test or a worktree. Details: `docs/internals/state.md`.
+Settings a machine changes are not tracked: `defaults/` holds the tracked default of each, the live file at the same path (`options/*`, GTK and Qt settings, `mimeapps.list`, `swaync/config.json`, `hypr/hyprsunset.conf`) is rendered and git-ignored, and this machine's differences live in `~/.local/state/dotfiles/overrides`. `scripts/state/overlay.sh sync` harvests live edits into overrides and re-renders; it runs at login (in the background), after a pull (`post-merge`), on install (`--replace`) and after panel writes to rendered files. To change a repo default, edit `defaults/` and commit; never track a live file. Never run the overlay scripts against the real `HOME` from a test or a worktree. Details: `docs/internals/state.md`.
 
 ### Settings panel (Super+I)
 
