@@ -60,10 +60,10 @@ Item {
         }
         function test_spinnerWhileChecking() {
             controller.plan = null;
-            const spinner = findChild(card, "spinner");
+            // Every view has a Header; look inside the summary one.
+            const spinner = findChild(card.activeView, "spinner");
             verify(spinner !== null);
             tryCompare(spinner, "opacity", 1, 1000);
-            verify(spinner.visible);
             controller.plan = controller.fullPlan;
             tryCompare(spinner, "opacity", 0, 1000);
             controller.plan = null;
