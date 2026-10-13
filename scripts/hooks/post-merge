@@ -11,6 +11,8 @@
 # ~/.local, and a linked worktree's sources must not replace the live bar's.
 # A tree without the module (e.g. after reverting to the CSS dots, see
 # docs/workspaces-native.md) has no build script, and this does nothing.
+# It also re-renders the machine-state overlay (scripts/state/overlay.sh), so
+# improved defaults arrive with a pull.
 # Post-* hooks cannot fail the git operation; problems are only reported.
 
 if [ "$(basename -- "$0")" = post-checkout ] && [ "${3:-1}" != 1 ]; then
@@ -18,6 +20,13 @@ if [ "$(basename -- "$0")" = post-checkout ] && [ "${3:-1}" != 1 ]; then
 fi
 [ "$(git rev-parse --path-format=absolute --git-dir)" = \
   "$(git rev-parse --path-format=absolute --git-common-dir)" ] || exit 0
+
+# Settings defaults may have changed: re-render this machine's live files.
+overlay="$(git rev-parse --show-toplevel)/scripts/state/overlay.sh"
+if [ -f "$overlay" ]; then
+    bash "$overlay" sync ||
+        echo "git hook: some settings could not be rendered; run scripts/state/overlay.sh sync" >&2
+fi
 
 build="$(git rev-parse --show-toplevel)/scripts/waybar/build-workspaces.sh"
 [ -f "$build" ] || exit 0

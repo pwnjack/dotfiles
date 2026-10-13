@@ -119,7 +119,7 @@ PACKAGES=(
     "zip" "unzip"
     # Native Waybar workspace module (scripts/waybar/build-workspaces.sh)
     "gcc" "make" "pkgconf" "gtk3" "json-glib"
-    # Isolated deployment/hook fixtures and panel persistence tests
+    # Isolated deployment/hook fixtures, panel persistence tests and the settings overlay (scripts/state)
     "python" "nodejs" "gjs"
     # Fonts (configs default to FiraCode Nerd Font)
     "ttf-firacode-nerd" "ttf-cascadia-mono-nerd" "ttf-nerd-fonts-symbols"
@@ -197,6 +197,16 @@ if [ "$DOTFILES_DIR" != "$CONFIG_DIR" ]; then
     [ "$NO_BACKUP" = true ] || info "Backup saved to: $BACKUP_DIR"
 else
     info "Repo already lives at $CONFIG_DIR - no deployment needed"
+fi
+
+# Render this machine's settings: tracked defaults/ plus per-machine overrides
+# (scripts/state/overlay.sh). A live file that predates the overlay is backed up
+# and replaced, as the deploy step replaces a config, so a fresh install starts
+# from the repo's defaults.
+overlay_backup=""
+[ "$NO_BACKUP" = true ] || overlay_backup="$BACKUP_DIR/overlay"
+if ! execute bash "$CONFIG_DIR/scripts/state/overlay.sh" sync --replace "$overlay_backup"; then
+    warning "Some settings could not be rendered; run scripts/state/overlay.sh sync to retry"
 fi
 
 # ------------------------------------------------------------------
