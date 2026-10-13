@@ -6,6 +6,7 @@ Row {
     required property var card
     property int glyph: 0xf06b0
     property bool check: false
+    property bool busy: false
     property color tint: card.accent
     // The mockup's badge fill: 22% normally, 26% for done, 18% for amber.
     property real badgeAlpha: 0.22
@@ -23,10 +24,43 @@ Row {
         Text {
             anchors.centerIn: parent
             visible: !header.check
+            opacity: header.busy ? 0 : 1
+            Behavior on opacity { NumberAnimation { duration: 200 } }
             text: String.fromCodePoint(header.glyph)
             color: header.tint
             font.family: header.card.monoFont
             font.pixelSize: header.card.px(20)
+        }
+        Canvas {
+            id: spinner
+            objectName: "spinner"
+            anchors.fill: parent
+            opacity: header.busy && !header.check ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 200 } }
+            RotationAnimator on rotation {
+                from: 0
+                to: 360
+                duration: 1000
+                easing.type: Easing.Linear
+                loops: Animation.Infinite
+                // Spins through the fade-out instead of freezing mid-turn.
+                running: spinner.opacity > 0 && header.visible
+            }
+            Connections {
+                target: header
+                function onTintChanged() { spinner.requestPaint(); }
+            }
+            onPaint: {
+                const ctx = getContext("2d");
+                ctx.reset();
+                const s = header.card.px(20) / 20;
+                ctx.strokeStyle = header.tint;
+                ctx.lineWidth = 2 * s;
+                ctx.lineCap = "round";
+                ctx.beginPath();
+                ctx.arc(width / 2, height / 2, 7.5 * s, 0, 3 * Math.PI / 2);
+                ctx.stroke();
+            }
         }
         Canvas {
             id: mark

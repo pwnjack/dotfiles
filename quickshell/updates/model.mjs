@@ -202,9 +202,9 @@ export function duration(seconds) {
 // `terminal` names the terminal.sh path the card links to when Update cannot
 // cover everything: AUR (update.sh also runs Flatpak), or Flatpak on its own.
 export function summary(plan, error = '') {
-    const idle = (title, subtitle) => ({ title, subtitle, count: 0, repo: 0, canUpdate: false, note: '', terminal: '' })
+    const idle = (title, subtitle, busy = false) => ({ title, subtitle, count: 0, repo: 0, canUpdate: false, note: '', terminal: '', busy })
     if (error) return idle('Could not check for updates', error)
-    if (!plan) return idle('Checking for updates…', 'Syncing package databases')
+    if (!plan) return idle('Checking for updates…', 'Syncing package databases', true)
     const repo = plan.repo.length, aur = plan.aur.length, flatpak = plan.flatpak || 0
     const count = repo + aur + flatpak
     if (!count) return idle('Up to date', 'Nothing to install')
@@ -216,7 +216,7 @@ export function summary(plan, error = '') {
     return {
         title: `${count} update${count === 1 ? '' : 's'}`,
         subtitle: size + (plan.kernel ? ' · restart needed after' : ''),
-        count, repo, canUpdate: repo > 0, note, terminal,
+        count, repo, canUpdate: repo > 0, note, terminal, busy: false,
     }
 }
 

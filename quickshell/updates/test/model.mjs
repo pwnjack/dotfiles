@@ -215,17 +215,20 @@ assert.equal(model.result(fold('nothing').snap).subtitle, 'Nothing needed updati
 }
 
 // Summary copy.
-assert.deepEqual(model.summary(null), { title: 'Checking for updates…', subtitle: 'Syncing package databases', count: 0, repo: 0, canUpdate: false, note: '', terminal: '' })
+assert.deepEqual(model.summary(null), { title: 'Checking for updates…', subtitle: 'Syncing package databases', count: 0, repo: 0, canUpdate: false, note: '', terminal: '', busy: true })
 {
     const plan = { repo: [{ name: 'a' }, { name: 'b' }], aur: [{ name: 'c' }], bytes: 434110464, kernel: true }
     assert.deepEqual(model.summary(plan), {
         title: '3 updates', subtitle: '414 MiB to download · restart needed after',
-        count: 3, repo: 2, canUpdate: true, note: '1 of them from the AUR', terminal: 'aur',
+        count: 3, repo: 2, canUpdate: true, note: '1 of them from the AUR', terminal: 'aur', busy: false,
     })
     assert.equal(model.summary({ ...plan, bytes: 0 }).subtitle, 'Already downloaded · restart needed after')
     assert.equal(model.summary({ repo: [], aur: [{ name: 'c' }], bytes: 0, kernel: false }).canUpdate, false)
     assert.equal(model.summary({ repo: [], aur: [], bytes: 0, kernel: false }).title, 'Up to date')
     assert.equal(model.summary(null, 'checkupdates failed').title, 'Could not check for updates')
+    assert.equal(model.summary(null, 'x').busy, false)
+    assert.equal(model.summary({ repo: [], aur: [], bytes: 0, kernel: false }).busy, false)
+    assert.equal(model.summary(plan).busy, false)
 }
 
 // Version tail: only the changed part, backed up to the start of its token.

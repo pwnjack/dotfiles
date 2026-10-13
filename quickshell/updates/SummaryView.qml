@@ -23,6 +23,7 @@ Column {
     Header {
         width: parent.width
         card: view.card
+        busy: view.info.busy
         title: view.info.title
         subtitle: view.info.subtitle
     }
