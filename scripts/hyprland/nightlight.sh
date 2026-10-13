@@ -12,7 +12,8 @@
 # Usage: nightlight.sh [toggle|on|off|auto|status|waybar]
 #
 
-CONFIG="$HOME/.config/hypr/hyprsunset.conf"
+# NIGHTLIGHT_CONFIG is the test seam (test-nightlight-config.sh).
+CONFIG="${NIGHTLIGHT_CONFIG:-$HOME/.config/hypr/hyprsunset.conf}"
 
 # Waybar glyphs (CaskaydiaCove Nerd Font).
 ICON_WARM="󰖔"
@@ -53,10 +54,31 @@ scheduled_temp() {
     hs profile | sed -n 's/^Temperature:[[:space:]]*\([0-9]\+\)$/\1/p'
 }
 
-# Every temperature named by a profile, ascending.
+# Every temperature named by a profile, ascending. A profile line is a literal
+# or a hyprlang variable ("temperature = $night_temp"), resolved from its own
+# "$name = N" line; a value ends at whitespace or a hyprlang "#" comment.
 config_temps() {
-    grep -oE '^[[:space:]]*temperature[[:space:]]*=[[:space:]]*[0-9]+' "$CONFIG" 2>/dev/null |
-        grep -oE '[0-9]+$' | sort -n
+    [ -r "$CONFIG" ] || return 0
+    awk '
+        function value(line,   v) {
+            sub(/^[^=]*=[ \t]*/, "", line)
+            sub(/[ \t].*$/, "", line)
+            v = line
+            sub(/#.*$/, "", v)
+            return v
+        }
+        /^[ \t]*\$[A-Za-z_][A-Za-z0-9_]*[ \t]*=/ {
+            name = $0; sub(/^[ \t]*\$/, "", name); sub(/[ \t]*=.*$/, "", name)
+            vars[name] = value($0)
+        }
+        /^[ \t]*temperature[ \t]*=/ { temps[++n] = value($0) }
+        END {
+            for (i = 1; i <= n; i++) {
+                t = temps[i]
+                if (t ~ /^\$/) t = vars[substr(t, 2)]
+                if (t ~ /^[0-9]+$/) print t
+            }
+        }' "$CONFIG" | sort -n
 }
 
 warm_temp() {
