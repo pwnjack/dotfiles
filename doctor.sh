@@ -78,5 +78,6 @@ check_autostart
 check_ssh
 check_calendar
 check_defaults
+check_state
 
 summary
