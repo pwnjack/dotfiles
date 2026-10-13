@@ -86,7 +86,6 @@ gtk-3.0/settings.ini
 gtk-4.0/settings.ini
 qt5ct/qt5ct.conf
 qt6ct/qt6ct.conf
-mimeapps.list
 swaync/config.json
 
 # Thunar's own files; only the theming hook is ours
