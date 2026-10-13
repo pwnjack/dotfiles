@@ -29,5 +29,19 @@
     "pr": ""
   },
   "tui": "fullscreen",
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": true,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh ~/.claude/hooks/agent-guard.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
 }

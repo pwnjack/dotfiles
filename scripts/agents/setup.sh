@@ -8,8 +8,8 @@
 #
 #   scripts/agents/setup.sh [--dry-run]
 #
-# Links: claude/skills/*/ -> ~/.claude/skills/, claude/CLAUDE.global.md ->
-# ~/.claude/CLAUDE.md,
+# Links: claude/skills/*/ -> ~/.claude/skills/, claude/hooks/*.sh (not their
+# test-*.sh) -> ~/.claude/hooks/, claude/CLAUDE.global.md -> ~/.claude/CLAUDE.md,
 # codex/AGENTS.global.md -> ~/.codex/AGENTS.md (CLAUDE_CONFIG_DIR and CODEX_HOME
 # are honoured, as the apply scripts do). Anything already at a link target is
 # moved — never deleted — into ~/.local/state/dotfiles-agents-backup/<time>/,
@@ -50,6 +50,10 @@ if have claude; then
   echo "claude: linking harness"
   for d in "$repo"/claude/skills/*/; do
     d=${d%/}; link "$d" "$claude_dir/skills/$(basename "$d")"
+  done
+  for h in "$repo"/claude/hooks/*.sh; do
+    case ${h##*/} in test-*) continue ;; esac
+    link "$h" "$claude_dir/hooks/$(basename "$h")"
   done
   for l in "$claude_dir"/skills/* "$claude_dir"/hooks/*; do
     if [ -L "$l" ] && [ ! -e "$l" ] && [[ $(readlink "$l") == "$repo"/claude/* ]]; then
