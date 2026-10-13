@@ -41,9 +41,13 @@ check "no pinned model ids in skill or instruction text" \
   _ "$here" "$claude/CLAUDE.global.md"
 
 # --- settings: valid JSON, and no listed plugin without its marketplace --------
+# Built-in marketplaces ship with Claude Code and never appear in
+# extraKnownMarketplaces.
 settings="$claude/settings.json"
+builtin_marketplaces="anthropic-plugin-directory"
 check "settings.json is valid JSON" jq -e . "$settings"
-orphans=$(jq -r '(.extraKnownMarketplaces // {} | keys) as $m
+orphans=$(jq -r --arg builtin "$builtin_marketplaces" \
+  '((.extraKnownMarketplaces // {} | keys) + ($builtin | split(" "))) as $m
   | (.enabledPlugins // {}) | keys[] | select((split("@")[1]) as $mk | ($m | index($mk)) == null)' "$settings" 2>/dev/null)
 if [ -z "$orphans" ]; then echo "  ok   every listed plugin has a registered marketplace"
 else echo "  FAIL plugin without a marketplace: $orphans"; fail=1; fi

@@ -22,7 +22,8 @@
     }
   },
   "enabledPlugins": {
-    "impeccable@impeccable": false
+    "impeccable@impeccable": false,
+    "superpowers@anthropic-plugin-directory": true
   },
   "attribution": {
     "commit": "",
