@@ -52,7 +52,7 @@ hypr/config/
 ├── hardware/
 │   ├── monitor.lua          # Display resolution/layout
 │   ├── input.lua            # Keyboard/mouse settings
-│   └── primary.conf         # Hyprlock-only monitor variable
+│   └── primary.conf         # Hyprlock-only symlink -> ~/.local/state/hypr/primary.conf
 ├── looks/
 │   ├── decor.lua            # Borders, blur, rounding
 │   └── animations.lua       # Window animations
@@ -68,7 +68,7 @@ hypr/config/
 
 Beside `config/`, `hypr/` holds `hyprland.lua` (the entry point, which also
 loads the panel's untracked `overrides.lua` last), `apply_wal_colors.sh`,
-`hypridle.conf`, `hyprlock.conf`, `hyprsunset.conf` and `test/`.
+`hypridle.conf`, `hyprlock.conf`, the rendered `hyprsunset.conf` (untracked) and `test/`.
 
 Hyprland's config is Lua. Hyprlock, Hypridle, and Hyprsunset are separate
 programs and intentionally keep their Hyprlang `.conf` files.
@@ -112,9 +112,13 @@ The workspace dots are one native Waybar CFFI module in `waybar/workspaces/` (C)
 
 `quickshell/capture/` is the on-demand screenshot/recording strip. `scripts/capture/record.sh` is the only driver of gpu-screen-recorder, `screenshot.sh` the only screenshot command, and `scripts/hyprland/lock.sh` the only lock path (it locks first, then stops any recording). Internals: `docs/internals/capture-bar.md`, `docs/capture.md`.
 
+### Machine state (overlay)
+
+Settings a machine changes are not tracked: `defaults/` holds the tracked default of each, the live file at the same path (`options/*`, GTK and Qt settings, `mimeapps.list`, `swaync/config.json`, `hypr/hyprsunset.conf`) is rendered and git-ignored, and this machine's differences live in `~/.local/state/dotfiles/overrides`. `scripts/state/overlay.sh sync` harvests live edits into overrides and re-renders; it runs at login (in the background), after a pull (`post-merge`), on install (`--replace`) and after panel writes. To change a repo default, edit `defaults/` and commit; never track a live file. Never run the overlay scripts against the real `HOME` from a test or a worktree. Details: `docs/internals/state.md`.
+
 ### Settings panel (Super+I)
 
-`quickshell/settings-panel/` starts on demand via `scripts/hyprland/settings-panel.sh`. `catalog.json` is the only list of settings; panel changes land in untracked state (`~/.local/state/hypr/overrides.lua`, `monitors.lua`) so using the panel never dirties the repo. Panel writes reach `panel-request.sh -` on stdin, never in argv. Internals: `docs/internals/settings-panel.md`, `docs/settings-panel.md`.
+`quickshell/settings-panel/` starts on demand via `scripts/hyprland/settings-panel.sh`. `catalog.json` is the only list of settings; panel changes land in untracked state (machine overlay, `~/.local/state/hypr/overrides.lua`, `monitors.lua`) so using the panel never dirties the repo. Panel writes reach `panel-request.sh -` on stdin, never in argv. Internals: `docs/internals/settings-panel.md`, `docs/settings-panel.md`.
 
 ### Spotify (SpotX)
 
@@ -122,7 +126,7 @@ The workspace dots are one native Waybar CFFI module in `waybar/workspaces/` (C)
 
 ### Night light (hyprsunset)
 
-`scripts/hyprland/nightlight.sh` is the **only** thing that talks to `hyprctl hyprsunset`, and there is deliberately no state file (the daemon is the state). A profile `gamma` is a multiplier, not a percentage: `gamma = 100` makes the daemon exit, so profiles omit it. Other probed gotchas (no `identity` getter, no working `--config`, stale sockets, icon names in the panel versus notifications): `docs/internals/night-light.md`.
+`hypr/hyprsunset.conf` is rendered from `defaults/hypr/hyprsunset.conf` plus the machine's `$variables`; edit the default, not the live file. `scripts/hyprland/nightlight.sh` is the **only** thing that talks to `hyprctl hyprsunset`, and there is deliberately no state file (the daemon is the state). A profile `gamma` is a multiplier, not a percentage: `gamma = 100` makes the daemon exit, so profiles omit it. Other probed gotchas (no `identity` getter, no working `--config`, stale sockets, icon names in the panel versus notifications): `docs/internals/night-light.md`.
 
 ### Virtual surround (PipeWire)
 
@@ -154,11 +158,11 @@ fixed what, and which tuning ideas were measured and rejected (gamemode buys
 
 ### Default applications
 
-Four mechanisms, one source each: `mimeapps.list` (tracked, written by the panel through `xdg-mime`), the `BROWSER`/`TERMINAL`/`EDITOR`/`VISUAL` variables exported from `options/` by `envvars.lua`, `xdg-terminal-exec` (via `scripts/settings/terminal.sh`) and D-Bus `FileManager1` (`scripts/settings/file-manager.sh`). Nothing in `~/.profile` is needed. Details: `docs/internals/default-apps.md`.
+Four mechanisms, one source each: `mimeapps.list` (default tracked in `defaults/`, this machine's copy rendered and written by the panel through `xdg-mime`), the `BROWSER`/`TERMINAL`/`EDITOR`/`VISUAL` variables exported from `options/` by `envvars.lua`, `xdg-terminal-exec` (via `scripts/settings/terminal.sh`) and D-Bus `FileManager1` (`scripts/settings/file-manager.sh`). Nothing in `~/.profile` is needed. Details: `docs/internals/default-apps.md`.
 
 ### User preferences (`options/`)
 
-`options/` holds one value per text file that scripts read directly (`cat` or `read -r`) and use as-is: `browser`, `terminal`, `editor`, `font`, `aurhelper`, the `bar-*`, `capture-*` and `calendar-*` settings and more (full list: `docs/internals/options.md`). Empty means "no preference" only for `mainmonitor` and `bar-output`; switches are on only when the file says `enabled`. Nothing guesses a monitor connector name, and `hardware/monitor.lua` stays host-neutral (per-machine rules live in the untracked `~/.local/state/hypr/monitors.lua`).
+`options/` is this machine's rendered copy (defaults in `defaults/options/`; see Machine state). `echo x > options/key` still works; the next sync records it. It holds one value per text file that scripts read directly (`cat` or `read -r`) and use as-is: `browser`, `terminal`, `editor`, `font`, `aurhelper`, the `bar-*`, `capture-*` and `calendar-*` settings and more (full list: `docs/internals/options.md`). Empty means "no preference" only for `mainmonitor` and `bar-output`; switches are on only when the file says `enabled`. Nothing guesses a monitor connector name, and `hardware/monitor.lua` stays host-neutral (per-machine rules live in the untracked `~/.local/state/hypr/monitors.lua`).
 
 ### AI agent harness (`claude/`, `codex/`)
 

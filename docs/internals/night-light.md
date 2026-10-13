@@ -2,7 +2,7 @@
 
 Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md` keeps the rules that must hold on every edit; this file has the reasoning and the traps.
 
-`hyprsunset` runs as a daemon from `config/setup/autostart.lua` and owns the schedule in `hypr/hyprsunset.conf` — a tracked, panel-writable file, the same arrangement as `hypr/hypridle.conf`. `scripts/hyprland/nightlight.sh` is the **only** thing that talks to `hyprctl hyprsunset`; the keybind ($Mod SHIFT+D toggle, $Mod CTRL+D follow-schedule), the waybar `custom/nightlight` module and the panel's Power rows all call the script.
+`hyprsunset` runs as a daemon from `config/setup/autostart.lua` and owns the schedule in `hypr/hyprsunset.conf`. That file is rendered, not tracked: `defaults/hypr/hyprsunset.conf` supplies the profiles and four `$variables` (times and temperatures) that the panel overrides per machine (see `state.md`). `nightlight.sh` resolves profile temperatures through the variables. `hypr/hypridle.conf` is tracked and never written; the panel's timeouts go to a state file it sources. `scripts/hyprland/nightlight.sh` is the **only** thing that talks to `hyprctl hyprsunset`; the keybind ($Mod SHIFT+D toggle, $Mod CTRL+D follow-schedule), the waybar `custom/nightlight` module and the panel's Power rows all call the script.
 
 There is deliberately **no state file** — the daemon is the state, so every surface agrees by construction. A manual override is just a temperature write, which the daemon's own profile timer reclaims at the next scheduled boundary; that is what makes overrides self-expiring with no expiry logic to maintain.
 

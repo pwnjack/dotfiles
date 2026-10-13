@@ -16,8 +16,7 @@ Rows may declare
 `choices` (valid values enumerated from what is installed, validated on write),
 a text `check` (`xkb-*`, `font`, `command`), `optional` and `reload`. Beyond
 Hyprland options and `options/` files, the backend drives gsettings plus both
-tracked GTK `settings.ini` files, Kvantum, `xdg-mime` into the tracked
-`mimeapps.list`, `powerprofilesctl`, hypridle's marked suspend listener and
+GTK `settings.ini` files, Kvantum, `xdg-mime` into `mimeapps.list`, `powerprofilesctl`, hypridle's marked suspend listener and
 PipeWire through `pactl` (Sound: devices, ports, card profile, mic level;
 volume stays in SwayNC); `docs/settings-panel.md` describes each and its
 traps. Rows tagged `live`, and the Displays page, refresh while on screen
@@ -43,8 +42,8 @@ second table of default values. Failed resets attempt to restore the previous
 file and reload it. `hyprctl configerrors -j` may report `[""]` when healthy.
 
 `backend.js` preserves custom hypridle/hyprsunset content when editing timeouts
-and profiles, and rolls file changes back on reload failure. Night light state
-still goes through `nightlight.sh`. Theme colours come from the shared palette
+and the schedule variables, and rolls file changes back on reload failure. Night light state
+still goes through `nightlight.sh`. Writes to files the machine-state overlay renders (options, GTK, `mimeapps.list`, `swaync/config.json`, the night-light variables) run `overlay.sh sync` afterwards so the change is recorded as an override; hypridle's values go to `~/.local/state/hypr/hypridle.conf`, which the tracked `hypridle.conf` sources. See `state.md`. Theme colours come from the shared palette
 loader at launch. See `docs/settings-panel.md` for measurements and checks.
 
 The Network, Date & Region and Startup pages work as follows. **Network** reads libnm through `nm.js` with the pure

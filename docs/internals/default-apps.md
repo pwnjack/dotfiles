@@ -2,7 +2,8 @@
 
 Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md` keeps the rules that must hold on every edit; this file has the reasoning and the traps.
 
-Four mechanisms, one source each. **`mimeapps.list`** (tracked, written by the
+Four mechanisms, one source each. **`mimeapps.list`** (default tracked in `defaults/`, the machine's copy
+rendered by the settings overlay and written by the
 panel's Default Apps page through `xdg-mime`) decides what opens links and files
 for `xdg-open`, GIO, portals and file managers. **Environment variables**
 `BROWSER`, `TERMINAL`, `EDITOR` and `VISUAL` are exported by

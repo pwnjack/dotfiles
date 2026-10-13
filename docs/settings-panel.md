@@ -95,7 +95,9 @@ the random-wallpaper-at-login switch). The palette is read through
   Overrides are per-machine state in `${XDG_STATE_HOME:-~/.local/state}/hypr/overrides.lua`,
   never a tracked file, so using the panel leaves git clean; `hyprland.lua` loads
   it last if present and skips it, with a notification, if it fails to run.
-- The backend updates hypridle/sunset fields in place, preserving unrelated
+- The backend writes hypridle's timeouts to `~/.local/state/hypr/hypridle.conf`
+  (sourced by the tracked `hypridle.conf`) and the night-light `$variables` in
+  `hypr/hyprsunset.conf`, preserving unrelated
   content, and restores files if applying them fails. SwayNC retains unrelated
   keys. Night light liveness uses `nightlight.sh`, never an identity getter.
 - Rows may declare `choices` instead of fixed `items`. An enumerator in
@@ -115,9 +117,9 @@ the random-wallpaper-at-login switch). The palette is read through
   `scripts/settings/terminal.sh` (xdg-terminal-exec's list). A layout
   reset is refused while a variant override exists.
 - Sources: `gtk` writes gsettings, and for rows that declare an `ini` key also
-  both tracked `settings.ini` files (GTK 3 on Wayland reads some keys from
+  both `settings.ini` files (GTK 3 on Wayland reads some keys from
   each; Text Size is gsettings-only); `kvantum` edits `theme=` under
-  `[General]`; `mime` writes `xdg-mime default` into the tracked
+  `[General]`; `mime` writes `xdg-mime default` into
   `mimeapps.list`, only for the row's types the chosen app declares or declares a
   parent of (never via `application/octet-stream`, which everything is),
   falling back to the row's first type when it declares none, and restores
@@ -341,7 +343,7 @@ battery row), and a headset switched off behind its dongle shows "Asleep".
 One select row per Waybar module that can come and go: CPU, Memory, GPU and Disk
 (Always · Only when high · Hidden), Network (During traffic · Always · Offline only) and
 Updates (When pending · Hidden). Each is a plain `options/bar-*` file; a missing or unknown
-value means the first choice, which is also the tracked default, so the bar looks the same
+value means the first choice, which is also the default, so the bar looks the same
 until something is changed. "High" is the amber threshold: 70%, disk 80%.
 `scripts/hyprland/settings-panel.sh bar` opens it.
 
@@ -395,7 +397,7 @@ Traps:
 - **Unknown values read as the default; a missing file does not.** The backend shows an
   unrecognised `bar-*` value as the row's first choice, matching the renderers. A deleted
   option file disables its row, as it does for every option row, while the bar itself falls
-  back to the default; `git restore options/bar-<name>` brings the tracked default back.
+  back to the default; the next overlay sync restores the default from `defaults/options/`.
 - **Blur is unchanged.** Hyprland's `blur-waybar` rule ignores pixels at 50 % alpha or less,
   so the background is blurred only above 50 % opacity; at the default it is not, exactly as
   before. Swapping the threshold to 0.01 and reloading produced a pixel-identical screenshot

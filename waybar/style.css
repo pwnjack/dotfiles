@@ -69,8 +69,8 @@
 
 @import "../../.cache/wal/colors-waybar.css";
 @import "bar.css";
-/* By relative path, not through a symlink, for the reason above: Waybar's
-   watcher would otherwise miss a font change. */
+/* By relative path, not through a symlink: Waybar's style watcher ignores
+   symlinked imports, so it would miss a font change. */
 @import "../../.local/state/waybar/font.css";
 
 * {

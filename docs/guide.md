@@ -45,7 +45,8 @@ Deep dives, one per component:
 ├── swaync/        # Notification daemon and sidebar
 ├── quickshell/    # On-demand settings panel, wallpaper carousel, keybinds
 │                  # overlay, capture bar and update card
-├── options/       # User preferences, one value per text file
+├── defaults/      # Tracked defaults for settings a machine changes
+├── options/       # This machine's preferences, one value per text file (rendered)
 ├── scripts/       # Helper scripts by area: hyprland/, waybar/, theming/,
 │                  # capture/, updates/, settings/, devices/, doctor/, …
 ├── fish/ ghostty/ nvim/ btop/ cava/ starship/ bat/ fastfetch/ git/
@@ -62,7 +63,6 @@ Deep dives, one per component:
 ├── screenshots/   # The README images
 ├── docs/          # This guide and the deep dives listed above
 ├── test/          # Repo-wide suites: runner, hook, deploy, docs, theming, …
-├── mimeapps.list  # Which app opens each link and file type
 ├── install.sh     # Fresh-system setup
 ├── doctor.sh      # Health check (see Maintenance)
 └── test.sh        # Test runner (see Maintenance)
@@ -125,7 +125,8 @@ The **night-light module** reflects the temperature `hyprsunset` has actually
 applied. Left-click (or `Super + Shift + D`) switches between warm and neutral
 as a manual override — both are overrides, and the daemon reclaims either at
 the next scheduled boundary. Right-click (or `Super + Ctrl + D`) hands control
-back to the schedule in `hypr/hyprsunset.conf` immediately.
+back to the schedule in `hypr/hyprsunset.conf` (rendered from
+`defaults/hypr/hyprsunset.conf`) immediately.
 
 The **AI sidebar** (`Super + A`) opens aichat in a narrow Ghostty window on its
 own special workspace; its API key comes from `~/.config/.env` (see below).
@@ -196,7 +197,7 @@ nvim ~/.config/hypr/config/software/keybinds.lua
 
 The settings panel's **Default Apps** page (`Super + I`) sets both kinds of
 default: the apps the keybindings launch (browser, terminal, editors, file
-manager), and what opens each kind of link and file (`mimeapps.list`). The
+manager), and what opens each kind of link and file (`mimeapps.list`, rendered from `defaults/mimeapps.list`). The
 first set also becomes `$BROWSER`, `$TERMINAL`, `$EDITOR` and `$VISUAL` for
 every program Hyprland starts, which is what git, `gh`, `sudoedit` and yazi
 read, and the terminal is also the one apps like Thunar open for nvim, yazi or
@@ -207,7 +208,10 @@ defaults names a program that is not installed.
 ### User preferences
 
 Simple text files in `~/.config/options/`, mostly written by the settings
-panel:
+panel. They are this machine's copy of `defaults/options/`: a change you make
+by hand or in the panel is kept as a per-machine override, and deleting a file
+resets it to the default. To change the default for everyone, edit `defaults/`
+and commit:
 
 ```bash
 ~/.config/options/
