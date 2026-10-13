@@ -15,6 +15,17 @@ keybind = shift+insert=paste_from_clipboard
 # Fullscreen is Hyprland's job (Super+F); let ctrl+enter reach the program
 keybind = ctrl+enter=unbind
 
+# Translucent like Waybar and the Quickshell cards (background at 0.68-0.82).
+# The cells setting also lets apps that paint their own background (Neovim)
+# show through. blur.css asks Hyprland for the blur; background-blur only
+# speaks KDE's protocol and does nothing here.
+background-opacity = 0.8
+background-opacity-cells = true
+window-padding-x = 6
+window-padding-y = 5
+window-padding-balance = true
+gtk-custom-css = blur.css
+
 # pywal colors
 config-file = ?colors
 # The font, rendered from options/font by scripts/fonts/apply-font.sh

@@ -67,7 +67,6 @@ hl.window_rule({
     -- the window opened at the default size, centred, with no config error.
     size = "800 monitor_h-20",
     move = "monitor_w-810 10",
-    opacity = "0.95",
     dim_around = true,
 })
 

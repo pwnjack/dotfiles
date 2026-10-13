@@ -1,0 +1,8 @@
+/* GTK 4.24 turns a toplevel's backdrop-filter into an ext-background-effect
+   blur region. GTK attaches that object to every window and leaves the region
+   empty otherwise, and Hyprland honours the empty region, so without this rule
+   the window is never blurred. Hyprland's decoration blur settings decide the
+   strength; the radius here only has to be non-zero. */
+window {
+    backdrop-filter: blur(20px);
+}
