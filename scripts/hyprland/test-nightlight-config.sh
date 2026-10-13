@@ -20,7 +20,7 @@ printf '#!/bin/sh\necho "$@" >> "%s/calls"\n' "$TMP" > "$TMP/bin/hyprctl"
 chmod +x "$TMP/bin"/*
 export PATH="$TMP/bin:$PATH" HOME="$TMP/home"
 
-# warm_and_neutral <fixture text>: the temperatures `on` and `off` apply.
+# temps <fixture text>: the temperatures `on` and `off` apply.
 temps() {
     printf '%s' "$1" > "$TMP/conf"
     : > "$TMP/calls"

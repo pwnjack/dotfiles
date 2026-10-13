@@ -14,7 +14,7 @@ const files = new Map([
     [base + '/quickshell/settings-panel/catalog.json', JSON.stringify(catalog)],
     ['/fixture/.local/state/hypr/overrides.lua', ''],
     [base + '/hypr/hypridle.conf', '# Keep this comment\ngeneral { ignore_dbus_inhibit = false }\n$lock_timeout = 305\n$dpms_timeout = 600\n# hyprlang noerror true\nsource = ~/.local/state/hypr/hypridle.conf\n# hyprlang noerror false\nlistener {\n timeout = $lock_timeout\n on-timeout = loginctl lock-session\n}\nlistener {\n timeout = $dpms_timeout\n on-timeout = hyprctl dispatch \'hl.dsp.dpms({action = "off"})\'\n}\n'],
-    [base + '/hypr/hyprsunset.conf', '# Keep this comment\n$day_time = 07:00\n$day_temp = 6000\n$night_time = 20:00\n$night_temp = 4000\nmax-gamma = 100\nprofile {\n time = $day_time\n temperature = $day_temp\n}\nprofile {\n time = $night_time\n temperature = $night_temp\n}\n'],
+    [base + '/hypr/hyprsunset.conf', '# Keep this comment\n$day_time = 07:00\n$day_temp = 6000\n$night_time = 20:00\n$night_temp = 4000\n\nmax-gamma = 100\nprofile {\n time = $day_time\n temperature = $day_temp\n}\nprofile {\n time = $night_time\n temperature = $night_temp\n}\n'],
     [base + '/swaync/config.json', JSON.stringify({timeout:5,unrelated:{keep:true}})],
     [base + '/hypr/config/hardware/primary.conf', '$monitor =\n'],
     ['/usr/share/icons/Papirus-Dark/index.theme', '[Icon Theme]\nDirectories=16x16/apps\n'],

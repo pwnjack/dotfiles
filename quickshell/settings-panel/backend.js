@@ -275,7 +275,7 @@ function requiredSnapshot() {
     if (!snap.running) throw new Error("NetworkManager is not running")
     return snap
 }
-const hyprVarLine = name => new RegExp(`^\\$${name}\\s*=\\s*(\\S*)\\s*$`, "m")
+const hyprVarLine = name => new RegExp(`^\\$${name}[ \\t]*=[ \\t]*(\\S*)[ \\t]*$`, "m")
 function hyprVar(text, name) { return (hyprVarLine(name).exec(text) || [])[1] }
 // Sets a variable line in the state text, or removes it when the value is the
 // tracked default, so the state file only ever holds this machine's changes.
