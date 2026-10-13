@@ -19,7 +19,10 @@
 #      the cache is empty.
 #   3. It is idempotent, and a no-op when its component is not installed.
 #   4. Reloading a running consumer is its own job — this driver knows nothing
-#      about swaync-client, SIGUSR2, or any other component detail.
+#      about swaync-client, SIGUSR2, or any other component detail. Anything
+#      it leaves running in the background must not keep stderr open:
+#      wall.sh reads stderr to the end to name failed components, so a held
+#      stderr stalls every wallpaper change until that process exits.
 #
 # Scripts run sequentially. They are cheap, and serial output keeps a failure
 # attributable to the component that caused it.

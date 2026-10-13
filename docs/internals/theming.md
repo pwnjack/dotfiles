@@ -28,7 +28,7 @@ Every `apply_wal_colors.sh` must:
 1. Render into `~/.cache/wal/` and never write a tracked file.
 2. **Always leave its output existing**, falling back to defaults when the pywal input is missing. The repo tracks a symlink to that output, and a dangling tracked symlink is an ERROR in `doctor.sh` — on a fresh checkout the cache is empty.
 3. Be idempotent, and a no-op when its component is not installed.
-4. Reload its own running consumer if that is possible. The driver knows nothing about `swaync-client` or `SIGUSR2`.
+4. Reload its own running consumer if that is possible. The driver knows nothing about `swaync-client` or `SIGUSR2`. A background process it leaves running must not hold stderr open: `wall.sh` reads the driver's stderr to the end to name failed components in its toast, so a held stderr stalls every wallpaper change.
 
 `scripts/theming/palette.sh` is the shared loader: `wal_load` fills a `wal` array from `~/.cache/wal/colors` (with a built-in fallback palette), and `wal_readable_on <hex>` returns whichever of the darkest/lightest palette entries stays legible on that background. `wal_oklch <hex> <lmin> <lmax> <cmax> [dl]` is the hex form of the CSS themes' `oklch(from …)` clamp, for consumers that take only hex (Spicetify); it round-trips an unclamped colour, and clamping colour0 gives the same surfaces as the Vesktop and Zen CSS. Use it rather than re-parsing pywal output — a wallpaper palette gives no contrast guarantees, so any fixed text colour is unreadable on some wallpapers.
 

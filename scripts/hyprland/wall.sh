@@ -8,6 +8,7 @@ config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
 cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"
 
 # shellcheck source=scripts/lib/wallpaper.sh
+# shellcheck disable=SC1091
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/wallpaper.sh"
 
 notify() {
@@ -127,13 +128,33 @@ printf '* { wallpaper: url("%s", width); }\n' "$escaped" > "$cache_dir/wal/rofi-
     || fail "Cannot save the launcher background"
 
 failed=0
-"$config_dir/scripts/theming/apply-wal.sh" 9>&- || failed=1
+errors=$(mktemp "$cache_dir/wal/apply-errors.XXXXXX") || errors=""
+trap '[ -z "$errors" ] || rm -f -- "$errors"' EXIT
+if [ -n "$errors" ]; then
+    # Tee only stderr, keeping stdout on fd 3. The pipeline waits for tee so
+    # every diagnostic is captured before we read the component names.
+    { "$config_dir/scripts/theming/apply-wal.sh" 9>&- 2>&1 1>&3 3>&- \
+        | tee "$errors" 9>&- 3>&- >&2; } 3>&1 || failed=1
+else
+    "$config_dir/scripts/theming/apply-wal.sh" 9>&- || failed=1
+fi
+components=""
+if [ -n "$errors" ]; then
+    while IFS= read -r component; do
+        components="${components:+$components, }$component"
+    done < <(sed -n 's|^apply-wal: \([^/][^/]*\)/apply_wal_colors\.sh failed$|\1|p' "$errors")
+    rm -f -- "$errors"
+    errors=""
+fi
 
 # Waybar restyles itself when its colours file changes (reload_style_on_change).
 # A full reload would rebuild the bar and briefly drop its reserved zone,
 # resizing every tiled window.
 # The settings panel reads the palette on demand; it has no resident consumer.
 
-[ "$failed" -eq 0 ] || fail "Colors were generated, but some components failed to update. See the wallpaper command's stderr for details."
+if [ "$failed" -ne 0 ]; then
+    [ -z "$components" ] || fail "Colors were generated, but these components failed to update: $components."
+    fail "Colors were generated, but some components failed to update. See the wallpaper command's stderr for details."
+fi
 # No success notification: the new wallpaper is the confirmation, and a toast
 # would land on top of its transition. Failures still notify.

@@ -56,7 +56,7 @@ fi
     executable(bins / 'notify-send', 'printf "%s\\n" "$*" >> "$FIXTURE/notices"\n')
     driver = config / 'scripts/theming/apply-wal.sh'
     executable(driver, 'echo apply >> "$FIXTURE/events"\nexit "${FAIL_APPLY:-0}"\n')
-    env = dict(os.environ, XDG_CONFIG_HOME=str(config), XDG_CACHE_HOME=str(cache),
+    env = dict(os.environ, HOME=str(base), XDG_CONFIG_HOME=str(config), XDG_CACHE_HOME=str(cache),
                PATH=str(bins) + ':' + os.environ['PATH'], FIXTURE=str(base))
     command = ['bash', str(root / 'scripts/hyprland/wall.sh')]
     def run(**extra):
@@ -71,6 +71,26 @@ fi
     assert 'Wallpaper Applied' not in (base / 'notices').read_text()
     assert 'some components failed' in (base / 'notices').read_text()
     print('ok: partial component failure reaches the caller and notification')
+    executable(driver, '''
+echo apply >> "$FIXTURE/events"
+[ ! -e /proc/$$/fd/9 ] || { echo 'driver inherited fd 9' >&2; exit 1; }
+printf '%s\\n' 'component diagnostic' 'apply-wal: spicetify/apply_wal_colors.sh failed' \\
+    'another diagnostic' 'apply-wal: swaync/apply_wal_colors.sh failed' \\
+    'apply-wal: 2 component(s) failed' >&2
+exit 1
+''')
+    (base / 'notices').write_text('')
+    result = run()
+    assert result.returncode == 1
+    message = 'Colors were generated, but these components failed to update: spicetify, swaync.'
+    assert message in (base / 'notices').read_text()
+    expected = ('component diagnostic\napply-wal: spicetify/apply_wal_colors.sh failed\n'
+                'another diagnostic\napply-wal: swaync/apply_wal_colors.sh failed\n'
+                'apply-wal: 2 component(s) failed\n')
+    assert result.stderr.decode() == expected + f'wallpaper: {message}\n', result.stderr
+    assert not list((cache / 'wal').glob('apply-errors.*'))
+    print('ok: failure toast names components, preserves ordered stderr, closes fd 9, and removes capture')
+    executable(driver, 'echo apply >> "$FIXTURE/events"\nexit "${FAIL_APPLY:-0}"\n')
     events.write_text('')
     one = subprocess.Popen(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     deadline = time.monotonic() + 5
