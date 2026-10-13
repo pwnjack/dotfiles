@@ -768,6 +768,9 @@ await dispatch({op:'set',id:'appearance.cursor-theme',value:'Bibata-Modern-Class
 assert.match(files.get(base+'/gtk-3.0/settings.ini'),/^gtk-cursor-theme-name=Bibata-Modern-Classic$/m)
 assert.match(files.get(base+'/gtk-4.0/settings.ini'),/^gtk-cursor-theme-size=24$/m)
 console.log('ok: fonts must be installed and the cursor theme reaches settings.ini')
+events = []
+await dispatch({op:'set',id:'appearance.cursor-size',value:32})
+assert.ok(events.some(overlaySync), 'a cursor save syncs the overlay')
 
 events=[]
 await assert.rejects(dispatch({op:'set',id:'apps.filemanager',value:'missing-app --flag'}),/missing-app is not installed/)

@@ -340,7 +340,7 @@ function detached(args) {
 const delay = milliseconds => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, milliseconds, () => { resolve(); return GLib.SOURCE_REMOVE }))
 // Files the machine-state overlay renders are written live, then synced, which
 // records the change as this machine's override (scripts/state/overlay.sh).
-const overlaySources = new Set(["option", "gtk", "mime", "swaync", "sunset"])
+const overlaySources = new Set(["option", "cursor", "gtk", "mime", "swaync", "sunset"])
 const syncOverlay = () => execAsync(["bash", configDir + "/scripts/state/overlay.sh", "sync"])
 async function restart(name) {
     if (!GLib.find_program_in_path(name)) throw new Error(`${name} is not installed`)
