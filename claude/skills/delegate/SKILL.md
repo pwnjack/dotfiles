@@ -116,7 +116,8 @@ two, most capable the last.
 - **Implementer.** Brief: the leaf line, then SDD's filled implementer
   template. It writes SDD's report where SDD asks, and the JSON `summary`
   starts with its status word (`DONE`, `DONE_WITH_CONCERNS`, `BLOCKED`,
-  `NEEDS_CONTEXT`). Launch with `DELEGATE_KEEP=1` so the pane outlives the
+  `NEEDS_CONTEXT`). Every `pane.sh` call for it carries `DELEGATE_KEEP=1`,
+  every `--wait` included (after a question too), so the pane outlives the
   report.
 - **Fix rounds.** 1-3: `herdr agent prompt <pane>` with the fixes and the
   report sentence `pane.sh` sends, naming a new report path, then
@@ -126,7 +127,8 @@ two, most capable the last.
   SDD's task-reviewer template without the implementer-claims section or the
   report path, plus the review package. Say no test evidence is supplied; it
   runs a test only on a specific doubt.
-- **Final review.** Codex if Claude implemented any task, otherwise Claude,
-  blind, on the whole branch: this is the review above, reported once.
+- **Final review.** Blind, on the whole branch, from the other family to the
+  implementers: this is the review above, reported once. Keep a plan's
+  implementers to one family; if both implemented, each family reviews it.
 - `requesting-code-review` is the review above; `dispatching-parallel-agents`
   is one pane per agent. Never nest an orchestrator: workers are leaves.

@@ -10,7 +10,7 @@ traps live here.
 |---|---|---|
 | `claude/CLAUDE.global.md` | `~/.claude/CLAUDE.md` | symlink |
 | `claude/skills/delegate/` | `~/.claude/skills/delegate` | symlink |
-| `claude/hooks/*.sh` (not `test-*`) | `~/.claude/hooks/` | symlink |
+| `claude/hooks/agent-guard.sh` | named in the settings | run in place |
 | `claude/settings.json` | `~/.claude/settings.json` | merged by `claude/apply-settings.sh` |
 | `claude/statusline.sh` | named in the settings | run in place |
 | `codex/AGENTS.global.md` | `~/.codex/AGENTS.md` | symlink |

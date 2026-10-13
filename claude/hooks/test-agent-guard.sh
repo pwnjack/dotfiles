@@ -26,13 +26,19 @@ for v in unset '' 0; do
   else no "HERDR_ENV=$v: rc $rc, out '$out'"; fi
 done
 
-cmd='sh ~/.claude/hooks/agent-guard.sh'
+# The registered command runs the script in the repo, like the status line, so
+# it works whatever CLAUDE_CONFIG_DIR is; run it as Claude would, through a shell.
+cmd='sh ~/.config/claude/hooks/agent-guard.sh'
 count() { jq --arg c "$cmd" '[.hooks.PreToolUse[]? | select(.matcher == "Agent") | .hooks[] | select(.command == $c)] | length' "$1"; }
 if [ "$(count "$repo/claude/settings.json")" = 1 ]; then ok "tracked settings register the guard on Agent"
 else no "tracked settings: guard not registered on Agent"; fi
+reg=$(jq -r '[.hooks.PreToolUse[]? | select(.matcher == "Agent") | .hooks[].command] | first // "false"' "$repo/claude/settings.json")
+out=$(echo '{}' | env HERDR_ENV=1 CLAUDE_CONFIG_DIR="$tmp/elsewhere" sh -c "$reg" 2>&1)
+if [ "$(jq -r .hookSpecificOutput.permissionDecision <<<"$out" 2>/dev/null)" = deny ]
+then ok "registered command denies with a custom CLAUDE_CONFIG_DIR"; else no "registered command: out '$out'"; fi
 
 # apply-settings merges hooks by script name: a re-run must replace, not duplicate.
-mkdir -p "$tmp/cfg/hooks"; : > "$tmp/cfg/hooks/agent-guard.sh"
+mkdir -p "$tmp/cfg"
 CLAUDE_CONFIG_DIR="$tmp/cfg" bash "$repo/claude/apply-settings.sh" >/dev/null 2>&1
 CLAUDE_CONFIG_DIR="$tmp/cfg" bash "$repo/claude/apply-settings.sh" >/dev/null 2>&1
 if [ "$(count "$tmp/cfg/settings.json" 2>/dev/null)" = 1 ]; then ok "apply-settings twice: one guard"

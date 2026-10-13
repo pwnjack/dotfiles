@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh ~/.claude/hooks/agent-guard.sh",
+            "command": "sh ~/.config/claude/hooks/agent-guard.sh",
             "timeout": 5
           }
         ]

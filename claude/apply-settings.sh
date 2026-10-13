@@ -25,7 +25,8 @@ mkdir -p "$(dirname "$target")"
 tmp="$(mktemp "$target.XXXXXX")"
 trap 'rm -f "$tmp"' EXIT
 
-present=$(find "$(dirname "$target")/hooks" -maxdepth 1 -name '*.sh' -printf '%f\n' 2>/dev/null | jq -R . | jq -s .)
+# A fresh machine has no hooks directory yet: that is "no hooks", not an error.
+present=$( { find "$(dirname "$target")/hooks" -maxdepth 1 -name '*.sh' -printf '%f\n' 2>/dev/null || true; } | jq -R . | jq -s .)
 
 jq -s --argjson present "${present:-[]}" '
   def script: (.command // "") | (capture("(?<s>[^/\\s\"\\x{27}]+\\.sh)").s // .);
