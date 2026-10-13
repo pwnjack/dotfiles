@@ -46,13 +46,16 @@ hue_eff() { case "$1" in low) echo "$GRN";; medium) echo "$YEL";; high|xhigh|max
 # literally vanish in some tools, and $'\U…' is not expanded under LC_ALL=C.
 PB=($'\xee\xb8\x80' $'\xee\xb8\x81' $'\xee\xb8\x82'
     $'\xee\xb8\x83' $'\xee\xb8\x84' $'\xee\xb8\x85')
-BAR_CELLS=6
+BAR_CELLS=8
 
 # bar <percent> <color>: the whole bar in one colour, so the outline stays
-# continuous where the fill stops.
+# continuous where the fill stops. The caps are mostly border, so k filled
+# cells look like (k-0.4)/(n-0.6) of the bar, not k/n (measured from the
+# rendered glyphs); the cell count is the one whose look is nearest the
+# percent. Plain k/n rounding drew 76% as five of six cells, which looked 86%.
 bar() {
   local filled i k out=""
-  filled=$(awk -v u="$1" -v n="$BAR_CELLS" 'BEGIN{f=int(u*n/100+0.5);if(f<0)f=0;if(f>n)f=n;print f}')
+  filled=$(awk -v u="$1" -v n="$BAR_CELLS" 'BEGIN{f=int(u/100*(n-0.6)+0.4+0.5);if(u<=0)f=0;if(f<0)f=0;if(f>n)f=n;print f}')
   for ((i = 1; i <= BAR_CELLS; i++)); do
     if [ "$i" -eq 1 ]; then k=0; elif [ "$i" -eq "$BAR_CELLS" ]; then k=2; else k=1; fi
     [ "$i" -le "$filled" ] && k=$((k + 3))
