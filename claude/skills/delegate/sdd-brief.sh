@@ -14,8 +14,13 @@
 # packages and report paths live in the plan's SDD workspace. SDD_SKILLS
 # points at a Superpowers skills directory (default: the newest installed).
 # Exit: 0 written, 2 usage or a bad argument, 3 an empty or reversed range,
-# 4 a template no longer fits (a placeholder left, or a report left in a
-# review brief): read the plugin's template and update this script.
+# 4 a template no longer fits (a placeholder missing or new, an empty prompt,
+# or a report reference left in a review brief): read the plugin's template
+# and update this script.
+#
+# Every value (titles, paths, file contents) is spliced in by Python as
+# literal text in one pass: a plan title can never run as sed or shell code,
+# and caller content is never mistaken for a template defect.
 set -euo pipefail
 
 skills=${SDD_SKILLS:-$(ls -d "$HOME"/.claude/plugins/cache/*/superpowers/*/skills 2>/dev/null | sort -V | tail -1)}
@@ -31,15 +36,11 @@ case "$kind" in
   *) usage ;;
 esac
 [ -f "$plan" ] || { echo "no such plan: $plan" >&2; exit 2; }
-for f in "${@: -1}"; do [ -r "$f" ] || { echo "not readable: $f" >&2; exit 2; }; done
+file=${*: -1}
+[ -r "$file" ] || { echo "not readable: $file" >&2; exit 2; }
 ws=$(bash "$sdd/scripts/sdd-workspace" "$plan")
 brief=$ws/task-$n-brief.md report=$ws/task-$n-report.md
 
-# The prompt block of a template, de-indented.
-prompt() { sed -n '/^  prompt: |$/,/^```$/p' "$1" | sed '1d;$d' | sed 's/^    //'; }
-# Replace a placeholder line with a file's contents.
-splice() { awk -v pat="$1" -v file="$2" 'index($0, pat) == 1 { while ((getline l < file) > 0) print l; next } { print }'; }
-blind_tests='## Tests\n\nNo implementer report or test evidence is supplied, by design: the\norchestrator re-runs the tests itself. Judge the code and its tests from the\ndiff; run a focused test only on a specific doubt, and name it and the command.\n'
 package() { # base head: verify the range, write the review package, print its path
   local out
   out=$(bash "$sdd/scripts/review-package" "$plan" "$1" "$2" 2>&1) || {
@@ -50,49 +51,109 @@ package() { # base head: verify the range, write the review package, print its p
 
 case "$kind" in
   implementer)
-    workdir=$3 ctx=$4
     bash "$sdd/scripts/task-brief" "$plan" "$n" "$brief" >/dev/null || exit 2
-    name=$(grep -m1 -E '^#+ *Task' "$brief" | sed -E 's/^#+ *Task [0-9]+: *//')
-    body=$(prompt "$sdd/implementer-prompt.md" \
-      | sed "s|Task N: \[task name\]|Task $n: $name|; s|\[BRIEF_FILE\]|$brief|; s|\[REPORT_FILE\]|$report|; s|Work from: \[directory\]|Work from: $workdir (an isolated git worktree; commit your work there)|" \
-      | splice '[Scene-setting' "$ctx")
-    wiring="Start the JSON report's summary with your status word (DONE, DONE_WITH_CONCERNS, BLOCKED or NEEDS_CONTEXT). Ask a question by stopping and asking in this session; the orchestrator answers here." ;;
-  review)
+    tpl=$sdd/implementer-prompt.md base='' head='' diff='' ;;
+  review|rereview)
     base=$3 head=$4; diff=$(package "$base" "$head")
-    body=$(prompt "$sdd/task-reviewer-prompt.md" | awk -v t="$blind_tests" '
-        /^## What the Implementer Claims/ || /^## Do Not Trust the Report/ { skip = 1; next }
-        /^## Tests/ { skip = 1; printf "%s\n", t; next }
-        /^## / { skip = 0 } !skip' \
-      | sed "s|\[BRIEF_FILE\]|$brief|; s|\[BASE_SHA\]|$base|g; s|\[HEAD_SHA\]|$head|g; s|\[DIFF_FILE\]|$diff|" \
-      | splice '[GLOBAL_CONSTRAINTS]' "$5")
-    wiring='Report findings only; do not edit any file. In the JSON report, summary holds both verdicts (spec, quality); each finding is one string in concerns: severity, file:line, what is wrong, why it matters.' ;;
-  rereview)
-    base=$3 head=$4; diff=$(package "$base" "$head")
-    body=$(prompt "$sdd/re-review-prompt.md" | awk -v t="$blind_tests" '
-        /^Read the implementer.s report/ { getline; next }
-        /^## Tests/ { skip = 1; printf "%s\n", t; next }
-        /^## / { skip = 0 } !skip' \
-      | sed "s|\[BRIEF_FILE\]|$brief|; s|\[FIX_BASE_SHA\]|$base|g; s|\[HEAD_SHA\]|$head|g; s|\[DIFF_FILE\]|$diff|" \
-      | splice '[FINDINGS]' "$5")
-    wiring='Report findings only; do not edit any file. In the JSON report, summary holds each finding verdict (ADDRESSED or NOT ADDRESSED) and the overall verdict; new breakage goes in concerns, one string each.' ;;
+    tpl=$sdd/task-reviewer-prompt.md; [ "$kind" = review ] || tpl=$sdd/re-review-prompt.md ;;
   final)
     base=$2 head=$3; diff=$(package "$base" "$head")
-    req=$(mktemp); trap 'rm -f "$req"' EXIT
-    { echo "Plan: $(readlink -f "$plan"). Review package (commits, stat, full diff): $diff"; cat "$4"; } > "$req"
-    body=$(prompt "$skills/requesting-code-review/code-reviewer.md" \
-      | sed "s|\[DESCRIPTION\]|The whole branch for the plan below, $base..$head.|; s|\[BASE_SHA\]|$base|g; s|\[HEAD_SHA\]|$head|g" \
-      | splice '[PLAN_OR_REQUIREMENTS]' "$req")
-    wiring='The orchestrator re-runs the tests itself. Report findings only; do not edit any file. In the JSON report, summary holds the overall verdict; each finding is one string in concerns: severity, file:line, what is wrong, why it matters.' ;;
+    tpl=$skills/requesting-code-review/code-reviewer.md ;;
 esac
-
-# A placeholder left over, or a report a blind reviewer must not see, means
-# the plugin's template changed under this script.
-left=$(grep -oE '\[[A-Z][A-Z_]{2,}\]' <<<"$body" | grep -vxF '[SHA]' || true)
-[ -z "$left" ] || { echo "template no longer fits: unfilled $(echo $left)" >&2; exit 4; }
-if [ "$kind" != implementer ] && grep -qiE "implementer.s report|$report" <<<"$body"; then
-  echo "template no longer fits: a review brief still points at the implementer's report" >&2; exit 4
-fi
-
 out=$ws/task-${n:-final}-$kind-$(date +%s%N).md
-{ echo '[LEAF WORKER — DO NOT DELEGATE]'; echo; printf '%s\n' "$body"; echo; echo '## Report wiring'; echo "$wiring"; } > "$out"
-echo "$out"
+
+python3 - "$kind" "$tpl" "$out" "$file" "$n" "$brief" "$report" "${3:-}" "$base" "$head" "$diff" "$(readlink -f "$plan")" <<'PY'
+import re, sys
+kind, tpl, out, file, n, brief, report, workdir, base, head, diff, plan = sys.argv[1:]
+
+def die(code, msg):
+    print(msg, file=sys.stderr); sys.exit(code)
+
+def read(path):
+    try:
+        with open(path, encoding="utf-8") as f: return f.read()
+    except OSError as e: die(2, f"cannot read {path}: {e.strerror}")
+
+# The template's prompt: the lines under "  prompt: |" up to the closing fence.
+lines = read(tpl).split("\n")
+if "  prompt: |" not in lines: die(4, f"template no longer fits: no '  prompt: |' block in {tpl}")
+body = []
+for l in lines[lines.index("  prompt: |") + 1:]:
+    if l.startswith("```"): break
+    body.append(l[4:] if l.startswith("    ") else l.strip())
+text = "\n".join(body).strip("\n")
+if not text: die(4, f"template no longer fits: empty prompt in {tpl}")
+
+def section_out(text, heading, replacement=None):
+    """Drop the '## heading' section (to the next '## '), or replace it."""
+    out, skip, found = [], False, False
+    for l in text.split("\n"):
+        if l.startswith("## "):
+            skip = l.startswith(heading)
+            if skip:
+                found = True
+                if replacement: out.append(replacement)
+                continue
+        if not skip: out.append(l)
+    if not found: die(4, f"template no longer fits: no '{heading}' section in {tpl}")
+    return "\n".join(out)
+
+tests = ("## Tests\n\nNo implementer report or test evidence is supplied, by design: the\n"
+         "orchestrator re-runs the tests itself. Judge the code and its tests from the\n"
+         "diff; run a focused test only on a specific doubt, and name it and the command.\n")
+if kind == "review":
+    text = section_out(text, "## What the Implementer Claims")
+    text = section_out(text, "## Do Not Trust the Report")
+    text = section_out(text, "## Tests", tests)
+elif kind == "rereview":
+    m = re.search(r"^Read the implementer.s report.*\n\[REPORT_FILE\]\n", text, re.M)
+    if not m: die(4, f"template no longer fits: no implementer-report line in {tpl}")
+    text = text[:m.start()] + text[m.end():]
+    text = section_out(text, "## Tests", tests)
+
+# What each kind's template must still hold, checked before any caller
+# content goes in. A new placeholder, or a report reference left in a review
+# template, means the plugin changed under this script.
+need = {
+    "implementer": ["Task N: [task name]", "[BRIEF_FILE]", "[REPORT_FILE]", "Work from: [directory]", "[Scene-setting"],
+    "review": ["[BRIEF_FILE]", "[GLOBAL_CONSTRAINTS]", "[BASE_SHA]", "[HEAD_SHA]", "[DIFF_FILE]"],
+    "rereview": ["[BRIEF_FILE]", "[FINDINGS]", "[FIX_BASE_SHA]", "[HEAD_SHA]", "[DIFF_FILE]"],
+    "final": ["[DESCRIPTION]", "[PLAN_OR_REQUIREMENTS]", "[BASE_SHA]", "[HEAD_SHA]"],
+}[kind]
+missing = [t for t in need if t not in text]
+if missing: die(4, f"template no longer fits: missing {' '.join(missing)} in {tpl}")
+known = {t for t in need if re.fullmatch(r"\[[A-Z][A-Z_]+\]", t)} | {"[SHA]"}
+new = sorted(set(re.findall(r"\[[A-Z][A-Z_]{2,}\]", text)) - known)
+if new: die(4, f"template no longer fits: unfilled {' '.join(new)} in {tpl}")
+if kind != "implementer" and re.search(r"\[REPORT_FILE\]|implementer.{0,2}s report|report\.md", text, re.I):
+    die(4, f"template no longer fits: a review brief still points at the implementer's report ({tpl})")
+
+# Fill every placeholder in one pass, with literal values.
+supplied = read(file).rstrip("\n")
+name = ""
+if kind == "implementer":
+    m = re.search(r"^#+ *Task \d+: *(.*)$", read(brief), re.M)
+    name = m.group(1) if m else ""
+    text = re.sub(r"^\[Scene-setting.*$", "\x00CTX\x00", text, count=1, flags=re.M)
+values = {
+    "Task N: [task name]": f"Task {n}: {name}",
+    "Work from: [directory]": f"Work from: {workdir} (an isolated git worktree; commit your work there)",
+    "\x00CTX\x00": supplied, "[GLOBAL_CONSTRAINTS]": supplied, "[FINDINGS]": supplied,
+    "[BRIEF_FILE]": brief, "[REPORT_FILE]": report, "[DIFF_FILE]": diff,
+    "[BASE_SHA]": base, "[FIX_BASE_SHA]": base, "[HEAD_SHA]": head,
+    "[DESCRIPTION]": f"The whole branch for the plan below, {base}..{head}.",
+    "[PLAN_OR_REQUIREMENTS]": f"Plan: {plan}. Review package (commits, stat, full diff): {diff}\n{supplied}",
+}
+text = re.sub("|".join(re.escape(k) for k in sorted(values, key=len, reverse=True)),
+              lambda m: values[m.group(0)], text)
+
+wiring = {
+    "implementer": "Start the JSON report's summary with your status word (DONE, DONE_WITH_CONCERNS, BLOCKED or NEEDS_CONTEXT). Ask a question by stopping and asking in this session; the orchestrator answers here.",
+    "review": "Report findings only; do not edit any file. In the JSON report, summary holds both verdicts (spec, quality); each finding is one string in concerns: severity, file:line, what is wrong, why it matters.",
+    "rereview": "Report findings only; do not edit any file. In the JSON report, summary holds each finding verdict (ADDRESSED or NOT ADDRESSED) and the overall verdict; new breakage goes in concerns, one string each.",
+    "final": "The orchestrator re-runs the tests itself. Report findings only; do not edit any file. In the JSON report, summary holds the overall verdict; each finding is one string in concerns: severity, file:line, what is wrong, why it matters.",
+}[kind]
+with open(out, "w", encoding="utf-8") as f:
+    f.write(f"[LEAF WORKER — DO NOT DELEGATE]\n\n{text}\n\n## Report wiring\n{wiring}\n")
+print(out)
+PY

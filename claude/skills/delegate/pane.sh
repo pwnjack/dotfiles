@@ -42,6 +42,8 @@ CLAUDE_STANDARD="haiku sonnet opus"
 CLAUDE_PLUGINS_OFF='{"enabledPlugins":{"superpowers@anthropic-plugin-directory":false}}'
 
 usage() { echo "usage: $0 claude|codex <alias> <effort> <slug> <brief> | --wait <pane> <report> [minutes] | --resume <pane> <message-file> [minutes]" >&2; exit 2; }
+# A report path no other round can share: an old path returns its old report.
+newreport() { local f; f=$(mktemp "$dir/$1-XXXXXXXX.json") && rm -f "$f" && echo "$f"; }
 # The report request every prompt ends with; the report path is always new.
 ask() { echo "Finally, even if you failed, write your report to $report as JSON with exactly these keys: status (complete|partial|failed), summary, files_changed, commands_run, tests_run, blockers, concerns."; }
 screen() { herdr agent read "$pane" --source visible --format text 2>/dev/null | tail -n "${1:-40}"; }
@@ -66,9 +68,10 @@ if [ "${1:-}" = --wait ]; then
 elif [ "${1:-}" = --resume ]; then
   [ $# -ge 3 ] || usage
   [ -r "$3" ] || { echo "message not readable: $3" >&2; exit 2; }
-  pane=$2 limit=$(( ${4:-45} * 60 )) waiting=1 DELEGATE_KEEP=1
+  # A new prompt, not a wait: landing and hook-review recovery apply as at launch.
+  pane=$2 limit=$(( ${4:-45} * 60 )) DELEGATE_KEEP=1
   dir=${DELEGATE_HANDOFF_DIR:-/tmp/delegate}; mkdir -p "$dir"
-  report=$dir/resume-${pane//[^a-zA-Z0-9]/-}-$(date +%s).json
+  report=$(newreport "resume-${pane//[^a-zA-Z0-9]/-}") || exit 2
   msg="$(cat "$3") $(ask)"
   herdr agent prompt "$pane" "$msg" >/dev/null || finish GONE 6
 else
@@ -142,7 +145,7 @@ if [ -n "$kind" ]; then
     echo "inside Herdr, but the herdr command or HERDR_PANE_ID is missing"; exit 7
   fi
   dir=${DELEGATE_HANDOFF_DIR:-/tmp/delegate}; mkdir -p "$dir"
-  report=$dir/$slug-$(date +%s).json
+  report=$(newreport "$slug") || exit 2
 
   # The orchestrator gets at most one delegate column: the first delegate splits
   # it right, later ones split the newest delegate down.

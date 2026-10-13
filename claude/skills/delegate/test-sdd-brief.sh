@@ -117,12 +117,54 @@ tpl > "$fake/requesting-code-review/code-reviewer.md" <<'EOF'
 **Base:** [BASE_SHA] **Head:** [HEAD_SHA]
 git worktree add /tmp/review-[SHA] [SHA]
 EOF
-real=$(ls -d "$HOME"/.claude/plugins/cache/*/superpowers/*/skills 2>/dev/null | sort -V | tail -1)
-[ -n "$real" ] && for s in task-brief review-package sdd-workspace; do cp "$real/subagent-driven-development/scripts/$s" "$sdd/scripts/"; done
-if [ -z "$real" ]; then echo "skip fake suite: no Superpowers scripts to borrow"
-else SDD_SKILLS=$fake suite fake; fi
+# Minimal stand-ins for the plugin's scripts, so this suite never needs it.
+cat > "$sdd/scripts/sdd-workspace" <<'S'
+d="$(git rev-parse --show-toplevel)/.superpowers/sdd/$(basename "$1" .md)"; mkdir -p "$d"; echo "$d"
+S
+cat > "$sdd/scripts/task-brief" <<'S'
+out=$3; awk -v n="$2" '/^#+ *Task [0-9]+:/ { on = ($0 ~ "Task " n ":") } on' "$1" > "$out"
+[ -s "$out" ] || { echo "task $2 not found" >&2; exit 2; }; echo "wrote $out: $(wc -l < "$out") lines"
+S
+cat > "$sdd/scripts/review-package" <<'S'
+git rev-parse --verify --quiet "$2^{commit}" >/dev/null || { echo "bad BASE: $2" >&2; exit 2; }
+git rev-parse --verify --quiet "$3^{commit}" >/dev/null || { echo "bad HEAD: $3" >&2; exit 2; }
+git merge-base --is-ancestor "$2" "$3" || { echo "HEAD is not a descendant of BASE" >&2; exit 3; }
+[ "$(git rev-list --count "$2..$3")" -gt 0 ] || { echo "empty commit range: $2..$3" >&2; exit 3; }
+out="$(git rev-parse --show-toplevel)/.superpowers/sdd/$(basename "$1" .md)/review-$2..$3.diff"
+git diff "$2..$3" > "$out"; echo "wrote $out: 1 lines"
+S
+SDD_SKILLS=$fake suite fake
+
+# Hostile input is data, never code: a title that would run a GNU sed `e`
+# command, an ampersand, and a file name holding a literal backslash-n.
+printf '### Task 1: a & b|; e touch %s/pwned #\n\nDo it.\n' "$tmp" > docs/evil.md
+ctxf="$tmp/ctx\\nfile"
+printf 'CTX-LINE [HTTP_PROXY] stays.\n' > "$ctxf"
+f=$(SDD_SKILLS=$fake run implementer docs/evil.md 1 "$repo" "$ctxf")
+if [ ! -e "$tmp/pwned" ] && grep -qF "Task 1: a & b|; e touch $tmp/pwned #" "${f:-/nonexistent}" \
+   && grep -qF 'CTX-LINE [HTTP_PROXY] stays.' "${f:-/nonexistent}"
+then ok "hostile title and file name are literal data"; else no "hostile input: pwned=$([ -e "$tmp/pwned" ] && echo yes || echo no) $(cat "$tmp/err")"; fi
+printf "Do not read the implementer's report. [NOTE_X]\n" > "$tmp/strict"
+f=$(SDD_SKILLS=$fake run review docs/plan.md 1 "$base" "$head" "$tmp/strict")
+grep -qF "Do not read the implementer's report. [NOTE_X]" "${f:-/nonexistent}" \
+  && ok "caller content is not mistaken for a template defect" || no "caller content: $(cat "$tmp/err")"
+
+# A template that changed under the script fails closed (exit 4).
+mutate() { # name sed-expression file: a copy of the fake skills with one edit
+  rm -rf "$tmp/m-$1"; cp -r "$fake" "$tmp/m-$1"; sed -i "$2" "$tmp/m-$1/$3"; }
+expect4() { local rc; SDD_SKILLS=$tmp/m-$1 run "${@:2}" >/dev/null; rc=$?
+  [ "$rc" = 4 ] && ok "template change refused: $1" || no "template change $1: exit $rc"; }
+mutate block 's/prompt: |$/prompt: |-/' subagent-driven-development/implementer-prompt.md
+expect4 block implementer docs/plan.md 1 "$repo" "$tmp/context"
+mutate workdir 's/Work from: \[directory\]/Working directory: [directory]/' subagent-driven-development/implementer-prompt.md
+expect4 workdir implementer docs/plan.md 1 "$repo" "$tmp/context"
+mutate leak 's/^    Compare\.$/    Compare. Also read [REPORT_FILE] for notes./' subagent-driven-development/task-reviewer-prompt.md
+expect4 leak review docs/plan.md 1 "$base" "$head" "$tmp/constraints"
+mutate leak2 's/^    Compare\.$/    Compare. See task-N-report.md for author notes./' subagent-driven-development/task-reviewer-prompt.md
+expect4 leak2 review docs/plan.md 1 "$base" "$head" "$tmp/constraints"
 
 # The installed plugin's own templates: catches an upstream rename.
+real=$(ls -d "$HOME"/.claude/plugins/cache/*/superpowers/*/skills 2>/dev/null | sort -V | tail -1)
 if [ -n "$real" ]; then SDD_SKILLS=$real suite installed
 else echo "skip installed suite: Superpowers not installed"; fi
 

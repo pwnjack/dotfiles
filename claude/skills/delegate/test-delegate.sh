@@ -176,7 +176,7 @@ case "$1 $2" in
     rep=${4##*write your report to }; echo "${rep%% as JSON*}" > "$S/report"
     case "$SCEN" in
       nostart) ;;
-      hooks) [ "$n" = 1 ] && echo "Hooks — 1 hook needs review" > "$S/screen"; echo working > "$S/status" ;;
+      hooks|hooksresume) [ "$n" = 1 ] && echo "Hooks — 1 hook needs review" > "$S/screen"; echo working > "$S/status" ;;
       earlyblock) echo blocked > "$S/status" ;;
       idlequota) echo idle > "$S/status"; echo "■ You've hit your usage limit. Try again later." > "$S/screen" ;;
       *) echo working > "$S/status" ;;
@@ -190,7 +190,7 @@ case "$1 $2" in
       case "$SCEN" in
         happy|wait|claude|keep|keepwait|resume) echo "$report" > "$(cat "$S/report")"; st=idle ;;
         # only a recovered prompt (escape, then exactly one resend) produces the report
-        hooks) [ ! -s "$S/screen" ] && [ "$(cat "$S/prompts")" = 2 ] && { echo "$report" > "$(cat "$S/report")"; st=idle; } ;;
+        hooks|hooksresume) [ ! -s "$S/screen" ] && [ "$(cat "$S/prompts")" = 2 ] && { echo "$report" > "$(cat "$S/report")"; st=idle; } ;;
         quota|keepquota) st=idle; printf 'working\nYou have hit your usage limit. Try again later.\n' > "$S/screen" ;;
         mentions) st=blocked
           { echo "fixing the quota check, upgrade to the new usage limit text"; seq 20; echo "Allow command? y/n"; } > "$S/screen" ;;
@@ -265,8 +265,18 @@ verdict timeout     124 TIMEOUT no --wait p1 "$tmp/handoff/none.json" 0
 printf 'Fix the finding: tests/x.sh:3 asserts nothing.\n' > "$tmp/fix.md"
 verdict resume    0 REPORT  no --resume p1 "$tmp/fix.md"
 if grep -qF 'Fix the finding: tests/x.sh:3 asserts nothing.' "$tmp/state-resume/msg" \
-   && grep -q "write your report to $tmp/handoff/resume-p1-[0-9]*.json as JSON with exactly these keys" "$tmp/state-resume/msg"
+   && grep -q "write your report to $tmp/handoff/resume-p1-[A-Za-z0-9]*.json as JSON with exactly these keys" "$tmp/state-resume/msg"
 then echo "ok   pane resume: message plus a fresh report path"; else echo "FAIL pane resume: prompt was '$(cat "$tmp/state-resume/msg" 2>/dev/null)'"; fail=1; fi
+verdict hooksresume 0 REPORT no --resume p1 "$tmp/fix.md" 1   # a resume prompt swallowed by the hook screen
+if [ "$(cat "$tmp/state-hooksresume/keys" 2>/dev/null)" = esc ] && [ "$(cat "$tmp/state-hooksresume/prompts")" = 2 ]
+then echo "ok   pane resume hooks: one escape, one resend"; else echo "FAIL pane resume hooks: not recovered"; fail=1; fi
+# Two resumes of one pane in the same second get different report paths.
+uniq_report() { mkdir -p "$tmp/state-uniq"; env PATH="$tmp/bin:$PATH" STATE="$tmp/state-uniq" SCEN=nostart HERDR_ENV=1 \
+  DELEGATE_HANDOFF_DIR="$tmp/handoff" DELEGATE_LAND=0 DELEGATE_POLL=0.1 \
+  "$here/pane.sh" --resume p1 "$tmp/fix.md" 2>/dev/null | head -1 | grep -o 'report=[^ ]*'; }
+r1=$(uniq_report); r2=$(uniq_report)
+if [ -n "$r1" ] && [ "$r1" != "$r2" ]; then echo "ok   pane resume: a unique report path each time"
+else echo "FAIL pane resume: report paths '$r1' and '$r2'"; fail=1; fi
 check "$(gate --resume p1 /nonexistent)"           2 "resume needs a readable message"
 check "$(gate --resume p1)"                        2 "resume needs a message file"
 KEEP=1 verdict keep      0 REPORT  no     # kept open for a fix round

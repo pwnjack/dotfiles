@@ -62,7 +62,8 @@ task, it belongs in a skill or in this directory.
   `pane.sh --resume` sends each round with a fresh report path. Briefs come
   from `sdd-brief.sh`, which fills the plugin's own templates and fails
   closed when they change: a hand-edited brief once named an empty diff
-  range. The
+  range. It splices values in Python as literal text; an earlier sed version
+  ran a crafted plan title as a GNU sed `e` command. The
   Herdr-only `claude/hooks/agent-guard.sh` refuses the Agent tool, so the
   plugin's wording cannot route around the panes; outside Herdr it is silent.
 - **Recursion guards.** A Claude pane gets a leaf directive through
@@ -176,8 +177,9 @@ task, it belongs in a skill or in this directory.
   hit, a resumed `--wait`, `DELEGATE_KEEP`, `--resume`, and the Claude
   plugin-off launch argument.
 - `claude/skills/delegate/test-sdd-brief.sh`: every brief kind is filled and
-  blind, bad ranges are refused, against fake templates and the installed
-  plugin's own.
+  blind, bad ranges and changed templates are refused, hostile titles and file
+  names stay literal data; against stand-in templates and scripts (no plugin
+  needed) and, when installed, the plugin's own.
 - `claude/hooks/test-agent-guard.sh`: the guard denies inside Herdr, is silent
   outside it, and is registered once even after two settings merges.
 
