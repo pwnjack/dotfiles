@@ -10,6 +10,7 @@ traps live here.
 |---|---|---|
 | `claude/CLAUDE.global.md` | `~/.claude/CLAUDE.md` | symlink |
 | `claude/skills/delegate/` | `~/.claude/skills/delegate` | symlink |
+| `claude/hooks/*.sh` (not `test-*`) | `~/.claude/hooks/` | symlink |
 | `claude/settings.json` | `~/.claude/settings.json` | merged by `claude/apply-settings.sh` |
 | `claude/statusline.sh` | named in the settings | run in place |
 | `codex/AGENTS.global.md` | `~/.codex/AGENTS.md` | symlink |
@@ -52,6 +53,14 @@ task, it belongs in a skill or in this directory.
   can watch it work (the user's call, 2026-10-13). `pane.sh` spawns, prompts and
   waits in one background call. The Agent tool is only the Claude fallback
   outside Herdr; it honours `model` (Haiku verified as Haiku, 2026-10-13).
+- **Superpowers dispatches are roles.** Its skills name the Agent tool for
+  every implementer and reviewer; the `delegate` skill maps each one onto a
+  pane, picks its model from the same table, and keeps every reviewer
+  cross-family and blind, SDD's per-task reviewer included (its template
+  otherwise reads the implementer's report). `pane.sh` with `DELEGATE_KEEP=1`
+  keeps an implementer's pane open so SDD's fix rounds resume it. The
+  Herdr-only `claude/hooks/agent-guard.sh` refuses the Agent tool, so the
+  plugin's wording cannot route around the panes; outside Herdr it is silent.
 - **Recursion guards.** A Claude pane gets a leaf directive through
   `--append-system-prompt`; the brief's `[LEAF WORKER — DO NOT DELEGATE]` line
   and the leaf rule in `CLAUDE.global.md` back it up, and are the only guard on
@@ -110,6 +119,9 @@ task, it belongs in a skill or in this directory.
   treated like `idle`.
 - Headless `codex exec` waits for stdin forever unless given `< /dev/null` (or
   the prompt on stdin), so wrap it in a timeout.
+- `codex exec` does not load remote plugins such as Superpowers (2026-10-13),
+  and `codex plugin list -c ...` ignores the override, so neither probes what a
+  pane worker loads.
 - `claude/apply-settings.sh` merges objects key by key, and a tracked hook
   group replaces live hooks that run the same script file. It drops a live hook
   whose `~/.claude/hooks` script is gone, but otherwise never removes a key: a
@@ -121,16 +133,20 @@ task, it belongs in a skill or in this directory.
 - **impeccable** (UI design) is registered but off. Its hooks run on every
   edit and every turn end. Turn it on for design work with
   `claude plugin enable impeccable@impeccable`, and off again afterwards.
-- **Superpowers** was removed on 2026-10-13. Its session bootstrap ("invoke a
-  skill at a 1% chance") and four tool hooks cost context on every turn, and
-  plan mode covers its planning flow. Old plans and specs in
-  `docs/superpowers/` stay local and untracked.
+- **Superpowers** drives the development workflow: brainstorm, spec, plan,
+  test first, review, verify. On Claude it is enabled in the tracked settings
+  and `setup.sh` installs it; on Codex it is a remote plugin, installed with
+  `codex plugin add superpowers@openai-curated-remote`, and not tracked. Pane
+  workers start with it off (`pane.sh`): a leaf that brainstorms waits for an
+  approval no one gives, and its session text would fill every worker. Its
+  plans and specs in `docs/superpowers/` stay local and untracked.
 - **mgrep** was removed on 2026-10-13. Its session hook told agents never to
   use Grep or WebSearch, contradicting the `rg` guidance, and it uploaded every
   project to Mixedbread. `rg` and an Explore agent cover this repo.
 - **Upgrading a machine set up before 2026-10-13:** `setup.sh` removes the old
   skill and hook links and the hook entry, but not plugins it used to install.
-  Run `claude plugin uninstall superpowers-extended-cc@superpowers-extended-cc-marketplace`
+  The `superpowers-extended-cc` fork is not the Superpowers above. Run
+  `claude plugin uninstall superpowers-extended-cc@superpowers-extended-cc-marketplace`
   and `claude plugin uninstall mgrep@Mixedbread-Grep` (then
   `claude plugin marketplace remove` for each marketplace), and
   `codex mcp remove mgrep`.
@@ -145,6 +161,8 @@ task, it belongs in a skill or in this directory.
 - `claude/skills/delegate/test-delegate.sh`: model resolution, the opt-in gate,
   and every `pane.sh` verdict against a stub `herdr`, including the
   hook-review recovery (one Escape, one resend), limit text that is not a quota
-  hit, and a resumed `--wait`.
+  hit, a resumed `--wait`, `DELEGATE_KEEP`, and the plugin-off launch arguments.
+- `claude/hooks/test-agent-guard.sh`: the guard denies inside Herdr, is silent
+  outside it, and is registered once even after two settings merges.
 
-Both run under `./test.sh`.
+All three run under `./test.sh`.

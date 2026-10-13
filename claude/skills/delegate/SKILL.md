@@ -101,3 +101,32 @@ done with it. Report the model and effort from the verdict line.
 
 Read the diff and re-run the verification commands yourself: a worker's
 `tests_run` is a claim, not evidence. Nothing is committed unless the user asks.
+
+## Superpowers
+
+Its skills name the Agent tool; "dispatch a subagent" is a role, and inside
+Herdr each one runs through `pane.sh` (a hook refuses the Agent tool there).
+Its tiers map onto the table: cheap is the first two rows, standard the middle
+two, most capable the last.
+
+- **Workspace.** Run subagent-driven development in a worktree
+  (`using-git-worktrees`); every implementer brief names its path and says
+  "commit your work", the one case a Codex leaf commits. The ledger, briefs and
+  review packages stay in `.superpowers/sdd/`.
+- **Implementer.** Brief: the leaf line, then SDD's filled implementer
+  template. It writes SDD's report where SDD asks, and the JSON `summary`
+  starts with its status word (`DONE`, `DONE_WITH_CONCERNS`, `BLOCKED`,
+  `NEEDS_CONTEXT`). Launch with `DELEGATE_KEEP=1` so the pane outlives the
+  report.
+- **Fix rounds.** 1-3: `herdr agent prompt <pane>` with the fixes and the
+  report sentence `pane.sh` sends, naming a new report path, then
+  `DELEGATE_KEEP=1 pane.sh --wait <pane> <new path>`. 4-5: a fresh pane one row
+  higher. Close the pane when the task review passes.
+- **Task reviewer.** The other family from that task's implementer, blind:
+  SDD's task-reviewer template without the implementer-claims section or the
+  report path, plus the review package. Say no test evidence is supplied; it
+  runs a test only on a specific doubt.
+- **Final review.** Codex if Claude implemented any task, otherwise Claude,
+  blind, on the whole branch: this is the review above, reported once.
+- `requesting-code-review` is the review above; `dispatching-parallel-agents`
+  is one pane per agent. Never nest an orchestrator: workers are leaves.
