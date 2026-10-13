@@ -58,7 +58,11 @@ task, it belongs in a skill or in this directory.
   pane, picks its model from the same table, and keeps every reviewer
   cross-family and blind, SDD's per-task reviewer included (its template
   otherwise reads the implementer's report). `pane.sh` with `DELEGATE_KEEP=1`
-  keeps an implementer's pane open so SDD's fix rounds resume it. The
+  keeps an implementer's pane open so SDD's fix rounds resume it, and
+  `pane.sh --resume` sends each round with a fresh report path. Briefs come
+  from `sdd-brief.sh`, which fills the plugin's own templates and fails
+  closed when they change: a hand-edited brief once named an empty diff
+  range. The
   Herdr-only `claude/hooks/agent-guard.sh` refuses the Agent tool, so the
   plugin's wording cannot route around the panes; outside Herdr it is silent.
 - **Recursion guards.** A Claude pane gets a leaf directive through
@@ -123,6 +127,9 @@ task, it belongs in a skill or in this directory.
   `config.toml` and through `-c` alike: `google-drive` set to `false` still
   loaded in a pane worker (2026-10-13). `codex exec` loads no remote plugins at
   all, so only a real pane shows what a worker sees.
+- A pane worker's history is not in Herdr (`herdr agent read --source
+  scrollback` came back empty); a Codex worker's commands and token totals are
+  in its session log under `~/.codex/sessions/<date>/`.
 - `claude/apply-settings.sh` merges objects key by key, and a tracked hook
   group replaces live hooks that run the same script file. It drops a live hook
   whose `~/.claude/hooks` script is gone, but otherwise never removes a key: a
@@ -135,15 +142,16 @@ task, it belongs in a skill or in this directory.
   edit and every turn end. Turn it on for design work with
   `claude plugin enable impeccable@impeccable`, and off again afterwards.
 - **Superpowers** drives the development workflow: brainstorm, spec, plan,
-  test first, review, verify. On Claude it is enabled in the tracked settings
-  and `setup.sh` installs it; on Codex it is a remote plugin, installed with
-  `codex plugin add superpowers@openai-curated-remote`, and not tracked. Claude
-  pane workers start with it off (`pane.sh`): a leaf that brainstorms waits
-  for an approval no one gives, and its session text would fill every worker.
-  Codex has no working switch for a remote plugin, but its Superpowers ships
-  no session hook, so Codex workers see only the skill list and follow the
-  leaf contract. Its
-  plans and specs in `docs/superpowers/` stay local and untracked.
+  test first, review, verify. Claude only: it is enabled in the tracked
+  settings and `setup.sh` installs it. Claude pane workers start with it off
+  (`pane.sh`): a leaf that brainstorms waits for an approval no one gives, and
+  its session text would fill every worker. It is not installed on Codex
+  (removed 2026-10-13): Codex is a worker and reviewer here, the SDD briefs
+  already carry the test-first steps, and a Codex implementer with it spent
+  4 of 18 commands and about 13 KB of context re-reading skill files.
+  Reinstall with `codex plugin add superpowers@openai-curated-remote` only to
+  lead from Codex. Its plans and specs in `docs/superpowers/` stay local and
+  untracked.
 - **mgrep** was removed on 2026-10-13. Its session hook told agents never to
   use Grep or WebSearch, contradicting the `rg` guidance, and it uploaded every
   project to Mixedbread. `rg` and an Explore agent cover this repo.
@@ -165,8 +173,12 @@ task, it belongs in a skill or in this directory.
 - `claude/skills/delegate/test-delegate.sh`: model resolution, the opt-in gate,
   and every `pane.sh` verdict against a stub `herdr`, including the
   hook-review recovery (one Escape, one resend), limit text that is not a quota
-  hit, a resumed `--wait`, `DELEGATE_KEEP`, and the Claude plugin-off launch argument.
+  hit, a resumed `--wait`, `DELEGATE_KEEP`, `--resume`, and the Claude
+  plugin-off launch argument.
+- `claude/skills/delegate/test-sdd-brief.sh`: every brief kind is filled and
+  blind, bad ranges are refused, against fake templates and the installed
+  plugin's own.
 - `claude/hooks/test-agent-guard.sh`: the guard denies inside Herdr, is silent
   outside it, and is registered once even after two settings merges.
 
-All three run under `./test.sh`.
+All four run under `./test.sh`.

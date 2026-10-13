@@ -188,7 +188,7 @@ case "$1 $2" in
     if { [ "$SCEN" = wait ] || [ "$SCEN" = keepwait ]; } && [ "$st" = blocked ] && [ "$g" -ge 2 ]; then st=working g=0; echo 0 > "$S/gets"; echo working > "$S/status"; fi
     if [ "$st" = working ] && [ "$g" -ge 3 ]; then
       case "$SCEN" in
-        happy|wait|claude|keep|keepwait) echo "$report" > "$(cat "$S/report")"; st=idle ;;
+        happy|wait|claude|keep|keepwait|resume) echo "$report" > "$(cat "$S/report")"; st=idle ;;
         # only a recovered prompt (escape, then exactly one resend) produces the report
         hooks) [ ! -s "$S/screen" ] && [ "$(cat "$S/prompts")" = 2 ] && { echo "$report" > "$(cat "$S/report")"; st=idle; } ;;
         quota|keepquota) st=idle; printf 'working\nYou have hit your usage limit. Try again later.\n' > "$S/screen" ;;
@@ -260,6 +260,15 @@ verdict splitfail   7 NOSTART  no
 verdict gone        6 GONE     no
 verdict wait        0 REPORT   yes --wait p1 "$tmp/handoff/w.json"   # stale blocked state is not a new block
 verdict timeout     124 TIMEOUT no --wait p1 "$tmp/handoff/none.json" 0
+# --resume: a follow-up prompt into a kept pane, with a fresh report path; the
+# pane stays open for the next round.
+printf 'Fix the finding: tests/x.sh:3 asserts nothing.\n' > "$tmp/fix.md"
+verdict resume    0 REPORT  no --resume p1 "$tmp/fix.md"
+if grep -qF 'Fix the finding: tests/x.sh:3 asserts nothing.' "$tmp/state-resume/msg" \
+   && grep -q "write your report to $tmp/handoff/resume-p1-[0-9]*.json as JSON with exactly these keys" "$tmp/state-resume/msg"
+then echo "ok   pane resume: message plus a fresh report path"; else echo "FAIL pane resume: prompt was '$(cat "$tmp/state-resume/msg" 2>/dev/null)'"; fail=1; fi
+check "$(gate --resume p1 /nonexistent)"           2 "resume needs a readable message"
+check "$(gate --resume p1)"                        2 "resume needs a message file"
 KEEP=1 verdict keep      0 REPORT  no     # kept open for a fix round
 KEEP=1 verdict keepwait  0 REPORT  no --wait p1 "$tmp/handoff/kw.json"   # and again after the round
 KEEP=1 verdict keepquota 5 QUOTA   yes    # a pane out of quota is closed regardless

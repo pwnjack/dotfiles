@@ -109,26 +109,25 @@ Herdr each one runs through `pane.sh` (a hook refuses the Agent tool there).
 Its tiers map onto the table: cheap is the first two rows, standard the middle
 two, most capable the last.
 
-- **Workspace.** Run subagent-driven development in a worktree
-  (`using-git-worktrees`); every implementer brief names its path and says
-  "commit your work", the one case a Codex leaf commits. The ledger, briefs and
-  review packages stay in `.superpowers/sdd/`.
-- **Implementer.** Brief: the leaf line, then SDD's filled implementer
-  template. It writes SDD's report where SDD asks, and the JSON `summary`
-  starts with its status word (`DONE`, `DONE_WITH_CONCERNS`, `BLOCKED`,
-  `NEEDS_CONTEXT`). Every `pane.sh` call for it carries `DELEGATE_KEEP=1`,
-  every `--wait` included (after a question too), so the pane outlives the
-  report.
-- **Fix rounds.** 1-3: `herdr agent prompt <pane>` with the fixes and the
-  report sentence `pane.sh` sends, naming a new report path, then
-  `DELEGATE_KEEP=1 pane.sh --wait <pane> <new path>`. 4-5: a fresh pane one row
-  higher. Close the pane when the task review passes.
-- **Task reviewer.** The other family from that task's implementer, blind:
-  SDD's task-reviewer template without the implementer-claims section or the
-  report path, plus the review package. Say no test evidence is supplied; it
-  runs a test only on a specific doubt.
-- **Final review.** Blind, on the whole branch, from the other family to the
-  implementers: this is the review above, reported once. Keep a plan's
+- **Which executor.** Subagent-driven development pays an implementer, a
+  review and re-reviews per task; use it for plans with several substantial
+  tasks. A small plan runs inline (`executing-plans`) with the one blind
+  review from the other family at the end.
+- **Briefs.** Never write or edit one by hand: `sdd-brief.sh` (run from the
+  worktree; usage in its header) fills SDD's own templates and prints the
+  path for `pane.sh`. Review briefs are blind by construction; exit 4 means
+  the plugin's template changed and the script needs updating.
+- **Workspace.** A worktree (`using-git-worktrees`): the implementer brief
+  tells the worker to commit there, the one case a Codex leaf commits.
+- **Implementer.** Its JSON `summary` starts with SDD's status word. Every
+  `pane.sh` call for it carries `DELEGATE_KEEP=1`, `--wait` after a question
+  included, so the pane survives for fix rounds.
+- **Fix rounds.** 1-3: write the findings to a file, then
+  `pane.sh --resume <pane> <file>` (a fresh report path, pane kept). 4-5: a
+  fresh pane one row higher. Close the pane when the task review passes.
+- **Reviewers.** Task review and re-review: the other family from that task's
+  implementer. Final review: the other family to the implementers, on the
+  whole branch; this is the review above, reported once. Keep a plan's
   implementers to one family; if both implemented, each family reviews it.
 - `requesting-code-review` is the review above; `dispatching-parallel-agents`
   is one pane per agent. Never nest an orchestrator: workers are leaves.

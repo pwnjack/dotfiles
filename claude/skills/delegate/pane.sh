@@ -7,6 +7,7 @@
 #   pane.sh codex <alias> <effort> <slug> <brief-file>
 #   pane.sh claude <alias> <effort> <slug> <brief-file>
 #   pane.sh --wait <pane> <report> [minutes]   # resume after answering it
+#   pane.sh --resume <pane> <message-file> [minutes]   # a follow-up round
 #
 # Claude alias: a Claude Code model alias (haiku, sonnet, opus, ...). Codex
 # alias: a codename (luna, terra, sol, ...) or inherit. Effort, both kinds:
@@ -24,6 +25,8 @@
 # answer or re-prompt with `herdr agent prompt`, then run --wait, and close it
 # with `herdr pane close` when done with it. DELEGATE_KEEP=1 keeps it open on
 # REPORT too, for a fix round that resumes it; QUOTA still closes it.
+# --resume sends the message plus the report request with a fresh report path
+# (an old path would return the previous report at once) and keeps the pane.
 #
 # Claude workers start with Superpowers off: a leaf that brainstorms waits for
 # an approval no one gives, and its session text would fill every worker.
@@ -38,7 +41,9 @@ start=$(date +%s) kind='' pane='' report='' model='' effort='' msg='' waiting=''
 CLAUDE_STANDARD="haiku sonnet opus"
 CLAUDE_PLUGINS_OFF='{"enabledPlugins":{"superpowers@anthropic-plugin-directory":false}}'
 
-usage() { echo "usage: $0 claude|codex <alias> <effort> <slug> <brief> | --wait <pane> <report> [minutes]" >&2; exit 2; }
+usage() { echo "usage: $0 claude|codex <alias> <effort> <slug> <brief> | --wait <pane> <report> [minutes] | --resume <pane> <message-file> [minutes]" >&2; exit 2; }
+# The report request every prompt ends with; the report path is always new.
+ask() { echo "Finally, even if you failed, write your report to $report as JSON with exactly these keys: status (complete|partial|failed), summary, files_changed, commands_run, tests_run, blockers, concerns."; }
 screen() { herdr agent read "$pane" --source visible --format text 2>/dev/null | tail -n "${1:-40}"; }
 status() { herdr agent get "$pane" 2>/dev/null | jq -r '.result.agent.agent_status // "gone"' 2>/dev/null || echo gone; }
 # Checked only once the worker is idle, on the bottom of the screen, for the
@@ -58,6 +63,14 @@ finish() { # verdict exit-code [close]
 if [ "${1:-}" = --wait ]; then
   [ $# -ge 3 ] || usage
   pane=$2 report=$3 limit=$(( ${4:-45} * 60 )) waiting=1 landed=1
+elif [ "${1:-}" = --resume ]; then
+  [ $# -ge 3 ] || usage
+  [ -r "$3" ] || { echo "message not readable: $3" >&2; exit 2; }
+  pane=$2 limit=$(( ${4:-45} * 60 )) waiting=1 DELEGATE_KEEP=1
+  dir=${DELEGATE_HANDOFF_DIR:-/tmp/delegate}; mkdir -p "$dir"
+  report=$dir/resume-${pane//[^a-zA-Z0-9]/-}-$(date +%s).json
+  msg="$(cat "$3") $(ask)"
+  herdr agent prompt "$pane" "$msg" >/dev/null || finish GONE 6
 else
   kind=${1:-} limit=$(( 45 * 60 ))
   case "$kind" in claude|codex) ;; *) usage ;; esac
@@ -146,7 +159,7 @@ if [ -n "$kind" ]; then
     finish NOSTART 7
   fi
 
-  msg="Read the brief at $brief and follow it exactly. Finally, even if you failed, write your report to $report as JSON with exactly these keys: status (complete|partial|failed), summary, files_changed, commands_run, tests_run, blockers, concerns."
+  msg="Read the brief at $brief and follow it exactly. $(ask)"
   herdr agent prompt "$pane" "$msg" >/dev/null
 fi
 
