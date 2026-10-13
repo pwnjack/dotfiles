@@ -147,4 +147,12 @@ assert_contains "$(cat "$tmp/home/.local/state/rofi/font.rasi")" "Test Font" "sy
 assert_contains "$(cat "$tmp/home/.local/state/waybar/font.css")" "Test Font" "sync leaves the Waybar include"
 assert_contains "$(cat "$tmp/home/.local/state/ghostty/font")" "Test Font" "sync leaves the Ghostty include"
 
+# sync: the lock-screen monitor follows options/mainmonitor.
+printf 'DP-2\n' > "$tree/options/mainmonitor"
+run "$tree" sync
+assert_eq "$(cat "$tmp/home/.local/state/hypr/primary.conf")" '$monitor = DP-2' "primary.conf follows options/mainmonitor"
+printf '\n' > "$tree/options/mainmonitor"
+run "$tree" sync
+assert_eq "$(cat "$tmp/home/.local/state/hypr/primary.conf")" '$monitor =' "an empty mainmonitor renders no monitor"
+
 test_summary state-cli

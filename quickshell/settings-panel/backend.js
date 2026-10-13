@@ -950,11 +950,14 @@ export async function dispatch(request) {
         const monitors = JSON.parse(await execAsync(["hyprctl", "monitors", "-j"]))
         if (request.value !== "" && !monitors.some(m => m.name === request.value)) throw new Error("Display is no longer connected")
         if (typeof request.value !== "string" || /[\r\n\0$]/.test(request.value)) throw new Error("Invalid display name")
-        const primary = configDir + "/hypr/config/hardware/primary.conf"
         const before = read(optionPath("mainmonitor"))
         write(optionPath("mainmonitor"), request.value + "\n")
-        try { write(primary, (request.value ? "$monitor = " + request.value : "$monitor =") + "\n") }
-        catch (error) { write(optionPath("mainmonitor"), before); throw error }
+        try { await syncOverlay() }
+        catch (error) {
+            write(optionPath("mainmonitor"), before)
+            try { await syncOverlay() } catch (_) { /* The doctor reports a stale render. */ }
+            throw error
+        }
         return {}
     }
     if (request.op === "displayApply") return displayApply(request)

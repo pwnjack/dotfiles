@@ -566,13 +566,14 @@ console.log('ok: notification edits preserve unrelated configuration and roll ba
 failingPath=base+'/options/terminal'
 await assert.rejects(dispatch({op:'set',id:'apps.terminal',value:'ghostty'}),/disk full/)
 failingPath=''
+events = []
 await dispatch({op:'mainMonitor',value:'DP-1'})
 assert.equal(files.get(base+'/options/mainmonitor'),'DP-1\n')
-assert.equal(files.get(base+'/hypr/config/hardware/primary.conf'),'$monitor = DP-1\n')
-failingPath=base+'/hypr/config/hardware/primary.conf'
-await assert.rejects(dispatch({op:'mainMonitor',value:''}),/disk full/)
-assert.equal(files.get(base+'/options/mainmonitor'),'DP-1\n')
-console.log('ok: file failures propagate and partial main-monitor writes are restored')
+assert.ok(events.some(overlaySync), 'a main-monitor change syncs the overlay')
+failOverlay = true
+await assert.rejects(dispatch({op:'mainMonitor',value:''}),/overlay failed/)
+assert.equal(files.get(base+'/options/mainmonitor'),'DP-1\n','a failed sync restores the option')
+console.log('ok: file failures propagate and a failed main-monitor sync restores the option')
 
 const oldSunset = files.get(base+'/hypr/hyprsunset.conf')
 failingPath=''
@@ -1074,8 +1075,8 @@ assert.equal(guardArmed,false)
 files.set(base+'/options/mainmonitor','\n')
 monitorsFixture.pop()
 await dispatch({op:'mainMonitor',value:''})
-assert.equal(files.get(base+'/hypr/config/hardware/primary.conf'),'$monitor =\n')
-console.log('ok: the main display cannot be turned off, and no main display writes no trailing space')
+assert.equal(files.get(base+'/options/mainmonitor'),'\n')
+console.log('ok: the main display cannot be turned off, and no main display stores an empty option')
 
 nmCalls = []; events = []
 result = await dispatch({op:'read',ids:['network.wifi'],network:true})
