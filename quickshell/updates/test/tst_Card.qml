@@ -52,10 +52,24 @@ Item {
             controller.closes = 0;
             controller.reboots = 0;
             controller.plan = controller.fullPlan;
+            controller.planError = "";
             controller.lastTerminal = "";
             card.forceActiveFocus();
             card.focusPrimary();
             wait(50);
+        }
+        function test_spinnerWhileChecking() {
+            controller.plan = null;
+            const spinner = findChild(card, "spinner");
+            verify(spinner !== null);
+            tryCompare(spinner, "opacity", 1, 1000);
+            verify(spinner.visible);
+            controller.plan = controller.fullPlan;
+            tryCompare(spinner, "opacity", 0, 1000);
+            controller.plan = null;
+            tryCompare(spinner, "opacity", 1, 1000);
+            controller.planError = "checkupdates failed";
+            tryCompare(spinner, "opacity", 0, 1000);
         }
         function test_listCollapsedByDefault() {
             const clip = findChild(card, "listClip");
