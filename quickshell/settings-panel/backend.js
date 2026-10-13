@@ -19,6 +19,8 @@ const catalog = JSON.parse(read(configDir + "/quickshell/settings-panel/catalog.
 const byId = new Map(catalog.rows.map(row => [row.id, row]))
 const optionPath = key => `${configDir}/options/${key}`
 const idlePath = configDir + "/hypr/hypridle.conf"
+// hypridle.conf sources this fixed path (hyprlang cannot expand XDG_STATE_HOME).
+const idleStatePath = `${GLib.get_home_dir()}/.local/state/hypr/hypridle.conf`
 const sunsetPath = configDir + "/hypr/hyprsunset.conf"
 const swayPath = configDir + "/swaync/config.json"
 const kvantumPath = configDir + "/Kvantum/kvantum.kvconfig"
@@ -273,21 +275,31 @@ function requiredSnapshot() {
     if (!snap.running) throw new Error("NetworkManager is not running")
     return snap
 }
-// The lock listener runs hyprlock directly or through loginctl (which honours hypridle's lock_cmd).
-const isLockListener = block => /hyprlock|loginctl\s+lock-session/.test(block)
-function idleValues(text) {
+const hyprVarLine = name => new RegExp(`^\\$${name}\\s*=\\s*(\\S*)\\s*$`, "m")
+function hyprVar(text, name) { return (hyprVarLine(name).exec(text) || [])[1] }
+// Sets a variable line in the state text, or removes it when the value is the
+// tracked default, so the state file only ever holds this machine's changes.
+function withVar(text, name, value, fallback) {
+    const line = `$${name} = ${value}`
+    const pattern = new RegExp(`^\\$${name}\\s*=.*\\n?`, "m")
+    if (String(value) === fallback) return text.replace(pattern, "")
+    if (pattern.test(text)) return text.replace(pattern, () => line + "\n")
+    const vars = text.match(/^(\$\w+\s*=.*\n)*/)[0]
+    return vars + line + "\n" + text.slice(vars.length)
+}
+const idleVars = { lock: "lock_timeout", dpms: "dpms_timeout" }
+function idleValues(tracked, state) {
     const values = {}
-    for (const block of text.match(/listener\s*\{[^}]*\}/g) || []) {
-        const timeout = block.match(/\btimeout\s*=\s*(\d+)/)
-        if (!timeout) continue
-        if (isLockListener(block)) values.lock = Number(timeout[1])
-        if (/dpms/.test(block) && /off/.test(block)) values.dpms = Number(timeout[1])
-        if (/systemctl suspend/.test(block)) values.suspend = Number(timeout[1])
+    for (const [key, name] of Object.entries(idleVars)) {
+        const raw = hyprVar(state, name) ?? hyprVar(tracked, name)
+        if (!/^\d+$/.test(raw ?? "")) throw new Error("Cannot identify idle timeout variables")
+        values[key] = Number(raw)
     }
-    if (values.lock === undefined || values.dpms === undefined) throw new Error("Cannot identify idle timeout listeners")
-    values.suspend ??= 0
+    const suspend = /# Suspend after inactivity\nlistener\s*\{[^}]*?\btimeout\s*=\s*(\d+)/.exec(state)
+    values.suspend = suspend ? Number(suspend[1]) : 0
     return values
 }
+function readIdleState() { return exists(idleStatePath) ? read(idleStatePath) : "" }
 // The panel owns only the listener it wrote, found by its marker comment.
 // It always appends that block as a fixed "\n\n" + marker suffix (never
 // collapsing whatever newlines the file already ended with), so removal can
@@ -355,6 +367,22 @@ async function saveNew(path, text, apply) {
     catch (error) {
         try { remove(path); await apply() }
         catch (rollback) { throw new Error(`${error.message}. Restoring the previous settings also failed: ${rollback.message}`) }
+        throw new Error(`${error.message}. Previous settings restored.`)
+    }
+}
+// Like saveAndApply, but an empty text removes the file; a failure restores the
+// previous bytes, or no file when there was none.
+async function saveOrRemove(path, text, apply) {
+    const before = exists(path) ? read(path) : null
+    if (text === "") { if (before !== null) remove(path) }
+    else write(path, text)
+    try { await apply() }
+    catch (error) {
+        try {
+            if (before === null) { if (exists(path)) remove(path) }
+            else write(path, before)
+            await apply()
+        } catch (rollback) { throw new Error(`${error.message}. Restoring the previous settings also failed: ${rollback.message}`) }
         throw new Error(`${error.message}. Previous settings restored.`)
     }
 }
@@ -591,7 +619,7 @@ async function snapshot(ids, includeMonitors, views = {}) {
                 break
             case "cursor": value = Number(await execAsync(["gsettings", "get", ...gsettingsArgs("cursor-size")])); break
             case "gtk": value = gvariantValue(await execAsync(["gsettings", "get", ...gsettingsArgs(row.key)])); break
-            case "idle": value = (await once("idle", () => idleValues(read(idlePath))))[row.key]; break
+            case "idle": value = (await once("idle", () => idleValues(read(idlePath), readIdleState())))[row.key]; break
             case "sunset": value = (await once("sunset", () => sunsetValues(read(sunsetPath))))[row.key]; break
             case "swaync": value = (await once("swaync", () => JSON.parse(read(swayPath))))[row.key] ?? row.default; break
             case "kvantum": value = exists(kvantumPath) ? iniValue(read(kvantumPath), "theme", "General") : ""; break
@@ -738,14 +766,15 @@ async function change(request) {
         return
     }
     case "idle": {
-        const before = read(idlePath)
-        idleValues(before)
-        if (row.key === "suspend") return saveAndApply(idlePath, withSuspend(before, value), () => restart("hypridle"))
-        const text = before.replace(/listener\s*\{[^}]*\}/g, block => {
-            const match = row.key === "lock" ? isLockListener(block) : /dpms/.test(block) && /off/.test(block)
-            return match ? block.replace(/(\btimeout\s*=\s*)\d+/, `$1${value}`) : block
-        })
-        return saveAndApply(idlePath, text, () => restart("hypridle"))
+        const tracked = read(idlePath)
+        const before = readIdleState()
+        idleValues(tracked, before)
+        // A suspend listener written by hand in the tracked file is never retimed.
+        if (/listener\s*\{[^}]*systemctl suspend/.test(tracked)) throw new Error("hypridle.conf has a custom suspend listener; change it by hand")
+        const text = row.key === "suspend" ? withSuspend(before, value)
+            : withVar(before, idleVars[row.key], value, hyprVar(tracked, idleVars[row.key]))
+        makeParent(idleStatePath)
+        return saveOrRemove(idleStatePath, text, () => restart("hypridle"))
     }
     case "sunset": {
         const before = read(sunsetPath)

@@ -9,10 +9,11 @@ const base = '/fixture/.config'
 const catalog = JSON.parse(fs.readFileSync(new URL('../catalog.json', import.meta.url)))
 catalog.rows.push({id:'test.option-slider',source:'option',key:'test-slider',kind:'slider',min:10,max:100,step:1})
 catalog.rows.push({id:'test.gtk-raw',source:'gtk',key:'gtk-theme',ini:{key:'gtk-theme-name'}})
+const idleState = '/fixture/.local/state/hypr/hypridle.conf'
 const files = new Map([
     [base + '/quickshell/settings-panel/catalog.json', JSON.stringify(catalog)],
     ['/fixture/.local/state/hypr/overrides.lua', ''],
-    [base + '/hypr/hypridle.conf', '# Keep this comment\ngeneral { ignore_dbus_inhibit = false }\nlistener {\n timeout = 305\n on-timeout = loginctl lock-session\n}\nlistener {\n timeout = 600\n on-timeout = hyprctl dispatch \'hl.dsp.dpms({action = "off"})\'\n}\n'],
+    [base + '/hypr/hypridle.conf', '# Keep this comment\ngeneral { ignore_dbus_inhibit = false }\n$lock_timeout = 305\n$dpms_timeout = 600\n# hyprlang noerror true\nsource = ~/.local/state/hypr/hypridle.conf\n# hyprlang noerror false\nlistener {\n timeout = $lock_timeout\n on-timeout = loginctl lock-session\n}\nlistener {\n timeout = $dpms_timeout\n on-timeout = hyprctl dispatch \'hl.dsp.dpms({action = "off"})\'\n}\n'],
     [base + '/hypr/hyprsunset.conf', '# Keep this comment\nmax-gamma = 100\nprofile {\n time = 07:00\n temperature = 6000\n}\nprofile {\n time = 20:00\n temperature = 4000\n}\n'],
     [base + '/swaync/config.json', JSON.stringify({timeout:5,unrelated:{keep:true}})],
     [base + '/hypr/config/hardware/primary.conf', '$monitor =\n'],
@@ -573,10 +574,14 @@ await assert.rejects(dispatch({op:'set',id:'power.nightlight-start',value:420}),
 console.log('ok: night light edits preserve the rest of the file and reject conflicting schedule boundaries')
 const oldIdle = files.get(base+'/hypr/hypridle.conf')
 await dispatch({op:'set',id:'power.lock',value:330})
-assert.equal(files.get(base+'/hypr/hypridle.conf'),oldIdle.replace('305','330'))
+assert.equal(files.get(base+'/hypr/hypridle.conf'),oldIdle,'the tracked file is never written')
+assert.equal(files.get(idleState),'$lock_timeout = 330\n')
 await dispatch({op:'set',id:'power.dpms',value:720})
-assert.equal(files.get(base+'/hypr/hypridle.conf'),oldIdle.replace('305','330').replace('600','720'))
-console.log('ok: idle timeout edits preserve custom content and Lua dispatcher arguments')
+assert.equal(files.get(idleState),'$lock_timeout = 330\n$dpms_timeout = 720\n')
+await dispatch({op:'set',id:'power.lock',value:305})
+assert.equal(files.get(idleState),'$dpms_timeout = 720\n')
+files.delete(idleState)
+console.log('ok: idle timeout edits touch only the state file and drop values equal to the tracked default')
 
 result = await dispatch({op:'read',ids:['power.profile','power.suspend']})
 assert.equal(result.values['power.profile'].value,'performance')
@@ -585,49 +590,53 @@ assert.equal(result.values['power.suspend'].value,0)
 await dispatch({op:'set',id:'power.profile',value:'balanced'})
 assert.ok(events.some(e=>e[0]==='powerprofilesctl' && e[1]==='set' && e[2]==='balanced'))
 const idleBefore = files.get(base+'/hypr/hypridle.conf')
-const idleNoNewline = idleBefore.replace(/\n$/,'')
 const suspendAt = seconds => `# Suspend after inactivity\nlistener {\n    timeout = ${seconds}\n    on-timeout = systemctl suspend\n}\n`
 
-// The round trip (set N, retime, set 0) must restore the file byte-for-byte
-// regardless of how many trailing newlines it had before the suspend block
-// ever existed - a file ending in 0, 1 or 2+ newlines are three distinct cases.
-for (const [label,original] of [['no trailing newline',idleNoNewline],['one trailing newline',idleBefore],['two trailing newlines',idleBefore+'\n']]) {
-    files.set(base+'/hypr/hypridle.conf',original)
+// The round trip (set N, retime, set 0) must restore the state file
+// byte-for-byte, or remove it when it did not exist.
+for (const [label,original] of [['no state file',''],['one trailing newline','$lock_timeout = 330\n'],['no trailing newline','$lock_timeout = 330']]) {
+    if (original === '') files.delete(idleState); else files.set(idleState,original)
 
     events=[]
     await dispatch({op:'set',id:'power.suspend',value:1800})
     assert.ok(events.some(e=>e[0]==='pkill' && e[2]==='hypridle'),`add restarts hypridle (${label})`)
     assert.ok(events.some(e=>e[0]==='spawn' && e[1][0]==='hypridle'),`add spawns hypridle (${label})`)
-    assert.equal(files.get(base+'/hypr/hypridle.conf'),original+'\n\n'+suspendAt(1800),`add is byte-exact (${label})`)
+    assert.equal(files.get(idleState),original+'\n\n'+suspendAt(1800),`add is byte-exact (${label})`)
 
     events=[]
     await dispatch({op:'set',id:'power.suspend',value:3600})
     assert.ok(events.some(e=>e[0]==='pkill' && e[2]==='hypridle'),`retime restarts hypridle (${label})`)
     assert.ok(events.some(e=>e[0]==='spawn' && e[1][0]==='hypridle'),`retime spawns hypridle (${label})`)
-    assert.equal(files.get(base+'/hypr/hypridle.conf'),original+'\n\n'+suspendAt(3600),`retime keeps everything else identical (${label})`)
+    assert.equal(files.get(idleState),original+'\n\n'+suspendAt(3600),`retime keeps everything else identical (${label})`)
 
     events=[]
     await dispatch({op:'set',id:'power.suspend',value:0})
     assert.ok(events.some(e=>e[0]==='pkill' && e[2]==='hypridle'),`remove restarts hypridle (${label})`)
     assert.ok(events.some(e=>e[0]==='spawn' && e[1][0]==='hypridle'),`remove spawns hypridle (${label})`)
-    assert.equal(files.get(base+'/hypr/hypridle.conf'),original,`removal restores the file byte-for-byte (${label})`)
+    if (original === '') assert.equal(files.has(idleState),false,`removal deletes the state file (${label})`)
+    else assert.equal(files.get(idleState),original,`removal restores the file byte-for-byte (${label})`)
 }
-files.set(base+'/hypr/hypridle.conf',idleBefore)
+files.delete(idleState)
+
+files.set(idleState,'$lock_timeout = 900\n\n\n'+suspendAt(7200))
+result = await dispatch({op:'read',ids:['power.lock','power.dpms','power.suspend']})
+assert.equal(result.values['power.lock'].value,900)
+assert.equal(result.values['power.dpms'].value,600)
+assert.equal(result.values['power.suspend'].value,7200)
+files.delete(idleState)
 
 files.set(base+'/hypr/hypridle.conf',idleBefore+'listener {\n timeout = 99\n on-timeout = systemctl suspend\n}\n')
 await assert.rejects(dispatch({op:'set',id:'power.suspend',value:0}),/by hand/)
-const customIdle = files.get(base+'/hypr/hypridle.conf')
 await assert.rejects(dispatch({op:'set',id:'power.suspend',value:1800}),/by hand/)
-assert.equal(files.get(base+'/hypr/hypridle.conf'),customIdle,'a custom suspend listener is never retimed')
+assert.equal(files.has(idleState),false,'a custom suspend listener is never retimed')
 files.set(base+'/hypr/hypridle.conf',idleBefore)
-console.log('ok: power profile and suspend listener round-trip without touching custom content')
+console.log('ok: power profile and suspend listener round-trip on the state file without touching custom content')
 
-const idleForFailure = files.get(base+'/hypr/hypridle.conf')
 failNextSpawn = 'hypridle'
 await assert.rejects(dispatch({op:'set',id:'power.suspend',value:1800}),/Previous settings restored/)
-assert.equal(files.get(base+'/hypr/hypridle.conf'),idleForFailure)
+assert.equal(files.has(idleState),false)
 assert.equal(failNextSpawn,'')
-console.log('ok: a suspend change that fails to restart hypridle restores hypridle.conf exactly')
+console.log('ok: a suspend change that fails to restart hypridle leaves no state file behind')
 
 result = await dispatch({op:'read',ids:['input.accel-profile']})
 assert.equal(result.values['input.accel-profile'].value,'')
