@@ -51,7 +51,7 @@ opacity=$(opt bar-opacity)
 if [[ $opacity =~ ^0*(100|[0-9]{1,2})$ ]]; then
     opacity=$((10#${BASH_REMATCH[1]}))
 else
-    opacity=50
+    opacity=80
 fi
 if ((opacity == 100)); then
     alpha=1
@@ -105,7 +105,7 @@ mv -f "$tmp" "$include"
 mkdir -p "${css%/*}"
 tmp=$(mktemp "$css.XXXXXX")
 {
-    printf 'window#waybar {\n    background: rgba(0, 0, 0, %s);\n' "$alpha"
+    printf 'window#waybar {\n    background: alpha(@background, %s);\n' "$alpha"
     [[ $border_rule == 'border: none;' ]] || printf '    %s\n' "$border_rule"
     printf '    border-radius: %spx;\n}\n' "$radius"
 } > "$tmp"

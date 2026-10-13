@@ -77,41 +77,41 @@ rm -rf "$TMP/opt"; mkdir -p "$TMP/opt"
 layout() { jq -r '[.position, .["margin-top"], .["margin-bottom"], .["margin-left"], .["margin-right"], (.output // "none")] | join(" ")' "$TMP/out/bar.jsonc"; }
 css() { tr '\n' ' ' < "$TMP/out/bar.css" | tr -s ' '; }
 opt() { printf '%s\n' "$2" > "$TMP/opt/bar-$1"; }
-rule() { printf 'window#waybar { background: rgba(0, 0, 0, %s); %s border-radius: %spx; } ' "$1" "$2" "$3" | tr -s ' '; }
+rule() { printf 'window#waybar { background: alpha(@background, %s); %s border-radius: %spx; } ' "$1" "$2" "$3" | tr -s ' '; }
 FULL='border: 1px solid @foreground;'
 
 render --no-reload > /dev/null
 assert_eq "$(layout)" "top 8 0 10 10 none" "defaults reproduce today's margins"
-assert_eq "$(css)" "$(rule 0.50 "$FULL" 18)" "defaults reproduce today's stylesheet"
+assert_eq "$(css)" "$(rule 0.80 "$FULL" 18)" "defaults reproduce today's stylesheet"
 
 opt position bottom
 render --no-reload > /dev/null
 assert_eq "$(layout)" "bottom 0 8 10 10 none" "floating on the bottom flips the edge margin"
-assert_eq "$(css)" "$(rule 0.50 "$FULL" 18)" "floating stylesheet is position independent"
+assert_eq "$(css)" "$(rule 0.80 "$FULL" 18)" "floating stylesheet is position independent"
 
 opt style docked
 render --no-reload > /dev/null
 assert_eq "$(layout)" "bottom 0 0 0 0 none" "docked has no margins"
-assert_eq "$(css)" "$(rule 0.50 'border-top: 1px solid @foreground;' 0)" "docked bottom bar borders its top edge"
+assert_eq "$(css)" "$(rule 0.80 'border-top: 1px solid @foreground;' 0)" "docked bottom bar borders its top edge"
 opt position top
 render --no-reload > /dev/null
-assert_eq "$(css)" "$(rule 0.50 'border-bottom: 1px solid @foreground;' 0)" "docked top bar borders its bottom edge"
+assert_eq "$(css)" "$(rule 0.80 'border-bottom: 1px solid @foreground;' 0)" "docked top bar borders its bottom edge"
 
 opt border disabled
 render --no-reload > /dev/null
-assert_eq "$(css)" "$(rule 0.50 '' 0)" "border disabled removes it when docked"
+assert_eq "$(css)" "$(rule 0.80 '' 0)" "border disabled removes it when docked"
 opt style floating
 render --no-reload > /dev/null
-assert_eq "$(css)" "$(rule 0.50 '' 18)" "border disabled removes it when floating"
+assert_eq "$(css)" "$(rule 0.80 '' 18)" "border disabled removes it when floating"
 opt border enabled
 
-for pair in 0:0.00 5:0.05 50:0.50 100:1 007:0.07 105:0.50 abc:0.50 -5:0.50 5.5:0.50 '':0.50 \
-    18446744073709551616:0.50 9223372036854775808:0.50; do
+for pair in 0:0.00 5:0.05 50:0.50 100:1 007:0.07 105:0.80 abc:0.80 -5:0.80 5.5:0.80 '':0.80 \
+    18446744073709551616:0.80 9223372036854775808:0.80; do
     opt opacity "${pair%%:*}"
     render --no-reload > /dev/null
-    assert_contains "$(css)" "rgba(0, 0, 0, ${pair#*:});" "opacity '${pair%%:*}' renders ${pair#*:}"
+    assert_contains "$(css)" "alpha(@background, ${pair#*:});" "opacity '${pair%%:*}' renders ${pair#*:}"
 done
-opt opacity 50
+opt opacity 80
 
 opt output DP-1
 render --no-reload > /dev/null

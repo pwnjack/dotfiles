@@ -485,7 +485,7 @@ assert.deepEqual(layoutRows.map(row => [row.id, row.source, row.kind]), [
 ])
 assert.deepEqual(layoutRows.slice(0,2).map(row => row.reload), [true,true])
 const opacityRow = layoutRows[2]
-assert.deepEqual([opacityRow.min,opacityRow.max,opacityRow.step,opacityRow.default], [0,100,5,50])
+assert.deepEqual([opacityRow.min,opacityRow.max,opacityRow.step,opacityRow.default], [0,100,5,80])
 assert.equal(layoutRows[4].choices,'monitors')
 for (const [id,key,values,script,reload] of [
     ['bar.position','bar-position',['bottom','top'],'bar-modes.sh',true],
@@ -515,7 +515,7 @@ assert.ok(events.some(e => e[0] === 'hyprctl' && e[1] === 'monitors' && e[2] ===
 for (const value of ['broken','', 'Infinity']) {
     files.set(base+'/options/bar-opacity',value+'\n')
     result = await dispatch({op:'read',ids:['bar.opacity','test.option-slider']})
-    assert.equal(result.values['bar.opacity'].value,50)
+    assert.equal(result.values['bar.opacity'].value,80)
     assert.equal(result.values['test.option-slider'].value,10)
 }
 // A missing file disables the row, as for every option row: a save could not
@@ -537,7 +537,7 @@ for (const [id,value] of [['bar.opacity',-5],['bar.opacity',105],['bar.opacity',
     assert.deepEqual(files,before)
     assert.equal(events.some(e => ['write','bash'].includes(e[0]) || e[1] === 'reload'),false)
 }
-for (const [text, expected] of [['0x10\n', 50], ['500\n', 50], ['1e1\n', 50], ['35\n', 35]]) {
+for (const [text, expected] of [['0x10\n', 80], ['500\n', 80], ['1e1\n', 80], ['35\n', 35]]) {
     files.set(base+'/options/bar-opacity', text)
     assert.equal((await dispatch({op:'read',ids:['bar.opacity']})).values['bar.opacity'].value, expected)
 }
