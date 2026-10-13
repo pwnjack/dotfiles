@@ -3,6 +3,8 @@
 # Adapted from https://github.com/fedddorov/claude-code-status-bar
 # Wire up in ~/.claude/settings.json:
 #   "statusLine": {"type": "command", "command": "bash ~/.config/claude/statusline.sh"}
+# The session's time locale, kept for naming reset days before LC_ALL=C below.
+time_locale=${LC_ALL:-${LC_TIME:-${LANG:-C}}}
 export LC_ALL=C   # printf %f rejects "72.4" under comma-decimal locales
 input=$(cat)
 IFS=$'\x1f' read -r model effort used total win fiveh fiveh_at week week_at < <(
@@ -65,10 +67,19 @@ bar() {
 }
 
 # rate-limit segment: label, percent, reset epoch
+# clock time of an epoch, with the weekday when it is not today; 12 h when
+# options/clock says so, like the bar and the desktop clock
+fmt_at() {
+  local f='%H:%M'
+  [ "$(cat "$HOME/.config/options/clock" 2>/dev/null)" = 12h ] && f='%-I:%M%p'
+  [ "$(date -d "@$1" +%F)" = "$(date +%F)" ] || f="%a $f"
+  LC_ALL=$time_locale date -d "@$1" +"$f"
+}
+
 limit() {
   local c; c=$(hue "$2")
   printf '%s%s%s %s %s%.0f%%%s' "$DIM" "$1" "$R" "$(bar "$2" "$c")" "$c" "$2" "$R"
-  [ -n "$3" ] && printf ' %s%s%s' "$DIM" "$(fmt_left "$3")" "$R"
+  [ -n "$3" ] && printf ' %s%s · %s%s' "$DIM" "$(fmt_left "$3")" "$(fmt_at "$3")" "$R"
 }
 
 sep="${DIM} │ ${R}"
