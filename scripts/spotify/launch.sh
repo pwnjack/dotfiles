@@ -18,6 +18,9 @@
 # has no xpui.spa, which SpotX refuses, so `spicetify restore` runs first then.
 # SpotX gets -f: when its own backup exists it restores the stock files and
 # patches again, so a run SpotX failed halfway is simply repeated.
+# Spicetify takes the backup version from prefs, which still names the old
+# client before an update's first launch. Stamp its existing version key from
+# spotify-launcher's state before the backup, or later refreshes reject it.
 #
 # MARKER means "SpotX applied", and is written as soon as it is. Rebuilding
 # Apps/ drops SpotX's stock xpui.bak, so a client that has been through
@@ -37,8 +40,9 @@
 # only while holding the lock: before it, a sibling launch's own update
 # (spotify-launcher --no-exec) would look like a running client.
 #
-# Test seams: SPOTIFY_INSTALL_DIR (the client directory), SPOTX_URL, and the
-# commands spotify-launcher, spicetify, curl, pgrep and notify-send on PATH.
+# Test seams: SPOTIFY_INSTALL_DIR (the client directory), XDG_DATA_HOME (the
+# launcher state), SPOTX_URL, and the commands spotify-launcher, spicetify,
+# curl, pgrep and notify-send on PATH.
 set -uo pipefail
 
 install="${SPOTIFY_INSTALL_DIR:-$HOME/.local/share/spotify-launcher/install/usr/share/spotify}"
@@ -48,6 +52,7 @@ SPOTX_URL="${SPOTX_URL:-https://raw.githubusercontent.com/SpotX-Official/SpotX-B
 state="${XDG_STATE_HOME:-$HOME/.local/state}/spotify"
 log="$state/patch.log"
 spicetify_config="${XDG_CONFIG_HOME:-$HOME/.config}/spicetify/config-xpui.ini"
+launcher_state="${XDG_DATA_HOME:-$HOME/.local/share}/spotify-launcher/state.json"
 newer=0
 
 notify() {
@@ -63,6 +68,29 @@ start() {
 # to apply and would create a config of its own.
 use_spicetify() {
     command -v spicetify >/dev/null 2>&1 && [ -f "$spicetify_config" ]
+}
+
+# Called under the patch lock, with Spotify confirmed not running. Only stamp
+# an existing prefs key; incomplete launcher or Spicetify state is left alone.
+stamp_prefs_version() {
+    local version prefs tmp
+    [ -r "$launcher_state" ] || return 0
+    version=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$launcher_state")
+    [[ "$version" =~ ^[0-9]+: ]] && version=${version#*:}
+    [[ "$version" =~ ^[0-9]+(\.[0-9]+)+(\.g[[:xdigit:]]+)?$ ]] || return 0
+    prefs=$(sed -n 's/^prefs_path[[:space:]]*=[[:space:]]*//; T; s/[[:space:]]*$//p' "$spicetify_config" | head -n1)
+    prefs=${prefs//\$HOME/$HOME}
+    prefs=${prefs/#\~/$HOME}
+    # Replace the file a symlink points at, never the link itself.
+    [ -f "$prefs" ] && prefs=$(readlink -f -- "$prefs") || return 0
+    grep -q '^app\.last-launched-version=' "$prefs" || return 0
+    tmp=$(mktemp "$prefs.XXXXXX") || return 0
+    if sed "s/^app\\.last-launched-version=.*/app.last-launched-version=\"$version\"/" "$prefs" >"$tmp" \
+            && chmod --reference="$prefs" "$tmp" && mv -- "$tmp" "$prefs"; then
+        return 0
+    fi
+    rm -f -- "$tmp"
+    return 0
 }
 
 # Returns 0 when everything applied, 1 when SpotX did not (no marker, retried
@@ -87,6 +115,7 @@ apply_patches() {
             : >"$MARKER"
             newer_than_supported && newer=1
             if use_spicetify; then
+                stamp_prefs_version >/dev/null 2>&1
                 timeout 300 spicetify -q -n backup apply </dev/null || rc=2
             fi
         elif [ "$restored" = 1 ]; then

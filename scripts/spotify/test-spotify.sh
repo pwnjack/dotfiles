@@ -17,6 +17,7 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
 # shellcheck source=scripts/lib/assert.sh
+# shellcheck disable=SC1091
 . "$TEST_DIR/../lib/assert.sh"
 
 mkdir -p "$TMP/bin"
@@ -48,7 +49,9 @@ echo "spicetify $*" >>"$CALLS"
 apps="$SPOTIFY_INSTALL_DIR/Apps"
 case "$*" in
     *restore*) rm -rf "$apps"; mkdir -p "$apps"; : >"$apps/xpui.spa" ;;
-    *"backup apply"*) rm -rf "$apps"; mkdir -p "$apps/xpui" ;;
+    *"backup apply"*)
+        [ -z "${STUB_PREFS:-}" ] || grep '^app\.last-launched-version=' "$STUB_PREFS" >>"$CALLS" || true
+        rm -rf "$apps"; mkdir -p "$apps/xpui" ;;
 esac
 STUB
 # curl: "downloads" the fake SpotX below to the -o path, unless STUB_CURL_FAIL.
@@ -106,7 +109,7 @@ spicetify_setup() { mkdir -p "$h/.config/spicetify"; : >"$h/.config/spicetify/co
 # launch <args...> -- run the wrapper against $h; sets $rc and $calls.
 launch() {
     : >"$CALLS"
-    HOME="$h" XDG_CONFIG_HOME="$h/.config" XDG_STATE_HOME="$h/.local/state" \
+    HOME="$h" XDG_CONFIG_HOME="$h/.config" XDG_STATE_HOME="$h/.local/state" XDG_DATA_HOME="$h/data" \
         bash "$LAUNCH" "$@" >/dev/null 2>&1 && rc=0 || rc=$?
     calls=$(cat "$CALLS")
 }
@@ -167,6 +170,106 @@ launch
 assert_not_contains "$calls" "spicetify" "no config: Spicetify is never called"
 assert_eq "$(marker)" yes "no config: SpotX alone marks the client patched"
 
+# --- Spicetify takes its backup version from prefs ----------------------------
+prefs_setup() {
+    prefs="$h/.config/spotify/prefs"
+    mkdir -p "$(dirname "$prefs")"
+    printf 'before=unchanged\napp.last-launched-version="1.2.96.518"\nafter=unchanged' >"$prefs"
+    cp "$prefs" "$h/prefs.before"
+}
+launcher_state() {
+    mkdir -p "$h/data/spotify-launcher"
+    printf '{"version": "%s", "last_update_check": {}}\n' "$1" >"$h/data/spotify-launcher/state.json"
+}
+fresh stock
+spicetify_setup
+prefs_setup
+launcher_state '1:1.3.4.258.gc60b10b0946a'
+# shellcheck disable=SC2016
+# Keep $HOME literal so the wrapper must expand Spicetify's path.
+printf 'prefs_path = $HOME/.config/spotify/prefs\n' >"$h/.config/spicetify/config-xpui.ini"
+STUB_PREFS="$prefs" launch
+assert_eq "$rc" 0 "backup version: patching succeeds"
+assert_eq "$(sed -n '/^spicetify -q -n backup apply$/{n;p;}' <<<"$calls")" \
+    'app.last-launched-version="1.3.4.258.gc60b10b0946a"' \
+    "backup version: Spicetify sees the installed version without its epoch"
+sed 's/1.2.96.518/1.3.4.258.gc60b10b0946a/' "$h/prefs.before" >"$h/prefs.expected"
+assert_eq "$(cmp -s "$prefs" "$h/prefs.expected"; echo $?)" 0 \
+    "backup version: only the version changes, including no final newline"
+assert_eq "$(stat -c %a "$prefs")" "$(stat -c %a "$h/prefs.before")" "backup version: prefs permissions preserved"
+assert_eq "$(find "$(dirname "$prefs")" -name 'prefs.*' -print)" '' "backup version: no temporary prefs left behind"
+fresh stock
+spicetify_setup
+prefs_setup
+printf 'prefs_path = ~/.config/spotify/prefs\n' >"$h/.config/spicetify/config-xpui.ini"
+launch
+assert_eq "$(cmp -s "$prefs" "$h/prefs.before"; echo $?)" 0 "missing launcher state: prefs unchanged"
+assert_contains "$(cat "$h/.local/state/spotify/patch.log")" "== exit 0" "missing launcher state: patching succeeds"
+fresh stock
+spicetify_setup
+prefs_setup
+launcher_state '1.3.4.258'
+printf 'prefs_path = ~/.config/spotify/prefs\n' >"$h/.config/spicetify/config-xpui.ini"
+printf 'unrelated=value\r\nlast=no newline' >"$prefs"
+cp "$prefs" "$h/prefs.before"
+launch
+assert_eq "$(cmp -s "$prefs" "$h/prefs.before"; echo $?)" 0 "missing prefs key: byte-identical"
+assert_contains "$(cat "$h/.local/state/spotify/patch.log")" "== exit 0" "missing prefs key: patching succeeds"
+fresh stock
+prefs_setup
+launcher_state '1:1.3.4.258.gc60b10b0946a'
+launch
+assert_eq "$(cmp -s "$prefs" "$h/prefs.before"; echo $?)" 0 "no Spicetify config: prefs unchanged"
+for version in '' 'not-a-version' '1.2.3.gxyz' '1..2' '1.2.3;bad'; do
+    fresh stock
+    spicetify_setup
+    prefs_setup
+    launcher_state "$version"
+    printf 'prefs_path = ~/.config/spotify/prefs\n' >"$h/.config/spicetify/config-xpui.ini"
+    launch
+    assert_eq "$(cmp -s "$prefs" "$h/prefs.before"; echo $?)" 0 "invalid version '$version': prefs unchanged"
+    assert_contains "$(cat "$h/.local/state/spotify/patch.log")" "== exit 0" "invalid version '$version': patching succeeds"
+done
+fresh stock
+spicetify_setup
+prefs_setup
+launcher_state '1.3.4.258'
+printf 'prefs_path = ~/.config/spotify/prefs\n' >"$h/.config/spicetify/config-xpui.ini"
+launch
+assert_contains "$(cat "$prefs")" 'app.last-launched-version="1.3.4.258"' \
+    "backup version: tilde path and version without epoch or hash are accepted"
+fresh stock
+spicetify_setup
+prefs_setup
+launcher_state '1.3.4.258'
+mv "$prefs" "$h/real-prefs"
+ln -s "$h/real-prefs" "$prefs"
+printf 'prefs_path = ~/.config/spotify/prefs  \n' >"$h/.config/spicetify/config-xpui.ini"
+launch
+assert_eq "$([ -L "$prefs" ] && echo link)" link "backup version: a symlinked prefs stays a symlink"
+assert_contains "$(cat "$h/real-prefs")" 'app.last-launched-version="1.3.4.258"' \
+    "backup version: the link's target is stamped, despite trailing spaces in prefs_path"
+for missing in version prefs_path prefs; do
+    fresh stock
+    spicetify_setup
+    prefs_setup
+    launcher_state '1:1.3.4.258'
+    printf 'prefs_path = ~/.config/spotify/prefs\n' >"$h/.config/spicetify/config-xpui.ini"
+    case "$missing" in
+        version) printf '{"last_update_check": {}}\n' >"$h/data/spotify-launcher/state.json" ;;
+        prefs_path) : >"$h/.config/spicetify/config-xpui.ini" ;;
+        prefs) rm "$prefs" ;;
+    esac
+    launch
+    if [ "$missing" = prefs ]; then
+        if [ -e "$prefs" ]; then exists=yes; else exists=no; fi
+        assert_eq "$exists" no "missing prefs: never created"
+    else
+        assert_eq "$(cmp -s "$prefs" "$h/prefs.before"; echo $?)" 0 "missing $missing: prefs unchanged"
+    fi
+    assert_contains "$(cat "$h/.local/state/spotify/patch.log")" "== exit 0" "missing $missing: patching succeeds"
+done
+
 # --- failures never block Spotify --------------------------------------------
 fresh stock
 STUB_CURL_FAIL=1 launch
@@ -221,7 +324,7 @@ fresh stock
 mkdir -p "$h/.local/state/spotify"
 exec 8>"$h/.local/state/spotify/patch.lock"
 flock 8
-HOME="$h" XDG_CONFIG_HOME="$h/.config" XDG_STATE_HOME="$h/.local/state" \
+HOME="$h" XDG_CONFIG_HOME="$h/.config" XDG_STATE_HOME="$h/.local/state" XDG_DATA_HOME="$h/data" \
     STUB_RUNNING_FILE="$h/running" bash "$LAUNCH" spotify:x >/dev/null 2>&1 8>&- &
 waiter=$!
 : >"$h/running"

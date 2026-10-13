@@ -17,3 +17,14 @@ logged versions and warns. Failure starts Spotify unpatched with a toast; the ru
 check happens under the lock, and a running client is never patched. SpotX
 `pkill`s `[sS]potify` by name, so the wrapper's file name must not contain it.
 See `docs/spotify.md`.
+
+Spicetify reads its backup version from `app.last-launched-version` in
+Spotify's prefs, rather than asking the client. After an update patched before
+its first launch, prefs still names the previous version, so later colour
+refreshes would reject the backup as mismatched. Immediately before
+`spicetify backup apply`, the wrapper stamps the existing prefs key with the
+installed version from `${XDG_DATA_HOME:-~/.local/share}/spotify-launcher/state.json`,
+without the package epoch. It reads `prefs_path` from Spicetify's config and
+replaces the file atomically while holding the patch lock, with Spotify stopped.
+Missing state, an invalid version, or missing prefs or version key is silently
+left alone; it never creates prefs or adds the key.
