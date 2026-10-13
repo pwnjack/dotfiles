@@ -320,16 +320,16 @@ function withSuspend(text, seconds) {
     if (!seconds) return text
     return text + "\n\n" + suspendMarker(seconds)
 }
+const sunsetVars = { dayMinutes: "day_time", nightMinutes: "night_time", nightTemp: "night_temp" }
 function sunsetValues(text) {
-    const profiles = (text.match(/profile\s*\{[^}]*\}/g) || []).map(block => {
-        const time = block.match(/\btime\s*=\s*(\d{1,2}):(\d{2})/)
-        const temp = block.match(/\btemperature\s*=\s*(\d+)/)
-        if (!time || !temp) throw new Error("Cannot read the night light schedule")
-        return { block, minutes: Number(time[1]) * 60 + Number(time[2]), temp: Number(temp[1]) }
-    }).sort((a, b) => b.temp - a.temp)
-    if (profiles.length !== 2) throw new Error("The panel requires a day and an evening profile")
-    const [day, night] = profiles
-    return { day, night, dayMinutes: day.minutes, nightMinutes: night.minutes, nightTemp: night.temp }
+    const minutes = name => {
+        const match = /^(\d{1,2}):(\d{2})$/.exec(hyprVar(text, name) ?? "")
+        if (!match) throw new Error("Cannot read the night light schedule")
+        return Number(match[1]) * 60 + Number(match[2])
+    }
+    const nightTemp = Number(hyprVar(text, "night_temp"))
+    if (!Number.isInteger(nightTemp) || nightTemp <= 0) throw new Error("Cannot read the night light schedule")
+    return { dayMinutes: minutes("day_time"), nightMinutes: minutes("night_time"), nightTemp }
 }
 const clock = minutes => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`
 
@@ -338,6 +338,10 @@ function detached(args) {
     GLib.spawn_async(null, args, null, GLib.SpawnFlags.SEARCH_PATH | GLib.SpawnFlags.STDOUT_TO_DEV_NULL | GLib.SpawnFlags.STDERR_TO_DEV_NULL, null)
 }
 const delay = milliseconds => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, milliseconds, () => { resolve(); return GLib.SOURCE_REMOVE }))
+// Files the machine-state overlay renders are written live, then synced, which
+// records the change as this machine's override (scripts/state/overlay.sh).
+const overlaySources = new Set(["option", "gtk", "mime", "swaync", "sunset"])
+const syncOverlay = () => execAsync(["bash", configDir + "/scripts/state/overlay.sh", "sync"])
 async function restart(name) {
     if (!GLib.find_program_in_path(name)) throw new Error(`${name} is not installed`)
     try { await execAsync(["pkill", "-x", name]) } catch (_) { /* It may not be running. */ }
@@ -781,11 +785,8 @@ async function change(request) {
         const schedule = sunsetValues(before)
         const updated = { ...schedule, [row.key]: value }
         if (updated.dayMinutes === updated.nightMinutes) throw new Error("Day and evening must start at different times")
-        const profile = row.key === "dayMinutes" ? schedule.day : schedule.night
-        const block = row.key === "nightTemp"
-            ? profile.block.replace(/(\btemperature\s*=\s*)\d+/, `$1${value}`)
-            : profile.block.replace(/(\btime\s*=\s*)\d{1,2}:\d{2}/, `$1${clock(value)}`)
-        return saveAndApply(sunsetPath, before.replace(profile.block, block), () => restart("hyprsunset"))
+        const text = before.replace(hyprVarLine(sunsetVars[row.key]), () => `$${sunsetVars[row.key]} = ${row.key === "nightTemp" ? value : clock(value)}`)
+        return saveAndApply(sunsetPath, text, async () => { await syncOverlay(); await restart("hyprsunset") })
     }
     case "swaync": {
         const config = JSON.parse(read(swayPath))

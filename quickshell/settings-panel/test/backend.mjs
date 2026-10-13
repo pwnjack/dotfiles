@@ -14,7 +14,7 @@ const files = new Map([
     [base + '/quickshell/settings-panel/catalog.json', JSON.stringify(catalog)],
     ['/fixture/.local/state/hypr/overrides.lua', ''],
     [base + '/hypr/hypridle.conf', '# Keep this comment\ngeneral { ignore_dbus_inhibit = false }\n$lock_timeout = 305\n$dpms_timeout = 600\n# hyprlang noerror true\nsource = ~/.local/state/hypr/hypridle.conf\n# hyprlang noerror false\nlistener {\n timeout = $lock_timeout\n on-timeout = loginctl lock-session\n}\nlistener {\n timeout = $dpms_timeout\n on-timeout = hyprctl dispatch \'hl.dsp.dpms({action = "off"})\'\n}\n'],
-    [base + '/hypr/hyprsunset.conf', '# Keep this comment\nmax-gamma = 100\nprofile {\n time = 07:00\n temperature = 6000\n}\nprofile {\n time = 20:00\n temperature = 4000\n}\n'],
+    [base + '/hypr/hyprsunset.conf', '# Keep this comment\n$day_time = 07:00\n$day_temp = 6000\n$night_time = 20:00\n$night_temp = 4000\nmax-gamma = 100\nprofile {\n time = $day_time\n temperature = $day_temp\n}\nprofile {\n time = $night_time\n temperature = $night_temp\n}\n'],
     [base + '/swaync/config.json', JSON.stringify({timeout:5,unrelated:{keep:true}})],
     [base + '/hypr/config/hardware/primary.conf', '$monitor =\n'],
     ['/usr/share/icons/Papirus-Dark/index.theme', '[Icon Theme]\nDirectories=16x16/apps\n'],
@@ -568,8 +568,14 @@ console.log('ok: file failures propagate and partial main-monitor writes are res
 
 const oldSunset = files.get(base+'/hypr/hyprsunset.conf')
 failingPath=''
+events=[]
 await dispatch({op:'set',id:'power.nightlight-start',value:1230})
-assert.equal(files.get(base+'/hypr/hyprsunset.conf'),oldSunset.replace('20:00','20:30'))
+assert.equal(files.get(base+'/hypr/hyprsunset.conf'),oldSunset.replace('$night_time = 20:00','$night_time = 20:30'))
+const syncAt=events.findIndex(e=>e[0]==='bash'&&e[1]===base+'/scripts/state/overlay.sh'&&e[2]==='sync')
+const killAt=events.findIndex(e=>e[0]==='pkill'&&e.includes('hyprsunset'))
+assert.ok(syncAt>=0&&killAt>syncAt,'the overlay is synced before hyprsunset restarts')
+await dispatch({op:'set',id:'power.nightlight-temp',value:3500})
+assert.equal(files.get(base+'/hypr/hyprsunset.conf'),oldSunset.replace('$night_time = 20:00','$night_time = 20:30').replace('$night_temp = 4000','$night_temp = 3500'))
 await assert.rejects(dispatch({op:'set',id:'power.nightlight-start',value:420}),/different times/)
 console.log('ok: night light edits preserve the rest of the file and reject conflicting schedule boundaries')
 const oldIdle = files.get(base+'/hypr/hypridle.conf')
