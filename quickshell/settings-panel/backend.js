@@ -941,7 +941,11 @@ export async function dispatch(request) {
         if (!Array.isArray(request.ids) || request.ids.length > catalog.rows.length) throw new Error("Invalid settings request")
         return snapshot([...new Set(request.ids)], request.monitors === true, { network: request.network === true, startup: request.startup === true, about: ["summary", "full"].includes(request.about) ? request.about : null })
     }
-    if (request.op === "set" || request.op === "reset") { await change(request); return {} }
+    if (request.op === "set" || request.op === "reset") {
+        await change(request)
+        if (overlaySources.has(byId.get(request.id)?.source)) await syncOverlay()
+        return {}
+    }
     if (request.op === "mainMonitor") {
         const monitors = JSON.parse(await execAsync(["hyprctl", "monitors", "-j"]))
         if (request.value !== "" && !monitors.some(m => m.name === request.value)) throw new Error("Display is no longer connected")

@@ -92,7 +92,7 @@ dirs.set('/etc/xdg/autostart', ['nm-applet.desktop', 'blueman.desktop', 'manual.
 dirs.set(base + '/autostart', ['arch-update-tray.desktop', 'manual.desktop'])
 let showEnvironment = 'XDG_CURRENT_DESKTOP=Hyprland\nPATH=/usr/local/bin:/usr/bin\n'
 const raceOnce = new Set()
-let events = [], failingPath = '', failingReadPath = '', failReload = false, failingGsettingsSets = 0, failNextSpawn = ''
+let events = [], failingPath = '', failingReadPath = '', failReload = false, failOverlay = false, failingGsettingsSets = 0, failNextSpawn = ''
 // The calendar's keyring account, cal.sh's listing (null: cal.sh fails) and setup.sh's sign-in failure.
 let keyringAccount = '', keyringFailure = '', calendarsListing = null, signInError = '', failCalendarRenders = 0
 // Shapes copied from `hyprctl getoption -j` on Hyprland 0.56: the value field
@@ -330,6 +330,7 @@ globalThis.settingsMocks = {
             if (fireOnStop) { guardArmed = false; events.push(['hyprctl','reload','(guard)']); throw new Error('Unit settings-display-revert.timer not loaded.') }
             if (!guardArmed) throw new Error('Unit settings-display-revert.timer not loaded.'); guardArmed = false; return '' }
         if (args[1] === 'configerrors') return '[]'
+        if (failOverlay && args[0] === 'bash' && args[1] === base + '/scripts/state/overlay.sh') { failOverlay = false; throw new Error('overlay failed') }
         if (args[0] === 'swaync-client' && failReload) { failReload=false; throw new Error('reload failed') }
         if (args[0] === 'localectl') return {
             'list-x11-keymap-layouts': 'us\nit\nde\n',
@@ -430,7 +431,11 @@ console.log('ok: invalid settings, types, ranges, actions and resets are rejecte
 const text = 'browser with "quotes"; $(touch /tmp/never) `false`'
 await dispatch({op:'set',id:'apps.browser',value:text})
 assert.equal(files.get(base+'/options/browser'),text+'\n')
-assert.equal(events.some(e=>e[0]==='bash'),false)
+const overlaySync = e => e[0] === 'bash' && e[1] === base + '/scripts/state/overlay.sh' && e[2] === 'sync'
+assert.equal(events.some(e=>e[0]==='bash'&&!overlaySync(e)),false)
+assert.ok(events.some(overlaySync), 'an option save syncs the overlay')
+failOverlay = true
+await assert.rejects(dispatch({op:'set',id:'apps.browser',value:'firefox'}), /overlay failed/)
 console.log('ok: option text remains data, never shell code')
 
 events = []
@@ -494,7 +499,7 @@ for (const [id,key,values,script,reload] of [
     await dispatch({op:'set',id,value})
     const text = typeof value === 'boolean' ? (value ? 'enabled' : 'disabled') : String(value)
     assert.equal(files.get(`${base}/options/${key}`),text+'\n')
-    assert.deepEqual(events.filter(e => e[0] === 'bash'), [['bash',`${base}/scripts/waybar/${script}`]])
+    assert.deepEqual(events.filter(e => e[0] === 'bash' && !overlaySync(e)), [['bash',`${base}/scripts/waybar/${script}`]])
     assert.equal(events.filter(e => e[0] === 'hyprctl' && e[1] === 'reload').length,reload ? 1 : 0)
 }
 files.set(base+'/options/bar-opacity','50\n')
@@ -593,8 +598,10 @@ result = await dispatch({op:'read',ids:['power.profile','power.suspend']})
 assert.equal(result.values['power.profile'].value,'performance')
 assert.deepEqual(result.values['power.profile'].choices.map(c=>c.value),['performance','balanced','power-saver'])
 assert.equal(result.values['power.suspend'].value,0)
+events = []
 await dispatch({op:'set',id:'power.profile',value:'balanced'})
 assert.ok(events.some(e=>e[0]==='powerprofilesctl' && e[1]==='set' && e[2]==='balanced'))
+assert.ok(!events.some(overlaySync), 'a power profile save does not sync')
 const idleBefore = files.get(base+'/hypr/hypridle.conf')
 const suspendAt = seconds => `# Suspend after inactivity\nlistener {\n    timeout = ${seconds}\n    on-timeout = systemctl suspend\n}\n`
 

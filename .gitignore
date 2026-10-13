@@ -75,14 +75,14 @@
 # Per-machine state
 fish/fish_variables
 gtk-3.0/bookmarks
-options/capture-*
-options/calendar-*
 aichat/sessions/
 aichat/messages.md
 aichat/models-override.yaml
 
 # Rendered by scripts/state/overlay.sh from defaults/ (docs/internals/state.md)
 hypr/hyprsunset.conf
+options/*
+!options/wallpaper
 
 # Thunar's own files; only the theming hook is ours
 Thunar/*
