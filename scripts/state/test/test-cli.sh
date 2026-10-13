@@ -136,4 +136,15 @@ run "$tree" sync; second=$?
 wait "$first"; first=$?
 assert_eq "$first:$second" "0:0" "concurrent syncs both succeed"
 
+# sync: derived.sh leaves the font includes in place.
+fonts="$tmp/fonts"
+make_tree "$fonts"
+mkdir -p "$fonts/scripts/fonts"
+cp "$src"/../fonts/apply-font.sh "$fonts/scripts/fonts/"
+printf 'Test Font\n' > "$fonts/defaults/options/font"
+run "$fonts" sync
+assert_contains "$(cat "$tmp/home/.local/state/rofi/font.rasi")" "Test Font" "sync leaves the rofi include"
+assert_contains "$(cat "$tmp/home/.local/state/waybar/font.css")" "Test Font" "sync leaves the Waybar include"
+assert_contains "$(cat "$tmp/home/.local/state/ghostty/font")" "Test Font" "sync leaves the Ghostty include"
+
 test_summary state-cli

@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 #
 # Render options/font and options/font-gtk into the font includes
-# (~/.local/state/{rofi,waybar,ghostty}, reached through tracked symlinks),
-# Alacritty, GTK and gsettings. `--includes` renders only the three includes
+# (~/.local/state/{rofi,waybar,ghostty}), Alacritty, GTK and gsettings. Rofi and
+# Ghostty reach theirs through tracked symlinks; waybar/style.css imports
+# its by relative path (Waybar's watcher ignores a symlinked import).
+# `--includes` renders only the three includes
 # (scripts/state/derived.sh runs that after every sync). Tracked files are never
 # edited. Run by the settings panel after either option changes; a nonzero exit
 # makes the panel restore the previous option.
 #
-# Every rofi theme imports rofi/options/font.rasi, so rofi needs one file
-# rewritten rather than each theme. Other fonts named inside themes (the
+# Every rofi theme imports rofi/options/font.rasi, a symlink to the rendered
+# include, so rofi needs one file rather than each theme. Other fonts named inside themes (the
 # `feather` icon font, the cheatsheet's monospace) are deliberate and left alone.
 #
 
-config_dir="$HOME/.config"
+config_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 
 read_font() {
     local value
@@ -43,7 +45,7 @@ failed=0
 state_dir="$HOME/.local/state"
 
 # write_if_changed <file> <content> — the include, rewritten only on change so
-# Waybar's style watcher fires for a real change and nothing else.
+# Waybar's style watcher (which follows the relative import of this real file) fires for a real change and nothing else.
 write_if_changed() {
     mkdir -p "$(dirname "$1")" || return 1
     [ -f "$1" ] && [ "$(cat "$1")" = "$2" ] && return 0
