@@ -553,8 +553,10 @@ assert.match(files.get('/fixture/.local/state/hypr/overrides.lua'),/bezier = "ea
 assert.match(files.get('/fixture/.local/state/hypr/overrides.lua'),/style = "popin 80%"/)
 console.log('ok: animation speed edits preserve the live curve and style')
 
+events = []
 await dispatch({op:'set',id:'notif.timeout',value:8})
 assert.deepEqual(JSON.parse(files.get(base+'/swaync/config.json')).unrelated,{keep:true})
+assert.ok(events.some(overlaySync), 'a swaync save syncs the overlay')
 const before = files.get(base+'/swaync/config.json')
 failReload=true
 await assert.rejects(dispatch({op:'set',id:'notif.timeout',value:10}),/Previous settings restored/)
