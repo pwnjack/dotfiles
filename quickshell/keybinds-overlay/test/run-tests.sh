@@ -12,7 +12,10 @@ runtime=$(mktemp -d)
 real_sheet="$test_dir/real-sheet.json"
 trap 'rmdir "$runtime"; rm -f "$real_sheet"' EXIT
 config_dir="$test_dir/../../.."
+# The tracked default font: options/ is this machine's rendered copy and is not in a commit.
+font=$(head -n1 "$config_dir/defaults/options/font" 2>/dev/null)
+[[ -n $font ]] || { echo 'defaults/options/font is missing or empty.' >&2; exit 1; }
 "$config_dir/scripts/keybinds/keybinds-sheet.sh" --json \
-    | jq --arg font "$(head -n1 "$config_dir/options/font" 2>/dev/null)" '{font: $font, sections}' > "$real_sheet"
+    | jq --arg font "$font" '{font: $font, sections}' > "$real_sheet"
 QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software XDG_RUNTIME_DIR="$runtime" QML_XHR_ALLOW_FILE_READ=1 \
     "$runner" -input "$test_dir" "$@"

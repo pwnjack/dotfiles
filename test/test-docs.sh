@@ -128,8 +128,10 @@ fi
 
 frozen=()
 while IFS= read -r name; do
-    value="$(head -n1 "$ROOT/options/$name" 2>/dev/null)"
-    [ -n "$value" ] || continue
+    # The tracked default: options/ is this machine's rendered copy and is not in a commit.
+    [ -f "$ROOT/defaults/options/$name" ] || { frozen+=("$name: defaults/options/$name is missing"); continue; }
+    value="$(head -n1 "$ROOT/defaults/options/$name")"
+    [ -n "$value" ] || { frozen+=("$name: defaults/options/$name is empty"); continue; }
     grep -qF "options/$name" "$DOC" || frozen+=("$name: no reference to options/$name")
     if grep -qi "(\`\?$value\`\?)" "$DOC"; then
         frozen+=("$name: the document names '$value' instead of options/$name")

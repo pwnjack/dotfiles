@@ -431,11 +431,12 @@ console.log('ok: invalid settings, types, ranges, actions and resets are rejecte
 const text = 'browser with "quotes"; $(touch /tmp/never) `false`'
 await dispatch({op:'set',id:'apps.browser',value:text})
 assert.equal(files.get(base+'/options/browser'),text+'\n')
-const overlaySync = e => e[0] === 'bash' && e[1] === base + '/scripts/state/overlay.sh' && e[2] === 'sync'
+const overlaySync = e => e.length === 3 && e[0] === 'bash' && e[1] === base + '/scripts/state/overlay.sh' && e[2] === 'sync'
 assert.equal(events.some(e=>e[0]==='bash'&&!overlaySync(e)),false)
 assert.ok(events.some(overlaySync), 'an option save syncs the overlay')
 failOverlay = true
 await assert.rejects(dispatch({op:'set',id:'apps.browser',value:'firefox'}), /overlay failed/)
+assert.equal(files.get(base+'/options/browser'),'firefox\n','the change itself succeeded before the sync failed')
 console.log('ok: option text remains data, never shell code')
 
 events = []
@@ -1601,6 +1602,7 @@ events = []
 await dispatch({op:'calendarShow',name:'Work',shown:false})
 assert.equal(files.get(base+'/options/calendar-hidden'),'Home\nWork\n')
 assert.ok(events.some(e => e[0] === 'bash' && String(e[1]).endsWith('/scripts/calendar/sync.sh') && e[2] === '--render'))
+assert.ok(events.some(overlaySync), 'a calendar visibility toggle syncs the overlay')
 await dispatch({op:'calendarShow',name:'Home',shown:true})
 assert.equal(files.get(base+'/options/calendar-hidden'),'Work\n')
 await assert.rejects(dispatch({op:'calendarShow',name:'a\nb',shown:true}),/Invalid calendar name/)

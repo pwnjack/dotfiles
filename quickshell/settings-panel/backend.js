@@ -1054,6 +1054,7 @@ export async function dispatch(request) {
         const before = exists(path) ? readOption("calendar-hidden") : ""
         await saveAndApply(path, calendar.toggleHidden(before, request.name, request.shown === true),
             () => execAsync(["bash", configDir + "/scripts/calendar/sync.sh", "--render"]), true)
+        await syncOverlay()
         return {}
     }
     throw new Error("Unknown operation")
