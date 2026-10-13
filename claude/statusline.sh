@@ -66,6 +66,18 @@ bar() {
   printf '%s%s%s' "$2" "$out" "$R"
 }
 
+# pie <percent> <color>: one cell for the context meter, a circle that fills
+# clockwise in eighths: nf-md-circle_outline, then nf-md-circle_slice_1..8
+# (U+F0766, U+F0A9E-F0AA5). Written as UTF-8 bytes: private-use glyphs typed
+# literally vanish in some tools, and $'\U…' is not expanded under LC_ALL=C.
+PIE=($'\xf3\xb0\x9d\xa6' $'\xf3\xb0\xaa\x9e' $'\xf3\xb0\xaa\x9f'
+     $'\xf3\xb0\xaa\xa0' $'\xf3\xb0\xaa\xa1' $'\xf3\xb0\xaa\xa2'
+     $'\xf3\xb0\xaa\xa3' $'\xf3\xb0\xaa\xa4' $'\xf3\xb0\xaa\xa5')
+pie() {
+  local k; k=$(awk -v u="$1" 'BEGIN{k=int(u/12.5+0.5);if(k<0)k=0;if(k>8)k=8;print k}')
+  printf '%s%s%s' "$2" "${PIE[$k]}" "$R"
+}
+
 # rate-limit segment: label, percent, reset epoch
 # clock time of an epoch, with the weekday when it is not today; 12 h when
 # options/clock says so, like the bar and the desktop clock
@@ -95,7 +107,7 @@ fi
 
 if [ -n "$used" ]; then
   cc=$(hue_ctx "$used")
-  ctx="${DIM}ctx${R} $(bar "$used" "$cc") ${cc}$(printf '%.0f' "$used")%${R}"
+  ctx="$(pie "$used" "$cc") ${cc}$(printf '%.0f' "$used")%${R}"
   [ -n "$total" ] && ctx="${ctx} ${B}$(fmt_tok "$total")${R}${win:+${DIM}/$(fmt_tok "$win")${R}}"
   parts+=("$ctx")
 fi
