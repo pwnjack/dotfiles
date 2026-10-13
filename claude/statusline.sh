@@ -32,21 +32,33 @@ GRN=$'\033[38;5;108m'   # soft sage green
 YEL=$'\033[38;5;179m'   # muted gold
 ORG=$'\033[38;5;173m'   # soft amber
 RED=$'\033[38;5;167m'   # soft rose-red
+BLU=$'\033[38;5;110m'   # soft steel blue: context's base, apart from the usage bars
 # rate-limit color: green < 50, yellow >= 50, orange >= 80, red >= 90
 hue() { awk -v p="$1" -v g="$GRN" -v y="$YEL" -v o="$ORG" -v r="$RED" 'BEGIN{if(p>=90)print r;else if(p>=80)print o;else if(p>=50)print y;else print g}'; }
-# context color: green < 50, yellow >= 50, orange >= 70, red >= 85
-hue_ctx() { awk -v p="$1" -v g="$GRN" -v y="$YEL" -v o="$ORG" -v r="$RED" 'BEGIN{if(p>=85)print r;else if(p>=70)print o;else if(p>=50)print y;else print g}'; }
+# context color: blue < 50, yellow >= 50, orange >= 70, red >= 85
+hue_ctx() { awk -v p="$1" -v g="$BLU" -v y="$YEL" -v o="$ORG" -v r="$RED" 'BEGIN{if(p>=85)print r;else if(p>=70)print o;else if(p>=50)print y;else print g}'; }
 # reasoning-effort color: green = low, yellow = medium, red = high/xhigh/max
 hue_eff() { case "$1" in low) echo "$GRN";; medium) echo "$YEL";; high|xhigh|max) echo "$RED";; *) echo "$DIM";; esac; }
 
-# 8-cell bar colored by fill level: bar <percent> <color>
+# FiraCode's own progress bar (U+EE00-EE05): an outlined, round-ended bar
+# whose cells fill from the left. Empty left/middle/right, then filled
+# left/middle/right. Written as UTF-8 bytes: private-use glyphs typed
+# literally vanish in some tools, and $'\U…' is not expanded under LC_ALL=C.
+PB=($'\xee\xb8\x80' $'\xee\xb8\x81' $'\xee\xb8\x82'
+    $'\xee\xb8\x83' $'\xee\xb8\x84' $'\xee\xb8\x85')
+BAR_CELLS=6
+
+# bar <percent> <color>: the whole bar in one colour, so the outline stays
+# continuous where the fill stops.
 bar() {
-  local filled i out=""
-  filled=$(awk -v u="$1" 'BEGIN{f=int(u/12.5+0.5);if(f<0)f=0;if(f>8)f=8;print f}')
-  for i in 1 2 3 4 5 6 7 8; do
-    if [ "$i" -le "$filled" ]; then out="${out}$2█"; else out="${out}${DIM}░"; fi
+  local filled i k out=""
+  filled=$(awk -v u="$1" -v n="$BAR_CELLS" 'BEGIN{f=int(u*n/100+0.5);if(f<0)f=0;if(f>n)f=n;print f}')
+  for ((i = 1; i <= BAR_CELLS; i++)); do
+    if [ "$i" -eq 1 ]; then k=0; elif [ "$i" -eq "$BAR_CELLS" ]; then k=2; else k=1; fi
+    [ "$i" -le "$filled" ] && k=$((k + 3))
+    out+=${PB[$k]}
   done
-  printf '%s%s' "$out" "$R"
+  printf '%s%s%s' "$2" "$out" "$R"
 }
 
 # rate-limit segment: label, percent, reset epoch
@@ -68,8 +80,9 @@ fi
 [ -n "$head" ] && parts+=("$head")
 
 if [ -n "$used" ]; then
-  ctx="${DIM}ctx${R} $(hue_ctx "$used")$(printf '%.0f' "$used")%${R}"
-  [ -n "$total" ] && ctx="${ctx}  ${B}$(fmt_tok "$total")${R}${win:+${DIM}/$(fmt_tok "$win")${R}}"
+  cc=$(hue_ctx "$used")
+  ctx="${DIM}ctx${R} $(bar "$used" "$cc") ${cc}$(printf '%.0f' "$used")%${R}"
+  [ -n "$total" ] && ctx="${ctx} ${B}$(fmt_tok "$total")${R}${win:+${DIM}/$(fmt_tok "$win")${R}}"
   parts+=("$ctx")
 fi
 
