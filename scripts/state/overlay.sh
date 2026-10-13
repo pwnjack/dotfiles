@@ -20,6 +20,16 @@ command=${1:-}
 shift || true
 
 [ -d "$config_dir/defaults" ] || exit 0
+case "$command" in
+    sync|check) ;;
+    *) echo "usage: overlay.sh sync [--replace <backup dir>] [<live path>...] | check" >&2; exit 2 ;;
+esac
+# The state is this machine's, shared by the one live tree. A manual run from a
+# linked worktree would mix its defaults into it.
+if [ -z "${OVERLAY_STATE_DIR:-}" ] && [ "$config_dir" != "$(cd -- "$HOME/.config" 2>/dev/null && pwd)" ]; then
+    echo "overlay: $config_dir is not $HOME/.config; set OVERLAY_STATE_DIR to use another tree" >&2
+    exit 1
+fi
 command -v node >/dev/null 2>&1 || { echo "overlay: node is required" >&2; exit 1; }
 command -v flock >/dev/null 2>&1 || { echo "overlay: flock is required" >&2; exit 1; }
 mkdir -p "$state_dir" || exit 1

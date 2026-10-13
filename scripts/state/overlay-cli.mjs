@@ -22,7 +22,8 @@ function writeAtomic(file, text) {
     if (readText(file) === text) return
     fs.mkdirSync(path.dirname(file), { recursive: true })
     const temp = path.join(path.dirname(file), `.${path.basename(file)}.overlay-tmp`)
-    fs.writeFileSync(temp, text)
+    const fd = fs.openSync(temp, 'w')
+    try { fs.writeSync(fd, text); fs.fsyncSync(fd) } finally { fs.closeSync(fd) }
     fs.renameSync(temp, file)
 }
 // Regular, non-hidden files only: options/wallpaper is a symlink and never a key.
@@ -47,6 +48,7 @@ function discover() {
     const found = []
     const walk = rel => {
         for (const entry of fs.readdirSync(path.join(root, rel), { withFileTypes: true })) {
+            if (entry.name.startsWith('.')) continue
             const child = rel ? `${rel}/${entry.name}` : entry.name
             if (child === 'options') found.push(child)
             else if (entry.isDirectory()) walk(child)
@@ -76,18 +78,22 @@ function paths(target) {
     }
 }
 
-// Moves a live file (or the options directory's regular files) aside.
-function replaceLive(target, live, backup) {
+// Copies what --replace is about to supersede into the backup directory. It
+// never deletes: the render's own atomic rename replaces the file, so a target
+// that fails to render keeps its live file byte-identical.
+function backupLive(target, live, backup, declared) {
+    if (!backup) return
     if (overlay.formatFor(target) === 'dir') {
         for (const name of readDir(live)?.keys() ?? []) {
-            if (backup) { fs.mkdirSync(path.join(backup, target), { recursive: true }); fs.copyFileSync(path.join(live, name), path.join(backup, target, name)) }
-            fs.rmSync(path.join(live, name))
+            if (!declared.has(name)) continue
+            fs.mkdirSync(path.join(backup, target), { recursive: true })
+            fs.copyFileSync(path.join(live, name), path.join(backup, target, name))
         }
         return
     }
     if (readText(live) === null) return
-    if (backup) { fs.mkdirSync(path.dirname(path.join(backup, target)), { recursive: true }); fs.copyFileSync(live, path.join(backup, target)) }
-    fs.rmSync(live)
+    fs.mkdirSync(path.dirname(path.join(backup, target)), { recursive: true })
+    fs.copyFileSync(live, path.join(backup, target))
 }
 
 function syncTarget(target, replace) {
@@ -99,13 +105,22 @@ function syncTarget(target, replace) {
         const text = readText(file)
         return text === null ? null : overlay.parse(format, text)
     }
+    // Everything that can throw is read and parsed before anything is changed.
     const defaultsText = isDir ? null : readText(p.defaults)
     const defaults = isDir ? readDir(p.defaults) : overlay.parse(format, defaultsText)
-    const last = load(p.last)
-    if (replace !== undefined && last === null) replaceLive(target, p.live, replace)
-    const live = load(p.live) // throws on a malformed file: the target is skipped untouched
     const overrides = load(p.overrides) ?? new Map()
     const removed = new Set((readText(p.removed) ?? '').split('\n').filter(Boolean))
+    const last = load(p.last)
+    let live
+    if (replace !== undefined && last === null) {
+        // No render record: the live file predates the overlay. Back it up and
+        // start from the defaults; options the defaults do not declare are
+        // per-machine and stay live, to be adopted as overrides.
+        backupLive(target, p.live, replace, defaults)
+        live = isDir ? new Map([...(readDir(p.live) ?? [])].filter(([name]) => !defaults.has(name))) : null
+    } else {
+        live = load(p.live) // throws on a malformed file: the target is skipped untouched
+    }
     const next = overlay.harvest(format, { defaults, last, live, overrides, removed })
     const entries = overlay.effective(defaults, next.overrides, next.removed)
     if (isDir) {

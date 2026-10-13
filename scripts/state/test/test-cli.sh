@@ -77,6 +77,45 @@ assert_eq "$(cat "$tmp/backup/gtk-3.0/settings.ini")" "$(printf '[Settings]\ngtk
 assert_eq "$(cat "$fresh/gtk-3.0/settings.ini")" "$(printf '[Settings]\ngtk-theme-name=Kripton')" "--replace starts from the defaults"
 assert_eq "$(readlink "$fresh/options/wallpaper")" "../../.cache/current_wallpaper" "--replace never moves symlinks"
 
+# --replace '' replaces without any backup.
+bare="$tmp/bare"
+make_tree "$bare"
+mkdir -p "$bare/gtk-3.0"
+printf '[Settings]\ngtk-theme-name=Old\n' > "$bare/gtk-3.0/settings.ini"
+(cd "$tmp" && env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state3" bash "$bare/scripts/state/overlay.sh" sync --replace '')
+assert_eq "$(cat "$bare/gtk-3.0/settings.ini")" "$(printf '[Settings]\ngtk-theme-name=Kripton')" "--replace '' replaces the stale file"
+assert_eq "$(find "$tmp" -maxdepth 1 -name 'backup*' | wc -l)" "1" "--replace '' creates no backup directory"
+
+# --replace on options: declared keys are replaced, per-machine keys stay live.
+opt="$tmp/opt"
+make_tree "$opt"
+printf 'brave\n' > "$opt/options/browser"
+printf 'enabled\n' > "$opt/options/calendar-default"
+env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state4" bash "$opt/scripts/state/overlay.sh" sync --replace "$tmp/backup2"
+assert_eq "$(cat "$tmp/backup2/options/browser")" "brave" "--replace backs up a declared option"
+assert_eq "$(cat "$opt/options/browser")" "zen" "--replace resets a declared option"
+assert_eq "$(cat "$opt/options/calendar-default")" "enabled" "--replace keeps a per-machine option live"
+assert_eq "$(cat "$tmp/state4/overrides/options/calendar-default")" "enabled" "--replace records a per-machine option"
+assert_eq "$([ -e "$tmp/backup2/options/calendar-default" ] && echo yes || echo no)" "no" "--replace does not back up per-machine options"
+assert_eq "$(readlink "$opt/options/wallpaper")" "../../.cache/current_wallpaper" "--replace keeps the wallpaper symlink"
+
+# An unparseable overrides file never costs the live file.
+bad="$tmp/bad"
+make_tree "$bad"
+mkdir -p "$bad/gtk-3.0" "$tmp/state5/overrides/gtk-3.0"
+printf '[Settings]\ngtk-theme-name=Old\n' > "$bad/gtk-3.0/settings.ini"
+printf 'garbage\n' > "$tmp/state5/overrides/gtk-3.0/settings.ini"
+set +e; env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state5" bash "$bad/scripts/state/overlay.sh" sync --replace '' >/dev/null 2>&1; status=$?; set -e
+assert_eq "$status" "1" "a bad overrides file fails a --replace run"
+assert_eq "$(cat "$bad/gtk-3.0/settings.ini")" "$(printf '[Settings]\ngtk-theme-name=Old')" "the live file survives a failed --replace"
+
+# A tree that is not ~/.config needs an explicit state directory.
+mkdir -p "$tmp/home2"
+set +e; err=$(env -u XDG_STATE_HOME -u OVERLAY_STATE_DIR HOME="$tmp/home2" bash "$tree/scripts/state/overlay.sh" sync 2>&1); status=$?; set -e
+assert_eq "$status" "1" "a foreign tree without OVERLAY_STATE_DIR is refused"
+assert_contains "$err" "OVERLAY_STATE_DIR" "the refusal names the override"
+assert_eq "$([ -e "$tmp/home2/.local" ] && echo yes || echo no)" "no" "the refusal creates no state"
+
 # The lock serialises concurrent runs; both succeed.
 run "$tree" sync & first=$!
 run "$tree" sync; second=$?
