@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 #
 # Render options/font and options/font-gtk into the font includes
-# (~/.local/state/{rofi,waybar,ghostty}), Alacritty, GTK and gsettings. Rofi and
-# Ghostty reach theirs through tracked symlinks; waybar/style.css imports
-# its by relative path (Waybar's watcher ignores a symlinked import).
-# `--includes` renders only the three includes
+# (~/.local/state/{rofi,waybar,ghostty,fontconfig}), Alacritty, GTK and
+# gsettings. Rofi and Ghostty reach theirs through tracked symlinks;
+# waybar/style.css imports its by relative path (Waybar's watcher ignores a
+# symlinked import).
+# `--includes` renders only the four includes
 # (scripts/state/derived.sh runs that after every sync). Tracked files are never
 # edited. Run by the settings panel after either option changes; a nonzero exit
 # makes the panel restore the previous option.
 #
 # Every rofi theme imports rofi/options/font.rasi, a symlink to the rendered
-# include, so rofi needs one file rather than each theme. Other fonts named inside themes (the
-# `feather` icon font, the cheatsheet's monospace) are deliberate and left alone.
+# include, so rofi needs one file rather than each theme. Other fonts named
+# inside themes (the `feather` icon font, the cheatsheet's monospace) are
+# deliberate and left alone.
 #
 
 config_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
@@ -39,6 +41,9 @@ fi
 sed_escape() { printf '%s' "$1" | sed 's/[\\&|]/\\&/g'; }
 main_sed=$(sed_escape "$main_font")
 gtk_sed=$(sed_escape "$gtk_font")
+xml_font=${main_font//&/\&amp;}
+xml_font=${xml_font//</\&lt;}
+xml_font=${xml_font//>/\&gt;}
 
 failed=0
 
@@ -55,6 +60,16 @@ write_if_changed() {
 write_if_changed "$state_dir/rofi/font.rasi" "configuration { font: \"$main_font 10\"; }" || failed=1
 write_if_changed "$state_dir/waybar/font.css" "$(printf '* {\n    font-family: "%s", "JetbrainsMono Nerd", "Hack Nerd", sans-serif;\n}' "$main_font")" || failed=1
 write_if_changed "$state_dir/ghostty/font" "font-family = \"$main_font\"" || failed=1
+write_if_changed "$state_dir/fontconfig/strata-font.conf" "$(printf '%s\n' \
+    '<?xml version="1.0"?>' \
+    '<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">' \
+    '<fontconfig>' \
+    '  <match target="pattern">' \
+    '    <test name="prgname"><string>io.github.lgse.Strata</string></test>' \
+    '    <test name="family"><string>JetBrains Mono</string></test>' \
+    '    <edit name="family" mode="assign" binding="strong"><string>'"$xml_font"'</string></edit>' \
+    '  </match>' \
+    '</fontconfig>')" || failed=1
 
 if [ "${1:-}" = --includes ]; then
     [ "$failed" -eq 0 ] || { echo "Some font includes could not be written" >&2; exit 1; }

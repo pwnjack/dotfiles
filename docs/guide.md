@@ -28,10 +28,15 @@ Deep dives, one per component:
 | Terminal | Ghostty (`options/terminal`) |
 | Notifications | SwayNC |
 | Lock screen | Hyprlock |
-| File manager | Thunar / Yazi (`options/filemanager`) |
+| File manager | Strata / Thunar / Yazi (`options/filemanager`) |
 | Browser | Zen Browser (`options/browser`) |
 | Editor | Neovim (LazyVim) |
 | Shell | Fish + Starship |
+
+Strata is the default file manager. Thunar stays installed and themed, and is
+the second `inode/directory` association. Super+E and “Show in folder” follow
+`options/filemanager`; without the AUR package, pick Thunar in the settings
+panel.
 
 ## Structure
 
@@ -51,7 +56,7 @@ Deep dives, one per component:
 │                  # capture/, updates/, settings/, devices/, doctor/, …
 ├── fish/ ghostty/ nvim/ btop/ cava/ starship/ bat/ fastfetch/ git/
 │                  # Per-app config (starship.toml is a generated symlink)
-├── gtk-3.0/ gtk-4.0/ qt5ct/ qt6ct/ Thunar/ swappy/ waypaper/ aichat/
+├── gtk-3.0/ gtk-4.0/ qt5ct/ qt6ct/ strata/ Thunar/ swappy/ waypaper/ aichat/
 │                  # Toolkit themes and small utilities (the GTK and Qt
 │                  # settings.ini/.conf files are rendered from defaults/,
 │                  # not tracked)
@@ -220,7 +225,7 @@ and commit:
 ├── browser      # zen-browser
 ├── terminal     # ghostty
 ├── editor       # nvim
-├── filemanager  # thunar
+├── filemanager  # strata
 ├── font         # FiraCode Nerd Font
 ├── aurhelper    # paru -Syu
 ├── launchertype # vertical
@@ -251,14 +256,14 @@ Generate colours from any wallpaper:
 wal -i /path/to/wallpaper.jpg
 ```
 
-Colours apply to Hyprland, Hyprlock, Waybar, Rofi, SwayNC, Ghostty, Thunar,
-cava, btop, Neovim, the Starship prompt, Vesktop (Discord), Zen Browser and
-Spotify (through Spicetify; see [spotify.md](spotify.md)). Zen picks up a new
-palette at its next launch. Open Neovim windows re-theme in place unless you
-picked another colour scheme in them; before pywal has run once, Neovim uses
-LazyVim's tokyonight. fastfetch and bat (and so man pages) follow too, without
-rendering anything — they colour by ANSI index, and the terminal palette is
-pywal's.
+Colours apply to Hyprland, Hyprlock, Waybar, Rofi, SwayNC, Ghostty, Strata,
+Thunar, cava, btop, Neovim, the Starship prompt, Vesktop (Discord), Zen Browser
+and Spotify (through Spicetify; see [spotify.md](spotify.md)). Strata, Thunar
+and Zen pick up a new palette at their next launch. Open Neovim windows
+re-theme in place unless you picked another colour scheme in them; before
+pywal has run once, Neovim uses LazyVim's tokyonight. fastfetch and bat (and so
+man pages) follow too, without rendering anything — they colour by ANSI
+index, and the terminal palette is pywal's.
 
 Components needing more than a plain include own a
 `<component>/apply_wal_colors.sh`, rendering into `~/.cache/wal/`. The repo
@@ -498,11 +503,15 @@ sudo pacman -S --needed hyprland hyprlock hypridle hyprpolkitagent hyprshot \
                noto-fonts-emoji
 
 # AUR (paru or yay); python-pywal left the official repos
-paru -S --needed zen-browser-bin vesktop waybar-weather python-pywal
+paru -S --needed strata-bin zen-browser-bin vesktop waybar-weather python-pywal
 
 # Initialise pywal and render every component's cache file
 wal -i ~/.config/wallpapers/wall1.jpg
 ~/.config/scripts/theming/apply-wal.sh
+
+# Wire the configured file manager and portal file chooser
+~/.config/scripts/settings/file-manager.sh
+~/.config/scripts/settings/file-chooser.sh
 
 # Open Terminal=true apps (nvim, yazi, btop) in options/terminal
 ~/.config/scripts/settings/terminal.sh

@@ -32,7 +32,10 @@
 !/defaults/
 !/pipewire/
 !/Thunar/
+!/strata/
+!/xdg-desktop-portal/
 !/swappy/
+!/fontconfig/
 
 # Theming
 !/gtk-3.0/
@@ -67,6 +70,12 @@
 # ---------------------------------------------------------------------------
 # Inside tracked directories: what programs write at runtime.
 
+# Only Strata's fontconfig include is ours
+fontconfig/*
+!fontconfig/conf.d/
+fontconfig/conf.d/*
+!fontconfig/conf.d/50-strata-font.conf
+
 # Secrets (API keys); .env.example is the template
 .env
 
@@ -86,6 +95,17 @@ gtk-4.0/settings.ini
 qt5ct/qt5ct.conf
 qt6ct/qt6ct.conf
 swaync/config.json
+
+# Only the Hyprland portal preference is ours
+xdg-desktop-portal/*
+!xdg-desktop-portal/hyprland-portals.conf
+
+# Strata's own settings and themes; only the hook and default-theme link are ours
+strata/*
+!strata/apply_wal_colors.sh
+!strata/themes/
+strata/themes/*
+!strata/themes/tokyo-night.toml
 
 # Thunar's own files; only the theming hook is ours
 Thunar/*

@@ -127,6 +127,7 @@ PACKAGES=(
 )
 
 AUR_PACKAGES=(
+    "strata-bin"             # GTK4 file manager (Thunar stays installed and themed)
     "zen-browser-bin"
     "vesktop"
     "waybar-weather"
@@ -262,6 +263,8 @@ fi
 # "Show in folder" everywhere goes through D-Bus; several file managers claim
 # that service, so point it at the one in options/filemanager.
 execute bash "$CONFIG_DIR/scripts/settings/file-manager.sh"
+# Register Strata as the portal file chooser, with GTK as the fallback.
+execute bash "$CONFIG_DIR/scripts/settings/file-chooser.sh"
 
 # Desktop entries with Terminal=true (nvim, yazi, btop) open through
 # xdg-terminal-exec; point it at options/terminal.

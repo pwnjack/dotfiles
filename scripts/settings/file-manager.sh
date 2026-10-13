@@ -25,7 +25,7 @@ target="${XDG_DATA_HOME:-$HOME/.local/share}/dbus-1/services/$name.service"
 fm=""
 { read -r fm < "$config_dir/options/filemanager"; } 2>/dev/null
 read -r fm _ <<< "$fm"   # the binary is the first word; the option may carry arguments
-fm="${fm:-thunar}"
+fm="${fm:-strata}"
 
 IFS=: read -ra data_dirs <<< "${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 

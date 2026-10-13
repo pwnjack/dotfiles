@@ -57,7 +57,7 @@ Doc named per item is in `docs/internals/`.
 - **SDDM greeter sync**: `sddm/watch_wallpaper.sh`; the NOPASSWD target is a root-owned copy of `sddm/update_sddm_root.sh` in `/usr/local/bin`. Never point a sudo rule at a user-writable script; review that source before re-running setup. `sddm.md`.
 - **SSH agent**: `scripts/ssh/setup.sh` puts `Include ~/.config/ssh/config` as the **first** line of `~/.ssh/config` and never edits a symlinked one. `ssh-agent.md`.
 - **Gaming** (WoW / Battle.net): `docs/gaming-wow.md` is the single source; **read it before touching any game rule.** The Hyprland client is *gamescope*, so `rules.lua` applies every game effect to both match tables.
-- **Default applications**: `mimeapps.list`, the `BROWSER`/`TERMINAL`/`EDITOR`/`VISUAL` variables exported from `options/` by `envvars.lua`, `xdg-terminal-exec` (`scripts/settings/terminal.sh`) and D-Bus `FileManager1` (`scripts/settings/file-manager.sh`), one source each. `default-apps.md`.
+- **Default applications**: `mimeapps.list`, the `BROWSER`/`TERMINAL`/`EDITOR`/`VISUAL` variables exported from `options/` by `envvars.lua`, `xdg-terminal-exec` (`scripts/settings/terminal.sh`), D-Bus `FileManager1` (`scripts/settings/file-manager.sh`) and the file chooser (`scripts/settings/file-chooser.sh`), one source each. `default-apps.md`.
 - **User preferences** (`options/`): rendered copy (defaults in `defaults/options/`); one value per file, used as-is. Empty means "no preference" only for `mainmonitor` and `bar-output`; switches are on only when the file says `enabled`. Nothing guesses a monitor connector name; `hardware/monitor.lua` stays host-neutral. `options.md`.
 
 ### AI agent harness (`claude/`, `codex/`)

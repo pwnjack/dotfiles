@@ -750,7 +750,10 @@ async function change(request) {
             if (row.key.startsWith("bar-")) await execAsync(["bash", configDir + "/scripts/waybar/bar-modes.sh"])
             if (row.key === "bar-agenda" || row.key.startsWith("calendar-")) await execAsync(["bash", configDir + "/scripts/calendar/sync.sh", "--render"])
             // Every app's "Show in folder" asks D-Bus, which this points at the new choice.
-            if (row.key === "filemanager") await execAsync(["bash", configDir + "/scripts/settings/file-manager.sh"])
+            if (row.key === "filemanager") {
+                await execAsync(["bash", configDir + "/scripts/settings/file-manager.sh"])
+                await execAsync(["bash", configDir + "/scripts/settings/file-chooser.sh"])
+            }
             // Desktop entries with Terminal=true open through xdg-terminal-exec, which this points at the new choice.
             if (row.key === "terminal") await execAsync(["bash", configDir + "/scripts/settings/terminal.sh"])
             // The Lua configuration reads these options at parse time.

@@ -47,7 +47,7 @@ Some writers (the calendar and capture Quickshell apps, `echo firefox > options/
 After each sync `scripts/state/derived.sh` renders what is computed from options into `~/.local/state`, where tracked relative symlinks point:
 
 - `hypr/config/hardware/primary.conf` links to `~/.local/state/hypr/primary.conf`, the `$monitor =` line for Hyprlock, from `options/mainmonitor` (empty means every monitor).
-- The font: `scripts/fonts/apply-font.sh --includes` renders `rofi/options/font.rasi` and `ghostty/font` (tracked symlinks) and `~/.local/state/waybar/font.css`. Waybar imports the last by relative path from `style.css`, because its style watcher ignores symlinked imports (the same reason as `colors-waybar.css`).
+- The font: `scripts/fonts/apply-font.sh --includes` renders `rofi/options/font.rasi`, `ghostty/font` and `fontconfig/conf.d/50-strata-font.conf` (tracked symlinks), plus `~/.local/state/waybar/font.css`. Waybar imports the last by relative path from `style.css`, because its style watcher ignores symlinked imports (the same reason as `colors-waybar.css`).
 
 ## Hypridle and hyprsunset
 

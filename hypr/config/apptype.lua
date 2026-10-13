@@ -22,7 +22,7 @@ return {
     editor = read_option("editor", "nvim"), -- TUI editor, opened in the terminal
     codeeditor = read_option("codeeditor", "zeditor"), -- GUI code editor
     cursorTheme = read_option("cursortheme", "Bibata-Modern-Classic"),
-    filemanager = read_option("filemanager", "thunar"), -- GUI file manager (yazi for CLI)
+    filemanager = read_option("filemanager", "strata"), -- GUI file manager (yazi for CLI)
 
     -- Where Waybar sits (the settings panel's Bar page); rules.lua keeps
     -- floating windows clear of it. Both rows reload Hyprland when saved.

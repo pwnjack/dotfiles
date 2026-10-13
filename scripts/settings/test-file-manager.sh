@@ -15,7 +15,7 @@ trap 'rm -rf "$TMP"' EXIT
 . "$TEST_DIR/../lib/assert.sh"
 
 mkdir -p "$TMP/bin" "$TMP/config/options" "$TMP/data/dbus-1/services" "$TMP/home"
-for fm in thunar nautilus dolphin yazi; do
+for fm in strata thunar nautilus dolphin yazi; do
     printf '#!/bin/sh\n' > "$TMP/bin/$fm"
 done
 ln -s thunar "$TMP/bin/Thunar"   # Thunar's service names the capitalised link
@@ -29,6 +29,7 @@ service() {   # service <file> <exec>
 service org.freedesktop.FileManager1.service "$TMP/bin/nautilus --gapplication-service"
 service org.kde.dolphin.FileManager1.service "$TMP/bin/dolphin --daemon"
 service org.xfce.Thunar.FileManager1.service "$TMP/bin/Thunar --gapplication-service"
+service io.github.lgse.Strata.FileManager1.service "$TMP/bin/strata --gapplication-service"
 printf '[D-BUS Service]\nName=org.example.Other\nExec=%s\n' "$TMP/bin/thunar" \
     > "$TMP/data/dbus-1/services/org.example.Other.service"
 
@@ -36,9 +37,14 @@ target="$TMP/home/dbus-1/services/org.freedesktop.FileManager1.service"
 run() {
     printf '%s\n' "$1" > "$TMP/config/options/filemanager"
     : > "$TMP/bus"
-    PATH="$TMP/bin:$PATH" XDG_CONFIG_HOME="$TMP/config" XDG_DATA_HOME="$TMP/home" \
+    PATH="$TMP/bin:$PATH" HOME="$TMP/home" XDG_CONFIG_HOME="$TMP/config" XDG_DATA_HOME="$TMP/home" \
         XDG_DATA_DIRS="$TMP/data" bash "$SCRIPT"
 }
+
+run strata
+assert_eq "$?" 0 "Strata exits 0"
+assert_contains "$(cat "$target" 2>/dev/null)" "$TMP/bin/strata --gapplication-service" \
+    "strata claims its packaged FileManager1 service"
 
 run thunar
 assert_eq "$?" 0 "exits 0"
@@ -71,8 +77,8 @@ rm -f "$target"
 
 rm -f "$TMP/config/options/filemanager"
 : > "$TMP/bus"
-PATH="$TMP/bin:$PATH" XDG_CONFIG_HOME="$TMP/config" XDG_DATA_HOME="$TMP/home" \
+PATH="$TMP/bin:$PATH" HOME="$TMP/home" XDG_CONFIG_HOME="$TMP/config" XDG_DATA_HOME="$TMP/home" \
     XDG_DATA_DIRS="$TMP/data" bash "$SCRIPT"
-assert_contains "$(cat "$target" 2>/dev/null)" "Thunar" "no option falls back to thunar, like apptype.lua"
+assert_contains "$(cat "$target" 2>/dev/null)" "strata --gapplication-service" "no option falls back to strata, like apptype.lua"
 
 test_summary file-manager

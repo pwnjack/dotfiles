@@ -31,9 +31,14 @@ you have no login manager, type `start-hyprland` in the console.
 
 - **Colours that follow the wallpaper**: Hyprland, Hyprlock, Waybar, Rofi,
   notifications, Ghostty and its TUI apps (btop, cava, the Starship prompt),
-  Neovim, Thunar, Discord (Vesktop), Zen Browser and Spotify all re-theme when
-  the wallpaper changes, open windows included (Zen at its next launch). The
-  login screen follows too.
+  Neovim, Strata, Thunar, Discord (Vesktop), Zen Browser and Spotify all re-theme
+  when the wallpaper changes. Strata, Thunar and Zen pick
+  up the new palette on their next launch; the other apps recolour open windows.
+  The login screen follows too.
+  Strata is the default file manager; Thunar stays installed and themed, and
+  remains the second `inode/directory` association. Super+E and “Show in folder”
+  follow `options/filemanager`. Without the AUR package, pick Thunar in the
+  settings panel.
 - **Settings panel** for appearance, the bar, windows, animations,
   notifications, network, devices, displays, sound, power, keyboard and mouse,
   accessibility, date and region, startup apps and default apps, without

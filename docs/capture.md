@@ -84,8 +84,8 @@ package sets it; `doctor.sh` warns if it is lost). No portal dialog.
   (`scripts/capture/toast.sh`): Open, and Show in folder, which selects the file
   through D-Bus's `org.freedesktop.FileManager1`. hyprshot runs with `-s`, since
   its own toast has no actions; a cancelled selection writes no file and posts
-  nothing. Nautilus, Dolphin and Thunar all claim that D-Bus name, and D-Bus
-  picked Nautilus whatever the preference said, so
+  nothing. Strata, Nautilus, Dolphin and Thunar all claim that D-Bus name.
+  D-Bus picked Nautilus whatever the preference said, so
   `scripts/settings/file-manager.sh` copies the configured file manager's own
   service file into `~/.local/share/dbus-1/services/`, which wins. install.sh
   and the panel's File manager row run it; it covers every app's Show in

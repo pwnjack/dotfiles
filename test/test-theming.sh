@@ -29,6 +29,7 @@ declare -A outputs=(
     [rofi]=colors-rofi.rasi
     [ghostty]=ghostty-colors
     [Thunar]=thunar-gtk.css
+    [strata]=strata-theme.toml
     [cava]=cava-config
     [starship]=starship.toml
     [btop]=btop.theme
@@ -69,6 +70,62 @@ for component in "${!outputs[@]}"; do
         pass "$component renders ${outputs[$component]} from the fallback palette"
     fi
 done
+
+# Strata loads a complete TOML theme at startup. Check its exact schema,
+# unchanged-cache behaviour, and every readable pairing on extreme and
+# mid-tone palettes, including colour0 values that used to defeat contrast.
+strata_theme="$tmp/cache/wal/strata-theme.toml"
+strata_stamp=$(stat -c '%y' "$strata_theme")
+HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" \
+    bash "$ROOT/strata/apply_wal_colors.sh"
+assert_eq "$?" 0 "Strata rerender succeeds"
+assert_eq "$(stat -c '%y' "$strata_theme")" "$strata_stamp" "an unchanged Strata palette leaves the cache untouched"
+strata_themes=("$strata_theme")
+for background in '#05090c' '#f4f4f4' '#808080' '#777777' '#556677' '#a0a0a0'; do
+    palette_cache="$tmp/${background#\#}"
+    mkdir -p "$palette_cache/wal"
+    for ((i = 0; i < 16; i++)); do
+        case "$i" in
+            0) echo "$background" ;;
+            7) echo '#101010' ;;
+            15) echo '#ffffff' ;;
+            *) echo '#789abc' ;;
+        esac
+    done > "$palette_cache/wal/colors"
+    HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$palette_cache" \
+        bash "$ROOT/strata/apply_wal_colors.sh"
+    assert_eq "$?" 0 "Strata renders background $background"
+    strata_themes+=("$palette_cache/wal/strata-theme.toml")
+done
+python3 - "${strata_themes[@]}" <<'PY_CONTRAST'
+import re, sys, tomllib
+
+syntax = ['syntax_keyword', 'syntax_string', 'syntax_constant', 'syntax_type', 'syntax_preprocessor']
+keys = {'background', 'surface', 'text', 'accent', 'danger', 'muted', 'highlight', 'border', 'dim_text', *syntax}
+
+def luminance(hex_colour):
+    channels = [int(hex_colour[i:i+2], 16) / 255 for i in (1, 3, 5)]
+    linear = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+    return sum(c * w for c, w in zip(linear, (0.2126, 0.7152, 0.0722)))
+
+for path in sys.argv[1:]:
+    with open(path, 'rb') as source:
+        colours = tomllib.load(source)
+    if set(colours) != keys | {'name'} or colours['name'] != 'Pywal':
+        sys.exit(f'{path}: expected name = "Pywal" and exactly 14 colour keys')
+    for key in keys:
+        if not re.fullmatch(r'#[0-9a-fA-F]{6}', colours[key]):
+            sys.exit(f'{path}: {key} is not a #rrggbb colour')
+    pairs = [(fg, bg) for fg in ['text', 'dim_text', 'danger', 'accent', *syntax]
+             for bg in ['background', 'surface']]
+    pairs += [('text', bg) for bg in ['highlight', 'muted']]
+    for foreground, surface in pairs:
+        values = sorted([luminance(colours[foreground]), luminance(colours[surface])])
+        ratio = (values[1] + 0.05) / (values[0] + 0.05)
+        if ratio < 4.5:
+            sys.exit(f'{path}: {foreground} on {surface} contrast {ratio:.2f} < 4.5')
+PY_CONTRAST
+assert_eq "$?" 0 "Strata has a complete hex TOML theme and readable contrast on dark, light and mid-tone palettes"
 
 # wal_render must substitute @color15@ before @color1@, which is its prefix.
 printf '@color1@ @color15@ @oncolor0@\n' > "$tmp/template"
@@ -115,4 +172,4 @@ else
     fail "nvim/apply_wal_colors.sh exits nonzero without nvim"
 fi
 
-test_summary
+test_summary theming

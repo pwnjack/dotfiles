@@ -20,7 +20,7 @@ if [ "$(cat "$primary" 2>/dev/null)" != "$line" ]; then
     printf '%s\n' "$line" > "$primary.tmp" && mv -f "$primary.tmp" "$primary" || status=1
 fi
 
-# Font includes for rofi, Waybar and Ghostty (tracked symlinks point at them).
+# Font includes for rofi, Waybar, Ghostty and Strata's fontconfig rule (tracked symlinks point at them).
 # The script is absent only in isolated test fixtures.
 if [ -f "$config_dir/scripts/fonts/apply-font.sh" ]; then
     bash "$config_dir/scripts/fonts/apply-font.sh" --includes >/dev/null || status=1

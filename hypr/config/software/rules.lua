@@ -52,6 +52,7 @@ hl.window_rule({
     float = true,
 })
 hl.window_rule({ name = "float-portal-picker", match = { class = "^(xdg-desktop-portal-gtk)$" }, float = true })
+hl.window_rule({ name = "float-strata-picker", match = { class = "^(io\\.github\\.lgse\\.Strata\\.FileChooser)$" }, float = true })
 
 -- AI sidebar (Super+A). scripts/hyprland/launch-chatbox.sh starts it with this
 -- class; matching the class rather than the title is what lets size and move

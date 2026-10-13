@@ -80,7 +80,7 @@ application/x-extension-qt=vlc.desktop
 text/markdown=dev.zed.Zed.desktop
 x-scheme-handler/claude-cli=claude-code-url-handler.desktop
 x-scheme-handler/curseforge=curseforge.desktop
-inode/directory=thunar.desktop
+inode/directory=io.github.lgse.Strata.desktop;thunar.desktop;
 application/pdf=zen.desktop
 text/plain=dev.zed.Zed.desktop
 
