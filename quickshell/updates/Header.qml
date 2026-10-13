@@ -43,7 +43,8 @@ Row {
                 duration: 1000
                 easing.type: Easing.Linear
                 loops: Animation.Infinite
-                running: header.busy && header.visible
+                // Spins through the fade-out instead of freezing mid-turn.
+                running: spinner.opacity > 0 && header.visible
             }
             Connections {
                 target: header
