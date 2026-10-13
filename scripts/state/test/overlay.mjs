@@ -101,6 +101,15 @@ console.log('ok: json overlay')
     assert.equal(O.layout('hyprvars', text, O.effective(defaults, h.overrides, h.removed)), '# schedule\n$night_temp = 3500\nprofile {\n    temperature = $night_temp\n}\n')
     assert.equal(O.serialize('hyprvars', h.overrides), '$night_temp = 3500\n')
 }
+{
+    const text = '$t = 4000 # warm\n$h = a##b # c\n'
+    const defaults = O.parse('hyprvars', text)
+    assert.deepEqual([...defaults], [['t', '4000'], ['h', 'a##b']])
+    const same = O.harvest('hyprvars', { defaults, last: defaults, live: O.parse('hyprvars', '$t = 4000\n'), overrides: new Map(), removed: new Set() })
+    assert.equal(same.overrides.size, 0, 'a trailing comment is not part of the value')
+    assert.equal(O.layout('hyprvars', text, defaults), text)
+    assert.equal(O.layout('hyprvars', text, map({ t: '3500', h: 'x##y' })), '$t = 3500 # warm\n$h = x##y # c\n')
+}
 console.log('ok: hyprvars overlay')
 
 assert.equal(O.serialize('ini', new Map()), '')

@@ -9,7 +9,23 @@ const SEP = '\t'
 const iniHeader = /^\s*\[([^\]]*)\]\s*$/
 const iniSkip = /^\s*([#;].*)?$/
 const iniPair = /^([^=]*?)\s*=\s*(.*?)\s*$/
-const hyprVar = /^\$([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/
+const hyprHead = /^\$([A-Za-z_][A-Za-z0-9_]*)\s*=\s*/
+
+// Hyprlang ends a value at the first '#' that is not half of '##' (an escaped
+// '#', kept as written). tail is the trailing comment with its leading space.
+function hyprVar(line) {
+    const head = hyprHead.exec(line)
+    if (!head) return null
+    let end = line.length
+    for (let i = head[0].length; i < line.length; i++) {
+        if (line[i] !== '#') continue
+        if (line[i + 1] === '#') { i++; continue }
+        end = i
+        break
+    }
+    const value = line.slice(head[0].length, end).trimEnd()
+    return { name: head[1], value, tail: line.slice(head[0].length + value.length) }
+}
 
 export function formatFor(target) {
     if (target === 'options') return 'dir'
@@ -28,8 +44,8 @@ export function parse(format, text) {
         for (const [key, item] of Object.entries(value)) entries.set(key, JSON.stringify(item))
     } else if (format === 'hyprvars') {
         for (const line of lines(text)) {
-            const match = hyprVar.exec(line)
-            if (match) entries.set(match[1], match[2])
+            const match = hyprVar(line)
+            if (match) entries.set(match.name, match.value)
         }
     } else if (format === 'ini') {
         let section = ''
@@ -90,8 +106,8 @@ export function layout(format, defaultsText, entries) {
     }
     if (format === 'hyprvars') {
         return lines(defaultsText).map(line => {
-            const match = hyprVar.exec(line)
-            return match && entries.has(match[1]) && entries.get(match[1]) !== match[2] ? `$${match[1]} = ${entries.get(match[1])}` : line
+            const match = hyprVar(line)
+            return match && entries.has(match.name) && entries.get(match.name) !== match.value ? `$${match.name} = ${entries.get(match.name)}${match.tail}` : line
         }).join('\n') + '\n'
     }
     const pending = new Map()
