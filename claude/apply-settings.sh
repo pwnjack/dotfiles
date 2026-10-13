@@ -8,8 +8,10 @@
 # and each tracked hook group is appended after removing, from the live groups,
 # only the hooks that run the same script (matched by file name) — other hooks
 # sharing a group survive, a group left empty is dropped, re-running never
-# duplicates a hook, and a stale absolute-path copy of it is replaced. Idempotent, and a no-op when Claude
-# Code is not installed.
+# duplicates a hook, and a stale absolute-path copy of it is replaced. A live
+# hook that runs a script under ~/.claude/hooks which no longer exists (one this
+# repo used to ship) is dropped. Idempotent, and a no-op when Claude Code is not
+# installed.
 set -euo pipefail
 
 src="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/settings.json"
@@ -23,7 +25,9 @@ mkdir -p "$(dirname "$target")"
 tmp="$(mktemp "$target.XXXXXX")"
 trap 'rm -f "$tmp"' EXIT
 
-jq -s '
+present=$(find "$(dirname "$target")/hooks" -maxdepth 1 -name '*.sh' -printf '%f\n' 2>/dev/null | jq -R . | jq -s .)
+
+jq -s --argjson present "${present:-[]}" '
   def script: (.command // "") | (capture("(?<s>[^/\\s\"\\x{27}]+\\.sh)").s // .);
   .[0] as $live | .[1] as $mine
   | ($live * ($mine | del(.hooks)))
@@ -34,6 +38,11 @@ jq -s '
                           | .hooks |= map(select(script as $s | ($ours | index([$s])) == null))
                           | select((.hooks | length) > 0)]
                          + $e.value)))
+  | .hooks |= (with_entries(.value |= [.[]
+        | .hooks |= map(select(((.command // "") | capture("\\.claude/hooks/(?<n>[^/\\s\"\\x{27}]+\\.sh)").n // null) as $n
+                               | $n == null or ($present | index([$n])) != null))
+        | select((.hooks | length) > 0)])
+      | with_entries(select(.value | length > 0)))
 ' "$target" "$src" > "$tmp"
 
 chmod --reference="$target" "$tmp" 2>/dev/null || true

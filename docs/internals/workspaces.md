@@ -29,3 +29,7 @@ after a pull or branch switch, in the main worktree only, so a pull never
 leaves a stale library. `docs/workspaces-native.md` has the build flow and the
 way back to the CSS dots: tags `workspaces-css` (before) and
 `workspaces-native` (the merge), undone with `git revert -m 1`.
+
+## Keyboard stepping
+
+`hypr/config/software/workspace_step.lua` implements Super+Ctrl+arrow stepping and keeps it bounded to the dot row, as scrolling over the module is.

@@ -368,9 +368,8 @@ The `.env` file is loaded by:
 
 ## AI agent harness (optional)
 
-`claude/` and `codex/` hold a delegation harness for Claude Code and Codex:
-global instructions, routing and review skills, one hook, and curated
-settings. Only what was written here is tracked — logins, history, memory,
+`claude/` and `codex/` hold a small delegation harness for Claude Code and
+Codex: global instructions, one `delegate` skill, and curated settings. Only what was written here is tracked — logins, history, memory,
 caches and anything the tools write themselves stay out of the repo, so a
 fresh machine stays fresh.
 
@@ -383,12 +382,12 @@ installed. After installing and signing in to Claude Code and/or Codex, run:
 ~/.config/scripts/agents/setup.sh            # or --dry-run to preview
 ```
 
-It symlinks the skills, hook and global instructions into `~/.claude` and
-`~/.codex`, merges `claude/settings.json` into the live settings (other keys are
-left alone), installs the listed Claude plugins, and lets Herdr install its own
+It symlinks the skill and global instructions into `~/.claude` and `~/.codex`,
+merges `claude/settings.json` into the live settings (other keys are left
+alone), installs the enabled Claude plugins, and lets Herdr install its own
 hooks when Herdr is present. Codex models are named by codename (`sol`,
 `luna`, …) and always resolve to the newest listed version; see
-`claude/skills/_shared/handoff.md`.
+`docs/internals/agents.md`.
 
 ## Maintenance
 

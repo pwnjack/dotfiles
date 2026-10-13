@@ -13,37 +13,21 @@
       "Read(~/.local/share/vdirsyncer/**)"
     ]
   },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Agent",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh ~/.claude/hooks/auto-subagent-reminder.sh",
-            "timeout": 5
-          }
-        ]
-      }
-    ]
-  },
   "extraKnownMarketplaces": {
-    "superpowers-extended-cc-marketplace": {
-      "source": { "source": "github", "repo": "pcvelz/superpowers" }
-    },
-    "Mixedbread-Grep": {
-      "source": { "source": "github", "repo": "mixedbread-ai/mgrep" }
-    },
     "impeccable": {
-      "source": { "source": "github", "repo": "pbakaus/impeccable" }
+      "source": {
+        "source": "github",
+        "repo": "pbakaus/impeccable"
+      }
     }
   },
   "enabledPlugins": {
-    "superpowers-extended-cc@superpowers-extended-cc-marketplace": true,
-    "mgrep@Mixedbread-Grep": true,
-    "impeccable@impeccable": true
+    "impeccable@impeccable": false
   },
-  "attribution": { "commit": "", "pr": "" },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
   "tui": "fullscreen",
   "agentPushNotifEnabled": true
 }

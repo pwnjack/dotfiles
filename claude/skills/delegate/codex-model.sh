@@ -27,17 +27,19 @@
 # (-mini, -pro) and over dated snapshots, then the lowest priority. No listed
 # model of that name exits 3.
 #
-# Opt-in only. EXPENSIVE lists the codenames the user reserves for explicit
-# requests; a snapshot or variant of one (name-pro, name-2031-01-01) counts as
-# it. When Codex ships a new flagship codename, add it here — one word.
+# Opt-in only. STANDARD lists the codenames that run freely; every other one
+# (astra, any codename Codex ships later, a slug without one) is opt-in, so a
+# new flagship cannot slip through. A snapshot or variant of a standard name
+# (name-mini, name-2031-01-01) counts as it.
 #
 # Effort. Clamped down to the highest level the model lists at or below the
-# request; failing that, up to its lowest listed delegate level. A model that
+# request, but never to low unless low was asked for; failing that, up to its
+# lowest listed delegate level. A model that
 # lists no levels gets the request unchanged. "ultra" enables automatic task
 # delegation and is refused outright; "max" is outside the delegate vocabulary.
 set -euo pipefail
 
-EXPENSIVE="astra"
+STANDARD="luna terra sol"
 
 usage() { echo "usage: $0 <codename>|inherit low|medium|high|xhigh | --is-expensive <alias-or-slug>" >&2; exit 2; }
 [ $# -eq 2 ] || usage
@@ -62,7 +64,7 @@ codename() {
 if [ "$alias" = --is-expensive ]; then
   command -v jq >/dev/null || { echo "jq is not installed" >&2; exit 2; }
   c=$(codename "$effort")
-  [ -n "$c" ] && grep -qxF -- "$c" <(tr ' ' '\n' <<<"$EXPENSIVE"); exit
+  ! { [ -n "$c" ] && grep -qxF -- "$c" <(tr ' ' '\n' <<<"$STANDARD"); }; exit
 fi
 
 if [ "$alias" = inherit ]; then
@@ -107,11 +109,13 @@ if [ "$levels" = - ]; then
   used=$effort
   echo "$slug lists no reasoning levels; passing effort $effort through" >&2
 else
-  # Highest supported level at or below the request, else lowest above it.
-  # Exact tokens only: "extra-high" must not count as "high".
+  # Highest supported level at or below the request, else lowest above it;
+  # never down to low unless low was asked for (a lighter effort is the
+  # caller's decision, not the clamp's). Exact tokens only: "extra-high" must
+  # not count as "high".
   below=1
   for e in "${order[@]}"; do
-    if tr ' ' '\n' <<<"$levels" | grep -qxF -- "$e"; then
+    if { [ "$e" != low ] || [ "$effort" = low ]; } && tr ' ' '\n' <<<"$levels" | grep -qxF -- "$e"; then
       if [ "$below" = 1 ]; then used=$e
       elif [ -z "$used" ]; then used=$e; fi
     fi

@@ -8,12 +8,14 @@
 #
 #   scripts/agents/setup.sh [--dry-run]
 #
-# Links: claude/skills/*/ -> ~/.claude/skills/, claude/hooks/*.sh ->
-# ~/.claude/hooks/, claude/CLAUDE.global.md -> ~/.claude/CLAUDE.md,
+# Links: claude/skills/*/ -> ~/.claude/skills/, claude/CLAUDE.global.md ->
+# ~/.claude/CLAUDE.md,
 # codex/AGENTS.global.md -> ~/.codex/AGENTS.md (CLAUDE_CONFIG_DIR and CODEX_HOME
 # are honoured, as the apply scripts do). Anything already at a link target is
 # moved — never deleted — into ~/.local/state/dotfiles-agents-backup/<time>/,
 # outside the directories the agents scan, so an old skill cannot load twice.
+# Links into this repo whose target is gone (a removed skill or hook) are
+# deleted.
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -49,8 +51,10 @@ if have claude; then
   for d in "$repo"/claude/skills/*/; do
     d=${d%/}; link "$d" "$claude_dir/skills/$(basename "$d")"
   done
-  for h in "$repo"/claude/hooks/*.sh; do
-    link "$h" "$claude_dir/hooks/$(basename "$h")"
+  for l in "$claude_dir"/skills/* "$claude_dir"/hooks/*; do
+    if [ -L "$l" ] && [ ! -e "$l" ] && [[ $(readlink "$l") == "$repo"/claude/* ]]; then
+      echo "  removing stale link $l"; run rm "$l"
+    fi
   done
   link "$repo/claude/CLAUDE.global.md" "$claude_dir/CLAUDE.md"
   run bash "$repo/claude/apply-settings.sh"
