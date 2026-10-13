@@ -5,7 +5,7 @@
 # every reader uses, after harvesting whatever changed in a live file since the
 # last render. See docs/internals/state.md.
 #
-#   overlay.sh sync [--replace <backup dir>] [<live path>...]
+#   overlay.sh sync [--replace <backup dir>] [--restore] [<live path>...]
 #   overlay.sh check
 #
 # The config dir is the tree this script lives in. A tree without defaults/ (a
@@ -22,7 +22,7 @@ shift || true
 [ -d "$config_dir/defaults" ] || exit 0
 case "$command" in
     sync|check) ;;
-    *) echo "usage: overlay.sh sync [--replace <backup dir>] [<live path>...] | check" >&2; exit 2 ;;
+    *) echo "usage: overlay.sh sync [--replace <backup dir>] [--restore] [<live path>...] | check" >&2; exit 2 ;;
 esac
 # The state is this machine's, shared by the one live tree. A manual run from a
 # linked worktree would mix its defaults into it.
@@ -47,7 +47,7 @@ case "$command" in
         exec node "$here/overlay-cli.mjs" check "$config_dir" "$state_dir"
         ;;
     *)
-        echo "usage: overlay.sh sync [--replace <backup dir>] [<live path>...] | check" >&2
+        echo "usage: overlay.sh sync [--replace <backup dir>] [--restore] [<live path>...] | check" >&2
         exit 2
         ;;
 esac

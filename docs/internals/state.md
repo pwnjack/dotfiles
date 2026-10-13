@@ -38,6 +38,8 @@ Sync runs:
 - on install, with `--replace <backup dir>` (or `--no-backup`, which copies nothing). A live file that predates the overlay is copied to the backup and replaced. `--replace` never deletes before rendering, keeps recorded overrides, and acts only on keys that `defaults/options` declares: per-machine keys with no default (`calendar-*`, `capture-*`) stay and are adopted;
 - from the settings panel after each write to a rendered file.
 
+Live files are written by rename, so a live file that is a symlink is replaced by a regular file: the overlay owns these paths. Editor leftovers in `options/` (`name~`, `#name#`, dot-files) are never keys. A live file that changes between the sync's read and its write (a panel write outside the lock, `echo >`) is detected by a re-read just before the write, and that target is redone, up to three times before it fails with a message.
+
 Some writers (the calendar and capture Quickshell apps, `echo firefox > options/browser`) write live files directly. The next sync records them; nothing is lost in between.
 
 ## Derived files
@@ -54,6 +56,12 @@ After each sync `scripts/state/derived.sh` renders what is computed from options
 `hypr/hyprsunset.conf` is rendered from `defaults/hypr/hyprsunset.conf`. Its schedule is four `$variables` (times and temperatures) that the panel's Power page overrides; the profiles refer to them. Only variables the default declares are kept. Edits to the live file outside the `$` lines are replaced on the next render, so change the default instead. `nightlight.sh` resolves profile temperatures through the variables.
 
 ## Pull transition
+
+Visiting a commit from before the overlay (`git checkout` of an old revision, a bisect) and coming back makes git delete the tracked option files it restored for the old commit. The hook sees declared keys missing from `options/`, which a plain sync would read as resets and drop their overrides. So `post-merge` and `post-checkout` pass `--restore` whenever the previous tree (`$1` for a checkout, `ORIG_HEAD` for a merge) has no `defaults/`: a declared option missing from live then counts as unchanged and keeps its override, while options present are harvested as usual and undeclared ones (`calendar-*`, `capture-*`) stay. The first merge that brings the overlay is such a case too, which is harmless because there are no overrides yet. `git reset --hard` runs no hook; after one that crosses the overlay boundary, run `bash ~/.config/scripts/state/overlay.sh sync --restore` by hand.
+
+After the pull that brings the overlay, Waybar's `style.css` imports `~/.local/state/waybar/font.css`, which `post-merge` creates. Restart the bar once with `scripts/waybar/waybar.sh`.
+
+Reverting the merge (`git revert -m 1`, the repo's usual way back) tracks `options/*` and the GTK, Qt, MIME and swaync files again. Git overwrites the ignored live files with the old defaults, and the overrides in `~/.local/state/dotfiles/overrides` stay unused. To carry a value back, copy it from `overrides/<live path>` into the live file.
 
 The merge that moved these files into `defaults/` makes git delete the old tracked live files, and `post-merge` renders them again. A pull refuses if one of them has local edits. Recovery: move the files aside, pull, move them back, then run `bash ~/.config/scripts/state/overlay.sh sync`. Adoption records the differences as overrides.
 

@@ -24,7 +24,12 @@ fi
 # Settings defaults may have changed: re-render this machine's live files.
 overlay="$(git rev-parse --show-toplevel)/scripts/state/overlay.sh"
 if [ -f "$overlay" ]; then
-    bash "$overlay" sync ||
+    # Coming from a tree without defaults/ (before the overlay), git has just
+    # deleted the old tracked option files; --restore keeps their overrides.
+    if [ "$(basename -- "$0")" = post-checkout ]; then previous=${1:-}; else previous=$(git rev-parse -q --verify ORIG_HEAD 2>/dev/null); fi
+    restore=()
+    if [ -n "$previous" ] && ! git cat-file -e "$previous:defaults" 2>/dev/null; then restore=(--restore); fi
+    bash "$overlay" sync "${restore[@]}" ||
         echo "git hook: some settings could not be rendered; run scripts/state/overlay.sh sync" >&2
 fi
 

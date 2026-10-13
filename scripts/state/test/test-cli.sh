@@ -123,6 +123,85 @@ set +e; env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state5" b
 assert_eq "$status" "1" "a bad overrides file fails a --replace run"
 assert_eq "$(cat "$bad/gtk-3.0/settings.ini")" "$(printf '[Settings]\ngtk-theme-name=Old')" "the live file survives a failed --replace"
 
+# Editor leftovers are not keys.
+back="$tmp/back"
+make_tree "$back"
+printf 'x\n' > "$back/options/browser~"
+printf 'x\n' > "$back/options/#editor#"
+run_at() { env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$1" bash "$2/scripts/state/overlay.sh" "${@:3}"; }
+run_at "$tmp/state7" "$back" sync
+assert_eq "$(find "$tmp/state7/overrides/options" -type f 2>/dev/null | wc -l)" "0" "editor backup files are never harvested"
+
+# A live file changed between harvest and write is picked up by a retry.
+race="$tmp/race"
+make_tree "$race"
+run_at "$tmp/state8" "$race" sync
+echo brave > "$race/options/browser"
+marker="$tmp/raced"
+env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state8" \
+    OVERLAY_TEST_BEFORE_WRITE="[ -e $marker ] || { touch $marker; echo late > $race/options/editor; }" \
+    bash "$race/scripts/state/overlay.sh" sync
+assert_eq "$(cat "$tmp/state8/overrides/options/browser")" "brave" "the retried sync keeps the first change"
+assert_eq "$(cat "$tmp/state8/overrides/options/editor")" "late" "a write racing the sync is harvested, not overwritten"
+assert_eq "$(cat "$race/options/editor")" "late" "the racing write stays live"
+# A target that never settles fails with a clear message.
+set +e
+err=$(env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state8" \
+    OVERLAY_TEST_BEFORE_WRITE="echo \$RANDOM > $race/options/editor" \
+    bash "$race/scripts/state/overlay.sh" sync 2>&1); status=$?
+set -e
+assert_eq "$status" "1" "a target that keeps changing fails"
+assert_contains "$err" "kept changing" "the failure says why"
+
+# --restore: declared keys missing from live keep their override; others behave as usual.
+res="$tmp/res"
+make_tree "$res"
+run_at "$tmp/state9" "$res" sync
+echo firefox > "$res/options/browser"
+echo enabled > "$res/options/calendar-default"
+run_at "$tmp/state9" "$res" sync
+rm "$res/options/browser"
+printf 'vim\n' > "$res/options/editor"
+run_at "$tmp/state9" "$res" sync --restore
+assert_eq "$(cat "$res/options/browser")" "firefox" "--restore keeps the override of a missing declared key"
+assert_eq "$(cat "$tmp/state9/overrides/options/browser")" "firefox" "--restore keeps the override recorded"
+assert_eq "$(cat "$res/options/calendar-default")" "enabled" "--restore keeps an undeclared key"
+assert_eq "$(cat "$tmp/state9/overrides/options/editor")" "vim" "--restore still harvests a changed declared key"
+# Without it, a missing declared key is a reset.
+rm "$res/options/browser"
+run_at "$tmp/state9" "$res" sync
+assert_eq "$(cat "$res/options/browser")" "zen" "a plain sync treats a missing key as a reset"
+
+# The git hook: a round trip through a commit without defaults/ keeps overrides.
+hk="$tmp/hook"
+git init -q -b main "$hk"
+g() { git -C "$hk" -c user.name=t -c user.email=t@t "$@"; }
+mkdir -p "$hk/options"
+printf 'old\n' > "$hk/options/browser"
+printf 'old\n' > "$hk/options/editor"
+ln -s ../../.cache/current_wallpaper "$hk/options/wallpaper"
+g add -A; g commit -qm old
+old=$(g rev-parse HEAD)
+g rm -q --cached options/browser options/editor
+mkdir -p "$hk/scripts/state" "$hk/defaults"
+cp "$src"/overlay.mjs "$src"/overlay-cli.mjs "$src"/overlay.sh "$src"/derived.sh "$hk/scripts/state/"
+mkdir -p "$hk/defaults/options"
+printf 'zen\n' > "$hk/defaults/options/browser"
+printf 'nvim\n' > "$hk/defaults/options/editor"
+printf '/options/*\n!/options/wallpaper\n' > "$hk/.gitignore"
+g add -A; g commit -qm new
+cp "$src/../hooks/post-merge" "$hk/.git/hooks/post-merge"
+ln -s post-merge "$hk/.git/hooks/post-checkout"
+hook_env() { env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state10" "$@"; }
+hook_env bash "$hk/scripts/state/overlay.sh" sync
+echo firefox > "$hk/options/browser"
+hook_env bash "$hk/scripts/state/overlay.sh" sync
+hook_env git -C "$hk" checkout -q "$old"
+assert_eq "$(cat "$hk/options/browser")" "old" "the old commit tracks its own option files"
+hook_env git -C "$hk" checkout -q main
+assert_eq "$(cat "$hk/options/browser")" "firefox" "returning from a pre-overlay commit keeps the override"
+assert_eq "$(cat "$tmp/state10/overrides/options/browser")" "firefox" "the override is still recorded"
+
 # A tree that is not ~/.config needs an explicit state directory.
 mkdir -p "$tmp/home2"
 set +e; err=$(env -u XDG_STATE_HOME -u OVERLAY_STATE_DIR HOME="$tmp/home2" bash "$tree/scripts/state/overlay.sh" sync 2>&1); status=$?; set -e
