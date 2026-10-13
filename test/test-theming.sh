@@ -6,8 +6,8 @@
 #
 # swaync only reloads a live consumer and renders nothing, so it is not run;
 # nvim is the same kind and is tested separately below.
-# pkill, hyprctl and spicetify are stubbed so no running cava, Hyprland or
-# Spotify is touched.
+# pkill, hyprctl, spicetify and eww are stubbed so no running cava, Hyprland,
+# Spotify or eww daemon is touched.
 #
 
 set -uo pipefail
@@ -16,7 +16,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/bin" "$tmp/cache" "$tmp/home"
-for stub in pkill hyprctl spicetify; do
+for stub in pkill hyprctl spicetify eww; do
     printf '#!/bin/sh\nexit 1\n' > "$tmp/bin/$stub"
     chmod +x "$tmp/bin/$stub"
 done
@@ -38,6 +38,7 @@ declare -A outputs=(
     [vesktop]=vesktop.theme.css
     [zen]=zen-userChrome.css
     [spicetify]=spicetify-color.ini
+    [eww]=eww-colors.scss
 )
 
 # shellcheck source=scripts/theming/palette.sh

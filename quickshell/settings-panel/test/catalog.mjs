@@ -11,7 +11,7 @@ assert.deepEqual(catalog.categories.map(c => c.id), ['appearance', 'bar', 'windo
 assert.deepEqual(catalog.rows.map(row => row.id).sort(), ["a11y.text-scale", "a11y.zoom", "anim.border", "anim.fade",
     "anim.master", "anim.windows", "anim.windowsIn", "anim.windowsMove", "anim.windowsOut", "anim.workspaces",
     "appearance.blur", "appearance.blur-passes", "appearance.blur-size", "appearance.border", "appearance.color-scheme",
-    "appearance.cursor-size", "appearance.cursor-theme", "appearance.font", "appearance.font-gtk", "appearance.gaps-in",
+    "appearance.cursor-size", "appearance.cursor-theme", "appearance.desktop-clock", "appearance.desktop-clock-font", "appearance.font", "appearance.font-gtk", "appearance.gaps-in",
     "appearance.gaps-out", "appearance.gtk-theme", "appearance.icon-theme", "appearance.kvantum",
     "appearance.opacity-active", "appearance.opacity-inactive", "appearance.rounding", "appearance.shadows",
     "apps.aurhelper", "apps.browser", "apps.codeeditor", "apps.editor", "apps.filemanager", "apps.launcher",

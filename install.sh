@@ -131,6 +131,7 @@ AUR_PACKAGES=(
     "zen-browser-bin"
     "vesktop"
     "waybar-weather"
+    "eww"                    # desktop clock widget (scripts/desktop-clock)
 )
 
 info "Checking system dependencies..."

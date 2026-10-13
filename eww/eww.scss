@@ -1,0 +1,28 @@
+// Both partials are generated into ~/.cache and never tracked: the palette by
+// eww/apply_wal_colors.sh ($foreground) and the font by
+// scripts/desktop-clock/desktop-clock.sh ($clock-font, validated there).
+@import '../../.cache/wal/eww-colors.scss';
+@import '../../.cache/eww/font.scss';
+
+.clock {
+    .clock-time {
+        color: $foreground;
+        font-weight: 900;
+        font-size: 80px;
+        font-family: $clock-font, sans-serif;
+        opacity: 0.8;
+    }
+
+    .clock-date {
+        color: $foreground;
+        font-weight: 400;
+        font-size: 18px;
+        font-family: $clock-font, sans-serif;
+        margin-top: -80px;
+        opacity: 0.8;
+    }
+
+    &.background {
+        background: none;
+    }
+}

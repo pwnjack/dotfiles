@@ -18,3 +18,7 @@ if [ -f "$HOME/.config/options/protonvpn" ] && grep -qx "enabled" "$HOME/.config
         protonvpn-app >/dev/null 2>&1 &
     fi
 fi
+
+# The desktop clock (eww) when options/desktop-clock says so; the script does
+# nothing without eww, and runs in the background so it never delays login.
+bash "$HOME/.config/scripts/desktop-clock/desktop-clock.sh" start >/dev/null 2>&1 &

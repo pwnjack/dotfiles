@@ -20,6 +20,10 @@
           "title": "Fonts"
         },
         {
+          "id": "desktop-clock",
+          "title": "Desktop clock"
+        },
+        {
           "id": "cursor",
           "title": "Cursor"
         },
@@ -657,6 +661,31 @@
       "kind": "text",
       "check": "font",
       "keywords": ["gtk", "system"]
+    },
+    {
+      "category": "appearance",
+      "section": "desktop-clock",
+      "id": "appearance.desktop-clock",
+      "title": "Show desktop clock",
+      "description": "Large time and date on the wallpaper, bottom right",
+      "source": "option",
+      "key": "desktop-clock",
+      "kind": "toggle",
+      "default": true,
+      "keywords": ["clock", "time", "widget", "eww", "date"]
+    },
+    {
+      "category": "appearance",
+      "section": "desktop-clock",
+      "id": "appearance.desktop-clock-font",
+      "title": "Clock font",
+      "description": "Font of the desktop clock",
+      "source": "option",
+      "key": "desktop-clock-font",
+      "kind": "text",
+      "check": "font",
+      "default": "Adwaita Sans",
+      "keywords": ["clock", "time", "widget", "eww"]
     },
     {
       "category": "appearance",

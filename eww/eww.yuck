@@ -1,0 +1,27 @@
+;; The desktop clock. scripts/desktop-clock/desktop-clock.sh is the only thing
+;; that opens, closes or reloads it; docs/internals/desktop-clock.md has the why.
+;;
+;; The time comes from eww's built-in EWW_TIME, so no process is spawned per
+;; tick. time_fmt is a window argument (24 h or 12 h, from options/clock).
+;; The date is still `date`, once a minute: formattime always names the day in
+;; English, and `date` follows the session's LC_TIME as the old clock did.
+
+(defpoll date :interval "60s"
+  :initial `date +'%A - %d/%m'`
+  `date +'%A - %d/%m'`)
+
+(defwidget clock-widget [time_fmt]
+  (box
+    :orientation "v"
+    :halign "end"
+    :valign "end"
+    :spacing 0
+    (label :xalign 1 :text {formattime(EWW_TIME, time_fmt)} :class "clock-time")
+    (label :xalign 1 :text date :class "clock-date")))
+
+(defwindow clock [time_fmt]
+  :monitor 0
+  :stacking "bg"
+  :geometry (geometry :x "120" :y "50" :width "500px" :anchor "bottom right")
+  :decorated false
+  (clock-widget :time_fmt time_fmt))

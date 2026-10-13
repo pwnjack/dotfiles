@@ -61,6 +61,8 @@ const mimeDefaults = {'inode/directory':'kitty-open.desktop'}
 let failMime = ''
 for (const name of ['font','font-gtk','cursortheme','mainmonitor','browser','terminal','editor','codeeditor','filemanager','aurhelper','launchertype','autologin','protonvpn','randomwallpaper']) files.set(`${base}/options/${name}`,name === 'mainmonitor' ? '' : 'enabled\n')
 files.set(base+'/options/clock','24h\n')
+files.set(base+'/options/desktop-clock','enabled\n')
+files.set(base+'/options/desktop-clock-font','Adwaita Sans\n')
 for (const name of ['cpu','memory','gpu','disk']) files.set(`${base}/options/bar-${name}`, 'always\n')
 files.set(base+'/options/bar-network','traffic\n')
 files.set(base+'/options/bar-updates','pending\n')
@@ -446,6 +448,28 @@ assert.equal(events.filter(e => e[0] === 'bash' && String(e[1]).endsWith('/scrip
 await assert.rejects(dispatch({op:'set',id:'region.clock',value:'13h'}), /Unknown choice/)
 console.log('ok: clock row renders the Waybar include')
 
+const clockApplies = () => events.filter(e => e[0] === 'bash' && String(e[1]).endsWith('/scripts/desktop-clock/desktop-clock.sh') && e[2] === 'apply').length
+events = []
+await dispatch({op:'set',id:'appearance.desktop-clock',value:false})
+assert.equal(files.get(base+'/options/desktop-clock'), 'disabled\n')
+assert.equal(clockApplies(), 1)
+await dispatch({op:'set',id:'appearance.desktop-clock',value:true})
+assert.equal(files.get(base+'/options/desktop-clock'), 'enabled\n')
+assert.equal(clockApplies(), 2)
+events = []
+await assert.rejects(dispatch({op:'set',id:'appearance.desktop-clock-font',value:'No Such Font'}), /No installed font/)
+assert.equal(clockApplies(), 0, 'a font that is not installed never reaches the clock')
+await dispatch({op:'set',id:'appearance.desktop-clock-font',value:'Adwaita Sans'})
+assert.equal(files.get(base+'/options/desktop-clock-font'), 'Adwaita Sans\n')
+assert.equal(clockApplies(), 1)
+events = []
+await dispatch({op:'set',id:'region.clock',value:'24h'})
+assert.equal(clockApplies(), 1, 'the 12/24 h choice reaches the desktop clock too')
+events = []
+await dispatch({op:'reset',id:'appearance.desktop-clock-font'})
+assert.equal(clockApplies(), 1)
+console.log('ok: the desktop clock re-applies when its toggle, font or the 12/24 h option changes')
+
 events = []
 await dispatch({op:'set',id:'bar.cpu',value:'high'})
 assert.equal(files.get(base+'/options/bar-cpu'), 'high\n')
@@ -570,6 +594,7 @@ events = []
 await dispatch({op:'mainMonitor',value:'DP-1'})
 assert.equal(files.get(base+'/options/mainmonitor'),'DP-1\n')
 assert.ok(events.some(overlaySync), 'a main-monitor change syncs the overlay')
+assert.equal(events.filter(e => e[0] === 'bash' && String(e[1]).endsWith('/scripts/desktop-clock/desktop-clock.sh')).length, 1, 'a main-monitor change moves the desktop clock')
 failOverlay = true
 await assert.rejects(dispatch({op:'mainMonitor',value:''}),/overlay failed/)
 assert.equal(files.get(base+'/options/mainmonitor'),'DP-1\n','a failed sync restores the option')

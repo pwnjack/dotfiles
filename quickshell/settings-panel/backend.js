@@ -747,6 +747,8 @@ async function change(request) {
         return saveAndApply(optionPath(row.key), text + "\n", async () => {
             if (row.key === "font" || row.key === "font-gtk") await execAsync(["bash", configDir + "/scripts/fonts/apply-font.sh"])
             if (row.key === "clock" || row.key === "clock-seconds") await execAsync(["bash", configDir + "/scripts/waybar/clock-format.sh"])
+            // The desktop clock follows the 12/24 h choice too, and its own toggle and font.
+            if (row.key === "clock" || row.key.startsWith("desktop-clock")) await execAsync(["bash", configDir + "/scripts/desktop-clock/desktop-clock.sh", "apply"])
             if (row.key.startsWith("bar-")) await execAsync(["bash", configDir + "/scripts/waybar/bar-modes.sh"])
             if (row.key === "bar-agenda" || row.key.startsWith("calendar-")) await execAsync(["bash", configDir + "/scripts/calendar/sync.sh", "--render"])
             // Every app's "Show in folder" asks D-Bus, which this points at the new choice.
@@ -961,6 +963,8 @@ export async function dispatch(request) {
             try { await syncOverlay() } catch (_) { /* The doctor reports a stale render. */ }
             throw error
         }
+        // The desktop clock opens on the main display; moving it is not worth failing the change.
+        try { await execAsync(["bash", configDir + "/scripts/desktop-clock/desktop-clock.sh", "apply"]) } catch (_) { /* Takes effect at the next login. */ }
         return {}
     }
     if (request.op === "displayApply") return displayApply(request)

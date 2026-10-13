@@ -53,7 +53,7 @@ rather than toggling a profile the app deletes. **Date & Region** writes time zo
 language and formats through polkit-authorised `timedated`/`localed` calls in `dbus.js`;
 `authPending` hides the panel so the polkit dialog is reachable (`authHidesPanel`).
 The 12/24 h clock is `options/clock`, rendered by `scripts/waybar/clock-format.sh` into
-the `~/.local/state/waybar/clock.jsonc` Waybar include, and hyprlock reads the option.
+the `~/.local/state/waybar/clock.jsonc` Waybar include, and hyprlock and the desktop clock (`desktop-clock.md`) read the option.
 **Startup** lists `autostart.lua` and manages XDG autostart entries by uwsm's generator
 rules; `~/.config/autostart` is per-machine and gitignored, and disabling a system entry
 writes a minimal `Hidden=true` override. Panel writes reach `panel-request.sh -` on stdin,

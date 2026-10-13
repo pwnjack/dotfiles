@@ -10,6 +10,7 @@ Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md
 - `capture/` — `record.sh`, the only driver of gpu-screen-recorder, and `toast.sh`, the shared saved toast (see Capture bar); `fakes/` are test stubs
 - `updates/` — the update card's planner and runner (`updates-plan.sh`, `updates-run.sh`), `terminal.sh` for the terminal paths, and the Node modules `fold.mjs` and `tooltip.mjs` (see Update card)
 - `settings/` — the panel's request runner (`panel-request.sh`), default file manager and terminal wiring (`file-manager.sh`, `terminal.sh`), and `update.sh`, the terminal update (AUR helper from `options/aurhelper`, then Flatpak)
+- `desktop-clock/` — `desktop-clock.sh`, the only owner of the eww desktop clock (see Desktop clock)
 - `theming/` — Pywal fan-out driver (`apply-wal.sh`) and the shared palette loader (`palette.sh`)
 - `fonts/` — `apply-font.sh`, which writes `options/font` and `options/font-gtk` into every config that names a font and renders the font includes into `~/.local/state`, including Strata's fontconfig rule; it edits only untracked or rendered files
 - `state/` — the machine-state overlay: the engine (`overlay.mjs`), its CLI (`overlay-cli.mjs`), `overlay.sh` (lock, sync, check) and `derived.sh` (files computed from options); see `docs/internals/state.md`
