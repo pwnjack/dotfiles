@@ -447,7 +447,7 @@ function iniSet(path, text, key, value, sectionName = "Settings") {
     return text.slice(0, section.start) + insertion + text.slice(section.start)
 }
 // GTK 3 on Wayland reads some keys from gsettings and others from settings.ini,
-// so both are written; the ini files are tracked and keep every other line.
+// so both are written; the ini files are rendered by the overlay, and the dispatch sync records the change, keeping every other line.
 function writeGtkIni(entries) {
     for (const path of gtkIniPaths) {
         if (!exists(path)) continue

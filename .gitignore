@@ -60,7 +60,6 @@
 !/ssh/
 !/aichat/
 !/electron-flags.conf
-!/mimeapps.list
 
 # AI agent harness
 !/claude/
@@ -83,6 +82,11 @@ aichat/models-override.yaml
 hypr/hyprsunset.conf
 options/*
 !options/wallpaper
+gtk-3.0/settings.ini
+gtk-4.0/settings.ini
+qt5ct/qt5ct.conf
+qt6ct/qt6ct.conf
+mimeapps.list
 
 # Thunar's own files; only the theming hook is ours
 Thunar/*
