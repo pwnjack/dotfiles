@@ -113,11 +113,25 @@ fi
 publish=$(mktemp -d "$cache_dir/wal/.publish.XXXXXX") \
     || fail "Could not apply the colors from $(basename "$wallpaper")"
 trap 'rm -rf -- "$publish"' EXIT
+had_roles=0
+if [ -e "$cache_dir/wal/roles" ] || [ -L "$cache_dir/wal/roles" ]; then
+    cp -pP -- "$cache_dir/wal/roles" "$publish/roles.before" \
+        || fail "Could not apply the colors from $(basename "$wallpaper")"
+    had_roles=1
+fi
 if ! cp -- "$stage/roles" "$stage/colors" "$publish/" \
-        || ! mv -fT -- "$publish/roles" "$cache_dir/wal/roles" \
-        || ! mv -fT -- "$publish/colors" "$cache_dir/wal/colors"; then
+        || ! mv -fT -- "$publish/roles" "$cache_dir/wal/roles"; then
     fail "Could not apply the colors from $(basename "$wallpaper")"
 fi
+if ! mv -fT -- "$publish/colors" "$cache_dir/wal/colors"; then
+    if [ "$had_roles" -eq 1 ]; then
+        mv -fT -- "$publish/roles.before" "$cache_dir/wal/roles"
+    else
+        rm -f -- "$cache_dir/wal/roles"
+    fi
+    fail "Could not apply the colors from $(basename "$wallpaper")"
+fi
+rm -f -- "$publish/roles.before"
 rmdir -- "$publish"
 trap - EXIT
 ln -sfn "$wallpaper" "$cache_dir/current_wallpaper" || fail "Cannot save the current wallpaper"

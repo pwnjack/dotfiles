@@ -82,6 +82,28 @@ exit "${FAIL_APPLY:-0}"
     assert events.read_text().splitlines() == [f'start {second}']
     selected.write_text(str(first))
     print('ok: failed generation preserves existing colors, roles, and wallpaper state')
+    # Force the second rename to fail after the new roles have been published.
+    colors = cache / 'wal/colors'
+    colors.unlink()
+    colors.mkdir()
+    (colors / 'sentinel').write_text('keep this directory')
+    selected.write_text(str(second))
+    events.write_text(''); (base / 'notices').write_text('')
+    result = run()
+    assert result.returncode == 1
+    assert 'Wallpaper theme failed' in (base / 'notices').read_text()
+    assert 'Could not apply the colors from second.jpg' in (base / 'notices').read_text()
+    assert (cache / 'wal/roles').read_bytes() == before['roles']
+    assert (colors / 'sentinel').read_text() == 'keep this directory'
+    assert (cache / 'current_wallpaper').resolve() == first
+    assert (cache / 'wal/rofi-wallpaper.rasi').read_bytes() == before['rofi-wallpaper.rasi']
+    assert 'apply' not in events.read_text()
+    assert not list((cache / 'wal').glob('.publish.*'))
+    (colors / 'sentinel').unlink()
+    colors.rmdir()
+    colors.write_bytes(before['colors'])
+    selected.write_text(str(first))
+    print('ok: failed colors rename restores roles, preserves wallpaper state, and removes publication staging')
     executable(driver, '''
 echo "apply $(cat "$XDG_CACHE_HOME/wal/colors")" >> "$FIXTURE/events"
 [ ! -e /proc/$$/fd/9 ] || { echo 'driver inherited fd 9' >&2; exit 1; }

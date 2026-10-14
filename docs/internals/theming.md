@@ -6,6 +6,8 @@ as before. The repo tracks symlinks to generated files, so a wallpaper change
 never dirties git. Existing theme names, CSS variables such as `--pywal-*`,
 and the Neovim plugin name are retained for compatibility.
 
+`~/.cache/wal/` contains `colors`, `roles`, `next/` (staging), `generation.log`, `wallpaper.lock`, `rofi-wallpaper.rasi`, `colors-hyprland.{conf,lua}`, `colors-rofi.rasi`, `colors-waybar.css`, `ghostty-colors`, `thunar-gtk.css`, `strata-theme.toml`, `cava-config`, `btop.theme`, `starship.toml`, `vesktop.theme.css`, `zen-userChrome.css`, `spicetify-color.ini`, `eww-colors.scss`, `colors-wal.vim` and `.eww-reload-failed`.
+
 ## Generation and publication
 
 The pipeline is wallpaper image → `scripts/theming/generate-palette.sh` →
@@ -29,7 +31,11 @@ empty: matugen emits JSON; `scripts/theming/matugen-to-wal.sh` validates and
 converts it into sixteen plain hex lines in `colors` and `name=#rrggbb` lines
 in `roles`. Generated hex colours are lowercase. Missing matugen, failed
 image generation or invalid conversion returns 1 with a diagnostic and leaves
-the previous palette in place.
+the previous palette in place. matugen has a 30-second timeout, overridable
+with `GENERATE_TIMEOUT` for tests. Publication to the default cache takes
+`flock -w 30` on `wallpaper.lock` and renames `roles` before `colors`, restoring
+the previous roles if the second rename fails. Other output directories do
+not take this lock, so `wall.sh` can generate into staging while holding it.
 
 `wall.sh` holds a cache-backed `flock` across generation, publication and
 fan-out. It reads the current selection after taking the lock, so a queued
@@ -46,7 +52,8 @@ four rounds the newest queried selection is published without another wait.
 A queued run exits quietly if the preceding run already published that image
 and the staged slots and roles match. Publication copies complete files into
 a temporary directory on the same filesystem, then renames `roles` before
-`colors`. The lock keeps wallpaper runs serialised; component outputs update
+`colors`, restoring the previous roles if the second rename fails. The lock
+keeps wallpaper runs serialised; component outputs update
 only when the driver subsequently renders them. Generation failure publishes
 nothing and sends a failure toast. The driver attempts every component and
 returns nonzero on partial failure; `wall.sh` names failed components in its
@@ -145,7 +152,10 @@ Every script must:
 
 1. Render into `~/.cache/wal/` and never write a tracked file.
 2. **Always leave its output existing**, using the shared fallback when palette
-   input is missing. A dangling tracked symlink is a doctor ERROR.
+   input is missing. Missing `colors` or `roles` is a doctor WARN because the
+   loaders fall back; missing `colors-hyprland.conf` or `colors-hyprland.lua`
+   leaves a dangling tracked symlink and remains an ERROR. Change the wallpaper
+   (Super+Ctrl+W), or run the generator with an image and then `apply-wal.sh`.
 3. Be idempotent and do nothing to an absent consumer.
 4. Reload its own running consumer where possible. Background children must
    not hold stderr open: `wall.sh` reads driver diagnostics to the end, so an
@@ -181,8 +191,10 @@ when CachyOS uses it as `MANPAGER`.
 **Ghostty** includes `wal/ghostty-colors` through `config-file = ?colors`.
 Its script sends `SIGUSR2` to reload the configured palette, then writes
 OSC 104/110/111/112 resets to writable, user-owned numeric ptys. These clear
-old indexed-colour, foreground, background and cursor overrides, allowing
-open terminals to use the loaded palette. Each write has a one-second timeout;
+old indexed-colour, foreground, background and cursor overrides. pywal's
+OSC 4 overrides take precedence over the configured palette, so any window
+that received them would keep them. The resets let the palette reloaded by
+`SIGUSR2` show in open terminals. Each write has a one-second timeout;
 `WAL_PTS_DIR` points tests at fake ptys. ncurses applications also reset indexed
 colours when rebuilding their screens. Ghostty's translucent window uses
 `ghostty/blur.css`: GTK 4.24 leaves its ext-background-effect blur region

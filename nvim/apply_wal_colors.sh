@@ -30,7 +30,9 @@ wallpaper=""
 if [ -e "$cache_root/current_wallpaper" ]; then
     wallpaper=$(readlink -f "$cache_root/current_wallpaper" 2>/dev/null) || wallpaper=""
 fi
-# Preserve paths containing backslashes or quotes in Vim's double-quoted string.
+# Keep the Vim string on one line, then preserve backslashes and quotes.
+wallpaper=${wallpaper//$'\n'/}
+wallpaper=${wallpaper//$'\r'/}
 wallpaper=${wallpaper//\\/\\\\}
 wallpaper=${wallpaper//\"/\\\"}
 

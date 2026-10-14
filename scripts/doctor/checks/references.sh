@@ -47,8 +47,8 @@
 #   A missing `source =` or require() target is an ERROR. The owning Hypr
 #   program loses that module — keybinds, rules, monitors, or lock styling.
 #
-#   A missing palette cache is an ERROR. colors.lua/colors.conf dangle and the
-#   Hyprland or Hyprlock palette is unavailable.
+#   Missing generated Hyprland/Hyprlock palettes are ERRORs: their links dangle.
+#   Missing slots or roles are WARNs: palette.sh supplies fallback colours.
 #
 #   A missing literal ~/.config/... reference is a WARN. A script or config
 #   pointing at a file that is not there breaks that one feature when it is
@@ -260,14 +260,18 @@ _ref_check_literals() {
 # outputs Hyprland's colors.lua and Hyprlock's colors.conf resolve to. Name
 # missing inputs directly as well as the symlinks that consume their outputs.
 _ref_check_palette_cache() {
-    local palette missing=0
+    local palette severity missing=0
     for palette in "$DOCTOR_CACHE/wal/colors" \
                    "$DOCTOR_CACHE/wal/roles" \
                    "$DOCTOR_CACHE/wal/colors-hyprland.conf" \
                    "$DOCTOR_CACHE/wal/colors-hyprland.lua"; do
         [ -e "$palette" ] && continue
-        err "palette cache missing: $palette" \
-            "$(doctor_q "$DOCTOR_ROOT/scripts/theming/generate-palette.sh") $(doctor_q "$DOCTOR_CACHE/current_wallpaper") && $(doctor_q "$DOCTOR_ROOT/scripts/theming/apply-wal.sh")"
+        case "${palette##*/}" in
+            colors|roles) severity=warn ;;
+            *) severity=err ;;
+        esac
+        "$severity" "palette cache missing: $palette" \
+            "change the wallpaper (Super+Ctrl+W), or run $(doctor_q "$DOCTOR_ROOT/scripts/theming/generate-palette.sh") $(doctor_q /path/to/wallpaper.jpg) && $(doctor_q "$DOCTOR_ROOT/scripts/theming/apply-wal.sh")"
         missing=1
     done
     return "$missing"

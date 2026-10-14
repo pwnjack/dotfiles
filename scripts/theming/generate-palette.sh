@@ -17,7 +17,8 @@ if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
 fi
 config="${XDG_CONFIG_HOME:-$HOME/.config}"
 image=$1
-out="${2:-${XDG_CACHE_HOME:-$HOME/.cache}/wal}"
+default_out="${XDG_CACHE_HOME:-$HOME/.cache}/wal"
+out="${2:-$default_out}"
 # Matugen runs elsewhere, so relative paths must be resolved before cd.
 [[ "$image" = /* ]] || image="$PWD/$image"
 [[ "$config" = /* ]] || config="$PWD/$config"
@@ -49,7 +50,7 @@ contrast=$(read_option theme-contrast 0 '^-?(0(\.[0-9]+)?|1(\.0+)?)$')
 prefer=$(read_option theme-prefer saturation '^(darkness|lightness|saturation|less-saturation|value|closest-to-fallback)$')
 
 scratch=$(mktemp -d)
-if ! (cd "$scratch" && matugen image "$image" -c "$config/matugen/config.toml" \
+if ! (cd "$scratch" && timeout "${GENERATE_TIMEOUT:-30}" matugen image "$image" -c "$config/matugen/config.toml" \
     -m dark -t "$scheme" --contrast "$contrast" --prefer "$prefer" \
     --fallback-color '#6097a1' --dry-run --json hex -q > "$scratch/matugen.json"); then
     echo "generate-palette: matugen failed for $image" >&2
@@ -61,6 +62,12 @@ if ! bash "$config/scripts/theming/matugen-to-wal.sh" "$scratch/matugen.json" "$
     echo 'generate-palette: palette conversion failed' >&2
     exit 1
 fi
+# Standalone generation shares wall.sh's publication lock. Its explicit
+# staging directory must never take the lock that wall.sh already holds.
+if [ "$out" -ef "$default_out" ]; then
+    exec 9>"$out/wallpaper.lock"
+    flock -w 30 9
+fi
 # Reject non-file targets before replacing either member of the palette.
 for name in colors roles; do
     if { [ -e "$out/$name" ] || [ -L "$out/$name" ]; } && [ ! -f "$out/$name" ]; then
@@ -69,18 +76,18 @@ for name in colors roles; do
     fi
 done
 # Same-filesystem renames publish complete files. If the second fails, restore
-# the first. wall.sh owns serialization across wallpaper generation runs.
-had_colors=0
-if [ -e "$out/colors" ]; then
-    cp -pP -- "$out/colors" "$stage/colors.before"
-    had_colors=1
+# the first. Publish roles before colors, matching wall.sh's order.
+had_roles=0
+if [ -e "$out/roles" ]; then
+    cp -pP -- "$out/roles" "$stage/roles.before"
+    had_roles=1
 fi
-mv -fT -- "$stage/colors" "$out/colors"
-if ! mv -fT -- "$stage/roles" "$out/roles"; then
-    if [ "$had_colors" -eq 1 ]; then
-        mv -fT -- "$stage/colors.before" "$out/colors"
+mv -fT -- "$stage/roles" "$out/roles"
+if ! mv -fT -- "$stage/colors" "$out/colors"; then
+    if [ "$had_roles" -eq 1 ]; then
+        mv -fT -- "$stage/roles.before" "$out/roles"
     else
-        rm -f -- "$out/colors"
+        rm -f -- "$out/roles"
     fi
     echo 'generate-palette: palette publication failed' >&2
     exit 1

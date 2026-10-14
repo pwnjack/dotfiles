@@ -24,6 +24,9 @@ cat > "$tmp/bin/matugen" <<'STUB'
 #!/bin/bash
 printf '%s\n' "$@" > "$MATUGEN_ARGS"
 pwd > "$MATUGEN_CWD"
+if [ "${SLOW_MATUGEN:-0}" = 1 ]; then
+    sleep 2
+fi
 if [ "${FAIL_MATUGEN:-0}" = 1 ]; then
     echo 'stub: corrupt image' >&2
     exit 1
@@ -37,9 +40,12 @@ STUB
 chmod +x "$tmp/bin/matugen"
 cat > "$tmp/bin/mv" <<'STUB'
 #!/bin/bash
-if [ "${FAIL_PUBLISH:-0}" = 1 ] && [[ "$3" == */.generate.*/roles ]]; then
-    echo 'stub: roles rename failed' >&2
+if [ "${FAIL_PUBLISH:-0}" = 1 ] && [[ "$3" == */.generate.*/colors ]]; then
+    echo 'stub: colors rename failed' >&2
     exit 1
+fi
+if [ -n "${PUBLISH_LOG:-}" ] && [[ "$3" == */.generate.*/roles || "$3" == */.generate.*/colors ]]; then
+    printf '%s\n' "${3##*/}" >> "$PUBLISH_LOG"
 fi
 exec "$REAL_MV" "$@"
 STUB
@@ -119,6 +125,12 @@ assert_eq "$rc" 1 'failed matugen exits 1'
 assert_contains "$(cat "$tmp/stderr")" 'corrupt image' 'matugen failure names its cause'
 kept_palette 'failed matugen preserves both palette files byte for byte'
 unset FAIL_MATUGEN
+export SLOW_MATUGEN=1 GENERATE_TIMEOUT=0.1
+run_generate "$tmp/image with spaces.png"
+assert_eq "$rc" 1 'timed-out matugen exits 1'
+assert_contains "$(cat "$tmp/stderr")" 'matugen failed' 'matugen timeout is identified as generation failure'
+kept_palette 'timed-out matugen preserves both palette files byte for byte'
+unset SLOW_MATUGEN GENERATE_TIMEOUT
 export BAD_JSON=1
 run_generate "$tmp/image with spaces.png"
 assert_eq "$rc" 1 'invalid matugen JSON exits 1'
@@ -148,6 +160,33 @@ else
     fail 'explicit output receives both palette files'
 fi
 kept_palette 'explicit output leaves the default cache untouched'
+
+# A standalone publication must wait for wall.sh's lock, even when the
+# default cache is passed explicitly. Renames are logged by the mv stub.
+export PUBLISH_LOG="$tmp/publication-order"
+(
+    exec 8>"$XDG_CACHE_HOME/wal/wallpaper.lock"
+    flock 8
+    touch "$tmp/lock-held"
+    sleep 0.5
+    printf 'released\n' >> "$PUBLISH_LOG"
+) &
+lock_pid=$!
+while [ ! -e "$tmp/lock-held" ]; do sleep 0.01; done
+run_generate "$tmp/image with spaces.png" "$XDG_CACHE_HOME/wal"
+assert_eq "$rc" 0 'default-cache publication succeeds after the lock is released'
+wait "$lock_pid"
+assert_eq "$(cat "$PUBLISH_LOG")" $'released\nroles\ncolors' \
+    'default-cache publication waits for the lock and renames roles before colors'
+unset PUBLISH_LOG
+
+# wall.sh already owns the default lock while generating into next/.
+(
+    exec 8>"$XDG_CACHE_HOME/wal/wallpaper.lock"
+    flock 8
+    timeout 2 bash "$generator" "$tmp/image with spaces.png" "$XDG_CACHE_HOME/wal/next"
+) > "$tmp/stdout" 2> "$tmp/stderr"
+assert_eq "$?" 0 'explicit staging output does not acquire the held default lock'
 mkdir -p "$tmp/blocked/roles"
 cp "$tmp/colors.before" "$tmp/blocked/colors"
 run_generate "$tmp/image with spaces.png" "$tmp/blocked"
@@ -164,8 +203,8 @@ printf 'previous roles\n' > "$tmp/rollback/roles"
 export FAIL_PUBLISH=1
 run_generate "$tmp/image with spaces.png" "$tmp/rollback"
 assert_eq "$rc" 1 'second rename failure exits 1'
-assert_eq "$(cat "$tmp/rollback/colors")" 'previous colors' 'second rename failure restores previous colors'
-assert_eq "$(cat "$tmp/rollback/roles")" 'previous roles' 'second rename failure keeps previous roles'
+assert_eq "$(cat "$tmp/rollback/colors")" 'previous colors' 'second rename failure keeps previous colors'
+assert_eq "$(cat "$tmp/rollback/roles")" 'previous roles' 'second rename failure restores previous roles'
 run_generate "$tmp/image with spaces.png" "$tmp/rollback-empty"
 assert_eq "$rc" 1 'second rename failure without a previous palette exits 1'
 if [ ! -e "$tmp/rollback-empty/colors" ] && [ ! -e "$tmp/rollback-empty/roles" ]; then

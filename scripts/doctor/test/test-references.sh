@@ -281,15 +281,22 @@ assert_contains "$ref_out" "palette cache missing: $ref_cache_empty/wal/colors" 
     "missing ANSI palette cache is reported"
 assert_contains "$ref_out" "palette cache missing: $ref_cache_empty/wal/roles" \
     "missing semantic-role cache is reported"
-# colors.conf dangles and every themed component loses its palette at once.
-ref_palette_line="$(grep -F 'palette cache missing' "$ref_out_file")"
-assert_contains "$ref_palette_line" "ERROR" "missing palette cache is ERROR severity"
+for ref_name in colors roles colors-hyprland.conf colors-hyprland.lua; do
+    ref_palette_line="$(grep -F "palette cache missing: $ref_cache_empty/wal/$ref_name" "$ref_out_file" | head -n1)"
+    case "$ref_name" in
+        colors|roles)
+            assert_contains "$ref_palette_line" "WARN" "missing $ref_name uses fallback and is WARN severity"
+            assert_not_contains "$ref_palette_line" "ERROR" "missing $ref_name is not an ERROR"
+            ;;
+        *) assert_contains "$ref_palette_line" "ERROR" "missing $ref_name leaves a dangling link and is ERROR severity" ;;
+    esac
+done
 
 # --- tallies ----------------------------------------------------------------
-# Only what stops the session: 4 source targets, 1 Lua module, 4 palette files.
-assert_eq "$DOCTOR_ERRORS" "9" "session-breaking references counted as errors"
-# 5 literal references plus the 3 entries of wall.sh's guarded loop.
-assert_eq "$DOCTOR_WARNINGS" "8" "degraded-feature references counted as warnings"
+# Only what stops the session: 4 source targets, 1 Lua module, 2 Hyprland outputs.
+assert_eq "$DOCTOR_ERRORS" "7" "session-breaking references counted as errors"
+# 5 literal references, 3 guarded loop entries and 2 fallback palette inputs.
+assert_eq "$DOCTOR_WARNINGS" "10" "degraded-feature references counted as warnings"
 assert_eq "$DOCTOR_NOTICES" "0" "nothing here is a notice"
 
 # --- every fix hint is copy-pasteable ---------------------------------------
@@ -301,8 +308,12 @@ assert_contains "$ref_out" "restore $ref_fixture/gone/missing2.sh, or drop the r
     "literal hint shell-quotes the referencing file's name"
 assert_contains "$ref_out" "restore $ref_fixture/ghostty/apply_wal_colors.sh, or remove it from the list in $ref_fixture/scripts/hyprland/wall.sh" \
     "colour script hint points at the list to edit"
-assert_contains "$ref_out" "$ref_fixture/scripts/theming/generate-palette.sh $ref_cache_empty/current_wallpaper" \
-    "palette hint generates from the saved wallpaper"
+assert_contains "$ref_out" "change the wallpaper (Super+Ctrl+W)" \
+    "palette hint offers the wallpaper carousel without requiring a saved selection"
+assert_contains "$ref_out" "$ref_fixture/scripts/theming/generate-palette.sh /path/to/wallpaper.jpg" \
+    "palette hint accepts an image even without a saved wallpaper"
+assert_not_contains "$ref_out" "$ref_cache_empty/current_wallpaper" \
+    "palette hint does not depend on a missing wallpaper symlink"
 assert_contains "$ref_out" "$ref_fixture/scripts/theming/apply-wal.sh" \
     "palette hint also renders every component's cache"
 
@@ -354,10 +365,11 @@ ref_clean_out="$(<"$ref_out_file")"
 assert_contains "$ref_clean_out" "✓" "fully resolvable repo gets the green tick"
 assert_contains "$ref_clean_out" "all config references resolve" \
     "fully resolvable repo says so"
-assert_eq "$DOCTOR_ERRORS$DOCTOR_WARNINGS$DOCTOR_NOTICES" "000" \
-    "fully resolvable repo records nothing"
+assert_eq "$DOCTOR_ERRORS" "0" "fully resolvable repo records no errors"
+assert_eq "$DOCTOR_WARNINGS" "0" "fully resolvable repo records no warnings"
+assert_eq "$DOCTOR_NOTICES" "0" "fully resolvable repo records no notices"
 
-# Each generator input is required even with both Hyprland outputs present.
+# Each missing input warns even with both Hyprland outputs present.
 for ref_name in colors roles; do
     mv "$ref_cache_full/wal/$ref_name" "$ref_cache_full/$ref_name.saved"
     doctor_reset
@@ -365,12 +377,13 @@ for ref_name in colors roles; do
     ref_missing_out="$(<"$ref_out_file")"
     assert_contains "$ref_missing_out" "palette cache missing: $ref_cache_full/wal/$ref_name" \
         "missing $ref_name is reported independently"
-    assert_eq "$DOCTOR_ERRORS$DOCTOR_WARNINGS" "10" \
-        "missing $ref_name produces exactly one error"
+    assert_eq "$DOCTOR_ERRORS" "0" "missing $ref_name produces no errors"
+    assert_eq "$DOCTOR_WARNINGS" "1" "missing $ref_name produces exactly one warning"
+    assert_eq "$DOCTOR_NOTICES" "0" "missing $ref_name produces no notices"
     assert_not_contains "$ref_missing_out" "✓" \
         "missing $ref_name gets no all-clear"
-    assert_contains "$ref_missing_out" "$(doctor_q "$ref_clean/scripts/theming/generate-palette.sh") $(doctor_q "$ref_cache_full/current_wallpaper")" \
-        "generator hint quotes a wallpaper path containing a space"
+    assert_contains "$ref_missing_out" "$(doctor_q "$ref_clean/scripts/theming/generate-palette.sh") $(doctor_q /path/to/wallpaper.jpg) && $(doctor_q "$ref_clean/scripts/theming/apply-wal.sh")" \
+        "palette hint supplies a valid image argument and component rendering command"
     mv "$ref_cache_full/$ref_name.saved" "$ref_cache_full/wal/$ref_name"
 done
 
@@ -420,5 +433,6 @@ ref_bare_out="$(<"$ref_out_file")"
 
 assert_contains "$ref_bare_out" "all config references resolve" \
     "repo without configs is a clear result"
-assert_eq "$DOCTOR_ERRORS$DOCTOR_WARNINGS$DOCTOR_NOTICES" "000" \
-    "repo without configs records nothing"
+assert_eq "$DOCTOR_ERRORS" "0" "repo without configs records no errors"
+assert_eq "$DOCTOR_WARNINGS" "0" "repo without configs records no warnings"
+assert_eq "$DOCTOR_NOTICES" "0" "repo without configs records no notices"

@@ -226,15 +226,17 @@ done
 # from the cache symlink, with paths safely quoted for Vim.
 mkdir -p "$tmp/nvim-cache/wal"
 printf '#ABCDEF\n%.0s' {1..16} > "$tmp/nvim-cache/wal/colors"
-nvim_wallpaper="$tmp/home/wallpaper \"quoted\".png"
+nvim_wallpaper="$tmp/home/wallpaper "$'\n\r'"\\\"quoted\".png"
 touch "$nvim_wallpaper"
 ln -s "$nvim_wallpaper" "$tmp/nvim-cache/current_wallpaper"
 PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/nvim-cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
     bash "$ROOT/nvim/apply_wal_colors.sh"
 assert_eq "$?" 0 "nvim renders a cached palette and wallpaper"
 nvim_text="$(cat "$tmp/nvim-cache/wal/colors-wal.vim" 2>/dev/null || true)"
-assert_contains "$nvim_text" "let wallpaper = \"$tmp/home/wallpaper \\\"quoted\\\".png\"" \
-    "nvim resolves the wallpaper symlink and escapes quotes"
+assert_contains "$nvim_text" "let wallpaper = \"$tmp/home/wallpaper \\\\\\\"quoted\\\".png\"" \
+    "nvim resolves the wallpaper symlink, strips LF/CR, and escapes backslashes and quotes"
+assert_eq "$(printf '%s\n' "$nvim_text" | wc -l)" 23 \
+    "nvim wallpaper control characters do not introduce extra Vim lines"
 for ((i = 0; i < 16; i++)); do
     assert_contains "$nvim_text" "let color$i = \"#abcdef\"" "nvim cached color$i is lowercase"
 done
