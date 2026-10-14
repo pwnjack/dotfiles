@@ -5,9 +5,9 @@
 # and a dangling one is a doctor ERROR on a fresh checkout.
 #
 # swaync only reloads a live consumer and renders nothing, so it is not run;
-# nvim is the same kind and is tested separately below.
-# pkill, hyprctl, spicetify and eww are stubbed so no running cava, Hyprland,
-# Spotify or eww daemon is touched.
+# nvim renders its palette here and its reload behaviour is tested below.
+# pkill, hyprctl, spicetify, eww and nvim are stubbed so no running cava,
+# Hyprland, Spotify, eww daemon or editor is touched.
 #
 
 set -uo pipefail
@@ -15,10 +15,10 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-mkdir -p "$tmp/bin" "$tmp/cache" "$tmp/home" "$tmp/pts"
+mkdir -p "$tmp/bin" "$tmp/cache" "$tmp/home" "$tmp/pts" "$tmp/run"
 touch "$tmp/pts/0"
 printf 'multiplexer sentinel\n' > "$tmp/pts/ptmx"
-for stub in pkill hyprctl spicetify eww; do
+for stub in pkill hyprctl spicetify eww nvim; do
     printf '#!/bin/sh\nexit 1\n' > "$tmp/bin/$stub"
     chmod +x "$tmp/bin/$stub"
 done
@@ -41,6 +41,7 @@ declare -A outputs=(
     [zen]=zen-userChrome.css
     [spicetify]=spicetify-color.ini
     [eww]=eww-colors.scss
+    [nvim]=colors-wal.vim
 )
 
 # shellcheck source=scripts/theming/palette.sh
@@ -70,7 +71,7 @@ for component in "${!outputs[@]}"; do
     out="$tmp/cache/wal/${outputs[$component]}"
     # HOME too: zen's script links into the browser profile under ~/.zen, and
     # must never point a real profile at this temporary cache.
-    if ! PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" WAL_PTS_DIR="$tmp/pts" \
+    if ! PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
         "$ROOT/$component/apply_wal_colors.sh" >/dev/null 2>&1; then
         fail "$component/apply_wal_colors.sh exits nonzero with no palette cache"
     elif [ ! -s "$out" ]; then
@@ -84,10 +85,46 @@ for component in "${!outputs[@]}"; do
     fi
 done
 
+# Neovim consumes the exact Vim variable layout, including all 16 slots.
+nvim_palette="$tmp/cache/wal/colors-wal.vim"
+nvim_text="$(cat "$nvim_palette" 2>/dev/null || true)"
+assert_contains "$nvim_text" '" Special' "nvim palette has the special section"
+assert_contains "$nvim_text" 'let wallpaper = ""' "nvim uses an empty wallpaper when none is selected"
+assert_contains "$nvim_text" "let background = \"${wal[0]}\"" "nvim background uses fallback slot 0"
+assert_contains "$nvim_text" "let foreground = \"${wal[7]}\"" "nvim foreground uses fallback slot 7"
+assert_contains "$nvim_text" "let cursor = \"${wal[7]}\"" "nvim cursor uses fallback slot 7"
+assert_contains "$nvim_text" '" Colors' "nvim palette has the colors section"
+for ((i = 0; i < 16; i++)); do
+    assert_contains "$nvim_text" "let color$i = \"${wal[$i]}\"" "nvim fallback color$i matches the palette"
+done
+
+# A generated palette replaces every fallback slot; the wallpaper is resolved
+# from the cache symlink, with paths safely quoted for Vim.
+mkdir -p "$tmp/nvim-cache/wal"
+printf '#ABCDEF\n%.0s' {1..16} > "$tmp/nvim-cache/wal/colors"
+nvim_wallpaper="$tmp/home/wallpaper \"quoted\".png"
+touch "$nvim_wallpaper"
+ln -s "$nvim_wallpaper" "$tmp/nvim-cache/current_wallpaper"
+PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/nvim-cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
+    bash "$ROOT/nvim/apply_wal_colors.sh"
+assert_eq "$?" 0 "nvim renders a cached palette and wallpaper"
+nvim_text="$(cat "$tmp/nvim-cache/wal/colors-wal.vim" 2>/dev/null || true)"
+assert_contains "$nvim_text" "let wallpaper = \"$tmp/home/wallpaper \\\"quoted\\\".png\"" \
+    "nvim resolves the wallpaper symlink and escapes quotes"
+for ((i = 0; i < 16; i++)); do
+    assert_contains "$nvim_text" "let color$i = \"#abcdef\"" "nvim cached color$i is lowercase"
+done
+assert_contains "$nvim_text" 'let background = "#abcdef"' "nvim uses the cached background"
+assert_contains "$nvim_text" 'let foreground = "#abcdef"' "nvim uses the cached foreground"
+assert_contains "$nvim_text" 'let cursor = "#abcdef"' "nvim uses the cached cursor"
+PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/nvim-cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
+    bash "$ROOT/nvim/apply_wal_colors.sh"
+assert_eq "$(cat "$tmp/nvim-cache/wal/colors-wal.vim")" "$nvim_text" "nvim rerender is byte-identical"
+
 # Reset old terminal colour overrides so Ghostty's reloaded palette can show.
 # Use fake ptys in every invocation, including the component loop above.
 : > "$tmp/pts/0"
-PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" WAL_PTS_DIR="$tmp/pts" \
+PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
     bash "$ROOT/ghostty/apply_wal_colors.sh"
 assert_eq "$?" 0 "Ghostty reload succeeds even when no instance is running"
 printf '\033]104\033\\\033]110\033\\\033]111\033\\\033]112\033\\' > "$tmp/pty-reset"
@@ -227,24 +264,28 @@ XDG_CACHE_HOME="$role_cache" role_load
 assert_eq "$(wal_role primary)" '#82d3e1' "role_load resets roles missing from the next cache"
 assert_eq "$(wal_role surface)" '#112233' "role_load reads the next cache"
 
-# nvim renders nothing (the generator supplies colors-wal.vim); its script only
-# asks running instances to re-apply. It must exit 0 whether nvim is missing,
+# nvim renders colors-wal.vim and asks running instances to re-apply.
+# It must exit 0 whether nvim is missing,
 # or an instance's socket is stale and every request fails.
 mkdir -p "$tmp/run" "$tmp/nobin"
 python3 -c 'import socket,sys; socket.socket(socket.AF_UNIX).bind(sys.argv[1])' "$tmp/run/nvim.123.0"
 printf '#!/bin/sh\necho "$@" >> "%s"\nexit 1\n' "$tmp/nvim-calls" > "$tmp/bin/nvim"
 chmod +x "$tmp/bin/nvim"
-if PATH="$tmp/bin:$PATH" XDG_RUNTIME_DIR="$tmp/run" "$ROOT/nvim/apply_wal_colors.sh" \
+if PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" "$ROOT/nvim/apply_wal_colors.sh" \
     && grep -q -- "--server $tmp/run/nvim.123.0 --remote-expr" "$tmp/nvim-calls"; then
     pass "nvim asks each running instance to re-apply, and a failed request is not a failure"
 else
     fail "nvim/apply_wal_colors.sh failed, or never addressed the instance's socket"
 fi
-for cmd in bash timeout id; do ln -sf "$(command -v "$cmd")" "$tmp/nobin/$cmd"; done
-if PATH="$tmp/nobin" XDG_RUNTIME_DIR="$tmp/run" "$tmp/nobin/bash" "$ROOT/nvim/apply_wal_colors.sh"; then
-    pass "nvim/apply_wal_colors.sh is a no-op without nvim"
+for cmd in bash timeout id mkdir mv readlink; do ln -sf "$(command -v "$cmd")" "$tmp/nobin/$cmd"; done
+mkdir -p "$tmp/no-nvim-cache"
+if PATH="$tmp/nobin" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/no-nvim-cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" "$tmp/nobin/bash" "$ROOT/nvim/apply_wal_colors.sh"; then
+    pass "nvim/apply_wal_colors.sh succeeds without nvim"
 else
     fail "nvim/apply_wal_colors.sh exits nonzero without nvim"
 fi
+
+assert_contains "$(cat "$tmp/no-nvim-cache/wal/colors-wal.vim" 2>/dev/null || true)" \
+    'let color15 = "#dee3e5"' "nvim renders its fallback cache even without nvim installed"
 
 test_summary theming
