@@ -63,7 +63,7 @@ uses_palette() {
             && grep -qE "^button[[:space:]]*=[[:space:]]*${accent#\#}$" "$1"
         return
     fi
-    for color in "${wal[@]}"; do
+    for color in "${wal[@]}" "${role[@]}"; do
         grep -qiF "${color#\#}" "$1" && return 0
     done
     return 1
@@ -150,6 +150,64 @@ assert_contains "$thunar_css" 'background-color: #334455;' "Thunar rubberband us
 strata_accent=$(wal_oklch '#0000aa' 0.76 0.84 0.12)
 assert_contains "$(cat "$accent_cache/wal/strata-theme.toml")" "accent = \"$strata_accent\"" \
     "Strata accent follows primary with its foreground clamp"
+
+# Decorative fills and ramps must follow roles even when ANSI slots differ.
+ramp_cache="$tmp/ramp-cache"
+mkdir -p "$ramp_cache/wal"
+printf '#112233\n%.0s' {1..16} > "$ramp_cache/wal/colors"
+ramp_index=0
+for name in primary on_primary primary_container on_primary_container secondary_container on_secondary_container tertiary_container on_tertiary_container surface_container_highest on_surface surface_container_high on_surface_variant primary_t30 primary_t40 primary_t50 primary_t60 primary_t70 primary_t80 primary_t90 primary_t95; do
+    printf '%s=#%06x\n' "$name" "$((++ramp_index))"
+done > "$ramp_cache/wal/roles"
+XDG_CACHE_HOME="$ramp_cache" role_load
+for component in starship cava btop; do
+    PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$ramp_cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
+        bash "$ROOT/$component/apply_wal_colors.sh"
+    assert_eq "$?" 0 "$component renders decorative roles independently of ANSI slots"
+done
+python3 - "$ramp_cache/wal/starship.toml" "$ramp_cache/wal/roles" <<'PY_STARSHIP'
+import sys, tomllib
+config = tomllib.load(open(sys.argv[1], 'rb'))
+roles = dict(line.strip().split('=') for line in open(sys.argv[2]))
+pairs = [
+    ('primary', 'on_primary', ['username', 'python']),
+    ('primary_container', 'on_primary_container', ['directory']),
+    ('secondary_container', 'on_secondary_container', ['git_branch', 'git_status']),
+    ('tertiary_container', 'on_tertiary_container', ['c', 'elixir', 'elm', 'golang', 'haskell', 'java', 'julia', 'nodejs', 'nim', 'rust']),
+    ('surface_container_highest', 'on_surface', ['docker_context']),
+    ('surface_container_high', 'on_surface_variant', ['os', 'cmd_duration', 'time']),
+]
+for bg, fg, modules in pairs:
+    for module in modules:
+        for key in (['style_user', 'style_root'] if module == 'username' else ['style']):
+            assert set(config[module][key].split()) == {f'bg:{roles[bg]}', f'fg:{roles[fg]}'}, (module, key)
+backgrounds = [roles[pair[0]] for pair in pairs]
+assert f'[ ]({backgrounds[0]})' in config['format']
+assert f'[ ]({backgrounds[-1]})' in config['format']
+for left, right in zip(backgrounds, backgrounds[1:]):
+    assert any(f'[]({style})' in config['format'] for style in [f'fg:{left} bg:{right}', f'bg:{right} fg:{left}'])
+assert f'[ ]({backgrounds[-1]})' in config['right_format']
+assert f'[ ]({backgrounds[-1]})' in config['right_format']
+PY_STARSHIP
+assert_eq "$?" 0 "Starship segments, text and separators use matching semantic roles"
+cava_text="$(cat "$ramp_cache/wal/cava-config")"
+stop=0
+for tone in 30 40 50 60 70 80 90 95; do
+    assert_contains "$cava_text" "horizontal_gradient_color_$((++stop)) = '$(wal_role "primary_t$tone")'" \
+        "cava stop $stop follows primary t$tone"
+done
+btop_text="$(cat "$ramp_cache/wal/btop.theme")"
+for ramp in 'temp 40 60 80' 'cpu 40 60 90' 'free 30 50 70' 'cached 50 70 90' 'available 40 70 95' 'used 60 80 95' 'download 40 60 80' 'upload 50 70 90' 'process 40 60 90'; do
+    # shellcheck disable=SC2034  # read indirectly through ${!point} below
+    read -r meter start mid end <<< "$ramp"
+    for point in start mid end; do
+        tone=${!point}
+        assert_contains "$btop_text" "theme[${meter}_${point}]=\"$(wal_role "primary_t$tone")\"" \
+            "btop $meter $point follows primary t$tone"
+    done
+done
+# Restore fallback roles for the remaining component checks.
+XDG_CACHE_HOME="$tmp/cache" role_load
 
 # Neovim consumes the exact Vim variable layout, including all 16 slots.
 nvim_palette="$tmp/cache/wal/colors-wal.vim"

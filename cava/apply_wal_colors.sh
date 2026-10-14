@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Render cava's config with the pywal palette substituted in.
+# Render cava's config with the matugen palette substituted in.
 #
 # cava has a theme mechanism (`theme = '<name>'` reading cava's themes directory),
 # which would have been the natural fit here. It is unusable: cava 0.10.7
@@ -10,7 +10,7 @@
 # upstream. horizontal_gradient is unaffected and is what the template uses.
 #
 # So the whole config is templated instead: cava/config.in holds the real
-# content with @colorN@ tokens, and cava/config is a symlink to the rendered
+# content with @role_<name>@ tokens, and cava/config is a symlink to the rendered
 # copy in the cache. No tracked file changes at runtime.
 #
 
@@ -28,6 +28,9 @@ declare -a wal=()
 # shellcheck source=scripts/theming/palette.sh
 . "$config_dir/scripts/theming/palette.sh"
 wal_load
+# shellcheck disable=SC2034  # read by role_load and wal_render
+declare -A role=()
+role_load
 
 mkdir -p "$cache_dir"
 

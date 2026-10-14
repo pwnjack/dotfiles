@@ -14,8 +14,8 @@
 # terminal default", which is what btop.conf's theme_background = false relies
 # on to let ghostty's transparency through.
 #
-# The gradient triples are start -> mid -> end, drawn from the ANSI slots.
-# The four memory meters use different slot combinations so they remain
+# The primary tones run dark to light in start -> mid -> end triples.
+# The four memory meters use different tone offsets so they remain
 # distinguishable. Highlights and the CPU outline use the primary role.
 #
 
@@ -77,15 +77,15 @@ _btop_gradient() {
     echo "theme[div_line]=\"${wal[8]}\""
     echo
 
-    _btop_gradient temp      "${wal[2]}" "${wal[4]}" "${wal[6]}"
-    _btop_gradient cpu       "${wal[1]}" "${wal[4]}" "${wal[7]}"
-    _btop_gradient free      "${wal[2]}" "${wal[5]}" "${wal[7]}"
-    _btop_gradient cached    "${wal[3]}" "${wal[5]}" "${wal[7]}"
-    _btop_gradient available "${wal[4]}" "${wal[6]}" "${wal[7]}"
-    _btop_gradient used      "${wal[1]}" "${wal[4]}" "${wal[7]}"
-    _btop_gradient download  "${wal[2]}" "${wal[4]}" "${wal[6]}"
-    _btop_gradient upload    "${wal[3]}" "${wal[5]}" "${wal[7]}"
-    _btop_gradient process   "${wal[1]}" "${wal[4]}" "${wal[7]}"
+    _btop_gradient temp      "$(wal_role primary_t40)" "$(wal_role primary_t60)" "$(wal_role primary_t80)"
+    _btop_gradient cpu       "$(wal_role primary_t40)" "$(wal_role primary_t60)" "$(wal_role primary_t90)"
+    _btop_gradient free      "$(wal_role primary_t30)" "$(wal_role primary_t50)" "$(wal_role primary_t70)"
+    _btop_gradient cached    "$(wal_role primary_t50)" "$(wal_role primary_t70)" "$(wal_role primary_t90)"
+    _btop_gradient available "$(wal_role primary_t40)" "$(wal_role primary_t70)" "$(wal_role primary_t95)"
+    _btop_gradient used      "$(wal_role primary_t60)" "$(wal_role primary_t80)" "$(wal_role primary_t95)"
+    _btop_gradient download  "$(wal_role primary_t40)" "$(wal_role primary_t60)" "$(wal_role primary_t80)"
+    _btop_gradient upload    "$(wal_role primary_t50)" "$(wal_role primary_t70)" "$(wal_role primary_t90)"
+    _btop_gradient process   "$(wal_role primary_t40)" "$(wal_role primary_t60)" "$(wal_role primary_t90)"
 } > "$theme_file" || exit 1
 
 pkill -USR2 -x btop 2>/dev/null

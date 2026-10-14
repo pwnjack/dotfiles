@@ -3,7 +3,7 @@
 #
 # THIS IS THE TEMPLATE. Edit this file, not cava/config — that one is a symlink
 # to the copy rendered into ~/.cache/wal/ by cava/apply_wal_colors.sh, with the
-# @colorN@ tokens below replaced by the current pywal palette.
+# named role tokens below replaced by the current matugen palette.
 
 
 [general]
@@ -270,20 +270,18 @@
 # Horizontal is only supported on noncurses output.
 # Only one color will be calculated per bar.
 #
-# The stops are substituted from the pywal palette by
-# cava/apply_wal_colors.sh. pywal orders color1..color7 by ascending lightness,
-# so the spectrum gradates from low to high frequency with no color math on
-# our side. `background` stays commented out above, which is what keeps
-# ghostty's transparency showing through.
+# The primary tones run dark to light, substituted from the matugen palette
+# by cava/apply_wal_colors.sh. The spectrum gradates from low to high frequency.
+# `background` stays commented out above to keep ghostty's transparency showing.
 horizontal_gradient = 1
-horizontal_gradient_color_1 = '@color1@'
-horizontal_gradient_color_2 = '@color2@'
-horizontal_gradient_color_3 = '@color3@'
-horizontal_gradient_color_4 = '@color4@'
-horizontal_gradient_color_5 = '@color5@'
-horizontal_gradient_color_6 = '@color6@'
-horizontal_gradient_color_7 = '@color7@'
-horizontal_gradient_color_8 = '@color15@'
+horizontal_gradient_color_1 = '@role_primary_t30@'
+horizontal_gradient_color_2 = '@role_primary_t40@'
+horizontal_gradient_color_3 = '@role_primary_t50@'
+horizontal_gradient_color_4 = '@role_primary_t60@'
+horizontal_gradient_color_5 = '@role_primary_t70@'
+horizontal_gradient_color_6 = '@role_primary_t80@'
+horizontal_gradient_color_7 = '@role_primary_t90@'
+horizontal_gradient_color_8 = '@role_primary_t95@'
 
 
 # If both vertical and horizontal gradient is enabled, vertical will be blended in this direction.
