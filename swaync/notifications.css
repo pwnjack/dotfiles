@@ -3,10 +3,10 @@
 
 @define-color text            @foreground;
 @define-color border          alpha(@foreground, 0.9);
-@define-color background-alt  @color1;
-@define-color selected        @color3;
-@define-color hover           @color5;
-@define-color urgent          @color2;
+@define-color background-alt  @surface_container;
+@define-color selected        @secondary_container;
+@define-color hover           @surface_container_high;
+@define-color urgent          @error;
 
 * {
   color: @text;
@@ -64,7 +64,7 @@
 
 .floating-notifications.background .notification-row .notification-background .notification > *:last-child > * .notification-action:active {
   background-color: @selected;
-  color: @background;
+  color: @on_secondary_container;
 }
 
 .image {
@@ -90,19 +90,22 @@
 
 .floating-notifications.background .notification-row .notification-background .close-button:hover {
   background-color: @selected;
+  color: @on_secondary_container;
 }
 
 .floating-notifications.background .notification-row .notification-background .close-button:active {
   background-color: @selected;
-  color: @background;
+  color: @on_secondary_container;
 }
 
 .notification.critical progress {
   background-color: @selected;
+  color: @on_secondary_container;
 }
 
 .notification.low progress,
 .notification.normal progress {
   background-color: @selected;
+  color: @on_secondary_container;
 }
 

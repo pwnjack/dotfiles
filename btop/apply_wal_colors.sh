@@ -49,8 +49,8 @@ _btop_gradient() {
     echo "theme[main_fg]=\"${wal[7]}\""
     echo "theme[title]=\"${wal[7]}\""
     echo "theme[hi_fg]=\"$(wal_role primary)\""
-    echo "theme[selected_bg]=\"${wal[1]}\""
-    echo "theme[selected_fg]=\"${wal[7]}\""
+    echo "theme[selected_bg]=\"$(wal_role secondary_container)\""
+    echo "theme[selected_fg]=\"$(wal_role on_secondary_container)\""
     echo "theme[inactive_fg]=\"${wal[8]}\""
     echo "theme[graph_text]=\"${wal[6]}\""
     echo "theme[meter_bg]=\"${wal[8]}\""
@@ -66,7 +66,7 @@ _btop_gradient() {
     echo "theme[proc_banner_bg]=\"${wal[3]}\""
     echo "theme[proc_banner_fg]=\"${wal[0]}\""
     echo "theme[proc_follow_bg]=\"${wal[2]}\""
-    echo "theme[proc_pause_bg]=\"${wal[1]}\""
+    echo "theme[proc_pause_bg]=\"$(wal_role error)\""
     echo
 
     # Box outlines, one palette step apart so the four boxes stay readable.

@@ -87,13 +87,39 @@ for component in "${!outputs[@]}"; do
     fi
 done
 
+# Shared GTK definitions expose semantic surfaces, selections and errors even
+# before the first generated palette exists.
+waybar_fallback="$(cat "$tmp/cache/wal/colors-waybar.css")"
+for name in surface_container surface_container_high secondary_container on_secondary_container error on_error; do
+    assert_contains "$waybar_fallback" "@define-color $name $(wal_role "$name");" \
+        "Waybar defines fallback $name"
+done
+if git -C "$ROOT" grep -nE '@color[0-9]' -- swaync; then
+    fail "SwayNC still uses ANSI slots for surfaces or selections"
+else
+    assert_eq "$?" 1 "SwayNC uses semantic roles instead of ANSI slots"
+fi
+
+# Every selected fill needs the matching text, including hover/active states
+# and translucent fills. Borders alone do not change the text background.
+python3 - "$ROOT/swaync/notifications.css" "$ROOT/swaync/central_control.css" <<'PY_SELECTION'
+import re, sys
+for path in sys.argv[1:]:
+    css = open(path).read()
+    for selector, declarations in re.findall(r'([^{}]+)\{([^{}]*)\}', css):
+        if re.search(r'background(?:-color)?\s*:[^;]*@selected', declarations):
+            if not re.search(r'(?<![-\w])color\s*:\s*@on_secondary_container\s*;', declarations):
+                sys.exit(f'{path}: {selector.strip()} lacks selection text role')
+PY_SELECTION
+assert_eq "$?" 0 "SwayNC selected fills use on_secondary_container text"
+
 # Accents use semantic roles independently of ANSI blue, including the
 # Material foreground pair in Waybar. Keep the loop's consumer guards here.
 accent_cache="$tmp/accent-cache"
 mkdir -p "$accent_cache/wal"
 printf '#112233\n%.0s' {1..16} > "$accent_cache/wal/colors"
-printf 'primary=#0000aa\non_primary=#ffeedd\n' > "$accent_cache/wal/roles"
-for component in waybar btop strata; do
+printf 'primary=#0000aa\non_primary=#ffeedd\nsurface_container=#223344\nsurface_container_high=#334455\nsecondary_container=#445566\non_secondary_container=#ddeeff\nerror=#ff9988\non_error=#331100\n' > "$accent_cache/wal/roles"
+for component in waybar btop strata rofi Thunar; do
     PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$accent_cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
         bash "$ROOT/$component/apply_wal_colors.sh"
     assert_eq "$?" 0 "$component renders with a primary distinct from slot 4"
@@ -102,12 +128,25 @@ waybar_css="$(cat "$accent_cache/wal/colors-waybar.css")"
 assert_contains "$waybar_css" '@define-color color4 #112233;' "Waybar preserves ANSI blue"
 assert_contains "$waybar_css" '@define-color accent #0000aa;' "Waybar accent follows primary"
 assert_contains "$waybar_css" '@define-color on_accent #ffeedd;' "Waybar accent text follows on_primary"
-assert_eq "$(tail -n 3 "$accent_cache/wal/colors-waybar.css")" $'@define-color color15 #112233;\n@define-color accent #0000aa;\n@define-color on_accent #ffeedd;' \
+assert_contains "$waybar_css" $'@define-color color15 #112233;\n@define-color accent #0000aa;\n@define-color on_accent #ffeedd;' \
     "Waybar appends role definitions after the slots"
 btop_theme="$(cat "$accent_cache/wal/btop.theme")"
 for key in hi_fg followed_bg cpu_box; do
     assert_contains "$btop_theme" "theme[$key]=\"#0000aa\"" "btop $key follows primary"
 done
+for entry in surface_container=#223344 surface_container_high=#334455 secondary_container=#445566 on_secondary_container=#ddeeff error=#ff9988 on_error=#331100; do
+    assert_contains "$waybar_css" "@define-color ${entry%=*} ${entry#*=};" "Waybar follows cached ${entry%=*}"
+done
+assert_contains "$btop_theme" 'theme[selected_bg]="#445566"' "btop selection uses secondary_container"
+assert_contains "$btop_theme" 'theme[selected_fg]="#ddeeff"' "btop selection text uses on_secondary_container"
+assert_contains "$btop_theme" 'theme[proc_pause_bg]="#ff9988"' "btop pause uses error"
+rofi_colors="$(cat "$accent_cache/wal/colors-rofi.rasi")"
+assert_contains "$rofi_colors" 'selected:   #44556666;' "Rofi selection uses translucent secondary_container"
+assert_contains "$rofi_colors" 'accent:     #0000aa;' "Rofi accent uses primary"
+assert_contains "$rofi_colors" 'accentlow:  #0000aa66;' "Rofi low accent uses translucent primary"
+thunar_css="$(cat "$accent_cache/wal/thunar-gtk.css")"
+assert_contains "$thunar_css" $'background-color: #445566;\n    color: #ddeeff;' "Thunar selection uses the container pair"
+assert_contains "$thunar_css" 'background-color: #334455;' "Thunar rubberband uses surface_container_high"
 strata_accent=$(wal_oklch '#0000aa' 0.76 0.84 0.12)
 assert_contains "$(cat "$accent_cache/wal/strata-theme.toml")" "accent = \"$strata_accent\"" \
     "Strata accent follows primary with its foreground clamp"
