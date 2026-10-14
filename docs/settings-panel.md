@@ -58,8 +58,11 @@ current wallpaper:
 These save `options/theme-scheme`, `options/theme-contrast` and
 `options/theme-prefer`. Each change regenerates the palette for the current
 wallpaper and recolours the desktop. The panel itself picks up the new colours
-on its next opening. If regeneration or applying the palette fails, the panel
-restores the previous option and reapplies it, showing the error.
+on its next opening. If generation fails, the panel restores the previous
+option and regenerates it, showing the last diagnostic line. Once generation
+succeeds, component reload failures keep the new option and palette. If no
+current wallpaper is recorded, change the wallpaper once before using these
+controls.
 
 Terminal red, green and the other chromatic ANSI colours always use tonal
 spot at standard contrast, with the same wallpaper and source-colour choice.

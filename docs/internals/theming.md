@@ -33,11 +33,11 @@ in `roles`. If the chosen scheme or contrast differs from tonal spot at
 contrast 0, a second pass uses `-t scheme-tonal-spot --contrast 0` with the
 same image, source-colour preference, fallback seed and timeout. Only ANSI
 slots 1–6 and 9–14 come from that pass; slots 0, 7, 8 and 15 and all roles
-come from the chosen scheme. Defaults need just one pass. Either pass failing
-leaves the previous palette in place. Generated hex colours are lowercase.
-Missing matugen, failed image generation or invalid conversion returns 1 with
-a diagnostic and leaves the previous palette in place. matugen has a 30-second timeout, overridable
-with `GENERATE_TIMEOUT` for tests. Publication to the default cache takes
+come from the chosen scheme. Defaults need just one pass. Generated hex
+colours are lowercase. Missing matugen, failure of either pass or invalid
+conversion returns 1 with a diagnostic and leaves the previous palette in
+place. Each matugen pass has its own 30-second timeout, overridable with
+`GENERATE_TIMEOUT` for tests. Publication to the default cache takes
 `flock -w 30` on `wallpaper.lock` and renames `roles` before `colors`, restoring
 the previous roles if the second rename fails. Other output directories do
 not take this lock, so `wall.sh` can generate into staging while holding it.
@@ -72,9 +72,10 @@ the displayed wallpaper or that symlink.
 
 `matugen/config.toml` defines red, green, yellow, blue, magenta and cyan as
 custom colours blended towards the wallpaper's source colour. They always
-use tonal spot at standard contrast. Gallery measurements with a single pass
-found that expressive, fruit salad, neutral and monochrome schemes, and
-contrast 0.5 and 1, lost red/green hue identity, chroma or readability. Keeping
+use tonal spot at standard contrast. Gallery measurements with
+`scripts/theming/score-palettes.py` and a single pass found that expressive,
+fruit salad, neutral and monochrome schemes, and contrast 0.5 and 1, lost
+red/green hue identity, chroma or readability. Keeping
 the terminal colours independent lets desktop surfaces and accents follow
 the selected scheme without changing the meaning of ANSI colours. The slot
 mapping is fixed; bright ANSI entries use the text colours of the custom

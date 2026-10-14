@@ -94,7 +94,7 @@ dirs.set('/etc/xdg/autostart', ['nm-applet.desktop', 'blueman.desktop', 'manual.
 dirs.set(base + '/autostart', ['arch-update-tray.desktop', 'manual.desktop'])
 let showEnvironment = 'XDG_CURRENT_DESKTOP=Hyprland\nPATH=/usr/local/bin:/usr/bin\n'
 const raceOnce = new Set()
-let events = [], failingPath = '', failingReadPath = '', failReload = false, failOverlay = false, failWall = false, failingGsettingsSets = 0, failNextSpawn = ''
+let events = [], failingPath = '', failingReadPath = '', failReload = false, failOverlay = false, failGenerate = false, failApply = false, failingGsettingsSets = 0, failNextSpawn = ''
 // The calendar's keyring account, cal.sh's listing (null: cal.sh fails) and setup.sh's sign-in failure.
 let keyringAccount = '', keyringFailure = '', calendarsListing = null, signInError = '', failCalendarRenders = 0
 // Shapes copied from `hyprctl getoption -j` on Hyprland 0.56: the value field
@@ -332,7 +332,19 @@ globalThis.settingsMocks = {
             if (fireOnStop) { guardArmed = false; events.push(['hyprctl','reload','(guard)']); throw new Error('Unit settings-display-revert.timer not loaded.') }
             if (!guardArmed) throw new Error('Unit settings-display-revert.timer not loaded.'); guardArmed = false; return '' }
         if (args[1] === 'configerrors') return '[]'
-        if (failWall && args[0] === 'bash' && args[1] === base + '/scripts/hyprland/wall.sh') { failWall = false; throw new Error('wall failed') }
+        if (args[0] === 'realpath') {
+            assert.deepEqual(args.slice(1,3), ['-e','--'])
+            const target = resolveLink(args[3])
+            if (target === null || !files.has(target)) throw new Error('No such file')
+            return target
+        }
+        if (failGenerate && args[0] === 'bash' && args[1] === base + '/scripts/theming/generate-palette.sh') {
+            failGenerate = false
+            throw Object.assign(new Error('Earlier diagnostic\nGeneration failed\n'), {stderr:'Earlier diagnostic\nGeneration failed\n'})
+        }
+        if (failApply && args[0] === 'bash' && args[1] === base + '/scripts/theming/apply-wal.sh') {
+            failApply = false; throw new Error('A consumer could not reload')
+        }
         if (failOverlay && args[0] === 'bash' && args[1] === base + '/scripts/state/overlay.sh') { failOverlay = false; throw new Error('overlay failed') }
         if (args[0] === 'swaync-client' && failReload) { failReload=false; throw new Error('reload failed') }
         if (args[0] === 'localectl') return {
@@ -449,7 +461,12 @@ assert.equal(events.filter(e => e[0] === 'bash' && String(e[1]).endsWith('/scrip
 await assert.rejects(dispatch({op:'set',id:'region.clock',value:'13h'}), /Unknown choice/)
 console.log('ok: clock row renders the Waybar include')
 
-// Palette writes run the full wallpaper pipeline; a failure restores and reapplies the old value.
+// A theme save generates first; component apply failures never undo a published palette.
+const wallpaper = '/fixture/Pictures/a wallpaper;$(false).png'
+files.set(wallpaper, 'image')
+const generate = ['bash',base+'/scripts/theming/generate-palette.sh',wallpaper]
+const applyPalette = ['bash',base+'/scripts/theming/apply-wal.sh']
+const paletteCalls = () => events.filter(e => e[0] === 'bash' && !overlaySync(e))
 for (const [key, before, value] of [
     ['theme-scheme', 'scheme-tonal-spot', 'scheme-vibrant'],
     ['theme-contrast', '0', '0.5'],
@@ -457,21 +474,60 @@ for (const [key, before, value] of [
 ]) {
     const path = `${base}/options/${key}`, id = `appearance.${key}`
     files.set(path, before+'\n')
-    events = []
-    await dispatch({op:'set',id,value})
-    assert.equal(files.get(path), value+'\n')
-    assert.deepEqual(events.filter(e => e[0] === 'bash' && !overlaySync(e)), [['bash',base+'/scripts/hyprland/wall.sh']])
-    failWall = true
-    events = []
-    await assert.rejects(dispatch({op:'set',id,value:before}), /wall failed.*Previous settings restored/)
-    assert.equal(files.get(path), value+'\n', `${key} restores the previous option after wall.sh fails`)
-    assert.equal(events.filter(e => e[0] === 'bash' && e[1] === base+'/scripts/hyprland/wall.sh').length, 2,
-        'rollback reapplies the previous palette')
+    // Both the default cache and XDG_CACHE_HOME must resolve the link to its image.
+    for (const cache of ['/fixture/.cache', '/fixture/private cache']) {
+        if (cache === '/fixture/.cache') delete mockEnv.XDG_CACHE_HOME
+        else mockEnv.XDG_CACHE_HOME = cache
+        const current = `${cache}/current_wallpaper`
+        links.set(current, wallpaper)
+        events = []
+        await dispatch({op:'set',id,value})
+        assert.equal(files.get(path), value+'\n')
+        assert.deepEqual(events.find(e => e[0] === 'realpath'), ['realpath','-e','--',current])
+        assert.deepEqual(paletteCalls(), [generate, applyPalette], 'generate receives the resolved image, then apply runs')
+        failGenerate = true
+        events = []
+        await assert.rejects(dispatch({op:'set',id,value:before}), error => {
+            assert.equal(error.message, 'Generation failed. Previous settings restored.')
+            assert.ok(!error.message.includes('Earlier diagnostic'))
+            return true
+        })
+        assert.equal(files.get(path), value+'\n', `${key} restores the option after generation fails`)
+        assert.deepEqual(paletteCalls(), [generate, generate, applyPalette], 'failed generation skips apply; rollback regenerates the old option')
+        failApply = true
+        events = []
+        await dispatch({op:'set',id,value:before})
+        assert.equal(files.get(path), before+'\n', 'component failure keeps the new option')
+        assert.deepEqual(paletteCalls(), [generate, applyPalette], 'component failure never starts rollback')
+        files.set(path, value+'\n')
+        events = []
+        await dispatch({op:'reset',id})
+        assert.equal(files.get(path), catalog.rows.find(row => row.id === id).default+'\n')
+        assert.deepEqual(paletteCalls(), [generate, applyPalette], 'reset regenerates too')
+        // Missing and dangling links give the same actionable one-line error, without writes.
+        for (const target of [undefined, null]) {
+            if (target === undefined) links.delete(current)
+            else links.set(current, target)
+            const previous = files.get(path)
+            events = []
+            await assert.rejects(dispatch({op:'set',id,value}), {message:'No current wallpaper: change the wallpaper once first'})
+            assert.equal(files.get(path), previous)
+            assert.deepEqual(paletteCalls(), [])
+            assert.ok(!events.some(e => e[0] === 'write'), 'missing wallpaper is rejected before saving')
+        }
+        links.delete(current)
+    }
     events = []
     await assert.rejects(dispatch({op:'set',id,value:'invalid-choice'}), /Unknown choice/)
-    assert.equal(events.length, 0, 'invalid palette choices never run the wallpaper pipeline')
+    assert.equal(events.length, 0, 'invalid choices never resolve or regenerate a wallpaper')
 }
-console.log('ok: palette options regenerate the desktop and roll back on wallpaper failure')
+delete mockEnv.XDG_CACHE_HOME
+events = []
+await dispatch({op:'set',id:'apps.browser',value:'firefox'})
+assert.deepEqual(paletteCalls(), [], 'non-theme options run neither generator nor apply')
+assert.ok(!events.some(e => e[0] === 'realpath'))
+files.delete(wallpaper)
+console.log('ok: palette saves and resets generate before applying; only generation failures roll back, with concise errors')
 
 const clockApplies = () => events.filter(e => e[0] === 'bash' && String(e[1]).endsWith('/scripts/desktop-clock/desktop-clock.sh') && e[2] === 'apply').length
 events = []

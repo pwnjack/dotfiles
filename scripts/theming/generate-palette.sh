@@ -4,9 +4,11 @@
 # (scheme-tonal-spot), theme-contrast (0), theme-prefer (saturation).
 # Matugen renders no templates, running --dry-run --json hex in a scratch cwd.
 # --fallback-color is the fallback palette's seed for flat/near-grey images.
-# Gallery measurements found scheme/contrast-dependent custom ANSI colours lose
-# red/green identity or readability. Keep them tonal-spot at standard contrast;
+# Measurements with scripts/theming/score-palettes.py found custom ANSI colours
+# derived from the chosen scheme/contrast lose red/green identity or readability.
+# Keep them tonal-spot at standard contrast;
 # surfaces and semantic roles still follow the chosen scheme and contrast.
+# The 30-second matugen timeout applies to each pass independently.
 # On failure nothing is replaced; conversion finishes before publication.
 set -euo pipefail
 
@@ -70,7 +72,7 @@ if [[ "$scheme" != scheme-tonal-spot || ! "$contrast" =~ ^-?0(\.0+)?$ ]]; then
 fi
 mkdir -p -- "$out"
 stage=$(mktemp -d "$out/.generate.XXXXXX")
-if ! bash "$config/scripts/theming/matugen-to-wal.sh" "$scratch/matugen.json" "$stage" "${ansi_args[@]}"; then
+if ! bash "$config/scripts/theming/matugen-to-wal.sh" "$scratch/matugen.json" "$stage" ${ansi_args[@]+"${ansi_args[@]}"}; then
     echo 'generate-palette: palette conversion failed' >&2
     exit 1
 fi

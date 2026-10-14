@@ -359,6 +359,22 @@ async function restart(name) {
     }
     else await execAsync(["pgrep", "-x", name])
 }
+// Resolve before writing the option: without a wallpaper there is nothing to regenerate.
+async function currentWallpaper() {
+    const cache = GLib.getenv("XDG_CACHE_HOME") || `${GLib.get_home_dir()}/.cache`
+    try { return await execAsync(["realpath", "-e", "--", `${cache}/current_wallpaper`]) }
+    catch (_) { throw new Error("No current wallpaper: change the wallpaper once first") }
+}
+async function regeneratePalette(wallpaper) {
+    try { await execAsync(["bash", configDir + "/scripts/theming/generate-palette.sh", wallpaper]) }
+    catch (error) {
+        // Matugen can emit several diagnostics; the panel needs only the last line.
+        throw new Error((error.stderr || error.message).trim().split(/\r?\n/).pop() || "Palette generation failed")
+    }
+    // Generation has published the palette. A consumer failing to reload must not
+    // undo the saved choice; apply-wal reports each failed component on stderr.
+    try { await execAsync(["bash", configDir + "/scripts/theming/apply-wal.sh"]) } catch (_) {}
+}
 // A select or switch whose unset file reads as a default (bar-agenda, calendar-alert,
 // calendar-duration, calendar-declined) or as the first writable calendar (calendar-default).
 // Other rows keep reporting a missing file, so a save never recreates a file it has not read.
@@ -744,12 +760,13 @@ async function change(request) {
     }
     case "option": {
         const text = row.kind === "toggle" ? (value ? "enabled" : "disabled") : row.kind === "slider" ? String(value) : value.trim()
+        const wallpaper = row.key.startsWith("theme-") ? await currentWallpaper() : null
         return saveAndApply(optionPath(row.key), text + "\n", async () => {
             if (row.key === "font" || row.key === "font-gtk") await execAsync(["bash", configDir + "/scripts/fonts/apply-font.sh"])
             if (row.key === "clock" || row.key === "clock-seconds") await execAsync(["bash", configDir + "/scripts/waybar/clock-format.sh"])
             // The desktop clock follows the 12/24 h choice too, and its own toggle and font.
             if (row.key === "clock" || row.key.startsWith("desktop-clock")) await execAsync(["bash", configDir + "/scripts/desktop-clock/desktop-clock.sh", "apply"])
-            if (row.key.startsWith("theme-")) await execAsync(["bash", configDir + "/scripts/hyprland/wall.sh"])
+            if (wallpaper !== null) await regeneratePalette(wallpaper)
             if (row.key.startsWith("bar-")) await execAsync(["bash", configDir + "/scripts/waybar/bar-modes.sh"])
             if (row.key === "bar-agenda" || row.key.startsWith("calendar-")) await execAsync(["bash", configDir + "/scripts/calendar/sync.sh", "--render"])
             // Every app's "Show in folder" asks D-Bus, which this points at the new choice.

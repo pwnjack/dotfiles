@@ -119,8 +119,11 @@ for variant in scheme contrast; do
     else
         printf '0.5\n' > "$XDG_CONFIG_HOME/options/theme-contrast"
     fi
+    expected_scheme=$(cat "$XDG_CONFIG_HOME/options/theme-scheme")
+    expected_contrast=$(cat "$XDG_CONFIG_HOME/options/theme-contrast")
     run_generate "$tmp/image with spaces.png"
     assert_eq "$rc" 0 "$variant change succeeds"
+    assert_contains "$(cat "$MATUGEN_ARGS.1")" $'-t\n'"$expected_scheme"$'\n--contrast\n'"$expected_contrast"$'\n--prefer\nlightness' "$variant first pass uses chosen scheme/contrast and prefer"
     assert_eq "$(grep -cx image "$MATUGEN_ARGS")" 2 "$variant change uses exactly two matugen passes"
     assert_contains "$(cat "$MATUGEN_ARGS.2")" $'-t\nscheme-tonal-spot\n--contrast\n0\n--prefer\nlightness' "$variant ANSI pass uses fixed scheme/contrast and chosen prefer"
     for part in $'image\n'"$tmp/image with spaces.png" $'--fallback-color\n#6097a1' $'--dry-run\n--json\nhex\n-q'; do
