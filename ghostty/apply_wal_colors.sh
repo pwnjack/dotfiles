@@ -44,4 +44,8 @@ for pty in "$pts_dir"/[0-9]*; do
     timeout 1 sh -c 'printf "\033]104\033\134\033]110\033\134\033]111\033\134\033]112\033\134" > "$1"' _ "$pty" 2>/dev/null || true
 done
 
+# The reset also cleared the accent that accent-run.sh gives the terminals of
+# programs it wraps (cmatrix, tty-clock); give them the new one.
+"$config_dir/scripts/theming/accent-run.sh" --refresh
+
 exit 0

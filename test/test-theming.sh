@@ -250,6 +250,22 @@ assert_eq "$(cat "$tmp/nvim-cache/wal/colors-wal.vim")" "$nvim_text" "nvim reren
 # Reset old terminal colour overrides so Ghostty's reloaded palette can show.
 # Use fake ptys in every invocation, including the component loop above.
 : > "$tmp/pts/0"
+# accent-run.sh registers each wrapped terminal by pid. Register a live
+# process whose stdin is fake pty 1, a dead pid and a pid whose stdin is
+# another file, so the refresh after the reset can be checked below.
+: > "$tmp/pts/1"
+: > "$tmp/pts/2"
+accent_registry="$tmp/run/dotfiles/accent-ptys"
+mkdir -p "$accent_registry"
+# shellcheck disable=SC2217  # the refresh reads the pid's stdin from /proc
+sleep 60 < "$tmp/pts/1" &
+accent_live=$!
+# shellcheck disable=SC2217
+sleep 60 < /dev/null &
+accent_moved=$!
+printf '%s\n' "$tmp/pts/1" > "$accent_registry/$accent_live"
+printf '%s\n' "$tmp/pts/2" > "$accent_registry/$accent_moved"
+printf '%s\n' "$tmp/pts/2" > "$accent_registry/999999999"
 PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
     bash "$ROOT/ghostty/apply_wal_colors.sh"
 assert_eq "$?" 0 "Ghostty reload succeeds even when no instance is running"
@@ -265,6 +281,63 @@ if cmp -s "$tmp/ptmx-expected" "$tmp/pts/ptmx"; then
 else
     fail "Ghostty wrote terminal resets to ptmx"
 fi
+
+# After the reset, terminals running under accent-run.sh get the new accent
+# in slots 2 and 10 again; stale registrations are dropped without a write.
+XDG_CACHE_HOME="$tmp/cache" role_load
+accent=$(wal_role primary)
+{
+    cat "$tmp/pty-reset"
+    printf '\033]4;2;%s\033\\\033]4;10;%s\033\\' "$accent" "$accent"
+} > "$tmp/pty-accent"
+if cmp -s "$tmp/pty-accent" "$tmp/pts/1"; then
+    pass "Ghostty re-applies the accent to terminals registered by accent-run.sh"
+else
+    fail "Ghostty did not re-apply the accent after the reset"
+fi
+if cmp -s "$tmp/pty-reset" "$tmp/pts/2"; then
+    pass "accent refresh skips registrations whose process left that terminal"
+else
+    fail "accent refresh wrote to a terminal its registered process no longer uses"
+fi
+if [ -e "$accent_registry/999999999" ] || [ -e "$accent_registry/$accent_moved" ]; then
+    fail "accent refresh kept stale registrations"
+else
+    pass "accent refresh drops stale registrations"
+fi
+kill "$accent_live" "$accent_moved" 2>/dev/null
+wait "$accent_live" "$accent_moved" 2>/dev/null
+rm -f "$accent_registry/$accent_live"
+
+# The wrapper sets the accent on its own terminal, runs the program, then
+# resets only those two slots and unregisters. Without a terminal it only
+# runs the program.
+accent_run="$ROOT/scripts/theming/accent-run.sh"
+if command -v script >/dev/null 2>&1; then
+    XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" XDG_RUNTIME_DIR="$tmp/run" \
+        script -qec "$accent_run printf ran" /dev/null > "$tmp/accent-run.out" < /dev/null
+    assert_eq "$?" 0 "accent-run.sh exits 0 when the program succeeds"
+    printf '\033]4;2;%s\033\\\033]4;10;%s\033\\ran\033]104;2;10\033\\' "$accent" "$accent" > "$tmp/accent-run.expected"
+    if cmp -s "$tmp/accent-run.expected" "$tmp/accent-run.out"; then
+        pass "accent-run.sh sets the accent, runs the program and resets slots 2 and 10"
+    else
+        fail "accent-run.sh terminal output: $(od -c "$tmp/accent-run.out" | head -5)"
+    fi
+    if compgen -G "$accent_registry/*" >/dev/null; then
+        fail "accent-run.sh left its registration behind"
+    else
+        pass "accent-run.sh unregisters its terminal on exit"
+    fi
+fi
+assert_eq "$(XDG_CONFIG_HOME="$ROOT" XDG_RUNTIME_DIR="$tmp/run" "$accent_run" printf ran < /dev/null)" ran \
+    "accent-run.sh without a terminal only runs the program"
+if command -v script >/dev/null 2>&1; then
+    XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" XDG_RUNTIME_DIR="$tmp/run" \
+        script -qec "$accent_run sh -c 'exit 3'" /dev/null > /dev/null < /dev/null
+    assert_eq "$?" 3 "accent-run.sh keeps a failing program's exit status"
+fi
+XDG_RUNTIME_DIR="$tmp/run" "$accent_run" accent-run-missing-command < /dev/null 2>/dev/null
+assert_eq "$?" 127 "accent-run.sh reports a missing program with status 127"
 
 # Strata loads a complete TOML theme at startup. Check its exact schema,
 # unchanged-cache behaviour, and every readable pairing on extreme and

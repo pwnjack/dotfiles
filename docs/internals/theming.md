@@ -209,10 +209,21 @@ OSC 4 overrides take precedence over the configured palette, so any window
 that received them would keep them. The resets let the palette reloaded by
 `SIGUSR2` show in open terminals. Each write has a one-second timeout;
 `WAL_PTS_DIR` points tests at fake ptys. ncurses applications also reset indexed
-colours when rebuilding their screens. Ghostty's translucent window uses
-`ghostty/blur.css`: GTK 4.24 leaves its ext-background-effect blur region
-empty unless the toplevel has a `backdrop-filter`, which Hyprland honours.
-Ghostty's `background-blur` speaks KDE's protocol and does nothing here.
+colours when rebuilding their screens.
+
+ANSI green stays green on every palette, so programs drawn entirely in it,
+cmatrix and tty-clock, barely change with the wallpaper. Fish aliases run
+them through `scripts/theming/accent-run.sh`, which sets slots 2 and 10 to
+`primary` with OSC 4 on that program's terminal only and resets just those
+slots (OSC 104;2;10) when it exits. It registers the terminal as
+`$XDG_RUNTIME_DIR/dotfiles/accent-ptys/<pid>`; after its resets, the Ghostty
+script runs `accent-run.sh --refresh`, which re-applies the new accent to each
+registered pty its process still has as stdin and drops every other entry.
+
+Ghostty's translucent window uses `ghostty/blur.css`: GTK 4.24 leaves its
+ext-background-effect blur region empty unless the toplevel has a
+`backdrop-filter`, which Hyprland honours. Ghostty's `background-blur` speaks
+KDE's protocol and does nothing here.
 
 **Neovim** gets `wal/colors-wal.vim` from `nvim/apply_wal_colors.sh`, which
 renders the layout the retained `pywal16.nvim` plugin expects. When that file
