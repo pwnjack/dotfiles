@@ -60,15 +60,11 @@ exec 9>"$cache_dir/wal/wallpaper.lock"
 queued=0
 flock -n 9 || { queued=1; flock 9; } || fail "Cannot lock the wallpaper pipeline"
 
-# The palette is generated into a staging cache while awww's transition plays
-# and published part-way through it (publish_delay_ns), so colours change with
-# the new wallpaper instead of before it is visible. pywal writes every template into its
-# cache, and consumers watch those files (Waybar restyles on change), so
-# generating in place would publish immediately. Scheme caching is shared with
-# the real cache through a symlink.
+# Keep staging so the palette is computed while awww's transition plays and
+# published at publish_delay_ns. Consumers only change when apply-wal.sh runs,
+# so their colours follow the new wallpaper as it becomes visible.
 stage="$cache_dir/wal/next"
-mkdir -p "$stage" "$cache_dir/wal/schemes" || fail "Cannot create the palette staging cache"
-[ -e "$stage/schemes" ] || ln -sfn ../schemes "$stage/schemes" || fail "Cannot share the palette scheme cache"
+mkdir -p "$stage" || fail "Cannot create the palette staging cache"
 delay=$(publish_delay_ns)
 
 # changed_after: the selection we stage cannot have changed before this
@@ -83,12 +79,9 @@ for round in 1 2 3 4; do
     wallpaper=$(wallpaper_from_query "$query")
     [ -f "$wallpaper" ] || fail "The selected wallpaper is unavailable"
 
-    # wal is synchronous. Do not publish new wallpaper state or reload
-    # consumers when generation failed; no fixed sleep can turn that failure
-    # into success. awww already owns the wallpaper. Keep pywal's
-    # diagnostics: -q suppresses even Python tracebacks, making a failed
-    # template impossible to identify.
-    if ! PYWAL_CACHE_DIR="$stage" wal -n -s -t -e -i "$wallpaper" 9>&- \
+    # Generation is synchronous. Keep its diagnostics and leave wallpaper
+    # state and consumers alone on failure; awww already owns the wallpaper.
+    if ! "$config_dir/scripts/theming/generate-palette.sh" "$wallpaper" "$stage" 9>&- \
             > "$cache_dir/wal/generation.log" 2>&1; then
         cat "$cache_dir/wal/generation.log" >&2
         fail "Could not generate colors from $(basename "$wallpaper")"
@@ -110,17 +103,23 @@ done
 # notification. A run that did not wait still publishes, so selecting the same
 # wallpaper again re-applies it.
 if [ "$queued" -eq 1 ] && [ "$cache_dir/current_wallpaper" -ef "$wallpaper" ] \
-        && cmp -s "$stage/colors.json" "$cache_dir/wal/colors.json"; then
+        && cmp -s "$stage/colors" "$cache_dir/wal/colors" \
+        && cmp -s "$stage/roles" "$cache_dir/wal/roles"; then
     exit 0
 fi
 
-# Publish: render every template into the real cache and recolour terminals
-# from the staged scheme (pywal's own reloads included), as a direct run would.
-if ! wal -n --theme "$stage/colors.json" 9>&- >> "$cache_dir/wal/generation.log" 2>&1; then
-    cat "$cache_dir/wal/generation.log" >&2
+# Publish complete files with same-filesystem renames, roles before colors.
+# Consumers update only when the driver below renders their own outputs.
+publish=$(mktemp -d "$cache_dir/wal/.publish.XXXXXX") \
+    || fail "Could not apply the colors from $(basename "$wallpaper")"
+trap 'rm -rf -- "$publish"' EXIT
+if ! cp -- "$stage/roles" "$stage/colors" "$publish/" \
+        || ! mv -fT -- "$publish/roles" "$cache_dir/wal/roles" \
+        || ! mv -fT -- "$publish/colors" "$cache_dir/wal/colors"; then
     fail "Could not apply the colors from $(basename "$wallpaper")"
 fi
-cp -f "$stage/wal" "$cache_dir/wal/wal" 2>/dev/null || true
+rmdir -- "$publish"
+trap - EXIT
 ln -sfn "$wallpaper" "$cache_dir/current_wallpaper" || fail "Cannot save the current wallpaper"
 escaped=${wallpaper//\\/\\\\}
 escaped=${escaped//\"/\\\"}
