@@ -406,12 +406,6 @@ FocusScope {
                             controller: view.controller
                             theme: view
                         }
-                        StartupView {
-                            visible: view.customPage === "startup"
-                            Layout.fillWidth: true
-                            controller: view.controller
-                            theme: view
-                        }
                         AboutView {
                             visible: view.customPage === "about"
                             Layout.fillWidth: true
@@ -464,6 +458,13 @@ FocusScope {
                                     }
                                 }
                             }
+                        }
+                        // Startup: the catalog's "At login" switches come first, then the app lists.
+                        StartupView {
+                            visible: view.customPage === "startup"
+                            Layout.fillWidth: true
+                            controller: view.controller
+                            theme: view
                         }
                         // Displays: the per-machine rules file and the automatic main display, last.
                         SettingsSection {
