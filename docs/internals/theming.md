@@ -270,7 +270,7 @@ the generator and regenerate from the current wallpaper:
 
 ```bash
 git revert -m 1 theming-matugen
-sudo pacman -S python-pywal
+paru -S python-pywal
 wal -n -i "$(readlink -f ~/.cache/current_wallpaper)"
 ~/.config/scripts/theming/apply-wal.sh
 hyprctl reload
