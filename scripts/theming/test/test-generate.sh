@@ -22,7 +22,14 @@ ln -s "$ROOT/scripts/theming/matugen-to-wal.sh" "$XDG_CONFIG_HOME/scripts/themin
 printf 'stub image\n' > "$tmp/image with spaces.png"
 cat > "$tmp/bin/matugen" <<'STUB'
 #!/bin/bash
-printf '%s\n' "$@" > "$MATUGEN_ARGS"
+call=1
+while [ -e "$MATUGEN_ARGS.$call" ]; do call=$((call + 1)); done
+printf '%s\n' "$@" > "$MATUGEN_ARGS.$call"
+printf '%s\n' "$@" >> "$MATUGEN_ARGS"
+if [ "${FAIL_SECOND_MATUGEN:-0}" = 1 ] && [ "$call" -eq 2 ]; then
+    echo 'stub: ANSI generation failed' >&2
+    exit 1
+fi
 pwd > "$MATUGEN_CWD"
 if [ "${SLOW_MATUGEN:-0}" = 1 ]; then
     sleep 2
@@ -53,6 +60,7 @@ chmod +x "$tmp/bin/mv"
 export PATH="$tmp/bin:$PATH"
 
 run_generate() {
+    rm -f "$MATUGEN_ARGS" "$MATUGEN_ARGS".[0-9]*
     bash "$generator" "$@" > "$tmp/stdout" 2> "$tmp/stderr"
     rc=$?
 }
@@ -66,6 +74,7 @@ kept_palette() {
 }
 run_generate "$tmp/image with spaces.png"
 assert_eq "$rc" 0 'missing option files use defaults'
+assert_eq "$(grep -cx image "$MATUGEN_ARGS")" 1 'default options use exactly one matugen pass'
 if [ ! -f "$XDG_CACHE_HOME/wal/colors" ] || [ ! -f "$XDG_CACHE_HOME/wal/roles" ]; then
     fail 'both palette files are written' "$(cat "$tmp/stderr")"
     test_summary generate
@@ -99,6 +108,33 @@ run_generate "$tmp/image with spaces.png"
 assert_eq "$rc" 0 'surrounding whitespace and CRLF are accepted'
 assert_contains "$(cat "$MATUGEN_ARGS")" $'-t\nscheme-vibrant\n--contrast\n-1.00\n--prefer\nclosest-to-fallback' 'trimmed values reach matugen'
 assert_eq "$(cat "$tmp/stderr")" '' 'valid trimmed options produce no warnings'
+
+# Either a scheme or contrast change needs a fixed ANSI pass with the same source.
+for variant in scheme contrast; do
+    printf 'scheme-tonal-spot\n' > "$XDG_CONFIG_HOME/options/theme-scheme"
+    printf '0\n' > "$XDG_CONFIG_HOME/options/theme-contrast"
+    printf 'lightness\n' > "$XDG_CONFIG_HOME/options/theme-prefer"
+    if [ "$variant" = scheme ]; then
+        printf 'scheme-vibrant\n' > "$XDG_CONFIG_HOME/options/theme-scheme"
+    else
+        printf '0.5\n' > "$XDG_CONFIG_HOME/options/theme-contrast"
+    fi
+    run_generate "$tmp/image with spaces.png"
+    assert_eq "$rc" 0 "$variant change succeeds"
+    assert_eq "$(grep -cx image "$MATUGEN_ARGS")" 2 "$variant change uses exactly two matugen passes"
+    assert_contains "$(cat "$MATUGEN_ARGS.2")" $'-t\nscheme-tonal-spot\n--contrast\n0\n--prefer\nlightness' "$variant ANSI pass uses fixed scheme/contrast and chosen prefer"
+    for part in $'image\n'"$tmp/image with spaces.png" $'--fallback-color\n#6097a1' $'--dry-run\n--json\nhex\n-q'; do
+        assert_contains "$(cat "$MATUGEN_ARGS.2")" "$part" "$variant ANSI pass keeps image, fallback and output flags"
+    done
+done
+cp "$XDG_CACHE_HOME/wal/colors" "$tmp/colors.before"
+cp "$XDG_CACHE_HOME/wal/roles" "$tmp/roles.before"
+export FAIL_SECOND_MATUGEN=1
+run_generate "$tmp/image with spaces.png"
+assert_eq "$rc" 1 'failed second matugen pass exits 1'
+assert_contains "$(cat "$tmp/stderr")" 'ANSI generation failed' 'second-pass failure names its cause'
+kept_palette 'failed second matugen pass preserves both palette files byte for byte'
+unset FAIL_SECOND_MATUGEN
 
 printf 'bogus\n' > "$XDG_CONFIG_HOME/options/theme-scheme"
 printf '7\n' > "$XDG_CONFIG_HOME/options/theme-contrast"

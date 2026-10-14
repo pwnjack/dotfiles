@@ -2,11 +2,13 @@
 # Convert matugen JSON into colors (16 ANSI slots) and roles (name=#rrggbb).
 # Slots: surface; red/green/yellow/blue/magenta/cyan; on_surface; outline;
 # on_red/green/yellow/blue/magenta/cyan_container; on_surface.
+# Optional ANSI JSON supplies only the twelve chromatic terminal slots.
+# Surfaces, text and all semantic roles retain the chosen scheme and contrast.
 # Bad input never replaces a working palette: validate both before publishing.
 set -euo pipefail
 
-if [ "$#" -ne 2 ]; then
-    echo 'Usage: matugen-to-wal.sh <matugen.json> <out-dir>' >&2
+if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
+    echo 'Usage: matugen-to-wal.sh <matugen.json> <out-dir> [ansi-json]' >&2
     exit 1
 fi
 if ! command -v jq >/dev/null 2>&1; then
@@ -28,13 +30,14 @@ roles=(surface surface_container_low surface_container surface_container_high
        primary on_primary primary_container on_primary_container secondary_container
        on_secondary_container tertiary_container on_tertiary_container error on_error)
 
-jq -er '
+jq -er --slurpfile ansi "${3:-$json}" '
+  def a($n): ($ansi[0].colors[$n].dark.color // error("missing ANSI \($n)")) | ascii_downcase;
   def c($n): (.colors[$n].dark.color // error("missing \($n)")) | ascii_downcase;
   [ c("surface"),
-    c("red"), c("green"), c("yellow"), c("blue"), c("magenta"), c("cyan"),
+    a("red"), a("green"), a("yellow"), a("blue"), a("magenta"), a("cyan"),
     c("on_surface"), c("outline"),
-    c("on_red_container"), c("on_green_container"), c("on_yellow_container"),
-    c("on_blue_container"), c("on_magenta_container"), c("on_cyan_container"),
+    a("on_red_container"), a("on_green_container"), a("on_yellow_container"),
+    a("on_blue_container"), a("on_magenta_container"), a("on_cyan_container"),
     c("on_surface") ] | .[]
 ' "$json" > "$colors_tmp"
 
