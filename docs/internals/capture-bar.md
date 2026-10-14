@@ -33,3 +33,11 @@ the lock; a clip may end with about a second of the lock screen. hypridle sets
 `lock_cmd`, which lock.sh's path lacks. The guard fails closed (`flock -w 1`;
 only a running same-user hyprlock skips locking). `model.mjs` is the pure
 model. See `docs/capture.md`.
+
+Recording subprocess tests can override `CAPTURE_START_WAIT` (0.5 s),
+`CAPTURE_TICK_WAIT` and `CAPTURE_COUNTDOWN_WAIT` (1 s each), and
+`CAPTURE_STOP_POLL_WAIT` and `CAPTURE_DISCARD_POLL_WAIT` (0.1 s each).
+These defaults preserve production timing; the countdown still uses its
+wall-clock deadline. The existing `CAPTURE_STOP_WAIT` controls the stop loop's
+budget (10 s with the default poll interval). Tests shorten polling and fake
+save delays, and wait for stop markers to be consumed before counting toasts.

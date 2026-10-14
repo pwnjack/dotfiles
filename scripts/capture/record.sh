@@ -47,6 +47,12 @@ state_dir="${CAPTURE_STATE_DIR:-${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/capture}"
 videos="${CAPTURE_VIDEOS:-$HOME/Videos/Recordings}"
 recorder="${CAPTURE_RECORDER:-gpu-screen-recorder}"
 stop_wait="${CAPTURE_STOP_WAIT:-10}"
+# Timing seams for subprocess tests; production intervals stay unchanged.
+ticker_wait="${CAPTURE_TICK_WAIT:-1}"
+countdown_wait="${CAPTURE_COUNTDOWN_WAIT:-1}"
+stop_poll_wait="${CAPTURE_STOP_POLL_WAIT:-0.1}"
+discard_poll_wait="${CAPTURE_DISCARD_POLL_WAIT:-0.1}"
+start_wait="${CAPTURE_START_WAIT:-0.5}"
 state="$state_dir/recording.json"
 log="$state_dir/gsr.log"
 # KMS capture needs this helper to hold cap_sys_admin; doctor's binaries check
@@ -154,6 +160,7 @@ window_rects() {
         | "\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"'
 }
 
+# shellcheck disable=SC1091 # Checked separately; relative to this script.
 # shellcheck source=scripts/capture/toast.sh
 . "${BASH_SOURCE[0]%/*}/toast.sh"
 
@@ -168,7 +175,7 @@ saved() {
 ticker() {
     local line="" out=""
     while alive "$1" "$2"; do
-        sleep 1
+        sleep "$ticker_wait"
         signal_bar
     done
     if [ -e "$state_dir/stopped.$1.$2" ]; then
@@ -229,7 +236,7 @@ countdown() {
     signal_bar
     while (( $(now) < t + $1 )); do
         # A waited-on background sleep, unlike a foreground one, lets the TERM trap run at once.
-        sleep 1 7>&- &
+        sleep "$countdown_wait" 7>&- &
         wait $!
         signal_bar
     done
@@ -264,7 +271,7 @@ stop_locked() {
     kill -INT "$pid" 2>/dev/null
     for ((i = 0; i < stop_wait * 10; i++)); do
         alive "$pid" "$since" || break
-        sleep 0.1
+        sleep "$stop_poll_wait"
     done
     if alive "$pid" "$since"; then
         kill -KILL "$pid" 2>/dev/null
@@ -293,7 +300,7 @@ discard_recording() {
     { wait "$rec_pid"; } 2>/dev/null
     for ((i = 0; i < 20; i++)); do
         alive "$rec_pid" "$rec_since" || break
-        sleep 0.1
+        sleep "$discard_poll_wait"
     done
     rm -f "$file" "$state_dir/stopped.$rec_pid.$rec_since"
     { read -r line < "$state"; } 2>/dev/null
@@ -410,7 +417,7 @@ start() {
         trap - TERM
         return 0
     fi
-    sleep 0.5
+    sleep "$start_wait"
     [ -n "${CAPTURE_TEST_HOLD_LATE-}" ] && sleep "$CAPTURE_TEST_HOLD_LATE"
     if ! alive "$rec_pid" "$rec_since"; then
         if [ -e "$state_dir/stopped.$rec_pid.$rec_since" ]; then

@@ -21,8 +21,10 @@ CHEATSHEET="$ROOT/scripts/keybinds/keybinds-sheet.sh"
 DOC="$ROOT/docs/keybindings.md"
 CONF="$ROOT/hypr/config/software/keybinds.lua"
 
+# shellcheck disable=SC1091 # Shared libraries are checked separately.
 # shellcheck source=scripts/lib/assert.sh
 . "$ROOT/scripts/lib/assert.sh"
+# shellcheck disable=SC1091
 # shellcheck source=scripts/lib/hypr-vars.sh
 . "$ROOT/scripts/lib/hypr-vars.sh"
 
@@ -38,22 +40,32 @@ fi
 
 # --- the check would actually catch a stale file -----------------------------
 #
-# A checker that always passes is worse than none, so prove it fails. The doc is
-# restored from a copy rather than regenerated, so a bug in the generator cannot
-# quietly rewrite the tracked file while the suite runs.
-
-BACKUP="$(mktemp)"
-trap 'rm -f "$BACKUP"' EXIT
-cp "$DOC" "$BACKUP"
-
-printf '\n| `Super + Nonexistent` | Not a real binding |\n' >> "$DOC"
-if "$GENERATOR" --check >/dev/null 2>&1; then
+# A checker that always passes is worse than none. Run the actual generator
+# and parser in a fixture tree, so the deliberate stale edit never changes the
+# tracked document while other suites read this repository.
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+mkdir -p "$TMP/docs" "$TMP/scripts/docs" "$TMP/scripts/keybinds" "$TMP/scripts/lib" \
+    "$TMP/hypr/config/software"
+cp "$GENERATOR" "$TMP/scripts/docs/"
+cp "$CHEATSHEET" "$TMP/scripts/keybinds/"
+cp "$ROOT/scripts/lib/hypr-vars.sh" "$TMP/scripts/lib/"
+cp "$CONF" "$TMP/hypr/config/software/"
+cp "$ROOT/hypr/config/apptype.lua" "$TMP/hypr/config/"
+cp "$DOC" "$TMP/docs/keybindings.md"
+if "$TMP/scripts/docs/generate-keybindings.sh" --check >/dev/null 2>&1; then
+    pass "--check accepts the unchanged fixture document"
+else
+    fail "the fixture must pass before testing a stale document"
+fi
+# shellcheck disable=SC2016 # Literal Markdown backticks.
+printf '\n| `Super + Nonexistent` | Not a real binding |\n' >> "$TMP/docs/keybindings.md"
+if "$TMP/scripts/docs/generate-keybindings.sh" --check >/dev/null 2>&1; then
     fail "--check accepts a doctored file" \
         "the staleness gate does not actually gate anything"
 else
     pass "--check rejects a doctored file"
 fi
-cp "$BACKUP" "$DOC"
 
 # --- every binding reaches the document --------------------------------------
 #
@@ -153,4 +165,5 @@ fi
 
 # --- summary -----------------------------------------------------------------
 
+# shellcheck disable=SC2119 # No summary name is intentional.
 test_summary

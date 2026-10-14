@@ -7,7 +7,8 @@
 # entry point and so must run without a harness around it.
 #
 # Every case drives the REAL test.sh with TEST_ROOT pointed at a fixture repo
-# whose "suites" are one-line stubs. Nothing here runs the repo's own suites,
+# whose "suites" are controlled stubs, including completion-order and
+# interruption fixtures. Nothing here runs the repo's own suites,
 # so there is no recursion: the fixture contains no test.sh of its own.
 #
 set -uo pipefail
@@ -18,6 +19,7 @@ RUNNER="$REPO_DIR/test.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+# shellcheck disable=SC1091 # The assertion library has its own suite.
 # shellcheck source=scripts/lib/assert.sh
 . "$REPO_DIR/scripts/lib/assert.sh"
 
@@ -211,6 +213,118 @@ assert_contains "$out" "1 suite passed" "--for matches a covering path wherever 
 
 run "$root" --for; out="$RUN_OUT"
 assert_eq "$RC" "2" "--for with no path is a usage error"
+
+# --- parallel scheduling ---------------------------------------------------
+# The first suite waits for the second to start, then finishes last. This is
+# a concurrency assertion with a bounded failure timeout, not a speed test.
+# The same fixtures under one job prove that sequential dispatch waits for the
+# first suite to finish before starting the second.
+parallel="$(fixture)"
+cat > "$parallel/scripts/doctor/test/run-tests.sh" <<'STUB'
+#!/bin/bash
+root="$(cd "$(dirname "$0")/../../.." && pwd)"
+echo first-start >> "$root/events"
+touch "$root/first-started"
+if [ "$TEST_JOBS" -gt 1 ]; then
+    for ((i = 0; i < 500; i++)); do
+        [ -e "$root/second-started" ] && break
+        sleep 0.01
+    done
+    [ -e "$root/second-started" ] || { echo 'second suite never overlapped'; exit 1; }
+    for ((i = 0; i < 500; i++)); do
+        [ -e "$root/second-done" ] && break
+        sleep 0.01
+    done
+    [ -e "$root/second-done" ] || exit 1
+fi
+echo first-done >> "$root/events"
+STUB
+cat > "$parallel/scripts/waybar/test-battery.sh" <<'STUB'
+#!/bin/bash
+root="$(cd "$(dirname "$0")/../.." && pwd)"
+for ((i = 0; i < 500; i++)); do
+    [ -e "$root/first-started" ] && break
+    sleep 0.01
+done
+[ -e "$root/first-started" ] || exit 1
+echo second-start >> "$root/events"
+touch "$root/second-started"
+printf 'failure line one\n\nfailure line two\n'
+echo second-done >> "$root/events"
+touch "$root/second-done"
+exit 7
+STUB
+for jobs in 2 1; do
+    rm -f "$parallel/events" "$parallel/first-started" "$parallel/second-started" "$parallel/second-done"
+    TEST_JOBS=$jobs run "$parallel"; out="$RUN_OUT"
+    assert_eq "$RC" 1 "$jobs jobs: a nonzero suite exit fails the run"
+    assert_contains "$out" '1 of 2 suites failed' "$jobs jobs: counts include both suites"
+    assert_contains "$out" $'      failure line one\n      \n      failure line two' "$jobs jobs: full failure output stays under its result"
+    if [[ $out == *'scripts/doctor/test/run-tests.sh'*'scripts/waybar/test-battery.sh'*'      failure line one'* ]]; then
+        pass "$jobs jobs: result lines stay in discovery order"
+    else
+        fail "$jobs jobs: result lines out of order" "$out"
+    fi
+    if [ "$jobs" -eq 2 ]; then
+        assert_eq "$(cat "$parallel/events")" $'first-start\nsecond-start\nsecond-done\nfirst-done' 'parallel suites actually overlap and finish out of order'
+    else
+        assert_eq "$(cat "$parallel/events")" $'first-start\nfirst-done\nsecond-start\nsecond-done' 'TEST_JOBS=1 executes suites sequentially'
+    fi
+    # Every result, including the failure, has an independently measured time.
+    lines=$(printf '%s\n' "$out" | grep -Ec '\([0-9]+\.[0-9]s\)')
+    assert_eq "$lines" 2 "$jobs jobs: each result has its own duration"
+done
+TEST_JOBS=3 run "$root" --for scripts/doctor/checks/x.sh scripts/waybar/battery.sh
+assert_eq "$RC" 0 'parallel --for preserves the union and successful exit'
+assert_contains "$RUN_OUT" '2 suites passed' 'parallel --for counts selected suites'
+for jobs in 0 nope -1; do
+    TEST_JOBS=$jobs run "$root"
+    assert_eq "$RC" 2 "TEST_JOBS=$jobs is a usage error"
+done
+TEST_JOBS=nope run "$root" --list
+assert_eq "$RC" 0 '--list does not need a worker count'
+
+# --- interruption ----------------------------------------------------------
+# Python launches the runner with SIGINT enabled (a shell background job would
+# inherit it ignored). A suite starts a child; Ctrl-C must stop both and remove
+# the runner's private temp directory, without waiting for the child's sleep.
+interrupted="$(fixture)"
+cat > "$interrupted/scripts/doctor/test/run-tests.sh" <<'STUB'
+#!/bin/bash
+sleep 30 & child=$!
+printf '%s %s\n' "$$" "$child" > "$INTERRUPT_PIDS"
+wait "$child"
+STUB
+python3 - "$RUNNER" "$interrupted" "$TMP" <<'PYTEST'
+import os, pathlib, signal, subprocess, sys, time
+runner, root, tmp = sys.argv[1:]
+# The full runner's background worker inherits SIGINT ignored; restore it
+# before spawning our interrupt fixture, just as a foreground shell would.
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+private = pathlib.Path(tmp) / 'interrupt-runtime'
+private.mkdir()
+pids = pathlib.Path(tmp) / 'interrupt-pids'
+env = dict(os.environ, TEST_ROOT=root, TEST_JOBS='2', TMPDIR=str(private), INTERRUPT_PIDS=str(pids))
+p = subprocess.Popen(['bash', runner], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+try:
+    deadline = time.monotonic() + 5
+    while not pids.exists() and time.monotonic() < deadline:
+        time.sleep(.01)
+    assert pids.exists(), 'suite never started'
+    suite, child = map(int, pids.read_text().split())
+    p.send_signal(signal.SIGINT)
+    output, _ = p.communicate(timeout=5)
+    assert p.returncode == 130, (p.returncode, output)
+    for pid in (suite, child):
+        stat = pathlib.Path(f'/proc/{pid}/stat')
+        assert not stat.exists() or stat.read_text().rsplit(') ', 1)[1].startswith('Z '), f'process {pid} left running'
+    assert not list(private.iterdir()), 'runner left temp output behind'
+finally:
+    if p.poll() is None:
+        p.kill()
+        p.wait()
+PYTEST
+assert_eq "$?" 0 'Ctrl-C stops the suite and its child and cleans temporary output'
 
 # --- usage ----------------------------------------------------------------
 run "$root" --help; out="$RUN_OUT"

@@ -18,12 +18,7 @@ import sys
 import time
 
 log = os.environ["FAKE_LOG"]
-with open(os.path.join(log, "gsr.argv"), "a") as f:
-    f.write(" ".join(sys.argv[1:]) + "\n")
 mode = os.environ.get("FAKE_GSR", "ok")
-if mode == "die":
-    print("gsr error: failed to open the capture device", file=sys.stderr)
-    sys.exit(1)
 out = sys.argv[sys.argv.index("-o") + 1]
 
 
@@ -36,5 +31,12 @@ def finish(*_):
 
 
 signal.signal(signal.SIGINT, signal.SIG_IGN if mode == "hang" else finish)
+# The argument log also means SIGINT is ready: tests racing start with stop
+# must wait for this condition, rather than assuming Python starts in N ms.
+with open(os.path.join(log, "gsr.argv"), "a") as f:
+    f.write(" ".join(sys.argv[1:]) + "\n")
+if mode == "die":
+    print("gsr error: failed to open the capture device", file=sys.stderr)
+    sys.exit(1)
 while True:
     time.sleep(0.05)

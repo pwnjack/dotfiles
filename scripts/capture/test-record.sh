@@ -5,18 +5,27 @@
 # scripts/capture/fakes/ on PATH: nothing records, no toast appears and the
 # real Waybar is never signalled.
 #
+# Assertion helpers intentionally use condition && pass || fail throughout.
+# shellcheck disable=SC2015
 set -uo pipefail
 
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RECORD="$TEST_DIR/record.sh"
 TMP="$(mktemp -d)"
 
+# shellcheck disable=SC1091 # The shared assertion library has its own suite.
 # shellcheck source=scripts/lib/assert.sh
 . "$TEST_DIR/../lib/assert.sh"
 
 export FAKE_LOG="$TMP/log" CAPTURE_OPTIONS="$TMP/options"
 export CAPTURE_STATE_DIR="$TMP/state" CAPTURE_VIDEOS="$TMP/videos"
 export FAKE_RECORD="$RECORD"
+# Leave wall-clock countdowns intact, but poll and settle the fakes promptly.
+export CAPTURE_TICK_WAIT=0.02 CAPTURE_COUNTDOWN_WAIT=0.02
+# Margins sized for a loaded machine: ./test.sh runs nproc suites at once. The
+# start wait covers the fake recorder starting Python (about 13 ms idle), and
+# the stop poll keeps record.sh's stop budget (STOP_WAIT x 10 polls) at 5 s.
+export CAPTURE_STOP_POLL_WAIT=0.05 CAPTURE_DISCARD_POLL_WAIT=0.01 CAPTURE_START_WAIT=0.2
 export PATH="$TEST_DIR/fakes:$PATH"
 BASE="-c mp4 -k h264 -ac aac -f 60 -q very_high -cursor yes"
 
@@ -26,24 +35,42 @@ last_argv() { tail -n1 "$FAKE_LOG/gsr.argv" 2>/dev/null; }
 # wait_grep <file> <text> -- up to 3 s for an asynchronous write.
 wait_grep() {
     local i
-    for ((i = 0; i < 30; i++)); do
+    for ((i = 0; i < 300; i++)); do
         grep -qF -- "$2" "$1" 2>/dev/null && return 0
-        sleep 0.1
+        sleep 0.01
     done
+    return 1
+}
+# wait_ticker -- a stopped recording's ticker consumes its stop marker before
+# it can report a death. Wait for that condition instead of guessing a delay,
+# so exact toast-count assertions run after the relevant ticker has settled.
+wait_ticker() {
+    local i
+    for ((i = 0; i < 300; i++)); do
+        compgen -G "$CAPTURE_STATE_DIR/stopped.*" >/dev/null || return 0
+        sleep 0.01
+    done
+    fail "a stopped recording's ticker did not settle"
     return 1
 }
 # reset -- stop anything left running, then empty every fixture directory.
 reset() {
     local i
     rec stop >/dev/null 2>&1
-    # A stop's marker is consumed by the recording's ticker within a second; let
+    # A stop's marker is consumed by the recording's ticker on its next tick; let
     # it, or its late "Recording stopped" would land in the next test's log.
-    for ((i = 0; i < 15; i++)); do
+    for ((i = 0; i < 150; i++)); do
         compgen -G "$CAPTURE_STATE_DIR/stopped.*" >/dev/null || break
-        sleep 0.1
+        sleep 0.01
     done
     unset FAKE_GSR FAKE_GSR_FINISH FAKE_SLURP CAPTURE_RECORDER FAKE_PKILL_STATUS
     rm -rf "$FAKE_LOG" "$CAPTURE_OPTIONS" "$CAPTURE_STATE_DIR" "$CAPTURE_VIDEOS"
+    # A fresh log directory per test: the previous recording's ticker toasts
+    # just after it consumes its stop marker, and on a loaded machine that toast
+    # can land after the wait above. It inherited the old FAKE_LOG, so it writes
+    # into a directory that is gone instead of this test's log.
+    reset_gen=$((${reset_gen:-0} + 1))
+    export FAKE_LOG="$TMP/log.$reset_gen"
     mkdir -p "$FAKE_LOG" "$CAPTURE_OPTIONS"
 }
 trap 'reset; rm -rf "$TMP"' EXIT
@@ -127,7 +154,7 @@ assert_eq "$rc" 1 "an empty file is a failed stop"
 assert_contains "$(cat "$FAKE_LOG/notify")" "Recording not saved" "empty file toast"
 
 reset
-export FAKE_GSR_FINISH=1
+export FAKE_GSR_FINISH=0.1
 rec start screen
 output=$(rec status | cut -d' ' -f3-)
 before=$(wc -l < "$FAKE_LOG/pkill")
@@ -208,13 +235,13 @@ wait_grep "$FAKE_LOG/notify" "Recording stopped" && pass "the death toast surviv
 
 # Two stops at once: one save, one toast, no collision on the state file.
 reset
-export FAKE_GSR_FINISH=1
+export FAKE_GSR_FINISH=0.1
 rec start screen
 rec stop 2>"$TMP/stop1.err" & s1=$!
 rec stop 2>"$TMP/stop2.err" & s2=$!
 wait "$s1"; wait "$s2"
 wait_grep "$FAKE_LOG/notify" "Recording saved"
-sleep 0.3
+wait_ticker
 assert_eq "$(grep -c 'Recording saved' "$FAKE_LOG/notify")" 1 "two concurrent stops give exactly one saved toast"
 assert_eq "$(cat "$TMP/stop1.err" "$TMP/stop2.err")" "" "concurrent stops write no errors"
 
@@ -222,11 +249,12 @@ assert_eq "$(cat "$TMP/stop1.err" "$TMP/stop2.err")" "" "concurrent stops write 
 reset
 rec start screen & starter=$!
 wait_grep "$CAPTURE_STATE_DIR/recording.json" '"phase":"recording"'
+wait_grep "$FAKE_LOG/gsr.argv" '-w TEST-1'
 rec toggle
 wait "$starter"; rc=$?
 assert_eq "$rc" 0 "the first start exits 0 after a double tap"
 wait_grep "$FAKE_LOG/notify" "Recording saved"
-sleep 0.3
+wait_ticker
 assert_eq "$(grep -c 'Recording saved' "$FAKE_LOG/notify")" 1 "a double tap saves once"
 assert_not_contains "$(cat "$FAKE_LOG/notify")" "Recording failed" "a double tap is not a failure"
 
@@ -247,9 +275,9 @@ assert_eq "$(cat "$n")" keep "the earlier recording is not overwritten"
 # wait_phase <phase> -- up to 3 s for status --json to report it.
 wait_phase() {
     local i
-    for ((i = 0; i < 30; i++)); do
+    for ((i = 0; i < 300; i++)); do
         [[ $(rec status --json) == *"\"phase\":\"$1\""* ]] && return 0
-        sleep 0.1
+        sleep 0.01
     done
     return 1
 }
@@ -301,7 +329,7 @@ rec start screen
 for hold in CAPTURE_TEST_HOLD CAPTURE_TEST_HOLD_LATE; do
     reset
     opt capture-delay 1
-    export "$hold=1.5"
+    export "$hold=0.5"
     bash "$RECORD" start screen & starter=$!
     wait_grep "$CAPTURE_STATE_DIR/recording.json" '"phase":"recording"'
     pid=$(sed -n 's/.*"pid":\([0-9]*\).*/\1/p' "$CAPTURE_STATE_DIR/recording.json")
