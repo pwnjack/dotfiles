@@ -23,7 +23,8 @@ through D-Bus `org.freedesktop.FileManager1`, which several installed file
 managers claim, so `scripts/settings/file-manager.sh` (install.sh, and the
 panel's File manager row) copies the configured one's service file into
 `~/.local/share/dbus-1/services/`. `scripts/hyprland/lock.sh` is
-the only lock path (Super+L, power menu, hypridle `lock_cmd`; the one exception is
+the only lock path (Super+L, power menu, hypridle `lock_cmd` and its idle
+listener, which alone passes `--grace 5`; the one exception is
 `scripts/hyprland/startup.sh`, which runs hyprlock directly on autologin, when
 nothing records) and locks FIRST:
 it starts hyprlock at once and hands `record.sh stop` to a detached process,

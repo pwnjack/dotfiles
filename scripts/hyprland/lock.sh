@@ -21,7 +21,8 @@
 # runtime dir is never /tmp, where another user could plant the file. A stale
 # hyprlock that no longer holds the session lock still counts as locked; this
 # script does not look further than the process.
-# Arguments go to hyprlock (the live check uses --grace 30).
+# Arguments go to hyprlock: the idle listener in hypr/hypridle.conf passes
+# --grace 5, and the live check uses --grace 30.
 #
 config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
 lock_file="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/lock.sh.lock"
