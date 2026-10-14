@@ -16,6 +16,10 @@
           "title": "Themes"
         },
         {
+          "id": "palette",
+          "title": "Palette"
+        },
+        {
           "id": "fonts",
           "title": "Fonts"
         },
@@ -637,6 +641,120 @@
       "kind": "select",
       "choices": "kvantum-themes",
       "keywords": ["qt", "kde", "kvantum"]
+    },
+    {
+      "category": "appearance",
+      "section": "palette",
+      "id": "appearance.theme-scheme",
+      "title": "Scheme",
+      "description": "How the palette is drawn from the wallpaper",
+      "source": "option",
+      "key": "theme-scheme",
+      "kind": "select",
+      "items": [
+        {
+          "label": "Tonal spot",
+          "value": "scheme-tonal-spot"
+        },
+        {
+          "label": "Vibrant",
+          "value": "scheme-vibrant"
+        },
+        {
+          "label": "Expressive",
+          "value": "scheme-expressive"
+        },
+        {
+          "label": "Content",
+          "value": "scheme-content"
+        },
+        {
+          "label": "Fidelity",
+          "value": "scheme-fidelity"
+        },
+        {
+          "label": "Neutral",
+          "value": "scheme-neutral"
+        },
+        {
+          "label": "Monochrome",
+          "value": "scheme-monochrome"
+        },
+        {
+          "label": "Rainbow",
+          "value": "scheme-rainbow"
+        },
+        {
+          "label": "Fruit salad",
+          "value": "scheme-fruit-salad"
+        }
+      ],
+      "default": "scheme-tonal-spot",
+      "keywords": ["colour", "colors", "matugen", "wallpaper", "theme", "palette"]
+    },
+    {
+      "category": "appearance",
+      "section": "palette",
+      "id": "appearance.theme-contrast",
+      "title": "Contrast",
+      "description": "Text and accent contrast against the background",
+      "source": "option",
+      "key": "theme-contrast",
+      "kind": "select",
+      "items": [
+        {
+          "label": "Reduced",
+          "value": "-0.5"
+        },
+        {
+          "label": "Standard",
+          "value": "0"
+        },
+        {
+          "label": "Medium",
+          "value": "0.5"
+        },
+        {
+          "label": "High",
+          "value": "1"
+        }
+      ],
+      "default": "0",
+      "keywords": ["colour", "colors", "matugen", "wallpaper", "theme", "palette"]
+    },
+    {
+      "category": "appearance",
+      "section": "palette",
+      "id": "appearance.theme-prefer",
+      "title": "Source colour",
+      "description": "Which wallpaper colour seeds the palette",
+      "source": "option",
+      "key": "theme-prefer",
+      "kind": "select",
+      "items": [
+        {
+          "label": "Most saturated",
+          "value": "saturation"
+        },
+        {
+          "label": "Least saturated",
+          "value": "less-saturation"
+        },
+        {
+          "label": "Darkest",
+          "value": "darkness"
+        },
+        {
+          "label": "Lightest",
+          "value": "lightness"
+        },
+        {
+          "label": "Brightest",
+          "value": "value"
+        }
+      ],
+      "default": "saturation",
+      "keywords": ["colour", "colors", "matugen", "wallpaper", "theme", "palette"]
     },
     {
       "category": "appearance",

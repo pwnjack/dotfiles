@@ -94,7 +94,7 @@ dirs.set('/etc/xdg/autostart', ['nm-applet.desktop', 'blueman.desktop', 'manual.
 dirs.set(base + '/autostart', ['arch-update-tray.desktop', 'manual.desktop'])
 let showEnvironment = 'XDG_CURRENT_DESKTOP=Hyprland\nPATH=/usr/local/bin:/usr/bin\n'
 const raceOnce = new Set()
-let events = [], failingPath = '', failingReadPath = '', failReload = false, failOverlay = false, failingGsettingsSets = 0, failNextSpawn = ''
+let events = [], failingPath = '', failingReadPath = '', failReload = false, failOverlay = false, failWall = false, failingGsettingsSets = 0, failNextSpawn = ''
 // The calendar's keyring account, cal.sh's listing (null: cal.sh fails) and setup.sh's sign-in failure.
 let keyringAccount = '', keyringFailure = '', calendarsListing = null, signInError = '', failCalendarRenders = 0
 // Shapes copied from `hyprctl getoption -j` on Hyprland 0.56: the value field
@@ -332,6 +332,7 @@ globalThis.settingsMocks = {
             if (fireOnStop) { guardArmed = false; events.push(['hyprctl','reload','(guard)']); throw new Error('Unit settings-display-revert.timer not loaded.') }
             if (!guardArmed) throw new Error('Unit settings-display-revert.timer not loaded.'); guardArmed = false; return '' }
         if (args[1] === 'configerrors') return '[]'
+        if (failWall && args[0] === 'bash' && args[1] === base + '/scripts/hyprland/wall.sh') { failWall = false; throw new Error('wall failed') }
         if (failOverlay && args[0] === 'bash' && args[1] === base + '/scripts/state/overlay.sh') { failOverlay = false; throw new Error('overlay failed') }
         if (args[0] === 'swaync-client' && failReload) { failReload=false; throw new Error('reload failed') }
         if (args[0] === 'localectl') return {
@@ -447,6 +448,30 @@ assert.equal(files.get(base+'/options/clock'), '12h\n')
 assert.equal(events.filter(e => e[0] === 'bash' && String(e[1]).endsWith('/scripts/waybar/clock-format.sh')).length, 1)
 await assert.rejects(dispatch({op:'set',id:'region.clock',value:'13h'}), /Unknown choice/)
 console.log('ok: clock row renders the Waybar include')
+
+// Palette writes run the full wallpaper pipeline; a failure restores and reapplies the old value.
+for (const [key, before, value] of [
+    ['theme-scheme', 'scheme-tonal-spot', 'scheme-vibrant'],
+    ['theme-contrast', '0', '0.5'],
+    ['theme-prefer', 'saturation', 'lightness'],
+]) {
+    const path = `${base}/options/${key}`, id = `appearance.${key}`
+    files.set(path, before+'\n')
+    events = []
+    await dispatch({op:'set',id,value})
+    assert.equal(files.get(path), value+'\n')
+    assert.deepEqual(events.filter(e => e[0] === 'bash' && !overlaySync(e)), [['bash',base+'/scripts/hyprland/wall.sh']])
+    failWall = true
+    events = []
+    await assert.rejects(dispatch({op:'set',id,value:before}), /wall failed.*Previous settings restored/)
+    assert.equal(files.get(path), value+'\n', `${key} restores the previous option after wall.sh fails`)
+    assert.equal(events.filter(e => e[0] === 'bash' && e[1] === base+'/scripts/hyprland/wall.sh').length, 2,
+        'rollback reapplies the previous palette')
+    events = []
+    await assert.rejects(dispatch({op:'set',id,value:'invalid-choice'}), /Unknown choice/)
+    assert.equal(events.length, 0, 'invalid palette choices never run the wallpaper pipeline')
+}
+console.log('ok: palette options regenerate the desktop and roll back on wallpaper failure')
 
 const clockApplies = () => events.filter(e => e[0] === 'bash' && String(e[1]).endsWith('/scripts/desktop-clock/desktop-clock.sh') && e[2] === 'apply').length
 events = []

@@ -17,6 +17,8 @@ assert.deepEqual(visible('', 'network'), [])
 // Search matches section titles, and the plainer titles kept their old search terms.
 for (const [query, id] of [['night light', 'power.nightlight-start'], ['output', 'sound.output-port'],
     ['window opening', 'anim.windowsIn'], ['windows move', 'anim.windowsMove'], ['recording volume', 'sound.mic-level'],
+    ['palette', 'appearance.theme-scheme'], ['matugen', 'appearance.theme-contrast'],
+    ['source colour', 'appearance.theme-prefer'], ['colors', 'appearance.theme-scheme'],
     ['scroll factor', 'input.scroll-factor'], ['vrr', 'monitors.vrr'], ['numlock', 'input.numlock']])
     assert.ok(visible(query).includes(id), `"${query}" finds ${id}`)
 // The titles the panel shipped with before rows were renamed (October 2, 2026), parentheses

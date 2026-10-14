@@ -749,6 +749,7 @@ async function change(request) {
             if (row.key === "clock" || row.key === "clock-seconds") await execAsync(["bash", configDir + "/scripts/waybar/clock-format.sh"])
             // The desktop clock follows the 12/24 h choice too, and its own toggle and font.
             if (row.key === "clock" || row.key.startsWith("desktop-clock")) await execAsync(["bash", configDir + "/scripts/desktop-clock/desktop-clock.sh", "apply"])
+            if (row.key.startsWith("theme-")) await execAsync(["bash", configDir + "/scripts/hyprland/wall.sh"])
             if (row.key.startsWith("bar-")) await execAsync(["bash", configDir + "/scripts/waybar/bar-modes.sh"])
             if (row.key === "bar-agenda" || row.key.startsWith("calendar-")) await execAsync(["bash", configDir + "/scripts/calendar/sync.sh", "--render"])
             // Every app's "Show in folder" asks D-Bus, which this points at the new choice.

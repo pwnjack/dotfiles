@@ -18,6 +18,7 @@ Item {
         property bool loaded: true
         property string problem: ""
         property string query: ""
+        property color errorColor: "#ffb4ab"
         property string category: "appearance"
         property string mainMonitor: ""
         property var monitors: []
