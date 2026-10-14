@@ -14,7 +14,7 @@
 #
 # It also swaps waybar-weather's colour emoji for monochrome Nerd Font
 # glyphs. The emoji were the only colour glyphs on an otherwise monochrome
-# bar, and being bitmap emoji they ignore the pywal palette entirely.
+# bar, and being bitmap emoji they ignore the wallpaper palette entirely.
 # Mapped bar glyphs are wrapped in <span size="large"> (see `large` below)
 # to match the bar scale (13px base, glyph promoted by a fifth) -- see waybar/style.css.
 #

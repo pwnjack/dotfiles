@@ -16,7 +16,7 @@ FocusScope {
     readonly property color accentInk: controller.accentInk
     readonly property color dim: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.62)
     readonly property color hairline: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.12)
-    // Fixed amber: a pywal palette has no slot that reads as a warning.
+    // Fixed amber keeps warnings distinct from the wallpaper accent.
     readonly property color warn: "#e3a857"
     readonly property color warnInk: "#1a1206"
     readonly property string monoFont: controller.monoFont

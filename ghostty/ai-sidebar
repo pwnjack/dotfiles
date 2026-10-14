@@ -2,7 +2,7 @@
 # Themed terminal for aichat sidebar
 
 # Colors: ghostty loads ghostty/config before this file, and that already
-# includes the pywal palette. Including it again here is a "cycle detected"
+# includes the matugen palette. Including it again here is a "cycle detected"
 # configuration error.
 
 # Typography

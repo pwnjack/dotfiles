@@ -7,7 +7,7 @@
 sleep 0.5
 
 # 0. Random wallpaper on startup (options/randomwallpaper = enabled)
-#    waypaper --random also runs its post_command (wall.sh), so pywal colors follow
+#    waypaper --random also runs its post_command (wall.sh), so palette colours follow
 if grep -q "enabled" "$HOME/.config/options/randomwallpaper" 2>/dev/null \
     && command -v waypaper >/dev/null 2>&1; then
     waypaper --random

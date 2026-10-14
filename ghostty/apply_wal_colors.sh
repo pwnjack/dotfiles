@@ -35,7 +35,7 @@ mkdir -p "$cache_dir"
 # Reload running ghostty so its configured palette is the new one.
 pkill -USR2 -x ghostty 2>/dev/null
 
-# Clear pywal's old palette, foreground, background and cursor overrides so
+# Clear old OSC palette, foreground, background and cursor overrides so
 # open terminals use their configured colours. Bound each write: a stuck pty
 # must not stall wallpaper changes. Tests point WAL_PTS_DIR at fake ptys.
 pts_dir="${WAL_PTS_DIR:-/dev/pts}"

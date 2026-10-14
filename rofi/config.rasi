@@ -1,6 +1,6 @@
 /*
  * Rofi Configuration
- * Modern dark theme with pywal colors
+ * Modern dark theme with matugen colours
  */
 
 @import "options/font.rasi"

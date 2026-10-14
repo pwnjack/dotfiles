@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Pywal fan-out driver.
+# Palette fan-out driver.
 #
 # Every themed component owns an `apply_wal_colors.sh` sitting next to its own
 # config. This script discovers them by glob rather than by list, so adding a
@@ -14,7 +14,7 @@
 #      files must not change at runtime; the repo tracks only a stable symlink
 #      into the cache.
 #   2. It always leaves its output file existing, falling back to hardcoded
-#      defaults when the pywal input is missing. A tracked symlink whose
+#      defaults when the palette input is missing. A tracked symlink whose
 #      target does not exist is an ERROR in doctor.sh, and on a fresh checkout
 #      the cache is empty.
 #   3. It is idempotent, and a no-op when its component is not installed.

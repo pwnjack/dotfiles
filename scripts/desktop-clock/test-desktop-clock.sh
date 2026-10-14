@@ -206,7 +206,7 @@ assert_eq "$?:$([ -e "$cache" ] && echo wrote || echo clean)" "0:clean" "eww not
 reset; rm -rf "$cache"
 out=$(apply)
 assert_eq "$out" "" "a fresh cache renders silently"
-assert_eq "$(<"$colors_scss")" "$(printf '// Generated from the pywal palette by eww/apply_wal_colors.sh - do not edit\n$background: #0e1416;\n$foreground: #dee3e5;')" "the fallback palette's background and foreground"
+assert_eq "$(<"$colors_scss")" "$(printf '// Generated from the matugen palette by eww/apply_wal_colors.sh - do not edit\n$background: #0e1416;\n$foreground: #dee3e5;')" "the fallback palette's background and foreground"
 assert_not_contains "$(calls)" "reload" "no clock running: no reload"
 
 # Idempotent: the same palette neither rewrites nor reloads.

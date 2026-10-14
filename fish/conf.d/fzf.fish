@@ -6,7 +6,7 @@ status is-interactive; or return
 type -q fzf; or return
 
 # --color=16 keeps fzf to the terminal's 16 colours, which ghostty takes from
-# pywal, so it follows the wallpaper like bat and fastfetch.
+# matugen, so it follows the wallpaper like bat and fastfetch.
 set -gx FZF_DEFAULT_OPTS "--color=16 --height=40% --layout=reverse --border"
 
 # fd is faster than find and skips what .gitignore skips.

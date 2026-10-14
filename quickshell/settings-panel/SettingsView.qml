@@ -30,7 +30,7 @@ FocusScope {
     readonly property color line: tone(0.08)
     // 75 %: secondary text stays above 4.5:1 on the plate for light palettes too.
     readonly property color dim: tone(0.75)
-    // Pywal guarantees no alert colour, so errors tint the readable foreground toward red.
+    // Errors tint the readable foreground towards red to keep alerts distinct from the accent.
     readonly property color warn: Qt.tint(foreground, Qt.rgba(0.88, 0.42, 0.42, 0.6))
     // Glyphs are Material Design icons from Symbols Nerd Font (ttf-nerd-fonts-symbols), kept as
     // hex code points: text, so they take the label's colour.

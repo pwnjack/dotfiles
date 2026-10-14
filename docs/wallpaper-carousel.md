@@ -1,7 +1,7 @@
 # Wallpaper carousel
 
 Built September 19, 2026 with Quickshell 0.3.1 and Qt 6.11.2. Wallpapers flow
-through Waypaper, awww and pywal, exactly as they do without the carousel.
+through Waypaper, awww and matugen, exactly as they do without the carousel.
 
 ## Controls
 
