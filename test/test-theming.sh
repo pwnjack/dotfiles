@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Every cache-rendering apply script must produce its output from the fallback
-# palette when pywal has never run: the repo tracks symlinks to these files,
+# palette when matugen has never run: the repo tracks symlinks to these files,
 # and a dangling one is a doctor ERROR on a fresh checkout.
 #
 # swaync only reloads a live consumer and renders nothing, so it is not run;
@@ -48,6 +48,16 @@ XDG_CACHE_HOME="$tmp/cache" wal_load   # empty cache: the fallback palette
 
 uses_palette() {
     local color
+    # Spicetify clamps every palette-derived color; none need equal a raw
+    # slot. Verify both its base and accent against the loaded fallback.
+    if [ "$component" = spicetify ]; then
+        local base accent
+        base=$(wal_oklch "${wal[0]}" 0.21 0.26 0.04 0)
+        accent=$(wal_oklch "${wal[4]}" 0.62 0.75 0.16 0)
+        grep -qE "^main[[:space:]]*=[[:space:]]*${base#\#}$" "$1" \
+            && grep -qE "^button[[:space:]]*=[[:space:]]*${accent#\#}$" "$1"
+        return
+    fi
     for color in "${wal[@]}"; do
         grep -qiF "${color#\#}" "$1" && return 0
     done
@@ -60,7 +70,7 @@ for component in "${!outputs[@]}"; do
     # must never point a real profile at this temporary cache.
     if ! PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" \
         "$ROOT/$component/apply_wal_colors.sh" >/dev/null 2>&1; then
-        fail "$component/apply_wal_colors.sh exits nonzero with no pywal cache"
+        fail "$component/apply_wal_colors.sh exits nonzero with no palette cache"
     elif [ ! -s "$out" ]; then
         fail "$component/apply_wal_colors.sh leaves ${outputs[$component]} missing or empty"
     elif grep -q '@[a-z]*color[0-9]*@' "$out"; then
@@ -153,7 +163,50 @@ else
     fail "wal_oklch clamped to unexpected values"
 fi
 
-# nvim renders nothing (pywal writes colors-wal.vim itself); its script only
+# Slots and semantic roles fall back independently until matugen first runs.
+declare -A role=()
+role_cache="$tmp/role-cache"
+mkdir -p "$role_cache/wal"
+XDG_CACHE_HOME="$role_cache" wal_load
+XDG_CACHE_HOME="$role_cache" role_load
+assert_eq "$(wal_role primary)" '#82d3e1' "empty cache uses the fallback primary role"
+assert_eq "$(wal_role surface)" '#0e1416' "empty cache uses the fallback surface role"
+assert_eq "${wal[1]}" '#ffb2bd' "empty cache uses the matugen fallback ANSI red"
+assert_eq "${#role[@]}" 27 "role_load supplies all 27 fixed roles"
+assert_eq "$(wal_role primary_t95)" '#d1f7ff' "role_load supplies fallback primary tones"
+
+# Existing slot palettes remain usable during an upgrade without a roles file.
+printf '#123456\n%.0s' {1..16} > "$role_cache/wal/colors"
+XDG_CACHE_HOME="$role_cache" wal_load
+XDG_CACHE_HOME="$role_cache" role_load
+assert_eq "${wal[1]}" '#123456' "wal_load reads cached slots without roles"
+assert_eq "$(wal_role primary)" '#82d3e1' "a slots-only cache keeps fallback roles"
+assert_eq "$(wal_role surface)" '#0e1416' "a slots-only cache keeps the fallback surface"
+
+printf '%s\n' 'primary=#123456' 'not a role line' 'surface=#ZZZZZZ' \
+    'unknown_name=#abcdef' 'on_surface=#ABCDEF' 'outline=#1234567' \
+    'primary_t30=#654321' > "$role_cache/wal/roles"
+XDG_CACHE_HOME="$role_cache" role_load
+assert_eq "$(wal_role primary)" '#123456' "valid cached roles override the fallback"
+assert_eq "$(wal_role surface)" '#0e1416' "invalid cached roles retain the fallback"
+assert_eq "${role[unknown_name]+present}" '' "unknown cached roles are ignored"
+assert_eq "$(wal_role on_surface)" '#dee3e5' "cached roles require lowercase hex"
+assert_eq "$(wal_role outline)" '#899294' "cached roles require exactly six hex digits"
+assert_eq "$(wal_role primary_t30)" '#654321' "cached primary tones override the fallback"
+assert_eq "${#role[@]}" 27 "malformed role lines do not add names"
+
+printf '@role_primary@ @role_primary_container@ @color1@\n' > "$tmp/role-template"
+wal_render "$tmp/role-template" "$tmp/role-rendered"
+assert_eq "$(cat "$tmp/role-rendered")" '#123456 #004f58 #123456' \
+    "wal_render substitutes role tokens and slots without prefix collisions"
+
+# Reloading reseeds roles rather than retaining overrides from an earlier load.
+printf 'surface=#112233\n' > "$role_cache/wal/roles"
+XDG_CACHE_HOME="$role_cache" role_load
+assert_eq "$(wal_role primary)" '#82d3e1' "role_load resets roles missing from the next cache"
+assert_eq "$(wal_role surface)" '#112233' "role_load reads the next cache"
+
+# nvim renders nothing (the generator supplies colors-wal.vim); its script only
 # asks running instances to re-apply. It must exit 0 whether nvim is missing,
 # or an instance's socket is stale and every request fails.
 mkdir -p "$tmp/run" "$tmp/nobin"
