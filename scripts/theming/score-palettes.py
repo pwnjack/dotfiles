@@ -50,11 +50,11 @@ def score(colors, roles):
         raise ValueError("expected 16 ANSI slots")
     for color in colors:
         linear_rgb(color)
-    surface = roles["surface"]
+    surface = colors[0]
     failures = []
-    # Body and muted text use the semantic foreground roles.
-    pairs = [("body", roles["on_surface"], 7),
-             ("muted", roles["on_surface_variant"], 3),
+    # Score the foreground and background slots consumers actually draw.
+    pairs = [("body", colors[7], 7),
+             ("muted", colors[8], 3),
              ("accent", roles["primary"], 4.5)]
     pairs.extend((name, colors[index], 3) for index, name in enumerate(ANSI, 1))
     for name, color, minimum in pairs:
@@ -96,6 +96,9 @@ def main():
     config = Path(__file__).resolve().parents[2]
     images = sorted(path for path in directory.iterdir()
                     if path.is_file() and path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"})
+    if not images:
+        print(f"No supported wallpaper images found in {directory}")
+        return 1
     failing = 0
     for image in images:
         try:
