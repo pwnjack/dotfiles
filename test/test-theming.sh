@@ -15,7 +15,9 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-mkdir -p "$tmp/bin" "$tmp/cache" "$tmp/home"
+mkdir -p "$tmp/bin" "$tmp/cache" "$tmp/home" "$tmp/pts"
+touch "$tmp/pts/0"
+printf 'multiplexer sentinel\n' > "$tmp/pts/ptmx"
 for stub in pkill hyprctl spicetify eww; do
     printf '#!/bin/sh\nexit 1\n' > "$tmp/bin/$stub"
     chmod +x "$tmp/bin/$stub"
@@ -68,7 +70,7 @@ for component in "${!outputs[@]}"; do
     out="$tmp/cache/wal/${outputs[$component]}"
     # HOME too: zen's script links into the browser profile under ~/.zen, and
     # must never point a real profile at this temporary cache.
-    if ! PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" \
+    if ! PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" WAL_PTS_DIR="$tmp/pts" \
         "$ROOT/$component/apply_wal_colors.sh" >/dev/null 2>&1; then
         fail "$component/apply_wal_colors.sh exits nonzero with no palette cache"
     elif [ ! -s "$out" ]; then
@@ -81,6 +83,25 @@ for component in "${!outputs[@]}"; do
         pass "$component renders ${outputs[$component]} from the fallback palette"
     fi
 done
+
+# Reset old terminal colour overrides so Ghostty's reloaded palette can show.
+# Use fake ptys in every invocation, including the component loop above.
+: > "$tmp/pts/0"
+PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" WAL_PTS_DIR="$tmp/pts" \
+    bash "$ROOT/ghostty/apply_wal_colors.sh"
+assert_eq "$?" 0 "Ghostty reload succeeds even when no instance is running"
+printf '\033]104\033\\\033]110\033\\\033]111\033\\\033]112\033\\' > "$tmp/pty-reset"
+if cmp -s "$tmp/pty-reset" "$tmp/pts/0"; then
+    pass "Ghostty clears palette, foreground, background and cursor overrides with exact OSC bytes"
+else
+    fail "Ghostty did not write the exact OSC reset sequence to the owned pty"
+fi
+printf 'multiplexer sentinel\n' > "$tmp/ptmx-expected"
+if cmp -s "$tmp/ptmx-expected" "$tmp/pts/ptmx"; then
+    pass "Ghostty leaves ptmx untouched"
+else
+    fail "Ghostty wrote terminal resets to ptmx"
+fi
 
 # Strata loads a complete TOML theme at startup. Check its exact schema,
 # unchanged-cache behaviour, and every readable pairing on extreme and
