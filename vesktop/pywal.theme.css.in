@@ -1,6 +1,6 @@
 /**
  * @name Pywal
- * @description Discord's surfaces from the current wallpaper's pywal palette. Generated from vesktop/pywal.theme.css.in in the dotfiles; edit that file, not this one.
+ * @description Discord's surfaces from the current wallpaper's matugen palette. Generated from vesktop/pywal.theme.css.in in the dotfiles; edit that file, not this one.
  * @version 1.0.0
  */
 
@@ -33,7 +33,7 @@
 .visual-refresh.theme-dark,
 .visual-refresh .theme-dark {
     --pywal-base: oklch(from @color0@ clamp(0.21, l, 0.26) min(c, 0.04) h);
-    --pywal-accent: oklch(from @color4@ clamp(0.45, l, 0.58) min(c, 0.18) h);
+    --pywal-accent: oklch(from @role_primary@ clamp(0.45, l, 0.58) min(c, 0.18) h);
 
     --background-base-lowest: oklch(from var(--pywal-base) calc(l - 0.04) c h) !important;
     --background-base-lower: var(--pywal-base) !important;

@@ -25,8 +25,11 @@ if ipc toggle "$entry" >/dev/null 2>&1; then exit 0; fi
 # shellcheck source=scripts/theming/palette.sh
 source "$config_dir/scripts/theming/palette.sh" || fail 'Cannot load the theme palette for the calendar.'
 declare -a wal
-if wal_load && foreground=$(wal_readable_on "${wal[0]}") && on_accent=$(wal_readable_on "${wal[4]}"); then
-    export CALENDAR_BACKGROUND="${wal[0]}" CALENDAR_ACCENT="${wal[4]}"
+# shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
+declare -A role=()
+if wal_load && role_load && foreground=$(wal_readable_on "${wal[0]}") \
+    && accent=$(wal_role primary) && on_accent=$(wal_role on_primary); then
+    export CALENDAR_BACKGROUND="${wal[0]}" CALENDAR_ACCENT="$accent"
     export CALENDAR_FOREGROUND="$foreground" CALENDAR_ON_ACCENT="$on_accent"
 fi
 locale=${LC_ALL:-${LC_TIME:-${LANG:-en_US.UTF-8}}}

@@ -1,5 +1,5 @@
 /*
- * Zen's browser UI from the current wallpaper's pywal palette. Generated from
+ * Zen's browser UI from the current wallpaper's matugen palette. Generated from
  * zen/userChrome.css.in in the dotfiles; edit that file, not this one. Zen
  * reads it at startup only, so a new palette shows from the next launch.
  *
@@ -25,7 +25,7 @@
 
 :root:not([zen-private-window="true"], [zen-unsynced-window="true"]) {
     --pywal-base: oklch(from @color0@ clamp(0.21, l, 0.26) min(c, 0.04) h);
-    --pywal-accent: oklch(from @color4@ clamp(0.55, l, 0.7) min(c, 0.16) h);
+    --pywal-accent: oklch(from @role_primary@ clamp(0.55, l, 0.7) min(c, 0.16) h);
 
     color-scheme: dark !important;
     --toolbar-color-scheme: dark !important;

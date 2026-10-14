@@ -48,6 +48,8 @@ declare -A outputs=(
 . "$ROOT/scripts/theming/palette.sh"
 declare -a wal=()
 XDG_CACHE_HOME="$tmp/cache" wal_load   # empty cache: the fallback palette
+declare -A role=()
+XDG_CACHE_HOME="$tmp/cache" role_load
 
 uses_palette() {
     local color
@@ -56,7 +58,7 @@ uses_palette() {
     if [ "$component" = spicetify ]; then
         local base accent
         base=$(wal_oklch "${wal[0]}" 0.21 0.26 0.04 0)
-        accent=$(wal_oklch "${wal[4]}" 0.62 0.75 0.16 0)
+        accent=$(wal_oklch "$(wal_role primary)" 0.62 0.75 0.16 0)
         grep -qE "^main[[:space:]]*=[[:space:]]*${base#\#}$" "$1" \
             && grep -qE "^button[[:space:]]*=[[:space:]]*${accent#\#}$" "$1"
         return
@@ -76,14 +78,39 @@ for component in "${!outputs[@]}"; do
         fail "$component/apply_wal_colors.sh exits nonzero with no palette cache"
     elif [ ! -s "$out" ]; then
         fail "$component/apply_wal_colors.sh leaves ${outputs[$component]} missing or empty"
-    elif grep -q '@[a-z]*color[0-9]*@' "$out"; then
-        fail "$component/apply_wal_colors.sh leaves unreplaced @color@ tokens"
+    elif grep -qE '@([a-z]*color[0-9]*|role_[a-z0-9_]+)@' "$out"; then
+        fail "$component/apply_wal_colors.sh leaves unreplaced palette tokens"
     elif ! uses_palette "$out"; then
         fail "$component/apply_wal_colors.sh does not use the fallback palette"
     else
         pass "$component renders ${outputs[$component]} from the fallback palette"
     fi
 done
+
+# Accents use semantic roles independently of ANSI blue, including the
+# Material foreground pair in Waybar. Keep the loop's consumer guards here.
+accent_cache="$tmp/accent-cache"
+mkdir -p "$accent_cache/wal"
+printf '#112233\n%.0s' {1..16} > "$accent_cache/wal/colors"
+printf 'primary=#0000aa\non_primary=#ffeedd\n' > "$accent_cache/wal/roles"
+for component in waybar btop strata; do
+    PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$accent_cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
+        bash "$ROOT/$component/apply_wal_colors.sh"
+    assert_eq "$?" 0 "$component renders with a primary distinct from slot 4"
+done
+waybar_css="$(cat "$accent_cache/wal/colors-waybar.css")"
+assert_contains "$waybar_css" '@define-color color4 #112233;' "Waybar preserves ANSI blue"
+assert_contains "$waybar_css" '@define-color accent #0000aa;' "Waybar accent follows primary"
+assert_contains "$waybar_css" '@define-color on_accent #ffeedd;' "Waybar accent text follows on_primary"
+assert_eq "$(tail -n 3 "$accent_cache/wal/colors-waybar.css")" $'@define-color color15 #112233;\n@define-color accent #0000aa;\n@define-color on_accent #ffeedd;' \
+    "Waybar appends role definitions after the slots"
+btop_theme="$(cat "$accent_cache/wal/btop.theme")"
+for key in hi_fg followed_bg cpu_box; do
+    assert_contains "$btop_theme" "theme[$key]=\"#0000aa\"" "btop $key follows primary"
+done
+strata_accent=$(wal_oklch '#0000aa' 0.76 0.84 0.12)
+assert_contains "$(cat "$accent_cache/wal/strata-theme.toml")" "accent = \"$strata_accent\"" \
+    "Strata accent follows primary with its foreground clamp"
 
 # Neovim consumes the exact Vim variable layout, including all 16 slots.
 nvim_palette="$tmp/cache/wal/colors-wal.vim"
@@ -180,8 +207,8 @@ def luminance(hex_colour):
 for path in sys.argv[1:]:
     with open(path, 'rb') as source:
         colours = tomllib.load(source)
-    if set(colours) != keys | {'name'} or colours['name'] != 'Pywal':
-        sys.exit(f'{path}: expected name = "Pywal" and exactly 14 colour keys')
+    if set(colours) != keys | {'name'} or colours['name'] != 'Wallpaper':
+        sys.exit(f'{path}: expected name = "Wallpaper" and exactly 14 colour keys')
     for key in keys:
         if not re.fullmatch(r'#[0-9a-fA-F]{6}', colours[key]):
             sys.exit(f'{path}: {key} is not a #rrggbb colour')
@@ -222,7 +249,6 @@ else
 fi
 
 # Slots and semantic roles fall back independently until matugen first runs.
-declare -A role=()
 role_cache="$tmp/role-cache"
 mkdir -p "$role_cache/wal"
 XDG_CACHE_HOME="$role_cache" wal_load

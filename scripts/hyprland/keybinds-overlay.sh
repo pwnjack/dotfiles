@@ -24,8 +24,12 @@ if ipc toggle >/dev/null 2>&1; then exit 0; fi
 source "$config_dir/scripts/theming/palette.sh" || fail 'Cannot load the theme palette for the keybindings overlay.'
 declare -a wal
 wal_load
+# shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
+declare -A role=()
+role_load
 export KEYBINDS_BACKGROUND="${wal[0]}"
-export KEYBINDS_ACCENT="${wal[4]}"
+export KEYBINDS_ACCENT
+KEYBINDS_ACCENT=$(wal_role primary)
 export KEYBINDS_FOREGROUND
 KEYBINDS_FOREGROUND=$(wal_readable_on "${wal[0]}")
 export KEYBINDS_FONT

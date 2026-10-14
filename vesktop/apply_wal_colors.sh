@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# Render the pywal palette as a Vencord theme for Vesktop.
+# Render the matugen palette as a Vencord theme for Vesktop.
 #
-# vesktop/pywal.theme.css.in holds the CSS with @colorN@ tokens, and the
+# vesktop/pywal.theme.css.in holds the CSS with slot and role tokens. The
 # tracked vesktop/themes/pywal.theme.css is a symlink to the copy rendered
 # here, so no tracked file changes at runtime. Enable it once in Vesktop under
 # Settings > Themes; which themes are on is Vesktop's own state.
@@ -28,6 +28,9 @@ declare -a wal=()
 # shellcheck source=scripts/theming/palette.sh
 . "$config_dir/scripts/theming/palette.sh"
 wal_load
+# shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
+declare -A role=()
+role_load
 
 mkdir -p "$cache_dir"
 

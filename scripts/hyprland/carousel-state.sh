@@ -9,12 +9,15 @@ source "$script_dir/../theming/palette.sh"
 source "$script_dir/../lib/wallpaper.sh"
 wal=()
 wal_load
+# shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
+declare -A role=()
+role_load
 # awww is the visible state; the palette symlink can still be catching up.
 shown=""
 if query=$(timeout 2 awww query 2>/dev/null); then
     shown=$(wallpaper_from_query "$query")
 fi
-python3 - "${wal[0]}" "$(wal_readable_on "${wal[0]}")" "${wal[4]}" "$shown" <<'PY'
+python3 - "${wal[0]}" "$(wal_readable_on "${wal[0]}")" "$(wal_role primary)" "$shown" <<'PY'
 import configparser
 import json
 import os

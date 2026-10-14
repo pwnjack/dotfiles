@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# Render the pywal palette as Zen's userChrome.css.
+# Render the matugen palette as Zen's userChrome.css.
 #
-# zen/userChrome.css.in holds the CSS with @colorN@ tokens and is rendered into
-# the wal cache. Zen's profile lives in ~/.zen, outside the repo, so nothing
+# zen/userChrome.css.in holds the CSS with slot and role tokens, rendered
+# into the wal cache. Zen's profile lives in ~/.zen, outside the repo, so nothing
 # tracked points at the result; instead, when Zen is installed, this links the
 # profile's chrome/userChrome.css to the rendered file and turns on the pref
 # that makes Zen load it. Both steps are idempotent. A userChrome.css that is
@@ -29,6 +29,9 @@ declare -a wal=()
 # shellcheck source=scripts/theming/palette.sh
 . "$config_dir/scripts/theming/palette.sh"
 wal_load
+# shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
+declare -A role=()
+role_load
 
 mkdir -p "$cache_dir"
 

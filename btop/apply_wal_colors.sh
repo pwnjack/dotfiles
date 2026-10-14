@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Render the pywal palette as a btop theme.
+# Render the matugen palette as a btop theme.
 #
 # btop reads themes from ~/.config/btop/themes/, and btop.conf selects this one
 # with color_theme = "pywal". The tracked btop/themes/pywal.theme is a symlink
@@ -14,10 +14,9 @@
 # terminal default", which is what btop.conf's theme_background = false relies
 # on to let ghostty's transparency through.
 #
-# The gradient triples are start -> mid -> end. pywal orders color1..color7 by
-# ascending lightness, so every meter reads low-to-high as dim-to-bright. The
-# four memory meters are offset against each other so they stay distinguishable
-# on a near-monochrome palette, where a single ramp would make them identical.
+# The gradient triples are start -> mid -> end, drawn from the ANSI slots.
+# The four memory meters use different slot combinations so they remain
+# distinguishable. Highlights and the CPU outline use the primary role.
 #
 
 set -uo pipefail
@@ -30,6 +29,9 @@ declare -a wal=()
 # shellcheck source=scripts/theming/palette.sh
 . "$config_dir/scripts/theming/palette.sh"
 wal_load
+# shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
+declare -A role=()
+role_load
 
 mkdir -p "$cache_dir"
 
@@ -40,13 +42,13 @@ _btop_gradient() {
 }
 
 {
-    echo "# Automatically generated from the pywal palette - do not edit manually"
+    echo "# Automatically generated from the matugen palette - do not edit manually"
     echo
 
     echo "theme[main_bg]=\"\""
     echo "theme[main_fg]=\"${wal[7]}\""
     echo "theme[title]=\"${wal[7]}\""
-    echo "theme[hi_fg]=\"${wal[4]}\""
+    echo "theme[hi_fg]=\"$(wal_role primary)\""
     echo "theme[selected_bg]=\"${wal[1]}\""
     echo "theme[selected_fg]=\"${wal[7]}\""
     echo "theme[inactive_fg]=\"${wal[8]}\""
@@ -59,7 +61,7 @@ _btop_gradient() {
     # logs "Missing color value" and falls back to its built-in defaults, which
     # are off-palette. Highlight backgrounds take the dark background as their
     # text color so they stay legible on any wallpaper.
-    echo "theme[followed_bg]=\"${wal[4]}\""
+    echo "theme[followed_bg]=\"$(wal_role primary)\""
     echo "theme[followed_fg]=\"${wal[0]}\""
     echo "theme[proc_banner_bg]=\"${wal[3]}\""
     echo "theme[proc_banner_fg]=\"${wal[0]}\""
@@ -68,7 +70,7 @@ _btop_gradient() {
     echo
 
     # Box outlines, one palette step apart so the four boxes stay readable.
-    echo "theme[cpu_box]=\"${wal[4]}\""
+    echo "theme[cpu_box]=\"$(wal_role primary)\""
     echo "theme[mem_box]=\"${wal[2]}\""
     echo "theme[net_box]=\"${wal[5]}\""
     echo "theme[proc_box]=\"${wal[3]}\""

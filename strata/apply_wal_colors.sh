@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Render the pywal palette as a custom Strata theme.
+# Render the matugen palette as a custom Strata theme.
 # strata/themes/tokyo-night.toml links to this cache file, replacing the bundled
 # default so fresh Strata installs use the palette without setup. Users can
 # still pick another theme in Strata. Themes are read only at startup: open
@@ -17,6 +17,9 @@ declare -a wal=()
 # shellcheck source=scripts/theming/palette.sh disable=SC1091
 . "$config_dir/scripts/theming/palette.sh"
 wal_load
+# shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
+declare -A role=()
+role_load
 
 # Keep the base in a dark or light band, like the Vesktop and Zen clamps,
 # rather than trusting a mid-tone wallpaper colour to support readable text.
@@ -44,7 +47,7 @@ else
     dim_text=$(wal_oklch "$(wal_readable_on "$bg")" 0.30 0.38 0.04)
     foreground() { wal_oklch "$1" 0.30 0.38 0.12; }
 fi
-accent=$(foreground "${wal[4]}")
+accent=$(foreground "$(wal_role primary)")
 # Keep destructive actions recognisably red even on a monochrome palette.
 danger=$(foreground '#e26f7c')
 syntax_keyword=$(foreground "${wal[5]}")
@@ -60,8 +63,8 @@ publish() {
     cmp -s "$temporary" "$rendered" || mv -f -- "$temporary" "$rendered"
 }
 cat > "$temporary" <<EOF_THEME && publish
-# Generated from the pywal palette - do not edit manually.
-name = "Pywal"
+# Generated from the matugen palette - do not edit manually.
+name = "Wallpaper"
 background = "$bg"
 surface = "$surface"
 text = "$text"

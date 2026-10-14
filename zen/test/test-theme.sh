@@ -27,10 +27,11 @@ mkdir -p "$home" "$config/zen" "$config/scripts/theming" "$cache/wal"
 ln -s "$repo/zen/userChrome.css.in" "$config/zen/userChrome.css.in"
 ln -s "$repo/scripts/theming/palette.sh" "$config/scripts/theming/palette.sh"
 out="$cache/wal/zen-userChrome.css"
-for c in 101010 aa0000 00aa00 aaaa00 0000aa aa00aa 00aaaa aaaaaa \
+for c in 101010 aa0000 00aa00 aaaa00 0000bb aa00aa 00aaaa aaaaaa \
          555555 ff5555 55ff55 ffff55 5555ff ff55ff 55ffff ffffff; do
     echo "#$c"
 done > "$cache/wal/colors"
+printf 'primary=#0000aa\n' > "$cache/wal/roles"
 
 run() { HOME="$home" XDG_CONFIG_HOME="$config" XDG_CACHE_HOME="$cache" bash "$repo/zen/apply_wal_colors.sh"; }
 
@@ -40,7 +41,7 @@ check "renders without Zen installed"
 grep -q "from #101010 " "$out"
 check "the base follows colour0"
 grep -q "from #0000aa " "$out"
-check "the accent follows colour4"
+check "the accent follows primary"
 [ ! -e "$home/.zen" ]
 check "no ~/.zen appears when Zen is not installed"
 
