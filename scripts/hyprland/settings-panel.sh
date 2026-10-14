@@ -30,6 +30,8 @@ export SETTINGS_ACCENT
 SETTINGS_ACCENT=$(wal_role primary)
 export SETTINGS_ON_ACCENT
 SETTINGS_ON_ACCENT=$(wal_role on_primary)
+export SETTINGS_ERROR
+SETTINGS_ERROR=$(wal_role error)
 export SETTINGS_STARTED_MS
 SETTINGS_STARTED_MS=$(date +%s%3N)
 qs -p "$entry" --no-duplicate --daemonize >"$cache_dir/session.log" 2>&1 9>&-

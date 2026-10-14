@@ -4,6 +4,11 @@
 # (scheme-tonal-spot), theme-contrast (0), theme-prefer (saturation).
 # Matugen renders no templates, running --dry-run --json hex in a scratch cwd.
 # --fallback-color is the fallback palette's seed for flat/near-grey images.
+# Measurements with scripts/theming/score-palettes.py found custom ANSI colours
+# derived from the chosen scheme/contrast lose red/green identity or readability.
+# Keep them tonal-spot at standard contrast;
+# surfaces and semantic roles still follow the chosen scheme and contrast.
+# The 30-second matugen timeout applies to each pass independently.
 # On failure nothing is replaced; conversion finishes before publication.
 set -euo pipefail
 
@@ -50,15 +55,24 @@ contrast=$(read_option theme-contrast 0 '^-?(0(\.[0-9]+)?|1(\.0+)?)$')
 prefer=$(read_option theme-prefer saturation '^(darkness|lightness|saturation|less-saturation|value|closest-to-fallback)$')
 
 scratch=$(mktemp -d)
-if ! (cd "$scratch" && timeout -k 5 "${GENERATE_TIMEOUT:-30}" matugen image "$image" -c "$config/matugen/config.toml" \
-    -m dark -t "$scheme" --contrast "$contrast" --prefer "$prefer" \
-    --fallback-color '#6097a1' --dry-run --json hex -q > "$scratch/matugen.json"); then
-    echo "generate-palette: matugen failed for $image" >&2
-    exit 1
+generate_json() {
+    local pass_scheme=$1 pass_contrast=$2 target=$3
+    if ! (cd "$scratch" && timeout -k 5 "${GENERATE_TIMEOUT:-30}" matugen image "$image" -c "$config/matugen/config.toml" \
+        -m dark -t "$pass_scheme" --contrast "$pass_contrast" --prefer "$prefer" \
+        --fallback-color '#6097a1' --dry-run --json hex -q > "$target"); then
+        echo "generate-palette: matugen failed for $image ($pass_scheme, contrast $pass_contrast)" >&2
+        return 1
+    fi
+}
+generate_json "$scheme" "$contrast" "$scratch/matugen.json"
+ansi_args=()
+if [[ "$scheme" != scheme-tonal-spot || ! "$contrast" =~ ^-?0(\.0+)?$ ]]; then
+    generate_json scheme-tonal-spot 0 "$scratch/ansi.json"
+    ansi_args=("$scratch/ansi.json")
 fi
 mkdir -p -- "$out"
 stage=$(mktemp -d "$out/.generate.XXXXXX")
-if ! bash "$config/scripts/theming/matugen-to-wal.sh" "$scratch/matugen.json" "$stage"; then
+if ! bash "$config/scripts/theming/matugen-to-wal.sh" "$scratch/matugen.json" "$stage" ${ansi_args[@]+"${ansi_args[@]}"}; then
     echo 'generate-palette: palette conversion failed' >&2
     exit 1
 fi

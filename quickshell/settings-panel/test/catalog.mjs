@@ -14,6 +14,7 @@ assert.deepEqual(catalog.rows.map(row => row.id).sort(), ["a11y.text-scale", "a1
     "appearance.cursor-size", "appearance.cursor-theme", "appearance.desktop-clock", "appearance.desktop-clock-font", "appearance.font", "appearance.font-gtk", "appearance.gaps-in",
     "appearance.gaps-out", "appearance.gtk-theme", "appearance.icon-theme", "appearance.kvantum",
     "appearance.opacity-active", "appearance.opacity-inactive", "appearance.rounding", "appearance.shadows",
+    "appearance.theme-contrast", "appearance.theme-prefer", "appearance.theme-scheme",
     "apps.aurhelper", "apps.browser", "apps.codeeditor", "apps.editor", "apps.filemanager", "apps.launcher",
     "apps.terminal", "bar.agenda", "bar.border", "bar.clock-seconds", "bar.cpu", "bar.disk", "bar.gpu", "bar.memory", "bar.network",
     "bar.opacity", "bar.output", "bar.position", "bar.style", "bar.updates", "bar.workspaces",

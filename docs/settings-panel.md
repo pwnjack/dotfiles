@@ -9,7 +9,7 @@ clicking outside, or Super+I closes it.
 Once pending saves finish, the process exits. Failed saves keep the error visible
 by reopening the panel. Text fields apply with Return or their Apply button, which appears while the text differs from the saved value; sliders save on release.
 
-`catalog.json` is the only list of settings: 114 rows on 16 pages (15 in the
+`catalog.json` is the only list of settings: 124 rows on 17 pages (16 in the
 sidebar, plus About), with search, editable display cards and per-row resets.
 Pages sit in five sidebar groups, and rows sit in titled sections inside each
 page, one line each: label on the left, control on the right. Reload Hyprland,
@@ -20,14 +20,14 @@ there: the keybind cheatsheet (Super+H), Do Not Disturb, output volume, mute and
 per-app volume (SwayNC), running updates (the update card; the panel only
 chooses whether the bar shows the module), screenshot and recording options
 (the capture bar) and picking wallpapers (the carousel; the panel only holds
-the random-wallpaper-at-login switch). The palette is read through
-`scripts/theming/palette.sh` on every launch.
+the random-wallpaper-at-login switch and palette options). The palette is
+read through `scripts/theming/palette.sh` on every launch.
 
 ## Pages
 
 | Page | Group | Rows | Sections |
 | --- | --- | --- | --- |
-| Appearance | look | 18 | Style, Themes, Fonts, Cursor, Window style, Transparency & effects |
+| Appearance | look | 23 | Style, Themes, Palette, Fonts, Desktop clock, Cursor, Window style, Transparency & effects |
 | Bar | look | 13 | Layout, Clock & workspaces, Modules (see [Bar](#bar)) |
 | Windows | look | 10 | Tiling, Focus, Advanced |
 | Animations | look | 8 | General, Speed |
@@ -43,6 +43,31 @@ the random-wallpaper-at-login switch). The palette is read through
 | Startup | system | 3 | At login, plus the autostart lists (see [Startup](#startup)) |
 | Default Apps | system | 16 | Applications, File types, Launcher & updates |
 | About this machine | system | — | Opened from the account card under the sidebar |
+
+## Palette
+
+Appearance's Palette section controls how matugen draws colours from the
+current wallpaper:
+
+- **Scheme:** Tonal spot (default), Vibrant, Expressive, Content, Fidelity,
+  Neutral, Monochrome, Rainbow or Fruit salad.
+- **Contrast:** Reduced (−0.5), Standard (0, default), Medium (0.5) or High (1).
+- **Source colour:** Most saturated (default), Least saturated, Darkest,
+  Lightest or Brightest.
+
+These save `options/theme-scheme`, `options/theme-contrast` and
+`options/theme-prefer`. Each change regenerates the palette for the current
+wallpaper and recolours the desktop. The panel itself picks up the new colours
+on its next opening. If generation fails, the panel restores the previous
+option and regenerates it, showing the last diagnostic line. Once generation
+succeeds, component reload failures keep the new option and palette. If no
+current wallpaper is recorded, change the wallpaper once before using these
+controls.
+
+Terminal red, green and the other chromatic ANSI colours always use tonal
+spot at standard contrast, with the same wallpaper and source-colour choice.
+Background, foreground and desktop colour roles follow the selected scheme
+and contrast. Error messages use matugen's error colour.
 
 ## Implementation
 

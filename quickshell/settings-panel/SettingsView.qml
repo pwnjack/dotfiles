@@ -30,8 +30,8 @@ FocusScope {
     readonly property color line: tone(0.08)
     // 75 %: secondary text stays above 4.5:1 on the plate for light palettes too.
     readonly property color dim: tone(0.75)
-    // Errors tint the readable foreground towards red to keep alerts distinct from the accent.
-    readonly property color warn: Qt.tint(foreground, Qt.rgba(0.88, 0.42, 0.42, 0.6))
+    // Alerts use the semantic error role, with the matugen fallback before generation.
+    readonly property color warn: controller.errorColor || "#ffb4ab"
     // Glyphs are Material Design icons from Symbols Nerd Font (ttf-nerd-fonts-symbols), kept as
     // hex code points: text, so they take the label's colour.
     readonly property string iconFont: "Symbols Nerd Font"

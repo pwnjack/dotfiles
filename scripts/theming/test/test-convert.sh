@@ -69,5 +69,40 @@ for bad in missing invalid missing-tone invalid-hex; do
         fail "$bad input changed the working palette"
     fi
 done
+# Only chromatic slots may come from the independent terminal palette.
+jq '.colors.red.dark.color = "#123456" | .colors.on_red_container.dark.color = "#abcdef"
+    | .colors.surface.dark.color = "#010101" | .colors.on_surface.dark.color = "#020202"
+    | .colors.outline.dark.color = "#030303" | .colors.primary.dark.color = "#040404"' \
+    "$fixture" > "$tmp/ansi.json"
+bash "$converter" "$fixture" "$tmp/out" "$tmp/ansi.json"
+assert_eq "$?" 0 'converter accepts separate ANSI JSON'
+mapfile -t colors < "$tmp/out/colors"
+assert_eq "${colors[1]}" '#123456' 'slot 1 uses ANSI red'
+assert_eq "${colors[9]}" '#abcdef' 'slot 9 uses ANSI on_red_container'
+for i in 0 7 8 15; do
+    assert_eq "${colors[$i]}" "$(c "${slots[$i]}")" "slot $i retains the main palette"
+done
+if cmp -s "$tmp/roles.before" "$tmp/out/roles"; then
+    pass 'all roles retain the main palette'
+else
+    fail 'separate ANSI JSON changed roles'
+fi
+cp "$tmp/out/colors" "$tmp/colors.before"
+for bad in missing invalid invalid-hex; do
+    # invalid-hex must affect a consumed ANSI slot, not an ignored surface.
+    if [ "$bad" = invalid-hex ]; then
+        jq '.colors.red.dark.color = "#xyzxyz"' "$fixture" > "$tmp/$bad.json"
+    fi
+    if bash "$converter" "$fixture" "$tmp/out" "$tmp/$bad.json" >"$tmp/stdout" 2>"$tmp/stderr"; then
+        fail "$bad ANSI JSON is rejected"
+    else
+        assert_eq "$?" 1 "$bad ANSI JSON exits 1"
+    fi
+    if cmp -s "$tmp/colors.before" "$tmp/out/colors" && cmp -s "$tmp/roles.before" "$tmp/out/roles"; then
+        pass "$bad ANSI JSON preserves both files"
+    else
+        fail "$bad ANSI JSON changed the working palette"
+    fi
+done
 assert_eq "$(find "$tmp/out" -type f | wc -l)" 2 'temporary files are cleaned up'
 test_summary convert

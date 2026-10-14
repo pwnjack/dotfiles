@@ -109,10 +109,11 @@ ShellRoot {
     readonly property double startedAt: Number(Quickshell.env("SETTINGS_STARTED_MS")) || Date.now()
     property int frameMs: -1
     property int readyMs: -1
-    readonly property color background: Quickshell.env("SETTINGS_BACKGROUND") || "#05090c"
-    readonly property color foreground: Quickshell.env("SETTINGS_FOREGROUND") || "#cfddde"
-    readonly property color accent: Quickshell.env("SETTINGS_ACCENT") || "#6097a1"
-    readonly property color accentText: Quickshell.env("SETTINGS_ON_ACCENT") || "#05090c"
+    readonly property color background: Quickshell.env("SETTINGS_BACKGROUND") || "#0e1416"
+    readonly property color foreground: Quickshell.env("SETTINGS_FOREGROUND") || "#dee3e5"
+    readonly property color accent: Quickshell.env("SETTINGS_ACCENT") || "#82d3e1"
+    readonly property color accentText: Quickshell.env("SETTINGS_ON_ACCENT") || "#00363d"
+    readonly property color errorColor: Quickshell.env("SETTINGS_ERROR") || "#ffb4ab"
     readonly property var visibleRows: {
         const words = query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
         return catalog.rows.filter(row => {

@@ -44,7 +44,24 @@ file and reload it. `hyprctl configerrors -j` may report `[""]` when healthy.
 `backend.js` preserves custom hypridle/hyprsunset content when editing timeouts
 and the schedule variables, and rolls file changes back on reload failure. Night light state
 still goes through `nightlight.sh`. Writes to files the machine-state overlay renders (options, GTK, `mimeapps.list`, `swaync/config.json`, the night-light variables) run `overlay.sh sync` afterwards so the change is recorded as an override; hypridle's values go to `~/.local/state/hypr/hypridle.conf`, which the tracked `hypridle.conf` sources. See `state.md`. Theme colours come from the shared palette
-loader at launch. See `docs/settings-panel.md` for measurements and checks.
+loader at launch, including `SETTINGS_ERROR` from `wal_role error` for alerts.
+The QML fallbacks match the loader's matugen surfaces, text, accent pair and error.
+See `docs/settings-panel.md` for measurements and checks.
+
+Appearance's Palette section has three option selects: `theme-scheme`,
+`theme-contrast` and `theme-prefer`. A `theme-*` save or reset resolves
+`${XDG_CACHE_HOME:-~/.cache}/current_wallpaper` before writing; a missing image
+asks the user to change the wallpaper once first. The backend runs
+`scripts/theming/generate-palette.sh <resolved-image>` with its default output
+directory, then `scripts/theming/apply-wal.sh`. Only generation failure rolls
+the option back and regenerates the previous choice; the panel shows the last
+stderr line. Applying components is best effort after publication: its failure
+keeps the new option and palette and the save succeeds. The panel has no way
+to show a non-fatal save message, so it swallows component failures.
+This deliberately bypasses `wall.sh`, whose transition delay, unbounded lock
+wait, failure toast and component failures belong to wallpaper changes. The
+generator has its own bounded publication lock and a timeout for each matugen
+pass. The panel reads the new colours on its next opening.
 
 The Network, Date & Region and Startup pages work as follows. **Network** reads libnm through `nm.js` with the pure
 `network.mjs` model; `nmcli monitor` and a 20 s rescan run only while the page is
