@@ -20,12 +20,16 @@ export SETTINGS_PAGE="$page"
 source "$config_dir/scripts/theming/palette.sh"
 declare -a wal
 wal_load
+# shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
+declare -A role=()
+role_load
 export SETTINGS_BACKGROUND="${wal[0]}"
 export SETTINGS_FOREGROUND
 SETTINGS_FOREGROUND=$(wal_readable_on "${wal[0]}")
-export SETTINGS_ACCENT="${wal[4]}"
+export SETTINGS_ACCENT
+SETTINGS_ACCENT=$(wal_role primary)
 export SETTINGS_ON_ACCENT
-SETTINGS_ON_ACCENT=$(wal_readable_on "${wal[4]}")
+SETTINGS_ON_ACCENT=$(wal_role on_primary)
 export SETTINGS_STARTED_MS
 SETTINGS_STARTED_MS=$(date +%s%3N)
 qs -p "$entry" --no-duplicate --daemonize >"$cache_dir/session.log" 2>&1 9>&-

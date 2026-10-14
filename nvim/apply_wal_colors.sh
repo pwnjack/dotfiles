@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# Re-theme running Neovim instances after a palette change.
+# Render the matugen palette and re-theme running Neovim instances.
 #
-# Nothing is rendered: pywal itself writes ~/.cache/wal/colors-wal.vim, and
-# nvim/lua/plugins/colorscheme.lua loads it through pywal16.nvim at startup.
+# Render ~/.cache/wal/colors-wal.vim in the layout pywal16.nvim expects;
+# nvim/lua/plugins/colorscheme.lua loads it at startup.
 # Each instance listens on $XDG_RUNTIME_DIR/nvim.<pid>.0 by default; asking it
 # to run `colorscheme pywal16` again re-reads the file. --remote-expr evaluates
 # without typing into the instance, so a buffer in insert mode is untouched.
@@ -15,6 +15,43 @@
 #
 
 set -uo pipefail
+
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
+cache_root="${XDG_CACHE_HOME:-$HOME/.cache}"
+cache_dir="$cache_root/wal"
+
+declare -a wal=()
+# shellcheck source=scripts/theming/palette.sh
+# shellcheck disable=SC1091
+. "$config_dir/scripts/theming/palette.sh"
+wal_load
+
+wallpaper=""
+if [ -e "$cache_root/current_wallpaper" ]; then
+    wallpaper=$(readlink -f "$cache_root/current_wallpaper" 2>/dev/null) || wallpaper=""
+fi
+# Keep the Vim string on one line, then preserve backslashes and quotes.
+wallpaper=${wallpaper//$'\n'/}
+wallpaper=${wallpaper//$'\r'/}
+wallpaper=${wallpaper//\\/\\\\}
+wallpaper=${wallpaper//\"/\\\"}
+
+mkdir -p "$cache_dir" || exit 1
+output_tmp="$cache_dir/colors-wal.vim.tmp.$$"
+trap 'rm -f "$output_tmp"' EXIT
+{
+    printf '%s\n' '" Special'
+    printf 'let wallpaper = "%s"\n' "$wallpaper"
+    printf 'let background = "%s"\n' "${wal[0],,}"
+    printf 'let foreground = "%s"\n' "${wal[7],,}"
+    printf 'let cursor = "%s"\n\n' "${wal[7],,}"
+    printf '%s\n' '" Colors'
+    for ((i = 0; i < 16; i++)); do
+        printf 'let color%d = "%s"\n' "$i" "${wal[$i],,}"
+    done
+} > "$output_tmp" || exit 1
+mv "$output_tmp" "$cache_dir/colors-wal.vim" || exit 1
+trap - EXIT
 
 command -v nvim >/dev/null 2>&1 || exit 0
 runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"

@@ -12,7 +12,7 @@ Deep dives, one per component:
 - [Keybindings overlay](keybinds-overlay.md) (`Super + H`)
 - [Update card](updates.md): the bar's updates module
 - [Native workspace module](workspaces-native.md): the bar's workspace dots
-- [Spotify](spotify.md): SpotX ad-blocking and the pywal theme
+- [Spotify](spotify.md): SpotX ad-blocking and the wallpaper theme
 - [Virtual surround](virtual-surround.md): 7.1 for headphones
 - [SDDM greeter sync](../sddm/README.md): the login screen follows the wallpaper
 - [WoW / Battle.net](gaming-wow.md): gaming setup notes
@@ -243,17 +243,18 @@ monitor. Browse with Left/Right, the mouse wheel, or a card click. Press Enter,
 click the selected card, or use **Apply wallpaper** to apply to all monitors.
 `Ctrl + F` searches filenames; `Escape` closes without applying a selection.
 
-The carousel reads the folder from Waypaper and keeps the existing awww/pywal
+The carousel reads the folder from Waypaper and keeps the existing awww/matugen
 theme pipeline. `Super + Shift + W` still selects a random wallpaper; run
 `waypaper` for the original picker and folder settings. Quickshell starts on
 first use. See [controls, integration, and verification](wallpaper-carousel.md).
 
-### Pywal colours
+### Wallpaper colours
 
 Generate colours from any wallpaper:
 
 ```bash
-wal -i /path/to/wallpaper.jpg
+~/.config/scripts/theming/generate-palette.sh /path/to/wallpaper.jpg
+~/.config/scripts/theming/apply-wal.sh
 ```
 
 Colours apply to Hyprland, Hyprlock, Waybar, Rofi, SwayNC, Ghostty, Strata,
@@ -261,9 +262,9 @@ Thunar, cava, btop, Neovim, the Starship prompt, Vesktop (Discord), Zen Browser
 and Spotify (through Spicetify; see [spotify.md](spotify.md)). Strata, Thunar
 and Zen pick up a new palette at their next launch. Open Neovim windows
 re-theme in place unless you picked another colour scheme in them; before
-pywal has run once, Neovim uses LazyVim's tokyonight. fastfetch and bat (and so
-man pages) follow too, without rendering anything — they colour by ANSI
-index, and the terminal palette is pywal's.
+its generated `colors-wal.vim` exists, Neovim uses LazyVim's tokyonight.
+fastfetch and bat (and so man pages) follow too, without rendering anything — they colour by ANSI
+index, and the terminal palette comes from matugen.
 
 Components needing more than a plain include own a
 `<component>/apply_wal_colors.sh`, rendering into `~/.cache/wal/`. The repo
@@ -419,7 +420,7 @@ What it checks:
   clobbered by a regular file (which git still reports as a symlink)
 - **Config references** — every Lua `require()` and Hyprlang `source =` target,
   every literal `~/.config` path in a tracked file, the `wall.sh` colour
-  fan-out, and both Hyprland/Hyprlock pywal caches
+  fan-out, the palette slots and roles, and both Hyprland/Hyprlock caches
 - **Binaries** — every command passed to `hl.exec_cmd()` by keybinds or
   autostart, resolving the application table indirection first
 - **Services** — autostart daemons actually running, who owns
@@ -459,8 +460,8 @@ hook and theming fixtures use Python 3.
 ## Installation details
 
 The install script checks/installs all dependencies, deploys the configs to
-`~/.config`, initialises pywal, and wires up all symlinks. Deployment copies
-only tracked files and backs up exactly the existing files it will replace,
+`~/.config`, generates the matugen palette, and wires up all symlinks.
+Deployment copies only tracked files and backs up exactly the existing files it will replace,
 including symlinks. Untracked application data stays out of deployment;
 directory symlinks and file/directory conflicts are rejected before copying:
 
@@ -496,17 +497,17 @@ sudo pacman -S --needed hyprland hyprlock hypridle hyprpolkitagent hyprshot \
                pacman-contrib xdg-terminal-exec cliphist wl-clipboard \
                gpu-screen-recorder slurp playerctl qt5ct qt6ct \
                nwg-look pavucontrol blueman nm-connection-editor \
-               gnome-calculator headsetcontrol jq ffmpeg inotify-tools zoxide \
+               gnome-calculator headsetcontrol matugen jq ffmpeg inotify-tools zoxide \
                git-delta aichat shellcheck zip unzip gcc make pkgconf gtk3 \
                json-glib python nodejs gjs ttf-firacode-nerd \
                ttf-cascadia-mono-nerd ttf-nerd-fonts-symbols noto-fonts \
                noto-fonts-emoji
 
-# AUR (paru or yay); python-pywal left the official repos
-paru -S --needed strata-bin zen-browser-bin vesktop waybar-weather python-pywal
+# AUR (paru or yay)
+paru -S --needed strata-bin zen-browser-bin vesktop waybar-weather
 
-# Initialise pywal and render every component's cache file
-wal -i ~/.config/wallpapers/wall1.jpg
+# Generate the palette and render every component's cache file
+~/.config/scripts/theming/generate-palette.sh ~/.config/wallpapers/wall1.jpg
 ~/.config/scripts/theming/apply-wal.sh
 
 # Wire the configured file manager and portal file chooser
@@ -556,10 +557,10 @@ not symlinks to another configuration tree.
 
 ## Troubleshooting
 
-**Colours not updating after `wal -i`:** plain `wal` recolours only the
-terminals; the rest of the desktop follows when the palette is fanned out.
+**Colours not updating after `generate-palette.sh`:** the generator writes
+the palette inputs; components update when the palette is fanned out.
 Changing the wallpaper with the carousel or `Super + Shift + W` does this for
-you; after a manual `wal -i`, run:
+you; after generating a palette manually, run:
 
 ```bash
 ~/.config/scripts/theming/apply-wal.sh
@@ -574,11 +575,16 @@ wallpaper and apply it everywhere:
 
 Running Ghostty and btop windows reload the new palette by themselves.
 
-**Pywal symlink broken:** `./doctor.sh` names it; the Hyprland pair is
-re-rendered with:
+**Palette symlink broken:** `./doctor.sh` names the missing palette or component
+output. A missing Hyprland palette (`~/.cache/wal/colors-hyprland.conf` or
+`.lua`) is an ERROR; a missing `~/.cache/wal/colors` or `roles` is a WARN,
+because components fall back to the built-in palette. Change the wallpaper
+(`Super + Ctrl + W`), or generate the palette from any wallpaper and re-render
+every component:
 
 ```bash
-~/.config/hypr/apply_wal_colors.sh
+~/.config/scripts/theming/generate-palette.sh ~/Pictures/Wallpapers/<wallpaper>
+~/.config/scripts/theming/apply-wal.sh
 ```
 
 **Waybar issues:** press `Super + Shift + B` to restart the bar.

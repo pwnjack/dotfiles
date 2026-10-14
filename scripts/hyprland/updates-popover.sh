@@ -23,11 +23,14 @@ if ipc toggle >/dev/null 2>&1; then exit 0; fi
 # shellcheck source=scripts/theming/palette.sh
 source "$config_dir/scripts/theming/palette.sh" || fail 'Cannot load the theme palette for the update card.'
 declare -a wal
+# shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
+declare -A role=()
 # Tested as a condition: under set -e a failure inside $(...) would end this
 # script silently. If the palette cannot be read, nothing is exported and the
 # card uses its built-in palette.
-if wal_load && foreground=$(wal_readable_on "${wal[0]}") && on_accent=$(wal_readable_on "${wal[4]}"); then
-    export UPDATES_BACKGROUND="${wal[0]}" UPDATES_ACCENT="${wal[4]}"
+if wal_load && role_load && foreground=$(wal_readable_on "${wal[0]}") \
+    && accent=$(wal_role primary) && on_accent=$(wal_role on_primary); then
+    export UPDATES_BACKGROUND="${wal[0]}" UPDATES_ACCENT="$accent"
     export UPDATES_FOREGROUND="$foreground" UPDATES_ON_ACCENT="$on_accent"
 fi
 export UPDATES_FONT UPDATES_CURSOR_X UPDATES_BAR_POSITION

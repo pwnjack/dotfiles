@@ -1,6 +1,6 @@
 --
 -- HYPRLAND CONFIGURATION
--- Modern dark theme - Pywal dynamic colors
+-- Modern dark theme - matugen dynamic colours
 --
 -- Keeping the configuration split into modules contains errors: Hyprland
 -- evaluates each require() in its own protected scope.

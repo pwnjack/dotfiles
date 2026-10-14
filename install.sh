@@ -105,7 +105,7 @@ PACKAGES=(
     # Clipboard, screenshots, screen recording, media
     "cliphist" "wl-clipboard" "gpu-screen-recorder" "slurp" "playerctl"
     # Theming
-    "python-pywal" "qt5ct" "qt6ct" "nwg-look"
+    "matugen" "qt5ct" "qt6ct" "nwg-look"
     # Applets and controls
     "pavucontrol" "blueman" "nm-connection-editor"
     "gnome-calculator"
@@ -228,18 +228,18 @@ if [ -d "$CONFIG_DIR/wallpapers" ]; then
 fi
 
 # ------------------------------------------------------------------
-# Pywal initialization
+# Palette initialization
 # ------------------------------------------------------------------
-info "Initializing pywal color scheme..."
+info "Initializing color palette..."
 FIRST_WALLPAPER="$CONFIG_DIR/wallpapers/wall1.jpg"
 if [ ! -f "$FIRST_WALLPAPER" ]; then
     FIRST_WALLPAPER=$(find "$HOME/Pictures/Wallpapers" -type f \( -iname "*.jpg" -o -iname "*.png" \) 2>/dev/null | head -n 1)
 fi
-if [ -n "$FIRST_WALLPAPER" ] && check_dependency "wal"; then
-    execute wal -i "$FIRST_WALLPAPER" -n -q
-    success "Pywal initialized"
+if [ -n "$FIRST_WALLPAPER" ] && check_dependency "matugen" \
+        && execute "$CONFIG_DIR/scripts/theming/generate-palette.sh" "$FIRST_WALLPAPER"; then
+    success "Palette initialized"
 else
-    warning "Could not initialize pywal - run 'wal -i /path/to/wallpaper' manually later"
+    warning "Could not generate a palette - change the wallpaper (Super+Ctrl+W) to retry"
 fi
 
 # Current-wallpaper state + generated configs (cache-backed, symlinked from the repo)
@@ -255,7 +255,7 @@ fi
 
 # Render every themed component's colors (cache-backed, reached from tracked
 # configs by symlink or include). The driver globs for the per-component
-# scripts, and each one produces its output even when pywal has not run, so
+# scripts, and each one produces its output even before palette generation, so
 # no component needs a fallback here.
 if ! execute "$CONFIG_DIR/scripts/theming/apply-wal.sh"; then
     warning "Some theme components failed; run scripts/theming/apply-wal.sh to retry"
@@ -277,7 +277,7 @@ if ! execute bash "$CONFIG_DIR/scripts/spotify/setup.sh"; then
     warning "Spotify desktop entry not set up; run scripts/spotify/setup.sh to retry"
 fi
 
-# With Spicetify set up, select the pywal-coloured theme and its live-recolour
+# With Spicetify set up, select the palette-coloured theme and its live-recolour
 # extension (Spicetify's own config is per-machine and untracked).
 if ! execute bash "$CONFIG_DIR/scripts/spotify/spicetify-theme.sh"; then
     warning "Spicetify theme not selected; run scripts/spotify/spicetify-theme.sh to retry"

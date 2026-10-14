@@ -4,7 +4,7 @@
 # delta pages diffs: syntax highlighting, word-level changes, line numbers.
 # Git starts a pager only when writing to a terminal, so scripts still read
 # plain output. Without delta it falls back to git's own less / plain diff.
-# syntax-theme = ansi follows the terminal's pywal palette; added and removed
+# syntax-theme = ansi follows the terminal's matugen palette; added and removed
 # lines keep delta's red and green, which a wallpaper palette cannot promise.
 [core]
 	pager = "if command -v delta >/dev/null 2>&1; then delta; else less; fi"

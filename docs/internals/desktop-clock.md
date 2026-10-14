@@ -1,6 +1,6 @@
 # Desktop clock
 
-An [eww](https://github.com/elkowar/eww) widget: the time in large bold type with the date beneath it, at the bottom right of the wallpaper (120 px in from the right, 50 px up, 500 px wide) on the `bg` layer, in the pywal foreground at 0.8 opacity. It is the repo's only eww window.
+An [eww](https://github.com/elkowar/eww) widget: the time in large bold type with the date beneath it, at the bottom right of the wallpaper (120 px in from the right, 50 px up, 500 px wide) on the `bg` layer, in the palette foreground at 0.8 opacity. It is the repo's only eww window.
 
 ## Pieces
 
@@ -10,7 +10,7 @@ An [eww](https://github.com/elkowar/eww) widget: the time in large bold type wit
   - `apply` re-reads the options, then closes the clock when it is disabled, or closes it, reloads eww and opens it again with the current format, font and monitor. The settings panel runs it after the toggle, the font or the 12/24 h choice changes, and after a new main display is chosen.
   - `reload` recolours or restyles a running clock and never starts one.
   - It does nothing when `eww` is not installed.
-- `eww/apply_wal_colors.sh` follows the rules in `theming.md`: it renders `~/.cache/wal/eww-colors.scss` (`$background`, `$foreground`) from the shared palette loader, with the fallback palette before pywal has run, and asks the owner script to reload a running clock only when the colour changed. `--no-reload` renders and stops.
+- `eww/apply_wal_colors.sh` follows the rules in `theming.md`: it renders `~/.cache/wal/eww-colors.scss` (`$background`, `$foreground`) from the shared palette loader, with the fallback palette before matugen has run, and asks the owner script to reload a running clock only when the colour changed. `--no-reload` renders and stops.
 
 ## Options
 

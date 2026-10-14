@@ -145,9 +145,9 @@ done
 style="$TEST_DIR/../../waybar/style.css"
 assert_contains "$(grep -n '@import' "$style")" '@import "bar.css"' "style.css imports bar.css"
 if [ "$(grep -n '@import "../../.cache/wal/colors-waybar.css"' "$style" | cut -d: -f1)" -lt "$(grep -n '@import "bar.css"' "$style" | cut -d: -f1)" ]; then
-    pass "bar.css is imported after the pywal colours"
+    pass "bar.css is imported after the palette colours"
 else
-    fail "bar.css is imported after the pywal colours"
+    fail "bar.css is imported after the palette colours"
 fi
 if sed -n '/^window#waybar {/,/^}/p' "$style" | grep -Eq 'background|border'; then
     fail "style.css must not set the bar's background, border or radius"

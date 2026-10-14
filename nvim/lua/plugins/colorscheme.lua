@@ -1,6 +1,6 @@
 -- Follow the wallpaper: pywal16.nvim reads ~/.cache/wal/colors-wal.vim, which
--- pywal writes on every `wal -i`. Before pywal has ever run that file does not
--- exist, so LazyVim's default tokyonight stays the fallback.
+-- nvim/apply_wal_colors.sh renders on every palette change. Before that file
+-- exists, LazyVim's default tokyonight stays the fallback.
 -- nvim/apply_wal_colors.sh re-applies the scheme in running instances.
 local function wal_colors()
   local cache = os.getenv("XDG_CACHE_HOME")

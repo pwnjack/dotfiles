@@ -1,13 +1,13 @@
 #!/bin/bash
 #
-# SwayNC Pywal Color Integration
-# Reloads SwayNC styles after pywal regenerates colors
+# SwayNC Matugen Color Integration
+# Reloads SwayNC styles after matugen regenerates colors
 #
 # SwayNC's style.css imports ~/.cache/wal/colors-waybar.css directly,
-# so we just need to trigger a style reload after pywal updates that file.
+# so we just need to trigger a style reload after matugen updates that file.
 #
 
-# Reload SwayNC styles to pick up new pywal colors
+# Reload SwayNC styles to pick up new matugen colors
 if pgrep -x swaync > /dev/null; then
     swaync-client -rs
 fi

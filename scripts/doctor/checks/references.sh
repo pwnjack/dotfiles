@@ -24,7 +24,7 @@
 #   them a line in its own test file.
 #
 #   Tracked symlinks. In this repo a tracked symlink always points into
-#   ~/.cache, so its content is written by pywal, waypaper or wal.sh, not by
+#   ~/.cache, so its content is written by the palette hooks or waypaper, not by
 #   this repo. A dangling reference in there is not something the user can fix
 #   by editing the repo — and the obvious hint, "drop the reference from
 #   waypaper/config.ini", would tell them to edit a cache file that waypaper
@@ -47,8 +47,8 @@
 #   A missing `source =` or require() target is an ERROR. The owning Hypr
 #   program loses that module — keybinds, rules, monitors, or lock styling.
 #
-#   A missing pywal cache is an ERROR. colors.lua/colors.conf dangle and the
-#   Hyprland or Hyprlock palette is unavailable.
+#   Missing generated Hyprland/Hyprlock palettes are ERRORs: their links dangle.
+#   Missing slots or roles are WARNs: palette.sh supplies fallback colours.
 #
 #   A missing literal ~/.config/... reference is a WARN. A script or config
 #   pointing at a file that is not there breaks that one feature when it is
@@ -91,7 +91,7 @@
 #
 
 # Cache root, overridable so the test suite can point at a throwaway directory
-# instead of the user's real pywal output.
+# instead of the user's real palette output.
 DOCTOR_CACHE="${DOCTOR_CACHE:-$HOME/.cache}"
 
 # The shape of a literal reference into this repo, as written in a config or a
@@ -256,16 +256,22 @@ _ref_check_literals() {
     done < <(git -C "$DOCTOR_ROOT" ls-files -z 2>/dev/null)
 }
 
-# _ref_check_pywal_cache — the generated palette every colour symlink resolves
-# to. Without them Hyprland's colors.lua or Hyprlock's colors.conf dangles, so
-# it is worth naming them directly rather than relying on the symlink check.
-_ref_check_pywal_cache() {
-    local palette missing=0
-    for palette in "$DOCTOR_CACHE/wal/colors-hyprland.conf" \
+# _ref_check_palette_cache — the generator's slots and roles, and the generated
+# outputs Hyprland's colors.lua and Hyprlock's colors.conf resolve to. Name
+# missing inputs directly as well as the symlinks that consume their outputs.
+_ref_check_palette_cache() {
+    local palette severity missing=0
+    for palette in "$DOCTOR_CACHE/wal/colors" \
+                   "$DOCTOR_CACHE/wal/roles" \
+                   "$DOCTOR_CACHE/wal/colors-hyprland.conf" \
                    "$DOCTOR_CACHE/wal/colors-hyprland.lua"; do
         [ -e "$palette" ] && continue
-        err "pywal cache missing: $palette" \
-            "$(doctor_q "$DOCTOR_ROOT/hypr/apply_wal_colors.sh")"
+        case "${palette##*/}" in
+            colors|roles) severity=warn ;;
+            *) severity=err ;;
+        esac
+        "$severity" "palette cache missing: $palette" \
+            "change the wallpaper (Super+Ctrl+W), or run $(doctor_q "$DOCTOR_ROOT/scripts/theming/generate-palette.sh") $(doctor_q /path/to/wallpaper.jpg) && $(doctor_q "$DOCTOR_ROOT/scripts/theming/apply-wal.sh")"
         missing=1
     done
     return "$missing"
@@ -281,7 +287,7 @@ check_references() {
     _ref_check_sources
     _ref_check_requires
     _ref_check_literals
-    _ref_check_pywal_cache
+    _ref_check_palette_cache
 
     # ok is the all-clear and nothing else. Gating it on the error count alone
     # would print a green tick over a warning the reader is meant to act on.

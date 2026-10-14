@@ -51,14 +51,15 @@ check "every value is bare six-digit hex, as color.ini requires"
 [ "$(grep -c '^\[pywal\]$' "$out")" -eq 1 ]
 check "the scheme is the [pywal] section the setup selects"
 
-# A near-black palette still layers, and the accent follows colour4.
+# A near-black palette still layers, and the accent follows primary.
+printf 'primary=#0000aa\n' > "$cache/wal/roles"
 palette 05090c 2a7789 4d7d85 318a9b 6097a1 8dafb4 9abbc2 cfddde \
         909a9b 2a7789 4d7d85 318a9b 6097a1 8dafb4 9abbc2 cfddde
 run
 [ "$(value main)" = 14191d ] && [ "$(value sidebar)" = 0b1013 ]
 check "a near-black colour0 is lifted to the band, with the sidebar a step below"
-[ "$(value button)" = 6097a1 ]
-check "the accent follows colour4"
+[ "$(value button)" = 5481e6 ]
+check "the accent follows primary with its OKLCH clamp"
 [ ! -e "$calls" ]
 check "nothing is refreshed without a spicetify config"
 

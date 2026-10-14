@@ -31,7 +31,7 @@ end
 # Starship prompt. Without this the CachyOS vendor fish_prompt stays in charge
 # and starship.toml is never read. Must come after the cachyos-config source
 # above, since that is what defines the prompt being replaced.
-# starship.toml is a symlink to the pywal-rendered copy in ~/.cache, so the
+# starship.toml is a symlink to the palette-rendered copy in ~/.cache, so the
 # prompt follows the wallpaper — see starship/apply_wal_colors.sh.
 if type -q starship
     starship init fish | source

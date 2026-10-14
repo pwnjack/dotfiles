@@ -403,7 +403,7 @@ Traps:
   before. Swapping the threshold to 0.01 and reloading produced a pixel-identical screenshot
   (layer rules apply when a surface maps), so nothing was tuned on a guess.
 - **A missing `bar.css` stops Waybar.** A missing JSON include is tolerated, a missing CSS
-  import is a stylesheet error Waybar exits on — the same as a missing pywal `colors-waybar.css`. So
+  import is a stylesheet error Waybar exits on — the same as a missing palette `colors-waybar.css`. So
   `install.sh` renders it, `waybar.sh` renders both includes before every start (the
   Restart Waybar button and the visibility toggle's start path both go through it), and
   `doctor.sh` reports the dangling `waybar/bar.css` symlink as an ERROR. Login's bare

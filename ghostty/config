@@ -26,7 +26,7 @@ window-padding-y = 5
 window-padding-balance = true
 gtk-custom-css = blur.css
 
-# pywal colors
+# matugen colours
 config-file = ?colors
 # The font, rendered from options/font by scripts/fonts/apply-font.sh
 # (ghostty/font is a symlink into ~/.local/state).

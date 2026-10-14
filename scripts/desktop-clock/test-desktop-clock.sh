@@ -3,7 +3,7 @@
 # desktop-clock.sh and eww/apply_wal_colors.sh against a stub `eww` that
 # records its calls and models a daemon with one window. HOME, the config and
 # the cache are throwaway directories: the real eww daemon, the real options
-# and the real pywal cache are never touched.
+# and the real matugen palette cache are never touched.
 #
 
 # shellcheck disable=SC2016  # the SCSS variables ($clock-font, $foreground) are literal text
@@ -202,11 +202,11 @@ for tool in bash mkdir mktemp mv rm cat sed; do ln -sf "$(command -v "$tool")" "
 HOME="$home" XDG_CONFIG_HOME="$cfg" XDG_CACHE_HOME="$cache" PATH="$tmp/min" "$tmp/min/bash" "$cfg/eww/apply_wal_colors.sh"
 assert_eq "$?:$([ -e "$cache" ] && echo wrote || echo clean)" "0:clean" "eww not installed: exit 0 and nothing written"
 
-# Fresh HOME, no pywal output: a valid partial from the fallback palette.
+# Fresh HOME, no matugen output: a valid partial from the fallback palette.
 reset; rm -rf "$cache"
 out=$(apply)
 assert_eq "$out" "" "a fresh cache renders silently"
-assert_eq "$(<"$colors_scss")" "$(printf '// Generated from the pywal palette by eww/apply_wal_colors.sh - do not edit\n$background: #05090C;\n$foreground: #cfddde;')" "the fallback palette's background and foreground"
+assert_eq "$(<"$colors_scss")" "$(printf '// Generated from the matugen palette by eww/apply_wal_colors.sh - do not edit\n$background: #0e1416;\n$foreground: #dee3e5;')" "the fallback palette's background and foreground"
 assert_not_contains "$(calls)" "reload" "no clock running: no reload"
 
 # Idempotent: the same palette neither rewrites nor reloads.

@@ -1,4 +1,4 @@
 # bat's own themes carry fixed colours. "ansi" uses the terminal's 16 colours,
-# which ghostty takes from pywal, so bat (and man pages: CachyOS sets
+# which ghostty takes from matugen, so bat (and man pages: CachyOS sets
 # MANPAGER to bat) follows the wallpaper with nothing to render.
 --theme=ansi

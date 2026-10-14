@@ -164,7 +164,7 @@
       "mode-mon-col": 3,
       "on-scroll": 1,
       // Hierarchy by alpha, never by hue. config.jsonc cannot reach the
-      // pywal palette -- @foreground is a CSS variable and these are Pango
+      // matugen palette -- @foreground is a CSS variable and these are Pango
       // markup -- so a literal colour here would be the one thing on the bar
       // that ignores the wallpaper. alpha dims whatever colour the tooltip
       // already inherited from `tooltip label` in style.css.

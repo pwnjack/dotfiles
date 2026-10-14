@@ -1,0 +1,14 @@
+# matugen renders nothing itself: scripts/theming/generate-palette.sh reads its
+# JSON and every component's apply_wal_colors.sh renders from that. The table
+# below must exist (matugen refuses a config without it) and stays empty.
+[templates]
+
+# Terminal colours with real hues, nudged toward the wallpaper's source colour
+# (blend = true), so red still reads as red. Palette slots 1-6 and 9-14.
+[config.custom_colors]
+red = { color = "#e5534b", blend = true }
+green = { color = "#57ab5a", blend = true }
+yellow = { color = "#c69026", blend = true }
+blue = { color = "#539bf5", blend = true }
+magenta = { color = "#b083f0", blend = true }
+cyan = { color = "#39c5cf", blend = true }

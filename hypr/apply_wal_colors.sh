@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-# Render the shared pywal palette in both formats used under hypr/:
+# Render the shared matugen palette in both formats used under hypr/:
 #
 #   colors.lua   -> Hyprland 0.55+
 #   colors.conf  -> hyprlock (which still uses Hyprlang)
 #
 # Both tracked paths are symlinks into ~/.cache/wal. Producing both files here
-# keeps a fresh checkout valid even when pywal itself is not installed yet.
+# keeps a fresh checkout valid even when matugen itself is not installed yet.
 
 set -uo pipefail
 

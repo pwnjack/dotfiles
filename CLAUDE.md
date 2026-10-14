@@ -2,7 +2,7 @@
 
 ## What this is
 
-Hyprland dotfiles for Arch Linux / CachyOS, self-contained at `~/.config`. Pywal derives a palette from the wallpaper and fans it out to every themed component.
+Hyprland dotfiles for Arch Linux / CachyOS, self-contained at `~/.config`. matugen derives a palette from the wallpaper and fans it out to every themed component.
 
 ## Key commands
 
@@ -11,7 +11,7 @@ Hyprland dotfiles for Arch Linux / CachyOS, self-contained at `~/.config`. Pywal
 ./doctor.sh                              # Validate live system (exit 1 only on ERROR)
 ./test.sh [--list]                       # Run every suite
 
-wal -i /path/to/wallpaper.jpg            # New scheme...
+scripts/theming/generate-palette.sh /path/to/wallpaper.jpg # New scheme...
 ~/.config/scripts/theming/apply-wal.sh   # ...fan out to every component
 ~/.config/hypr/apply_wal_colors.sh       # Re-render Hyprland/Hyprlock palette
 hyprctl reload                           # Reload Hyprland config
@@ -28,16 +28,16 @@ Deep dives live in `docs/internals/`. **Read the matching file before changing a
 
 `hypr/config/`: `colors.lua`, `colors.conf`, `apptype.lua`, `hardware/{monitor,input}.lua`, `hardware/primary.conf`, `looks/{decor,animations}.lua`, `setup/{envvars,autostart}.lua`, `software/{keybinds,general,rules,workspace_step}.lua`. `colors.conf` and `primary.conf` are Hyprlock-only symlinks to generated state. `hyprland.lua` loads the untracked `overrides.lua` last. Hyprlock, Hypridle and Hyprsunset are separate programs and keep their Hyprlang `.conf` files.
 
-### Pywal colour flow
+### Colour flow (matugen)
 
-`wal -i` -> `scripts/theming/apply-wal.sh`; `scripts/hyprland/wall.sh` triggers it on wallpaper change. Generated state lives under `~/.cache`; the repo tracks only symlinks to it. Components needing more than a plain include own `<component>/apply_wal_colors.sh`. The driver **globs** for them: adding one is one new file, with no edit to the driver, `wall.sh` or `install.sh`. Every one must:
+`scripts/theming/generate-palette.sh <img>` -> `scripts/theming/apply-wal.sh`; `scripts/hyprland/wall.sh` triggers it on wallpaper change. Generated state lives under `~/.cache`; the repo tracks only symlinks to it. Components needing more than a plain include own `<component>/apply_wal_colors.sh`. The driver **globs** for them: adding one is one new file, with no edit to the driver, `wall.sh` or `install.sh`. Every one must:
 
 1. Render into `~/.cache/wal/` and never write a tracked file.
-2. **Always leave its output existing**, falling back to defaults when pywal input is missing (a dangling tracked symlink is a doctor ERROR).
+2. **Always leave its output existing**, falling back to defaults when palette input is missing (a dangling tracked symlink is a doctor ERROR).
 3. Be idempotent, and a no-op when its component is not installed.
 4. Reload its own running consumer if possible; the driver knows nothing about `swaync-client` or `SIGUSR2`.
 
-Use `scripts/theming/palette.sh` (`wal_load`, `wal_readable_on`, `wal_oklch`), never re-parse pywal output. Never reload Waybar for a palette. Cava, starship, Vesktop and Zen are templated (`<component>/<name>.in`): **edit the `.in` file, never the symlink.** Read `docs/internals/theming.md` before touching a themed component or `wall.sh`.
+Use `scripts/theming/palette.sh` (`wal_load`, `role_load`, `wal_role`, `wal_readable_on`, `wal_oklch`), never re-parse matugen output. Never reload Waybar for a palette. Cava, starship, Vesktop and Zen are templated (`<component>/<name>.in`): **edit the `.in` file, never the symlink.** Read `docs/internals/theming.md` before touching a themed component or `wall.sh`.
 
 ### Components
 
@@ -84,7 +84,7 @@ Bash; check for command existence before running; read preferences from `options
 | Notifications | SwayNC (toast + sidebar) |
 | Shell | Fish + Starship |
 | Editor | Neovim (LazyVim) |
-| Theming | Pywal + GTK3/4 + Qt5/6 + Kvantum |
+| Theming | matugen + GTK3/4 + Qt5/6 + Kvantum |
 
 ## Conventions
 

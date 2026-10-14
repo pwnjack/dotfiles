@@ -33,17 +33,18 @@ out="$cache/wal/vesktop.theme.css"
 run() { XDG_CONFIG_HOME="$config" XDG_CACHE_HOME="$cache" bash "$repo/vesktop/apply_wal_colors.sh"; }
 
 mkdir -p "$cache/wal"
-for c in 101010 aa0000 00aa00 aaaa00 0000aa aa00aa 00aaaa aaaaaa \
+for c in 101010 aa0000 00aa00 aaaa00 0000bb aa00aa 00aaaa aaaaaa \
          555555 ff5555 55ff55 ffff55 5555ff ff55ff 55ffff ffffff; do
     echo "#$c"
 done > "$cache/wal/colors"
+printf 'primary=#0000aa\n' > "$cache/wal/roles"
 touch -h -d '2000-01-01' "$config/vesktop/themes/pywal.theme.css"
 run
-check "renders with a pywal palette"
+check "renders with a matugen palette"
 grep -q "from #101010 " "$out"
 check "the base follows colour0"
 grep -q "from #0000aa " "$out"
-check "the accent follows colour4"
+check "the accent follows primary"
 [ "$(stat -c %Y "$config/vesktop/themes/pywal.theme.css")" -gt 946684800 ]
 check "the themes-directory symlink is touched so Vesktop reloads"
 

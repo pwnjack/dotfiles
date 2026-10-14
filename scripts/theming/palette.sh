@@ -1,27 +1,34 @@
 #!/bin/bash
 #
-# Shared pywal palette loader, sourced by each component's apply_wal_colors.sh.
+# Shared matugen palette and semantic-role loader, sourced by each component.
+# wal_load() fills the caller's `wal` array with 16 hex colors in the fixed
+# slot order; role_load() fills the caller's `declare -A role=()` with all
+# fixed roles and primary tones. wal_role <name> returns a loaded role.
 #
-# Defines wal_load(), which fills the caller's `wal` array with 16 hex colors,
-# wal[0] (background) through wal[15]. pywal writes color0 and color7 as the
-# same values it reports for `background` and `foreground`, so no separate
-# parse is needed for those.
-#
-# It reads ~/.cache/wal/colors — 16 lines of plain hex — rather than
-# colors.sh, so loading the palette never evaluates a generated file as shell.
-#
-# When pywal has not run yet the fallback palette below is used instead of
-# failing. Every apply script must still produce output on a fresh checkout,
-# because the repo tracks a symlink to that output and a dangling tracked
-# symlink is an ERROR in doctor.sh.
+# Read ~/.cache/wal/colors (16 plain hex lines) and roles (name=#rrggbb),
+# never evaluating generated files as shell. Slots and roles fall back
+# independently until matugen first runs, including a slots-only older cache.
+# Every apply script must produce output on a fresh checkout: the repo tracks
+# symlinks to those outputs, and a dangling tracked symlink is a doctor ERROR.
 #
 
-# Neutral dark palette, used only until the first `wal -i` run.
+# Built-in palette, used only until the first generation: matugen's dark
+# scheme for #6097a1 in the fixed slot order (see matugen-to-wal.sh).
 _WAL_FALLBACK=(
-    '#05090C' '#2A7789' '#4D7D85' '#318A9B'
-    '#6097A1' '#8DAFB4' '#9ABBC2' '#cfddde'
-    '#909a9b' '#2A7789' '#4D7D85' '#318A9B'
-    '#6097A1' '#8DAFB4' '#9ABBC2' '#cfddde'
+    '#0e1416' '#ffb2bd' '#91d5ac' '#e0c56d'
+    '#98ccf9' '#c7bfff' '#81d3de' '#dee3e5'
+    '#899294' '#ffd9dd' '#adf2c7' '#fde186'
+    '#cbe6ff' '#e4dfff' '#9df0fb' '#dee3e5'
+)
+_ROLE_FALLBACK=(
+    surface=#0e1416 surface_container_low=#171d1e surface_container=#1b2122
+    surface_container_high=#252b2c surface_container_highest=#303637
+    on_surface=#dee3e5 on_surface_variant=#bfc8ca outline=#899294 outline_variant=#3f484a
+    primary=#82d3e1 on_primary=#00363d primary_container=#004f58 on_primary_container=#9eeffe
+    secondary_container=#334b4f on_secondary_container=#cde7ec
+    tertiary_container=#3b4665 on_tertiary_container=#dae2ff error=#ffb4ab on_error=#690005
+    primary_t30=#004f58 primary_t40=#006875 primary_t50=#008393 primary_t60=#009fb2
+    primary_t70=#24bcd0 primary_t80=#50d8ec primary_t90=#9bf0ff primary_t95=#d1f7ff
 )
 
 # Fills `wal` in the caller's scope. Callers declare it first so that the
@@ -50,6 +57,30 @@ wal_load() {
     else
         wal=("${_WAL_FALLBACK[@]}")
     fi
+}
+
+# Fills the caller's associative `role` array with every fixed name, then
+# overrides only known roles with valid lowercase hex from the cache.
+role_load() {
+    local roles_file="${XDG_CACHE_HOME:-$HOME/.cache}/wal/roles"
+    local entry name value
+
+    role=()
+    for entry in "${_ROLE_FALLBACK[@]}"; do
+        role[${entry%%=*}]=${entry#*=}
+    done
+    if [ -r "$roles_file" ]; then
+        while IFS='=' read -r name value || [ -n "$name" ]; do
+            [ -n "$name" ] || continue
+            if [[ ${role[$name]+present} && "$value" =~ ^#[0-9a-f]{6}$ ]]; then
+                role[$name]=$value
+            fi
+        done < "$roles_file"
+    fi
+}
+
+wal_role() {
+    printf '%s' "${role[$1]}"
 }
 
 # Echoes whichever of wal[0] / wal[15] stays legible as text on the given
@@ -82,6 +113,7 @@ wal_readable_on() {
 #
 # Copies a template with every @colorN@ replaced by wal[N] and every
 # @oncolorN@ by the text color readable on it. Call wal_load first.
+# When `role` is declared, replace @role_<name>@ too; call role_load first.
 #
 # Highest index first: @color1@ is a prefix of @color15@, so substituting it
 # first would leave a stray "5" behind.
@@ -92,6 +124,12 @@ wal_render() {
         sed_args+=(-e "s|@color$i@|${wal[$i]}|g")
         sed_args+=(-e "s|@oncolor$i@|$(wal_readable_on "${wal[$i]}")|g")
     done
+    if declare -p role >/dev/null 2>&1; then
+        local name
+        for name in "${!role[@]}"; do
+            sed_args+=(-e "s|@role_${name}@|${role[$name]}|g")
+        done
+    fi
     sed "${sed_args[@]}" "$1" > "$2"
 }
 

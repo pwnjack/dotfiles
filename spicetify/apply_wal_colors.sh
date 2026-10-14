@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Render the pywal palette as the colour scheme of the Pywal Spicetify theme,
+# Render the matugen palette as the colour scheme of the Pywal Spicetify theme,
 # and push it into a patched Spotify client.
 #
 # The tracked spicetify/Themes/Pywal/color.ini is a symlink to the file written
@@ -34,15 +34,18 @@ declare -a wal=()
 # shellcheck source=scripts/theming/palette.sh
 . "$config_dir/scripts/theming/palette.sh"
 wal_load
+# shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
+declare -A role=()
+role_load
 
 mkdir -p "$cache_dir"
 
 # Spicetify wants bare hex, without the '#'.
 base() { local c; c=$(wal_oklch "${wal[0]}" 0.21 0.26 0.04 "$1") && printf '%s' "${c#\#}"; }
-accent() { local c; c=$(wal_oklch "${wal[4]}" 0.62 0.75 0.16 "$1") && printf '%s' "${c#\#}"; }
+accent() { local c; c=$(wal_oklch "$(wal_role primary)" 0.62 0.75 0.16 "$1") && printf '%s' "${c#\#}"; }
 
 {
-    echo "; Generated from the pywal palette by spicetify/apply_wal_colors.sh - do not edit"
+    echo "; Generated from the matugen palette by spicetify/apply_wal_colors.sh - do not edit"
     echo "[pywal]"
     echo "text               = ffffff"
     echo "subtext            = b3b3b3"

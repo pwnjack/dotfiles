@@ -4,26 +4,22 @@
 # is a symlink to the copy rendered into ~/.cache/wal/ by
 # starship/apply_wal_colors.sh.
 #
-# @colorN@ is pywal's colorN. @oncolorN@ is whichever of the palette's darkest
-# and lightest colors stays legible as text on @colorN@, decided per wallpaper:
-# a palette can put color1 near black on one image and near white on the next,
-# so a fixed text color would be unreadable half the time.
-#
-# The powerline ramp runs color1 -> color6. pywal orders those by ascending
-# lightness, so the segments gradate left to right on their own.
+# Named tokens use matugen's semantic fills and matching text roles.
+# The powerline segments run through primary, primary and secondary containers,
+# the tertiary container, then raised surfaces. Separators match adjacent fills.
 
 add_newline = true
 
 format = """
-[ ](@color1@)\
+[ ](@role_primary@)\
 $python\
 $username\
-[](bg:@color2@ fg:@color1@)\
+[](bg:@role_primary_container@ fg:@role_primary@)\
 $directory\
-[](fg:@color2@ bg:@color3@)\
+[](fg:@role_primary_container@ bg:@role_secondary_container@)\
 $git_branch\
 $git_status\
-[](fg:@color3@ bg:@color4@)\
+[](fg:@role_secondary_container@ bg:@role_tertiary_container@)\
 $c\
 $elixir\
 $elm\
@@ -34,30 +30,30 @@ $julia\
 $nodejs\
 $nim\
 $rust\
-[](fg:@color4@ bg:@color5@)\
+[](fg:@role_tertiary_container@ bg:@role_surface_container_highest@)\
 $docker_context\
-[](fg:@color5@ bg:@color6@)\
+[](fg:@role_surface_container_highest@ bg:@role_surface_container_high@)\
 $os\
-[ ](@color6@)\
+[ ](@role_surface_container_high@)\
 """
 
 right_format = """
-[ ](@color6@)\
+[ ](@role_surface_container_high@)\
 $cmd_duration\
 $time
-[ ](@color6@)\
+[ ](@role_surface_container_high@)\
 """
 
 command_timeout = 500
 
 [username]
 show_always = true
-style_user = "bg:@color1@ fg:@oncolor1@"
-style_root = "bg:@color1@ fg:@oncolor1@"
+style_user = "bg:@role_primary@ fg:@role_on_primary@"
+style_root = "bg:@role_primary@ fg:@role_on_primary@"
 format = '[$user ]($style)'
 
 [directory]
-style = "bg:@color2@ fg:@oncolor2@"
+style = "bg:@role_primary_container@ fg:@role_on_primary_container@"
 format = "[ $path ]($style)"
 truncation_length = 3
 truncation_symbol = "…/"
@@ -70,92 +66,92 @@ truncation_symbol = "…/"
 
 [c]
 symbol = " "
-style = "bg:@color4@ fg:@oncolor4@"
+style = "bg:@role_tertiary_container@ fg:@role_on_tertiary_container@"
 format = '[ $symbol ($version) ]($style)'
 
 [docker_context]
 symbol = " "
-style = "bg:@color5@ fg:@oncolor5@"
+style = "bg:@role_surface_container_highest@ fg:@role_on_surface@"
 format = '[ $symbol $context ]($style) $path'
 
 [elixir]
 symbol = " "
-style = "bg:@color4@ fg:@oncolor4@"
+style = "bg:@role_tertiary_container@ fg:@role_on_tertiary_container@"
 format = '[ $symbol ($version) ]($style)'
 
 [elm]
 symbol = " "
-style = "bg:@color4@ fg:@oncolor4@"
+style = "bg:@role_tertiary_container@ fg:@role_on_tertiary_container@"
 format = '[ $symbol ($version) ]($style)'
 
 [git_branch]
 symbol = ""
-style = "bg:@color3@ fg:@oncolor3@"
+style = "bg:@role_secondary_container@ fg:@role_on_secondary_container@"
 format = '[ $symbol $branch ]($style)'
 
 [git_status]
-style = "bg:@color3@ fg:@oncolor3@"
+style = "bg:@role_secondary_container@ fg:@role_on_secondary_container@"
 format = '[$all_status$ahead_behind ]($style)'
 
 [golang]
 symbol = " "
-style = "bg:@color4@ fg:@oncolor4@"
+style = "bg:@role_tertiary_container@ fg:@role_on_tertiary_container@"
 format = '[ $symbol ($version) ]($style)'
 
 [haskell]
 symbol = " "
-style = "bg:@color4@ fg:@oncolor4@"
+style = "bg:@role_tertiary_container@ fg:@role_on_tertiary_container@"
 format = '[ $symbol ($version) ]($style)'
 
 [java]
 symbol = " "
-style = "bg:@color4@ fg:@oncolor4@"
+style = "bg:@role_tertiary_container@ fg:@role_on_tertiary_container@"
 format = '[ $symbol ($version) ]($style)'
 
 [julia]
 symbol = " "
-style = "bg:@color4@ fg:@oncolor4@"
+style = "bg:@role_tertiary_container@ fg:@role_on_tertiary_container@"
 format = '[ $symbol ($version) ]($style)'
 
 [nodejs]
 symbol = ""
-style = "bg:@color4@ fg:@oncolor4@"
+style = "bg:@role_tertiary_container@ fg:@role_on_tertiary_container@"
 format = '[ $symbol ($version) ]($style)'
 
 [nim]
 symbol = " "
-style = "bg:@color4@ fg:@oncolor4@"
+style = "bg:@role_tertiary_container@ fg:@role_on_tertiary_container@"
 format = '[ $symbol ($version) ]($style)'
 
 [python]
 symbol = " "
-# color1, not the language color the other runtimes use: $python sits in the
+# Uses primary to match the first segment: $python sits in the
 # first block of `format`, ahead of $username, so it has to match that block's
 # background or an active virtualenv punches a mismatched chunk into it.
-style = "bg:@color1@ fg:@oncolor1@"
+style = "bg:@role_primary@ fg:@role_on_primary@"
 format = '[(\($virtualenv\) )]($style)'
 
 [rust]
 symbol = " "
-style = "bg:@color4@ fg:@oncolor4@"
+style = "bg:@role_tertiary_container@ fg:@role_on_tertiary_container@"
 format = '[ $symbol ($version) ]($style)'
 
 [time]
 disabled = false
 time_format = "%R"
-style = 'fg:@oncolor6@ bg:@color6@'
+style = 'fg:@role_on_surface_variant@ bg:@role_surface_container_high@'
 format = '[ $time ]($style)'
 
 # Shares the time pill on the right; appears only once a command runs past
 # min_time, so quick commands leave the prompt unchanged.
 [cmd_duration]
 min_time = 2000
-style = 'fg:@oncolor6@ bg:@color6@'
+style = 'fg:@role_on_surface_variant@ bg:@role_surface_container_high@'
 format = "[ \U000F051B $duration ]($style)"
 
 [os]
 format = "[ $symbol ]($style)"
-style = 'fg:@oncolor6@ bg:@color6@'
+style = 'fg:@role_on_surface_variant@ bg:@role_surface_container_high@'
 disabled = false
 
 [os.symbols]

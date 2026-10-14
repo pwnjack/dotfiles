@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# Render the pywal foreground as the desktop clock's SCSS colour partial.
+# Render the palette foreground as the desktop clock's SCSS colour partial.
 #
 # eww/eww.scss imports ~/.cache/wal/eww-colors.scss. The partial is written
-# even before pywal has run (the shared loader supplies the fallback palette),
+# even before matugen has run (the shared loader supplies the fallback palette),
 # so the stylesheet never imports a missing file. Nothing is done when eww is
 # not installed; desktop-clock.sh renders the partial itself the first time it
 # starts the clock.
@@ -28,8 +28,8 @@ wal_load
 
 mkdir -p "$cache_dir"
 
-# pywal's foreground is colour 7, which is what the Ghostty include uses too.
-text="// Generated from the pywal palette by eww/apply_wal_colors.sh - do not edit
+# The palette's foreground is colour 7, which is what the Ghostty include uses too.
+text="// Generated from the matugen palette by eww/apply_wal_colors.sh - do not edit
 \$background: ${wal[0]};
 \$foreground: ${wal[7]};"
 

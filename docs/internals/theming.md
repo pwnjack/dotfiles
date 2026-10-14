@@ -1,61 +1,294 @@
-# Pywal colour flow and per-component theming
+# Colour flow (matugen) and per-component theming
 
-Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md` keeps the rules that must hold on every edit; this file has the reasoning and the traps.
+matugen derives a dark Material palette from the wallpaper. The cache stays
+under `~/.cache/wal/`, and component scripts render the same output filenames
+as before. The repo tracks symlinks to generated files, so a wallpaper change
+never dirties git. Existing theme names, CSS variables such as `--pywal-*`,
+and the Neovim plugin name are retained for compatibility.
 
-Wallpaper image -> `wal -i` -> `scripts/theming/apply-wal.sh` fans the palette out to every consumer. `hypr/apply_wal_colors.sh` renders `colors-hyprland.lua` for Hyprland and `colors-hyprland.conf` for Hyprlock; the tracked `colors.lua` and `colors.conf` files are symlinks to those cached outputs. Changing the wallpaper via `scripts/hyprland/wall.sh` triggers this pipeline automatically. Generated state lives under `~/.cache` (`current_wallpaper`, `wal/colors-hyprland.lua`, `wal/colors-hyprland.conf`, `wal/rofi-wallpaper.rasi`, `wal/colors-rofi.rasi`, `wal/colors-waybar.css`, `wal/ghostty-colors`, `wal/thunar-gtk.css`, `wal/strata-theme.toml`, `wal/cava-config`, `wal/btop.theme`, `wal/starship.toml`, `wal/vesktop.theme.css`, `wal/zen-userChrome.css`, `wal/spicetify-color.ini`, `wal/eww-colors.scss`, `waypaper-config.ini`); the repo tracks only symlinks to it, so wallpaper switches never dirty git.
+`~/.cache/wal/` contains `colors`, `roles`, `next/` (staging), `generation.log`, `wallpaper.lock`, `rofi-wallpaper.rasi`, `colors-hyprland.{conf,lua}`, `colors-rofi.rasi`, `colors-waybar.css`, `ghostty-colors`, `thunar-gtk.css`, `strata-theme.toml`, `cava-config`, `btop.theme`, `starship.toml`, `vesktop.theme.css`, `zen-userChrome.css`, `spicetify-color.ini`, `eww-colors.scss`, `colors-wal.vim` and `.eww-reload-failed`.
 
-Components that need more than a plain include own a `<component>/apply_wal_colors.sh`. `scripts/theming/apply-wal.sh` is the driver: it **globs** for those scripts rather than listing them, so adding a themed component is one new file — no edit to the driver, to `wall.sh`, or to `install.sh`. Both of those call the driver and name no component.
+## Generation and publication
 
-Waybar is never reloaded for a new palette: `reload_style_on_change` restyles it in place when `~/.cache/wal/colors-waybar.css` changes. A full reload rebuilds the bar, which drops its reserved zone and resizes every tiled window for a moment (ncurses apps such as tty-clock see a SIGWINCH). `waybar/style.css` imports that file by relative path, as `swaync/style.css` does, not through a symlink: Waybar 0.15's watcher resolves a symlinked import against its own working directory and silently watches nothing.
+The pipeline is wallpaper image → `scripts/theming/generate-palette.sh` →
+`wal/colors` and `wal/roles` → `scripts/theming/apply-wal.sh` → component
+outputs and reloads. `scripts/hyprland/wall.sh` runs it automatically after
+Waypaper or the wallpaper carousel changes the image. `install.sh` installs
+matugen and calls the same generator for the initial wallpaper.
 
-`wall.sh` holds a cache-backed `flock` while generating and applying a palette,
-reads the current selection after acquiring it, and reports generation or
-component failures; success posts no notification, since a toast would land
-on the transition. It generates into a staging
-cache (`PYWAL_CACHE_DIR=~/.cache/wal/next`, schemes shared by symlink) while
-awww's transition plays, and publishes with `wal --theme` 60% of the way
-through the transition Waypaper configured (`publish_delay_ns`) (`awww img` returns as it starts; Waypaper saves its
-config just after, which dates the newest change). Generating in place would
-publish at once, because consumers watch the cache. A wallpaper replaced during
-the wait is staged again; a run that queued behind one which already published
-the same palette exits quietly. `stat` and `awk` run under `LC_ALL=C`, because a
-comma-decimal locale (such as `it_IT`) changes their decimal point. The fan-out driver attempts all
-components and returns nonzero on partial failure; `install.sh` handles that
-status as a warning.
+To generate from an image manually, then update the components:
 
-Every `apply_wal_colors.sh` must:
+```bash
+~/.config/scripts/theming/generate-palette.sh /path/to/wallpaper.jpg
+~/.config/scripts/theming/apply-wal.sh
+```
+
+The generator accepts an optional output directory after the image. It runs
+matugen from a scratch directory with `--dry-run --json hex -q`, using
+`matugen/config.toml`, dark mode, the chosen options and the fallback seed
+`#6097a1` for flat or near-grey images. The config's `[templates]` table stays
+empty: matugen emits JSON; `scripts/theming/matugen-to-wal.sh` validates and
+converts it into sixteen plain hex lines in `colors` and `name=#rrggbb` lines
+in `roles`. Generated hex colours are lowercase. Missing matugen, failed
+image generation or invalid conversion returns 1 with a diagnostic and leaves
+the previous palette in place. matugen has a 30-second timeout, overridable
+with `GENERATE_TIMEOUT` for tests. Publication to the default cache takes
+`flock -w 30` on `wallpaper.lock` and renames `roles` before `colors`, restoring
+the previous roles if the second rename fails. Other output directories do
+not take this lock, so `wall.sh` can generate into staging while holding it.
+
+`wall.sh` holds a cache-backed `flock` across generation, publication and
+fan-out. It reads the current selection after taking the lock, so a queued
+request cannot restore an older wallpaper's palette. It generates into
+`~/.cache/wal/next` while awww's transition plays, then waits until
+`publish_delay_ns`: 60% of Waypaper's transition duration (the duration is
+capped at ten seconds). Instant and step-driven transitions do not wait. `awww img` returns
+as the transition begins; Waypaper saves its config just afterwards, dating
+the newest selection. `stat` and `awk` run under `LC_ALL=C` to keep decimal
+points stable in comma-decimal locales.
+
+If the selected wallpaper changes during the wait, it is staged again; after
+four rounds the newest queried selection is published without another wait.
+A queued run exits quietly if the preceding run already published that image
+and the staged slots and roles match. Publication copies complete files into
+a temporary directory on the same filesystem, then renames `roles` before
+`colors`, restoring the previous roles if the second rename fails. The lock
+keeps wallpaper runs serialised; component outputs update
+only when the driver subsequently renders them. Generation failure publishes
+nothing and sends a failure toast. The driver attempts every component and
+returns nonzero on partial failure; `wall.sh` names failed components in its
+toast, and `install.sh` reports a warning. Success posts no notification.
+
+`wall.sh` also maintains `~/.cache/current_wallpaper` and the launcher image
+include `wal/rofi-wallpaper.rasi`. Palette generation alone does not change
+the displayed wallpaper or that symlink.
+
+## Slots and roles
+
+`matugen/config.toml` defines red, green, yellow, blue, magenta and cyan as
+custom colours blended towards the wallpaper's source colour. The slot
+mapping is fixed; bright ANSI entries use the text colours of the custom
+containers, which remain readable on `surface`.
+
+| Slot | Meaning |
+|------|---------|
+| 0 | `surface` |
+| 1–6 | `red`, `green`, `yellow`, `blue`, `magenta`, `cyan` |
+| 7 | `on_surface` |
+| 8 | `outline` |
+| 9–14 | `on_red_container`, `on_green_container`, `on_yellow_container`, `on_blue_container`, `on_magenta_container`, `on_cyan_container` |
+| 15 | `on_surface` |
+
+Hyprland's active border uses `on_surface` (slot 7). Text accents use
+`primary` with `on_primary` on primary fills. Selections use container roles
+with their matching text roles; decorative ramps use primary tones.
+
+The fixed roles in `wal/roles` are:
+
+```text
+surface surface_container_low surface_container surface_container_high
+surface_container_highest on_surface on_surface_variant outline outline_variant
+primary on_primary primary_container on_primary_container secondary_container
+on_secondary_container tertiary_container on_tertiary_container error on_error
+primary_t30 primary_t40 primary_t50 primary_t60 primary_t70 primary_t80
+primary_t90 primary_t95
+```
+
+The primary tones come from matugen's `.palettes.primary`. Templates refer to
+roles with `@role_<name>@`, for example `@role_primary@`. Existing `@colorN@`
+and `@oncolorN@` tokens still select a slot and text readable on that slot.
+
+`scripts/theming/palette.sh` is the shared loader. `wal_load` fills the
+caller's `wal` array from `wal/colors`; `role_load` fills a declared
+associative `role` array from `wal/roles`; `wal_role <name>` returns a loaded
+role. Slots and roles fall back independently, so an old pywal cache without
+`roles` remains usable until the first generation. `wal_render` replaces slot,
+readable-text and role tokens after their loaders have run. Use these helpers
+instead of parsing matugen JSON in a component.
+
+`wal_readable_on <hex>` chooses the darkest or lightest palette text for a
+background using perceived brightness. `wal_oklch <hex> <lmin> <lmax> <cmax>
+[dl]` clamps OKLCH lightness and chroma, then applies a lightness offset; it is
+the hex equivalent of the CSS themes' `oklch(from …)` clamps for consumers
+such as Spicetify that take only hex.
+
+## Generator options and readability
+
+The generator reads three files in `options/`, with tracked defaults in
+`defaults/options/`. These are plain text preferences, independent of the
+settings panel:
+
+| File | Default | Controls |
+|------|---------|----------|
+| `theme-scheme` | `scheme-tonal-spot` | Material scheme: `scheme-content`, `scheme-expressive`, `scheme-fidelity`, `scheme-fruit-salad`, `scheme-monochrome`, `scheme-neutral`, `scheme-rainbow`, `scheme-tonal-spot` or `scheme-vibrant` |
+| `theme-contrast` | `0` | Contrast level from `-1` to `1` |
+| `theme-prefer` | `saturation` | Source-colour preference: `darkness`, `lightness`, `saturation`, `less-saturation`, `value` or `closest-to-fallback` |
+
+Surrounding whitespace and CR are trimmed. Missing files use the default
+quietly; invalid values warn and use the default. See `options.md` for the
+machine-state overlay that renders these files.
+
+`scripts/theming/score-palettes.py <directory>` generates and checks every
+JPEG, PNG and WebP image directly in the directory. It uses temporary user
+state and cache directories, prints each failing image and a final tally,
+and exits nonzero on generation or readability failure. For the wallpaper
+gallery:
+
+```bash
+python3 scripts/theming/score-palettes.py ~/Pictures/Wallpapers
+```
+
+The gate requires body text (slot 7) ≥ 7:1, muted text (slot 8) ≥ 3:1,
+`primary` ≥ 4.5:1 and each ANSI slot 1–6 ≥ 3:1 against `surface`. Red must
+have OKLCH hue in [350°, 50°], green in [110°, 170°], and both must have
+chroma ≥ 0.06. Thresholds stay fixed.
+
+## Component contract
+
+Components needing more than a plain include own a
+`<component>/apply_wal_colors.sh`. The driver **globs** for these scripts, so
+adding one requires no list change in the driver, `wall.sh` or `install.sh`.
+Every script must:
 
 1. Render into `~/.cache/wal/` and never write a tracked file.
-2. **Always leave its output existing**, falling back to defaults when the pywal input is missing. The repo tracks a symlink to that output, and a dangling tracked symlink is an ERROR in `doctor.sh` — on a fresh checkout the cache is empty.
-3. Be idempotent, and a no-op when its component is not installed.
-4. Reload its own running consumer if that is possible. The driver knows nothing about `swaync-client` or `SIGUSR2`. A background process it leaves running must not hold stderr open: `wall.sh` reads the driver's stderr to the end to name failed components in its toast, so a held stderr stalls every wallpaper change.
+2. **Always leave its output existing**, using the shared fallback when palette
+   input is missing. Missing `colors` or `roles` is a doctor WARN because the
+   loaders fall back; missing `colors-hyprland.conf` or `colors-hyprland.lua`
+   leaves a dangling tracked symlink and remains an ERROR. Change the wallpaper
+   (Super+Ctrl+W), or run the generator with an image and then `apply-wal.sh`.
+3. Be idempotent and do nothing to an absent consumer.
+4. Reload its own running consumer where possible. Background children must
+   not hold stderr open: `wall.sh` reads driver diagnostics to the end, so an
+   inherited stderr would stall wallpaper changes.
 
-`scripts/theming/palette.sh` is the shared loader: `wal_load` fills a `wal` array from `~/.cache/wal/colors` (with a built-in fallback palette), and `wal_readable_on <hex>` returns whichever of the darkest/lightest palette entries stays legible on that background. `wal_oklch <hex> <lmin> <lmax> <cmax> [dl]` is the hex form of the CSS themes' `oklch(from …)` clamp, for consumers that take only hex (Spicetify); it round-trips an unclamped colour, and clamping colour0 gives the same surfaces as the Vesktop and Zen CSS. Use it rather than re-parsing pywal output — a wallpaper palette gives no contrast guarantees, so any fixed text colour is unreadable on some wallpapers.
+Tests use temporary `HOME`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME` and runtime
+paths and stub session commands. Never run the wallpaper pipeline, overlay
+or apply scripts from a worktree against the running desktop's user state.
 
-Four components are templated (`<component>/<name>.in` -> rendered to cache -> a symlink to it, tracked for all but Zen): **cava** and **starship**, because neither program has an include mechanism, and **Vesktop** and **Zen** (below). Edit the `.in` file, never the symlink. cava is templated rather than using its native `theme =` support because cava 0.10.7, the version this was measured on, corrupts the heap on any vertical `gradient`, theme file or not — `horizontal_gradient` is the working path. **btop** uses its native theme directory instead (its script sends `SIGUSR2`, btop 1.4's hot reload, the same as Ctrl+R), and **fastfetch** needs nothing: its `keyColor` values and the distro logo are ANSI indices, which the terminal already resolves to the pywal palette. **bat** is the same (`bat/config` sets `--theme=ansi`; CachyOS makes it the `MANPAGER`). **Ghostty** includes the rendered `ghostty-colors` (`config-file = ?colors`), and its script sends `SIGUSR2` so running instances reload it. Its window is translucent, and `ghostty/blur.css` (`gtk-custom-css`) is what gets it blurred: GTK 4.24 attaches an ext-background-effect object to every window and leaves the blur region empty unless the toplevel has a `backdrop-filter`, and Hyprland honours an empty region over its own decoration blur. Ghostty's `background-blur` speaks only KDE's protocol and does nothing here. wal's live recolour is only OSC 4 overrides, and an OSC 104 reset falls back to the palette Ghostty last loaded. ncurses apps send that reset when they restart the screen (tty-clock does it on every resize), and a Waybar reload resizes windows for a moment. **Neovim** loads pywal's own `colors-wal.vim` through pywal16.nvim (`nvim/lua/plugins/colorscheme.lua`, tokyonight when that file is absent); `nvim/apply_wal_colors.sh` renders nothing and re-applies the scheme in running instances over their `$XDG_RUNTIME_DIR/nvim.<pid>.0` sockets with `--remote-expr`, never sending keys. The plugin does not set `g:colors_name`, so the plugin spec sets it from a `ColorScheme` autocmd; instances whose user picked another scheme are left alone. **Vesktop** renders `vesktop/pywal.theme.css.in` with `wal_render` into a Vencord theme; the tracked `vesktop/themes/pywal.theme.css` symlink is switched on once under Vencord's Settings > Themes, which is Vesktop's own state. It recolours surfaces only (backgrounds, borders, scrollbars, brand fills) and never a text or foreground variable, so every text pairing stays one Discord drew. The base is clamped in OKLCH to lightness 0.21–0.26 with capped chroma: the cap keeps surfaces inside Discord's own dark range, and the floor keeps its layering on a near-black palette. The accent is clamped to Discord's brand lightness, which its white button labels expect. Vesktop watches its themes directory, not the symlink's target, so the script runs `touch -h` on the symlink to recolour open windows live. **Zen** renders `zen/userChrome.css.in` the same way, with the same base clamp and a lighter accent (it marks tabs and focus rings rather than filling buttons under white labels), but its profile lives in `~/.zen`, outside the repo, so nothing tracked links to the output. Instead the script finds the profile Zen launches (the `[Install…]` `Default=` in `profiles.ini`, which can differ from the one marked `Default=1`), links its `chrome/userChrome.css` to the cache, and adds the `toolkit.legacyUserProfileCustomizations.stylesheets` pref to its `user.js`, once. A link to an earlier `zen-userChrome.css` is re-pointed; any other `userChrome.css` is the user's own and is left alone. Private and unsynced windows keep Zen's own look. Zen's gradient generator writes its colours as inline styles, the background on its own `.zen-browser-generic-background` elements rather than the root, so the CSS targets those elements with `!important`; the open address bar likewise paints from `--zen-urlbar-background-base` on `.urlbar-background`, not from `--zen-urlbar-background`, which nothing reads. It also pins the toolbar text to Zen's dark-mode white, because Zen picks that text colour for the gradient being replaced. Zen reads the file only at startup, so a new palette shows from the next launch. `test/test-theming.sh` runs every apply script with a throwaway `HOME` so that this one never touches a real profile. **eww** (the desktop clock) renders `wal/eww-colors.scss`, which `eww/eww.scss` imports by relative path; its script does nothing without eww, reloads a running clock through `scripts/desktop-clock/desktop-clock.sh` only when the foreground changed, and `desktop-clock.md` has the details. **Spotify** uses a tracked Spicetify theme, `spicetify/Themes/Pywal/`: a deliberately tiny `user.css` on Spotify's stock layout (generated class names are renamed between releases, which is what broke the third-party Tokyo theme's seek animation and volume bar), and a `color.ini` symlink to the scheme `spicetify/apply_wal_colors.sh` computes with `wal_oklch`. Text stays Spotify's white and grey. The script runs `spicetify -n refresh` only while Pywal is the selected theme, on an unpacked client, and never alongside `scripts/spotify/launch.sh`'s patch run: it takes the same lock, and when a patch holds it a detached waiter refreshes once the patch is done. `spicetify/Extensions/pywal-live.js` rereads `colors.css` every 3 s while the window is visible and adopts it as a constructed stylesheet, because Spicetify links `colors.css` from the body and a `<style>` in the head loses to it. `scripts/spotify/spicetify-theme.sh` (run by `install.sh`) selects the theme and extension once in Spicetify's untracked config; loading the extension the first time needs `spicetify apply` and a Spotify restart.
+## Component outputs and reloads
+
+`hypr/apply_wal_colors.sh` renders `colors-hyprland.lua` for Hyprland and
+`colors-hyprland.conf` for Hyprlock; tracked `colors.lua` and `colors.conf`
+link to those outputs. Waybar watches `wal/colors-waybar.css` with
+`reload_style_on_change`, so a new palette never reloads the bar. A full
+reload drops its reserved zone briefly and resizes tiled windows. Waybar and
+SwayNC import the cached stylesheet by relative path: Waybar 0.15 resolves a
+symlinked import against its own working directory and silently watches
+nothing. Shared GTK definitions expose semantic surfaces, selection pairs
+and errors for SwayNC and Thunar.
+
+Four components are templated: **cava**, **Starship**, **Vesktop** and **Zen**.
+Edit their `<name>.in` files, never the rendered copy or its symlink. cava and
+Starship have no include mechanism. cava uses `horizontal_gradient`: cava
+0.10.7 corrupts the heap on a vertical `gradient`, even with native themes.
+**btop** retains the `pywal` theme name and uses its native theme directory
+and `SIGUSR2` hot reload (the same
+as Ctrl+R in btop 1.4). cava, Starship and btop use primary tones and container
+pairs for their decorative ramps. **fastfetch** resolves its key colours and
+logo through ANSI indices; **bat** uses `--theme=ansi`, including man pages
+when CachyOS uses it as `MANPAGER`.
+
+**Ghostty** includes `wal/ghostty-colors` through `config-file = ?colors`.
+Its script sends `SIGUSR2` to reload the configured palette, then writes
+OSC 104/110/111/112 resets to writable, user-owned numeric ptys. These clear
+old indexed-colour, foreground, background and cursor overrides. pywal's
+OSC 4 overrides take precedence over the configured palette, so any window
+that received them would keep them. The resets let the palette reloaded by
+`SIGUSR2` show in open terminals. Each write has a one-second timeout;
+`WAL_PTS_DIR` points tests at fake ptys. ncurses applications also reset indexed
+colours when rebuilding their screens. Ghostty's translucent window uses
+`ghostty/blur.css`: GTK 4.24 leaves its ext-background-effect blur region
+empty unless the toplevel has a `backdrop-filter`, which Hyprland honours.
+Ghostty's `background-blur` speaks KDE's protocol and does nothing here.
+
+**Neovim** gets `wal/colors-wal.vim` from `nvim/apply_wal_colors.sh`, which
+renders the layout the retained `pywal16.nvim` plugin expects. When that file
+is absent, LazyVim uses tokyonight. The script re-applies the scheme over
+`$XDG_RUNTIME_DIR/nvim.<pid>.0` sockets with bounded `--remote-expr` calls,
+never sending keys. The plugin does not set `g:colors_name`, so the plugin
+configuration records it in a `ColorScheme` autocmd. Instances whose user
+chose another scheme are left alone.
+
+**Vesktop** renders `vesktop/pywal.theme.css.in` into `wal/vesktop.theme.css`.
+Enable the tracked `vesktop/themes/pywal.theme.css` link once in Vencord's
+Settings > Themes. It recolours surfaces, borders, scrollbars and brand fills,
+leaving Discord's text variables alone. The base clamps OKLCH lightness to
+0.21–0.26 with capped chroma; the primary accent is clamped to the brand
+lightness expected by white button labels. Vesktop watches the themes
+directory rather than the symlink target, so `touch -h` on the link recolours
+open windows.
+
+**Zen** renders `zen/userChrome.css.in` into `wal/zen-userChrome.css` with the
+same base clamp and a lighter primary accent for tabs and focus rings. Its
+script finds the launched profile via the `[Install…]` `Default=` entry in
+`~/.zen/profiles.ini`, links `chrome/userChrome.css` to the cache and enables
+`toolkit.legacyUserProfileCustomizations.stylesheets` in `user.js` once. It
+repoints an earlier link to this cache but leaves another user stylesheet
+alone. Private and unsynced windows retain Zen's own look. The CSS overrides
+inline gradients on `.zen-browser-generic-background`, sets the open address
+bar's `--zen-urlbar-background-base`, and pins toolbar text to dark-mode white.
+Zen reads the stylesheet at startup; a new palette appears at the next launch.
+
+**eww** renders `wal/eww-colors.scss`, imported by relative path from
+`eww/eww.scss`. It does nothing without eww and reloads a running clock through
+`scripts/desktop-clock/desktop-clock.sh` only when the colours change. See
+`desktop-clock.md`.
+
+**Spotify** retains the tiny `spicetify/Themes/Pywal/` theme on its stock
+layout. `color.ini` links to `wal/spicetify-color.ini`, computed with
+`wal_oklch` and the primary role; text stays Spotify's white and grey. The
+script runs `spicetify -n refresh` only for the selected Pywal theme on an
+unpacked client. It shares the patch lock with `scripts/spotify/launch.sh`;
+a detached waiter refreshes after an in-progress patch finishes.
+`spicetify/Extensions/pywal-live.js` rereads `colors.css` every three seconds
+while the window is visible and adopts it as a constructed stylesheet, since
+a head `<style>` loses to Spicetify's body stylesheet. The installer runs
+`scripts/spotify/spicetify-theme.sh` to select the retained theme and extension
+in untracked config. First loading the extension requires `spicetify apply`
+and a Spotify restart.
 
 ## Strata
 
-`strata/apply_wal_colors.sh` renders `~/.cache/wal/strata-theme.toml` through
-the shared palette loader, with fallback colours before pywal has run. The
-tracked `strata/themes/tokyo-night.toml` symlink replaces Strata's bundled
-default theme, so a fresh install uses the palette without setup. Strata's
-own docs name Azure Glow as the default, but a fresh `settings.toml` selects
-`tokyo-night` (Azure Glow is only the fallback for an unknown saved theme);
-if upstream changes that, "Pywal" still appears under Your themes. Users can
-still choose another theme in Strata. The TOML file contains `name = "Pywal"`
-and fourteen hex colours, including five syntax colours. Its base is clamped
-in OKLCH into a dark or light band; foregrounds remain readable against the
-base and surface, and text against muted and highlight. Thunar's GTK3 hook
-and import remain available. GTK4 CSS is left to the GTK theme managed by
-nwg-look; `gtk-4.0/settings.ini` remains rendered machine state.
+`strata/apply_wal_colors.sh` renders `wal/strata-theme.toml` with the shared
+fallback before matugen has run. The tracked `strata/themes/tokyo-night.toml`
+link replaces the bundled default, so fresh installs use the palette without
+setup. Strata's documentation names Azure Glow as the default, but fresh
+settings select `tokyo-night`; Azure Glow is the fallback for an unknown saved
+theme. The custom theme appears as **Wallpaper** under Your themes, with
+`name = "Wallpaper"` and fourteen hex colours including five syntax colours.
+Users can still choose another theme.
 
-Strata hard-codes JetBrains Mono, so a fontconfig rule scoped to its prgname
-`io.github.lgse.Strata` maps that family to `options/font`. This is Strata's
-application ID, not `strata`, and it reads the rule at startup.
+The base is clamped to a dark or light band. Foregrounds remain readable on
+the base and surface, and text on muted and highlight. Its accent comes from
+`primary`; destructive actions stay red. Thunar's GTK3 hook and import remain
+available, while GTK4 CSS belongs to the GTK theme managed by nwg-look;
+`gtk-4.0/settings.ini` remains rendered machine state.
 
-Strata reads themes only at startup. Normal windows exit with the last
-window; an idle `--portal` chooser exits about two minutes after its last
-dialog. Open windows and an idle chooser keep the old palette until that
-process exits. The hook writes only cache files and never launches or
-restarts Strata.
+Strata hard-codes JetBrains Mono, so a fontconfig rule scoped to its
+`io.github.lgse.Strata` application ID maps that family to `options/font`.
+The rule is read at startup.
+
+Strata reads themes only at startup and has no live reload (upstream #1620).
+Normal windows exit with the last window; an idle `--portal` chooser exits
+about two minutes after its last dialogue. Open windows and an idle chooser
+keep the old palette until the process exits. The hook writes cache files
+and never launches or restarts Strata.
+
+## The way back
+
+The `theming-pywal` tag marks the earlier configuration; `theming-matugen`
+marks the migration merge. To return to pywal, revert that merge, reinstall
+the generator and regenerate from the current wallpaper:
+
+```bash
+git revert -m 1 theming-matugen
+paru -S python-pywal
+wal -n -i "$(readlink -f ~/.cache/current_wallpaper)"
+~/.config/scripts/theming/apply-wal.sh
+hyprctl reload
+```
+
+Run this from the live configuration checkout. Reload Hyprland after the
+revert because it rewrites Lua configuration. The cache directory and
+component output filenames are unchanged, so the earlier scripts can consume
+the regenerated palette.

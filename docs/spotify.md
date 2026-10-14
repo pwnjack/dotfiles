@@ -1,4 +1,4 @@
-# Spotify: SpotX ad-blocking and the pywal theme
+# Spotify: SpotX ad-blocking and the wallpaper theme
 
 [SpotX-Bash](https://github.com/SpotX-Official/SpotX-Bash) patches the Spotify
 client so the free tier plays without ads: audio ads are never fetched, and
