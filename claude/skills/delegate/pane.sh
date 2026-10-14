@@ -170,7 +170,10 @@ if [ -n "$kind" ]; then
     '[.result.agents[] | select(.tab_id == $tab and ((.name // "") | startswith("dlg-")))] | last | .pane_id // empty')
   if [ -n "$column" ]; then split=(--pane "$column" --direction down)
   else split=(--pane "$HERDR_PANE_ID" --direction right); fi
-  pane=$(herdr pane split "${split[@]}" --ratio 0.5 --no-focus \
+  # The worker starts where the caller runs (a worktree, for SDD), not in the
+  # orchestrator pane's directory: Codex's sandbox and Claude's project are
+  # rooted there, and anything outside asks for approval on every edit.
+  pane=$(herdr pane split "${split[@]}" --cwd "$PWD" --ratio 0.5 --no-focus \
     | jq -r '.result.pane_id // .result.pane.pane_id // empty')
   [ -n "$pane" ] || { echo "NOSTART pane= report=$report elapsed=0s"; echo "pane split failed"; exit 7; }
   herdr agent start "$name" --kind "$kind" --pane "$pane" --timeout 60000 -- "${args[@]}" >/dev/null \

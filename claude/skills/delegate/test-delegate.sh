@@ -166,7 +166,8 @@ S=$STATE
 report='{"status":"complete","summary":"s","files_changed":[],"commands_run":[],"tests_run":[],"blockers":[],"concerns":[]}'
 case "$1 $2" in
   "agent list") echo '{"result":{"agents":[]}}' ;;
-  "pane split") [ "$SCEN" = splitfail ] && echo '{}' || echo '{"result":{"pane_id":"p1"}}' ;;
+  "pane split") printf '%s\n' "$@" > "$S/split"
+                [ "$SCEN" = splitfail ] && echo '{}' || echo '{"result":{"pane_id":"p1"}}' ;;
   "pane close") touch "$S/closed" ;;
   "agent start") printf '%s\n' "$@" > "$S/start"; [ "$SCEN" = gate ] && echo "Do you trust this folder?" > "$S/screen"; exit 0 ;;
   "agent read") cat "$S/screen" 2>/dev/null ;;
@@ -237,6 +238,10 @@ if grep -qx -- claude "$tmp/state-claude/start" && grep -A1 -x -- --model "$tmp/
 then echo "ok   pane claude: launched as a sonnet leaf worker"; else echo "FAIL pane claude: launch args $(cat "$tmp/state-claude/start")"; fail=1; fi
 if grep -qx -- codex "$tmp/state-happy/start" && grep -A1 -x -- -m "$tmp/state-happy/start" | grep -qx gen9-sol
 then echo "ok   pane codex: launched with the resolved model"; else echo "FAIL pane codex: launch args $(cat "$tmp/state-happy/start")"; fail=1; fi
+# The pane opens in the caller's directory (an SDD worktree), not the
+# orchestrator's: a worker's sandbox is rooted there.
+if grep -A1 -x -- --cwd "$tmp/state-happy/split" | tail -1 | grep -qxF -- "$PWD"
+then echo "ok   pane split: opens in the caller's directory"; else echo "FAIL pane split: args $(cat "$tmp/state-happy/split")"; fail=1; fi
 # Claude workers start with Superpowers off: a leaf that brainstorms waits for
 # an approval no one gives. Codex has no such switch for a remote plugin, so
 # no dead override is passed.
