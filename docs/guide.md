@@ -576,11 +576,14 @@ wallpaper and apply it everywhere:
 Running Ghostty and btop windows reload the new palette by themselves.
 
 **Palette symlink broken:** `./doctor.sh` names the missing palette or component
-output. Missing `~/.cache/wal/colors` or `~/.cache/wal/roles` is an ERROR.
-Generate the palette from the current wallpaper, then re-render every component:
+output. A missing Hyprland palette (`~/.cache/wal/colors-hyprland.conf` or
+`.lua`) is an ERROR; a missing `~/.cache/wal/colors` or `roles` is a WARN,
+because components fall back to the built-in palette. Change the wallpaper
+(`Super + Ctrl + W`), or generate the palette from any wallpaper and re-render
+every component:
 
 ```bash
-~/.config/scripts/theming/generate-palette.sh "$(readlink -f ~/.cache/current_wallpaper)"
+~/.config/scripts/theming/generate-palette.sh ~/Pictures/Wallpapers/<wallpaper>
 ~/.config/scripts/theming/apply-wal.sh
 ```
 

@@ -50,7 +50,7 @@ contrast=$(read_option theme-contrast 0 '^-?(0(\.[0-9]+)?|1(\.0+)?)$')
 prefer=$(read_option theme-prefer saturation '^(darkness|lightness|saturation|less-saturation|value|closest-to-fallback)$')
 
 scratch=$(mktemp -d)
-if ! (cd "$scratch" && timeout "${GENERATE_TIMEOUT:-30}" matugen image "$image" -c "$config/matugen/config.toml" \
+if ! (cd "$scratch" && timeout -k 5 "${GENERATE_TIMEOUT:-30}" matugen image "$image" -c "$config/matugen/config.toml" \
     -m dark -t "$scheme" --contrast "$contrast" --prefer "$prefer" \
     --fallback-color '#6097a1' --dry-run --json hex -q > "$scratch/matugen.json"); then
     echo "generate-palette: matugen failed for $image" >&2
@@ -66,7 +66,7 @@ fi
 # staging directory must never take the lock that wall.sh already holds.
 if [ "$out" -ef "$default_out" ]; then
     exec 9>"$out/wallpaper.lock"
-    flock -w 30 9
+    flock -w 30 9 || { echo 'generate-palette: timed out waiting for wallpaper.lock' >&2; exit 1; }
 fi
 # Reject non-file targets before replacing either member of the palette.
 for name in colors roles; do
