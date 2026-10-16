@@ -143,7 +143,7 @@ rule update.
 - **`no_blur`, `no_shadow`, `decorate off`** — stop the compositor spending
   anything on effects behind a fullscreen game.
 - **`workspace 5` + `fullscreen on`** — the game gets its own workspace, so
-  `$Mod+1..4` still flips to a browser without disturbing it.
+  `Super+1..4` still flips to a browser without disturbing it.
 - **`idle_inhibit fullscreen`** — added 2026-07-26. Nothing in the
   wine/gamescope chain sends an idle inhibit, so `hypridle` would lock the
   screen at its idle timeout (`hypr/hypridle.conf`) over a fullscreen game
@@ -223,7 +223,7 @@ dissolved on inspection:
   zone, so a fullscreen window already occludes it completely. Hiding it gains
   no screen space during play, and would remove the bar exactly during the
   workspace-switched moments when it's wanted.
-- The real workflow is `$Mod+1..4` to a browser workspace and back, not
+- The real workflow is `Super+1..4` to a browser workspace and back, not
   alt-tabbing out of a fullscreen window. Anything scoped to "the game is
   *running*" is therefore wrong; it has to be scoped to "the game is
   *focused*". `gamemode`'s `start=`/`end=` hooks are process-lifetime only, so

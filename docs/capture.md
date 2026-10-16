@@ -105,8 +105,13 @@ lock screen.
 
 The guard fails closed: `flock -w 1` serialises callers, and only a running
 hyprlock of the same user skips locking (a stale one still counts as locked).
-hypridle's `lock_cmd` is `lock.sh`, and `before_sleep_cmd` runs
-`loginctl lock-session`, so idle locking and suspend save the recording too.
+Arguments go on to hyprlock. hypridle's `lock_cmd` is `lock.sh`, and
+`before_sleep_cmd` runs `loginctl lock-session`, so suspend saves the recording
+too. The idle listener (`$lock_timeout`, 30 minutes by default) runs
+`lock.sh --grace 5` directly, so the same save happens, and for five seconds a
+key press or a mouse move dismisses that lock without a password. Super+L, the
+power menu and before-sleep ask for the password at once. hyprlock times the
+grace by wall clock, so a suspend inside the window ends it.
 hypridle has `inhibit_sleep = 3` (sleep waits until the session is locked)
 because its auto mode keys on the string "hyprlock" in `lock_cmd`, which
 lock.sh's path lacks.

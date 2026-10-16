@@ -16,8 +16,8 @@ with Firefox gone (gh failed to open its login page). **xdg-terminal-exec**
 apps and uwsm; `scripts/settings/terminal.sh` (install.sh, and the panel's
 Terminal row) writes the untracked `~/.config/xdg-terminals.list` naming the
 TerminalEmulator entry whose `Exec` runs `options/terminal`, and leaves a
-hand-written list alone. **D-Bus `FileManager1`** is `file-manager.sh`'s (see
-Capture bar). **Portal `FileChooser`** is `file-chooser.sh`'s (see below).
+hand-written list alone. **D-Bus `FileManager1`** is `file-manager.sh`'s and
+**portal `FileChooser`** is `file-chooser.sh`'s (both below).
 `TERM` is never set by config: each terminal sets it.
 `check_defaults` warns when a variable in this shell or the systemd manager,
 xdg-terminal-exec, or a `mimeapps.list` entry whose desktop file exists names a

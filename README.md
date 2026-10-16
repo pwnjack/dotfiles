@@ -31,27 +31,28 @@ you have no login manager, type `start-hyprland` in the console.
 
 - **Colours that follow the wallpaper**: Hyprland, Hyprlock, Waybar, Rofi,
   notifications, Ghostty and its TUI apps (btop, cava, the Starship prompt),
-  Neovim, Strata, Thunar, Discord (Vesktop), Zen Browser and Spotify all re-theme
-  when the wallpaper changes. Strata, Thunar and Zen pick
+  Neovim, Strata, Thunar, the desktop clock, Discord (Vesktop), Zen Browser and
+  Spotify all re-theme when the wallpaper changes. Strata, Thunar and Zen pick
   up the new palette on their next launch; the other apps recolour open windows.
   The login screen follows too.
   Strata is the default file manager; Thunar stays installed and themed, and
   remains the second `inode/directory` association. Super+E and “Show in folder”
   follow `options/filemanager`. Without the AUR package, pick Thunar in the
   settings panel.
-- **Settings panel** for appearance, the bar, windows, animations,
-  notifications, network, devices, displays, sound, power, keyboard and mouse,
-  accessibility, date and region, startup apps and default apps, without
-  editing config files.
+- **Settings panel** for appearance (including the palette scheme and contrast),
+  the bar, windows, animations, notifications, network, devices, displays,
+  sound, power, keyboard and mouse, accessibility, date and region, calendar,
+  startup apps and default apps, without editing config files.
 - **Capture bar** for screenshots and screen recording, with annotation.
 - **iCloud calendar** beside the clock, with the next event on the bar and a
   card to add, edit and delete events ([docs](docs/calendar.md)).
 - **Wallpaper carousel**, a searchable **keybindings overlay**, and an
   **update card** that runs system updates from the bar.
 - **Native workspace dots** on the bar, with smooth animation.
-- **Night light** on a schedule, an **AI sidebar** (aichat), **virtual 7.1
-  surround** for headphones, and a themed **Spotify** that SpotX keeps
-  ad-free (when it is installed with spotify-launcher).
+- **Night light** on a schedule, a **desktop clock** on the wallpaper (eww), an
+  **AI sidebar** (aichat), **virtual 7.1 surround** for headphones, and a
+  themed **Spotify** that SpotX keeps ad-free (when it is installed with
+  spotify-launcher).
 - **`./doctor.sh`** checks the live system against the config and tells you
   what is broken and how to fix it.
 

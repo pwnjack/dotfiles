@@ -17,11 +17,19 @@ traps live here.
 | `codex/*.toml` | `~/.codex/config.toml` | merged by `codex/apply-config.sh` |
 
 `scripts/agents/setup.sh` does all of it, skips any tool that is absent, moves
-an existing file aside instead of deleting it, and deletes links into this repo
-whose target is gone. The global files are not named `CLAUDE.md`/`AGENTS.md` so
-that neither loads as a nested project file. Neither live settings file can be
-a symlink, because the tools write to them. Edit the tracked file, then run the
-apply script.
+an existing file aside instead of deleting it (into
+`~/.local/state/dotfiles-agents-backup/<time>/`, outside the directories the
+agents scan), deletes links into this repo whose target is gone, and has Herdr
+install its own agent-state hooks for each tool that is present. The global
+files are not named `CLAUDE.md`/`AGENTS.md` so that neither loads as a nested
+project file. Neither live settings file can be a symlink, because the tools
+write to them. Edit the tracked file, then run the apply script.
+
+The tracked `claude/settings.json` also carries a `permissions.deny` list that
+keeps agents out of the secrets (`.env` files, `~/.ssh`, `~/.gnupg`, the
+calendar and vdirsyncer data), the Agent-tool guard hook, the status line
+command and the plugin list. `codex/statusline.toml` is the tracked slice of
+Codex's `config.toml`.
 
 Never tracked: logins, history, memory, caches, plugin checkouts, and anything
 a tool writes into its own config (Herdr's agent-state hooks, project trust,
@@ -51,8 +59,11 @@ task, it belongs in a skill or in this directory.
   cache and the extra mandates are gone.
 - **Every worker runs in a Herdr pane**, Claude and Codex alike, so the user
   can watch it work (the user's call, 2026-10-13). `pane.sh` spawns, prompts and
-  waits in one background call. The Agent tool is only the Claude fallback
-  outside Herdr; it honours `model` (Haiku verified as Haiku, 2026-10-13).
+  waits in one background call. The first worker splits the orchestrator's
+  pane to the right, later ones stack below the newest worker, and each opens
+  in the caller's directory, so an SDD worktree is the worker's project root
+  and sandbox. The Agent tool is only the Claude fallback outside Herdr; it
+  honours `model` (Haiku verified as Haiku, 2026-10-13).
 - **Superpowers dispatches are roles.** Its skills name the Agent tool for
   every implementer and reviewer; the `delegate` skill maps each one onto a
   pane, picks its model from the same table, and keeps every reviewer
@@ -168,6 +179,13 @@ task, it belongs in a skill or in this directory.
 - **Codex:** the ECC plugin (281 skills, a session bootstrap and an MCP server
   in every Codex session, workers included) and the mgrep MCP server were
   turned off in `~/.codex/config.toml`. That is machine state, not tracked.
+
+## Status lines
+
+`claude/statusline.sh` prints the model and effort, the context as a one-cell
+pie with token counts, and the 5-hour and 7-day limits as FiraCode progress
+bars with their reset times (12 h or 24 h, following `options/clock`). Codex
+shows the equivalent fields from `codex/statusline.toml`.
 
 ## Tests
 

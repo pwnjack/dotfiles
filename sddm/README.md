@@ -56,7 +56,8 @@ and whether the greeter image is older than the newest awww cache trigger.
    notices the awww cache update and runs `update_sddm.sh`.
 2. **Wallpaper detection**: the helper, running as the target user, reads the
    awww cache (`~/.cache/awww/<version>/<monitor>`), falling back to the
-   `~/.config/options/wallpaper` symlink.
+   `~/.config/options/wallpaper` symlink (a tracked symlink to
+   `~/.cache/current_wallpaper`, which `wall.sh` points at the image).
 3. **Conversion**: `ffmpeg` decodes the image as the target user and streams a
    JPEG to a root-created temporary file for the theme configured in
    `/etc/sddm.conf` (default `sddm-astronaut-theme`, which is also updated

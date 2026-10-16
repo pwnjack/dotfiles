@@ -16,8 +16,9 @@ columns, and exits on close.
   starts scrolled to the top. Only the text is centred; the caret and the
   `N of M` count hang off its right edge.
 - The wheel scrolls by pixels, and only when the columns overflow the output.
-- Colours come from `palette.sh` at launch; accent text falls back to the
-  foreground when the accent is below 3:1 on the background (`sheet.mjs`).
+- Colours come from `palette.sh` at launch (the accent is matugen's `primary`
+  role); accent text falls back to the foreground when the accent is below 3:1
+  on the background (`sheet.mjs`).
 - The backdrop blur is the `blur-keybinds-overlay` layer rule in `rules.lua`.
 - Every size is a 1080p size times `uiScale`: the output's height, or the
   height a 16:9 output of its width would have if that is smaller, over

@@ -45,9 +45,16 @@ On every start the wrapper:
    - `spicetify restore` if Spicetify has unpacked the client (no
      `Apps/xpui.spa`), because SpotX only patches the packed file;
    - runs `spotx.sh` with
-     `--noninteractive --nocolor -f -P <client>` (free tier; `-f` makes a rerun after a
-     partial failure start from SpotX's own backup of the stock files); if it
+     `--noninteractive --nocolor -f -P <client>` (no `-p`, so the free tier; `-f` forces
+     a rerun after a partial failure, starting from SpotX's own backup of the
+     stock files); if it
      fails after the restore, `spicetify apply` puts the theme back as it was;
+   - stamps `app.last-launched-version` in Spotify's prefs with the installed
+     version from spotify-launcher's `state.json`, because Spicetify takes its
+     backup version from that key and an update leaves the previous version in
+     it until the first launch (a mismatch makes later colour refreshes reject
+     the backup). Only an existing key is rewritten; missing state or prefs
+     are left alone;
    - `spicetify backup apply`, which backs up the patched client (discarding
      its backup of the previous version) and applies the theme on top.
 
@@ -116,8 +123,8 @@ To undo: `rm ~/.local/share/applications/spotify-launcher.desktop`, then
 ## Theme
 
 Spicetify draws Spotify with the tracked **Pywal** theme
-(`spicetify/Themes/Pywal/`), coloured from the wallpaper like the rest of the
-desktop. `scripts/spotify/spicetify-theme.sh` selects it, with the
+(`spicetify/Themes/Pywal/`), coloured from the matugen wallpaper palette like
+the rest of the desktop. `scripts/spotify/spicetify-theme.sh` selects it, with the
 `pywal-live.js` extension, in Spicetify's own config; the first time, run
 `spicetify apply` and restart Spotify once.
 

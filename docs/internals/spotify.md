@@ -8,8 +8,8 @@ Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md
 directory on every update, so the marker `.spotx-patched` beside its binary is
 gone exactly when the patch is (not in `Apps/`, which Spicetify deletes and
 rebuilds whole); without it the wrapper runs `spicetify restore`
-(only if the client is unpacked), the latest SpotX-Bash (`-f`, free tier), then
-`spicetify backup apply`. The marker means "SpotX applied" and is written before
+(only if the client is unpacked), the latest SpotX-Bash (`-f` forces a rerun;
+no `-p`, so the free tier), then `spicetify backup apply`. The marker means "SpotX applied" and is written before
 Spicetify runs: Spicetify's apply drops SpotX's stock `xpui.bak`, after which
 SpotX refuses the client, so a Spicetify failure gets its own toast instead of a
 retry. SpotX exits 0 on a client newer than it supports; the wrapper compares the

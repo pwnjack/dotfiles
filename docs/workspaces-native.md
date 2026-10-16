@@ -12,7 +12,7 @@ and how to remove it.
 | When | What runs | Result |
 |---|---|---|
 | Fresh install | `install.sh` installs `gcc make pkgconf gtk3 json-glib`, then runs `scripts/waybar/build-workspaces.sh` | `~/.local/lib/waybar/workspaces.so` and the `~/.local/state/waybar/workspaces.jsonc` include. A failed build is a warning; the install continues. |
-| `git pull`, branch switch | `scripts/hooks/post-merge` (`post-checkout` is a symlink to it) runs the build script | A hash check when nothing changed; a rebuild when the sources did. Restart Waybar to load it. |
+| `git pull`, branch switch | `scripts/hooks/post-merge` (`post-checkout` is a symlink to it) re-renders the machine-state overlay, then runs the build script | A hash check when nothing changed; a rebuild when the sources did. Restart Waybar to load it. |
 | Anything else | `./doctor.sh` | Reports a missing or stale library and the command that fixes it. |
 
 The hooks are active because `install.sh` sets `core.hooksPath scripts/hooks`.

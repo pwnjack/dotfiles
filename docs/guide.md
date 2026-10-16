@@ -8,6 +8,7 @@ Deep dives, one per component:
 
 - [Settings panel](settings-panel.md) (`Super + I`)
 - [Capture bar](capture.md): screenshots and screen recording (`Super + Shift + S`)
+- [Calendar](calendar.md): iCloud events on the bar and in a card (`Super + Shift + E`)
 - [Wallpaper carousel](wallpaper-carousel.md) (`Super + Ctrl + W`)
 - [Keybindings overlay](keybinds-overlay.md) (`Super + H`)
 - [Update card](updates.md): the bar's updates module
@@ -16,6 +17,10 @@ Deep dives, one per component:
 - [Virtual surround](virtual-surround.md): 7.1 for headphones
 - [SDDM greeter sync](../sddm/README.md): the login screen follows the wallpaper
 - [WoW / Battle.net](gaming-wow.md): gaming setup notes
+
+The design notes and traps behind each piece (theming, the machine-state
+overlay, options, the doctor, the desktop clock, night light, default
+applications, the agent harness and more) are in [internals/](internals/).
 
 ## Core stack
 
@@ -32,6 +37,8 @@ Deep dives, one per component:
 | Browser | Zen Browser (`options/browser`) |
 | Editor | Neovim (LazyVim) |
 | Shell | Fish + Starship |
+| Colours | matugen, derived from the wallpaper |
+| Desktop clock | eww (`options/desktop-clock`) |
 
 Strata is the default file manager. Thunar stays installed and themed, and is
 the second `inode/directory` association. Super+E and “Show in folder” follow
@@ -56,6 +63,9 @@ panel.
 │                  # capture/, updates/, settings/, devices/, doctor/, …
 ├── fish/ ghostty/ nvim/ btop/ cava/ starship/ bat/ fastfetch/ git/
 │                  # Per-app config (starship.toml is a generated symlink)
+├── matugen/       # Palette generator config
+├── eww/           # The desktop clock widget
+├── khal/ vdirsyncer/   # Calendar tools (see calendar.md)
 ├── gtk-3.0/ gtk-4.0/ qt5ct/ qt6ct/ strata/ Thunar/ swappy/ waypaper/ aichat/
 │                  # Toolkit themes and small utilities (the GTK and Qt
 │                  # settings.ini/.conf files are rendered from defaults/,
@@ -68,15 +78,16 @@ panel.
 ├── claude/ codex/ # Optional AI agent harness (see below)
 ├── wallpapers/    # Bundled wallpapers
 ├── screenshots/   # The README images
-├── docs/          # This guide and the deep dives listed above
+├── docs/          # This guide, the deep dives listed above and internals/
 ├── test/          # Repo-wide suites: runner, hook, deploy, docs, theming, …
 ├── install.sh     # Fresh-system setup
 ├── doctor.sh      # Health check (see Maintenance)
 └── test.sh        # Test runner (see Maintenance)
 ```
 
-`CLAUDE.md` carries the detailed `hypr/config/` breakdown and the design notes
-behind each piece. Files ending in `.in` are templates rendered into
+`CLAUDE.md` carries the detailed `hypr/config/` breakdown and the rules that
+hold on every edit; [internals/](internals/) has the design notes behind each
+piece. Files ending in `.in` are templates rendered into
 `~/.cache/wal/`; what reads the result is a symlink to it — edit the template.
 
 ## Everyday use
@@ -114,9 +125,9 @@ switches workspace (`+ Ctrl + Shift` takes the window along). Ghostty's own
 The **colour picker** (`Super + Shift + C`) copies the selected screen pixel as
 a lowercase hex value and sends a notification.
 
-**Annotation** is opt-in, so the quick grab stays quick: `Super + Alt + S`
-captures a region straight into swappy, and the capture strip
-(`Super + Shift + S`) has an Annotate toggle for the same flow. Saved images
+**Annotation** is opt-in, so the quick grab stays quick: `Super + S` saves a
+region, `Super + Alt + S` captures one straight into swappy, and the capture strip
+(`Super + Shift + S`) has an Annotate toggle for the same flow. Annotated images
 land in `~/Pictures/Screenshots` with an `_annotated` suffix. swappy reports
 success by closing, which means you can save *or* copy one annotation, not both.
 
@@ -135,6 +146,21 @@ the next scheduled boundary. Right-click (or `Super + Ctrl + D`) hands control
 back to the schedule in `hypr/hyprsunset.conf` (rendered from
 `defaults/hypr/hyprsunset.conf`) immediately.
 
+The **calendar** shows your iCloud events: the bar's clock opens the month,
+the next-event pill the coming days, and `Super + Shift + E` a new-event
+sheet. Sign in on the settings panel's Calendar page; see
+[calendar.md](calendar.md).
+
+The **desktop clock** is an eww widget at the bottom right of the wallpaper,
+on by default when eww is installed. Switch it off, or change its font, on the
+Appearance page (`options/desktop-clock`, `options/desktop-clock-font`); it
+follows the 12 or 24 hour choice and the main display.
+
+The **idle lock** engages after 30 minutes without input and the displays turn
+off after an hour (the Power page changes both). For five seconds after an idle
+lock, a key press or a mouse move dismisses it without a password; `Super + L`,
+the power menu and suspend ask at once.
+
 The **AI sidebar** (`Super + A`) opens aichat in a narrow Ghostty window on its
 own special workspace; its API key comes from `~/.config/.env` (see below).
 
@@ -143,15 +169,16 @@ own special workspace; its API key comes from `~/.config/.env` (see below).
 
 ### Idle efficiency
 
-The settings panel, wallpaper carousel, keybindings overlay, capture bar and
-update card are launched on demand and exit when closed, so none keeps a UI
-runtime resident. The workspace dots are a native Waybar module that listens to
-Hyprland's event socket instead of polling. Media, night-light, recording and
-update modules refresh on a Waybar signal when something changes; their
-intervals are safety fallbacks rather than the primary refresh path. The GPU
-module makes one `nvidia-smi` call per five-second poll, and none while the
-settings panel's Bar page hides it. See the component docs for measured panel
-and carousel memory.
+The settings panel, wallpaper carousel, keybindings overlay, capture bar,
+calendar card and update card are launched on demand and exit when closed, so none keeps a UI
+runtime resident. The desktop clock's eww daemon runs only while the clock is
+on, and the time costs no process per tick. The workspace dots are a native
+Waybar module that listens to Hyprland's event socket instead of polling.
+Media, night-light, recording, next-event and update modules refresh on a
+Waybar signal when something changes; their intervals are safety fallbacks
+rather than the primary refresh path. The GPU module makes one `nvidia-smi`
+call per five-second poll, and none while the settings panel's Bar page hides
+it. See the component docs for measured panel and carousel memory.
 
 ### Media
 
@@ -234,7 +261,9 @@ and commit:
 └── ...
 ```
 
-`CLAUDE.md` lists every option file.
+[options.md](internals/options.md) describes every option file, and
+[state.md](internals/state.md) how the overlay renders them and keeps your
+differences in `~/.local/state/dotfiles/overrides`.
 
 ### Wallpaper carousel
 
@@ -257,14 +286,24 @@ Generate colours from any wallpaper:
 ~/.config/scripts/theming/apply-wal.sh
 ```
 
+matugen draws a dark Material palette from the wallpaper. The settings panel's
+Appearance page (Palette section) picks its scheme, contrast and source colour
+(`options/theme-scheme`, `options/theme-contrast`, `options/theme-prefer`) and
+regenerates the current wallpaper's palette when you change one.
+
 Colours apply to Hyprland, Hyprlock, Waybar, Rofi, SwayNC, Ghostty, Strata,
-Thunar, cava, btop, Neovim, the Starship prompt, Vesktop (Discord), Zen Browser
-and Spotify (through Spicetify; see [spotify.md](spotify.md)). Strata, Thunar
+Thunar, cava, btop, Neovim, the Starship prompt, the desktop clock, Vesktop
+(Discord), Zen Browser and Spotify (through Spicetify; see
+[spotify.md](spotify.md)). Strata, Thunar
 and Zen pick up a new palette at their next launch. Open Neovim windows
 re-theme in place unless you picked another colour scheme in them; before
 its generated `colors-wal.vim` exists, Neovim uses LazyVim's tokyonight.
 fastfetch and bat (and so man pages) follow too, without rendering anything — they colour by ANSI
-index, and the terminal palette comes from matugen.
+index, and the terminal palette comes from matugen. ANSI green stays green on
+every palette, so the `cmatrix` and `tty-clock` aliases run through
+`scripts/theming/accent-run.sh`, which paints their green in the wallpaper's
+accent for that terminal only. The pipeline and every component are in
+[theming.md](internals/theming.md).
 
 Components needing more than a plain include own a
 `<component>/apply_wal_colors.sh`, rendering into `~/.cache/wal/`. The repo
@@ -311,12 +350,11 @@ host-neutral.
 
 ### Startup applications
 
-Edit `~/.config/hypr/config/setup/autostart.lua`:
+Edit `~/.config/hypr/config/setup/autostart.lua` and add a line to its
+`hyprland.start` handler:
 
 ```lua
-hl.on("hyprland.start", function()
-    hl.exec_cmd("your-app")
-end)
+hl.exec_cmd("your-app")
 ```
 
 XDG autostart entries are managed on the settings panel's Startup page.
@@ -422,7 +460,8 @@ What it checks:
   every literal `~/.config` path in a tracked file, the `wall.sh` colour
   fan-out, the palette slots and roles, and both Hyprland/Hyprlock caches
 - **Binaries** — every command passed to `hl.exec_cmd()` by keybinds or
-  autostart, resolving the application table indirection first
+  autostart, resolving the application table indirection first, and that the
+  screen recorder's helper holds `cap_sys_admin`
 - **Services** — autostart daemons actually running, who owns
   `org.freedesktop.Notifications`, and `install.sh` package drift
 - **SDDM** and **updates** — the passwordless helpers are installed, current
@@ -437,9 +476,13 @@ What it checks:
 - **Autostart** — per-user XDG autostart entries whose program is missing
 - **SSH** — the agent socket is enabled and `~/.ssh/config` includes the
   tracked fragment
+- **Calendar** — when an iCloud account is stored: the sync tools are
+  installed, the timer is enabled and the last sync succeeded within the hour
 - **Default applications** — `$BROWSER`, `$TERMINAL`, `$EDITOR` and `$VISUAL`,
   the terminal `xdg-terminal-exec` opens, and each `mimeapps.list` association
   whose app has a desktop entry here name a program that is installed
+- **Machine state** — every file under `defaults/` has an ignored, untracked
+  rendered copy, and the overrides file parses
 
 A pre-commit hook (`scripts/hooks/pre-commit`, activated by `install.sh` via
 `core.hooksPath`) runs `shellcheck` on staged shell scripts and the test suites
@@ -460,7 +503,8 @@ hook and theming fixtures use Python 3.
 ## Installation details
 
 The install script checks/installs all dependencies, deploys the configs to
-`~/.config`, generates the matugen palette, and wires up all symlinks.
+`~/.config`, renders this machine's settings from `defaults/`, generates the
+matugen palette, and wires up all symlinks.
 Deployment copies only tracked files and backs up exactly the existing files it will replace,
 including symlinks. Untracked application data stays out of deployment;
 directory symlinks and file/directory conflicts are rejected before copying:
@@ -497,14 +541,18 @@ sudo pacman -S --needed hyprland hyprlock hypridle hyprpolkitagent hyprshot \
                pacman-contrib xdg-terminal-exec cliphist wl-clipboard \
                gpu-screen-recorder slurp playerctl qt5ct qt6ct \
                nwg-look pavucontrol blueman nm-connection-editor \
-               gnome-calculator headsetcontrol matugen jq ffmpeg inotify-tools zoxide \
-               git-delta aichat shellcheck zip unzip gcc make pkgconf gtk3 \
-               json-glib python nodejs gjs ttf-firacode-nerd \
+               gnome-calculator khal vdirsyncer headsetcontrol matugen jq ffmpeg \
+               inotify-tools zoxide git-delta aichat shellcheck zip unzip gcc \
+               make pkgconf gtk3 json-glib python nodejs gjs ttf-firacode-nerd \
                ttf-cascadia-mono-nerd ttf-nerd-fonts-symbols noto-fonts \
                noto-fonts-emoji
 
 # AUR (paru or yay)
-paru -S --needed strata-bin zen-browser-bin vesktop waybar-weather
+paru -S --needed strata-bin zen-browser-bin vesktop waybar-weather eww
+
+# Render this machine's settings (options/, GTK and Qt settings, mimeapps.list,
+# swaync and hyprsunset config) from defaults/
+~/.config/scripts/state/overlay.sh sync
 
 # Generate the palette and render every component's cache file
 ~/.config/scripts/theming/generate-palette.sh ~/.config/wallpapers/wall1.jpg
@@ -522,6 +570,10 @@ paru -S --needed strata-bin zen-browser-bin vesktop waybar-weather
 ~/.config/scripts/waybar/bar-modes.sh --no-reload
 ~/.config/scripts/waybar/build-workspaces.sh
 
+# Calendar sync timer and the patching Spotify launcher (optional)
+~/.config/scripts/calendar/setup.sh
+~/.config/scripts/spotify/setup.sh
+
 # Set fish as default shell (optional)
 chsh -s $(which fish)
 ```
@@ -531,7 +583,7 @@ chsh -s $(which fish)
 ```bash
 cd ~/.config
 git add -A && git commit -m "Describe your change"
-git pull   # pick up updates
+git pull   # pick up updates; the post-merge hook re-renders your settings
 ```
 
 ### Backup and restore

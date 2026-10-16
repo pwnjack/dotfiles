@@ -144,7 +144,10 @@ so the capsule's centre need not be the monitor's. Its views change height with
 a short animation and never move. It draws from
 `agenda.json` at once and starts a sync in the background. The header then
 moves from *syncing…* to *iCloud · synced just now* (or *synced N min ago*), and
-the views refresh.
+the views refresh. Its colours come from the matugen palette: `calendar-card.sh`
+passes the background, the readable foreground and the `primary` role as the
+accent, and `palette.sh`'s fallback palette stands in when none has been
+generated.
 
 The header shows the long date, the sync status, a **Today** button when you
 have browsed to another month or the year view, and **+**. The views are:

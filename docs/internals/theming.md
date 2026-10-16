@@ -129,7 +129,9 @@ The generator reads three files in `options/`, with tracked defaults in
 `defaults/options/`. They can be set from Appearance → Palette in the
 settings panel or edited as plain text. Panel changes regenerate the current
 wallpaper's palette and recolour the desktop; the panel reads its new colours
-on the next opening:
+on the next opening. The panel offers contrast `-0.5`, `0`, `0.5` and `1`, and
+not the `closest-to-fallback` source preference; the generator accepts them
+from a hand-edited file:
 
 | File | Default | Controls |
 |------|---------|----------|
@@ -138,7 +140,7 @@ on the next opening:
 | `theme-prefer` | `saturation` | Source-colour preference: `darkness`, `lightness`, `saturation`, `less-saturation`, `value` or `closest-to-fallback` |
 
 Surrounding whitespace and CR are trimmed. Missing files use the default
-quietly; invalid values warn and use the default. See `options.md` for the
+quietly; invalid values warn and use the default. See `state.md` for the
 machine-state overlay that renders these files.
 
 `scripts/theming/score-palettes.py <directory>` generates and checks every
@@ -188,16 +190,17 @@ reload drops its reserved zone briefly and resizes tiled windows. Waybar and
 SwayNC import the cached stylesheet by relative path: Waybar 0.15 resolves a
 symlinked import against its own working directory and silently watches
 nothing. Shared GTK definitions expose semantic surfaces, selection pairs
-and errors for SwayNC and Thunar.
+and errors for SwayNC and Thunar. SwayNC restyles with `swaync-client -rs`;
+Rofi's `colors-rofi.rasi` is read on every launch, so it needs no reload.
 
 Four components are templated: **cava**, **Starship**, **Vesktop** and **Zen**.
 Edit their `<name>.in` files, never the rendered copy or its symlink. cava and
 Starship have no include mechanism. cava uses `horizontal_gradient`: cava
-0.10.7 corrupts the heap on a vertical `gradient`, even with native themes.
-**btop** retains the `pywal` theme name and uses its native theme directory
-and `SIGUSR2` hot reload (the same
-as Ctrl+R in btop 1.4). cava, Starship and btop use primary tones and container
-pairs for their decorative ramps. **fastfetch** resolves its key colours and
+0.10.7 corrupts the heap on a vertical `gradient`, even with native themes; a
+running cava gets `SIGUSR2`, which reloads colours only. **btop** retains the
+`pywal` theme name and uses its native theme directory and `SIGUSR2` hot reload
+(the same as Ctrl+R in btop 1.4). cava, Starship and btop use primary tones and
+container pairs for their decorative ramps. **fastfetch** resolves its key colours and
 logo through ANSI indices; **bat** uses `--theme=ansi`, including man pages
 when CachyOS uses it as `MANPAGER`.
 

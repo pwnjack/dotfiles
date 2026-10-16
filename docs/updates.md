@@ -4,14 +4,18 @@ Clicking the bar's updates module opens a small Quickshell card under it:
 `scripts/hyprland/updates-popover.sh` toggles `quickshell/updates/shell.qml`,
 anchored to the cursor's x on the bar's edge, and the process exits when the
 card closes. The update itself is a separate detached run that the card only
-starts and watches.
+starts and watches. The card's colours come from the matugen palette (the
+launcher passes the background, the readable foreground and the `primary` role
+as the accent); `palette.sh`'s fallback palette stands in when none has been
+generated.
 
 ## What it does
 
 - **Summary.** `scripts/updates/updates-plan.sh` lists what is pending: repo
   packages with their size, AUR packages, and whether the running kernel is
   replaced. The package list is collapsed until you open it. A failed check is
-  shown as "Could not check for updates", never as "Up to date".
+  shown as "Could not check for updates", never as "Up to date". While the
+  check runs, the header badge's glyph gives way to a spinner.
 - **Update** starts `scripts/updates/updates-run.sh` under `setsid`. The card
   then shows a progress bar and pacman's current step. Closing the card (Esc,
   a click outside) does not stop the update; reopening it resumes at the

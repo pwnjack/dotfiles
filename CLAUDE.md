@@ -26,7 +26,7 @@ Deep dives live in `docs/internals/`. **Read the matching file before changing a
 
 ### Hyprland config (Lua, loaded from `hypr/hyprland.lua`)
 
-`hypr/config/`: `colors.lua`, `colors.conf`, `apptype.lua`, `hardware/{monitor,input}.lua`, `hardware/primary.conf`, `looks/{decor,animations}.lua`, `setup/{envvars,autostart}.lua`, `software/{keybinds,general,rules,workspace_step}.lua`. `colors.conf` and `primary.conf` are Hyprlock-only symlinks to generated state. `hyprland.lua` loads the untracked `overrides.lua` last. Hyprlock, Hypridle and Hyprsunset are separate programs and keep their Hyprlang `.conf` files.
+`hypr/config/`: `colors.lua`, `colors.conf`, `apptype.lua`, `hardware/{monitor,input}.lua`, `hardware/primary.conf`, `looks/{decor,animations}.lua`, `setup/{envvars,autostart}.lua`, `software/{keybinds,general,rules,workspace_step}.lua`. `colors.conf` and `primary.conf` are Hyprlock-only symlinks to generated state. `hyprland.lua` loads the panel's per-machine `~/.local/state/hypr/overrides.lua` last. Hyprlock, Hypridle and Hyprsunset are separate programs and keep their Hyprlang `.conf` files.
 
 ### Colour flow (matugen)
 

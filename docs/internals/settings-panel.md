@@ -76,4 +76,6 @@ rules; `~/.config/autostart` is per-machine and gitignored, and disabling a syst
 writes a minimal `Hidden=true` override. Panel writes reach `panel-request.sh -` on stdin,
 never in argv, so passwords stay out of `ps`.
 
+**Calendar** shows the iCloud account (sign-in over stdin to `scripts/calendar/setup.sh --sign-in --stdin`, Sync now, a two-press Sign out) and one switch per calendar, then the catalog's Events and New events rows (`calendar-declined`, `calendar-default`, `calendar-alert`, `calendar-duration`). `shell.qml` reads `calendarStatus` every 5 s only while the page is visible. A save of `bar-agenda` (the Bar page's Calendar row) or any `calendar-*` option runs `scripts/calendar/sync.sh --render` and rolls the option back if that fails; see `calendar.md`. **Startup** draws the catalog's At login switches first, then the app lists.
+
 **Devices** lists wireless peripherals from `scripts/devices/devices.sh`, the one reader shared with Waybar's battery module and the low-battery toast; `shell.qml` runs it on open and every 10 s only while the page is visible, and `alert` is defined once, in the script.

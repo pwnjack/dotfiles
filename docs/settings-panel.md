@@ -28,7 +28,7 @@ read through `scripts/theming/palette.sh` on every launch.
 | Page | Group | Rows | Sections |
 | --- | --- | --- | --- |
 | Appearance | look | 23 | Style, Themes, Palette, Fonts, Desktop clock, Cursor, Window style, Transparency & effects |
-| Bar | look | 13 | Layout, Clock & workspaces, Modules (see [Bar](#bar)) |
+| Bar | look | 14 | Layout, Clock & workspaces, Modules (see [Bar](#bar)) |
 | Windows | look | 10 | Tiling, Focus, Advanced |
 | Animations | look | 8 | General, Speed |
 | Notifications | look | 7 | Position, Timing, Size |
@@ -40,7 +40,8 @@ read through `scripts/theming/palette.sh` on every launch.
 | Keyboard & Mouse | input | 15 | Keyboard, Mouse, Touchpad, Pointer |
 | Accessibility | input | 2 | Vision |
 | Date & Region | system | 5 | Date & time, Language & formats (see [Date & Region](#date--region)) |
-| Startup | system | 3 | At login, plus the autostart lists (see [Startup](#startup)) |
+| Calendar | system | 4 | Its own view (account, sync, calendars), then Events and New events (see [Calendar](#calendar)) |
+| Startup | system | 3 | At login, then the autostart lists (see [Startup](#startup)) |
 | Default Apps | system | 16 | Applications, File types, Launcher & updates |
 | About this machine | system | — | Opened from the account card under the sidebar |
 
@@ -122,9 +123,15 @@ and contrast. Error messages use matugen's error colour.
   it last if present and skips it, with a notification, if it fails to run.
 - The backend writes hypridle's timeouts to `~/.local/state/hypr/hypridle.conf`
   (sourced by the tracked `hypridle.conf`) and the night-light `$variables` in
-  `hypr/hyprsunset.conf`, preserving unrelated
+  `hypr/hyprsunset.conf` (the rendered live file; the tracked default is
+  `defaults/hypr/hyprsunset.conf`), preserving unrelated
   content, and restores files if applying them fails. SwayNC retains unrelated
   keys. Night light liveness uses `nightlight.sh`, never an identity getter.
+- Rows whose value lives in a file the machine-state overlay renders (`options/`,
+  GTK and Qt settings, `mimeapps.list`, `swaync/config.json`, the night-light
+  variables) write the live file and then run `scripts/state/overlay.sh sync`, so
+  the change is recorded as this machine's override and never reaches a tracked
+  file (see `docs/internals/state.md`).
 - Rows may declare `choices` instead of fixed `items`. An enumerator in
   `backend.js` lists what is installed now (GTK, icon, cursor and Kvantum
   themes, power profiles, apps per MIME type); every read returns the list with
@@ -332,9 +339,10 @@ Traps:
 
 ## Startup
 
-Lists what Hyprland's `autostart.lua` starts (parsed, read-only, with **Edit file**) and
-the XDG autostart apps. The apps follow uwsm's generator rules (`autostart.mjs` is pure):
-later `Show-In` lists win, condition keys parse strictly, and `TryExec` is verbatim.
+Three sections, in this order: the catalog's **At login** switches (Lock on autologin,
+Random wallpaper, Proton VPN), the XDG autostart **Apps**, and **Started by Hyprland**,
+which lists what `autostart.lua` starts (parsed, read-only, with **Edit file**). The apps
+follow uwsm's generator rules (`autostart.mjs` is pure): later `Show-In` lists win, condition keys parse strictly, and `TryExec` is verbatim.
 Changes take effect at the next login; nothing is started or stopped immediately.
 `~/.config/autostart` is per-machine and gitignored.
 
@@ -363,12 +371,29 @@ A USB headset's battery comes from `headsetcontrol` (optional; without it the he
 battery row), and a headset switched off behind its dongle shows "Asleep".
 `scripts/hyprland/settings-panel.sh devices` opens it.
 
+## Calendar
+
+Signs in to iCloud and chooses what the calendar card and the bar show. The view draws
+**Account** first: signed out, the Apple ID and app-specific password fields (the password
+reaches `scripts/calendar/setup.sh --sign-in --stdin` on stdin, never argv; `calendar.mjs`);
+signed in, the account, the sync line (`status.json`) with **Sync now** (every 15 minutes
+and whenever the card opens) and a two-press **Sign out**. **Calendars** follows, one
+switch per calendar (read-only ones are labelled), stored in `options/calendar-hidden`.
+The catalog sections then add **Events** (`calendar-declined`, show declined invitations)
+and **New events** (`calendar-default`, `calendar-alert`, `calendar-duration`, used by the
+card's new-event sheet). `shell.qml` reads `calendarStatus` every 5 s only while the page
+is shown; a stale read is dropped (`calendar.mjs` `fresh`). A save of `bar-agenda` or any
+`calendar-*` option runs `scripts/calendar/sync.sh --render`, and a failed render rolls
+the option back. The calendar itself is `docs/internals/calendar.md`.
+
 ## Bar
 
 One select row per Waybar module that can come and go: CPU, Memory, GPU and Disk
 (Always · Only when high · Hidden), Network (During traffic · Always · Offline only) and
-Updates (When pending · Hidden). Each is a plain `options/bar-*` file; a missing or unknown
-value means the first choice, which is also the default, so the bar looks the same
+Updates (When pending · Hidden). Calendar (`bar-agenda`: Within 12 hours · Today only ·
+Next event · Hidden, default Within 12 hours) sets how far ahead the next-event pill beside
+the clock looks (`scripts/waybar/agenda-bar.sh`). Each is a plain `options/bar-*` file; a
+missing or unknown value means the first choice, which is also the default, so the bar looks the same
 until something is changed. "High" is the amber threshold: 70%, disk 80%.
 `scripts/hyprland/settings-panel.sh bar` opens it.
 
@@ -421,8 +446,10 @@ Traps:
   mode in its script: an include cannot override the `exec` the main config sets.
 - **Unknown values read as the default; a missing file does not.** The backend shows an
   unrecognised `bar-*` value as the row's first choice, matching the renderers. A deleted
-  option file disables its row, as it does for every option row, while the bar itself falls
-  back to the default; the next overlay sync restores the default from `defaults/options/`.
+  option file disables its row, as it does for every slider and for select and toggle rows
+  without a catalog default (the Calendar row has one, so it reads its default), while the
+  bar itself falls back to the default; the next overlay sync restores the default from
+  `defaults/options/`.
 - **Blur is unchanged.** Hyprland's `blur-waybar` rule ignores pixels at 50 % alpha or less,
   so the background is blurred only above 50 % opacity; at the default it is not, exactly as
   before. Swapping the threshold to 0.01 and reloading produced a pixel-identical screenshot
@@ -544,11 +571,13 @@ backend validation (XKB, fonts, commands, choices), GTK/Kvantum ini
 round-trips, File Types subtype handling and rollback, suspend listener
 round-trips, animation preservation, notification rollback, main-monitor
 write failure, the shared apply/save/reset transactions, Sound choices and
-writes, interaction locking, display staging, the pending banner, and every
+writes, palette saves (generate, then apply, with rollback), the panel's fallback
+colours against `palette.sh`, the Calendar page's sign-in and
+read helpers, interaction locking, display staging, the pending banner, and every
 Apply/Keep/Revert ordering and failure path against a mocked systemd guard. The desktop smoke
 check reads every catalog setting without changing them, captures
 `/tmp/settings-panel-live.png`, measures opening, and verifies process exit.
-Qt's linter reports four warnings on 2026-10-11 (PanelWindow is not creatable
+Qt's linter reports four warnings on 2026-10-16 (PanelWindow is not creatable
 outside Quickshell, an `actionsMenu` id shadowing a property, and two property
 lookups on types it has no metadata for); live loading succeeds.
 
