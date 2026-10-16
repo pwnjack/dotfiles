@@ -27,35 +27,6 @@ SSH agent, so your key's passphrase is asked once per login. CachyOS ships the
 When it finishes, log out and choose **Hyprland** at your login screen — or, if
 you have no login manager, type `start-hyprland` in the console.
 
-## What's inside
-
-- **Colours that follow the wallpaper**: Hyprland, Hyprlock, Waybar, Rofi,
-  notifications, Ghostty and its TUI apps (btop, cava, the Starship prompt),
-  Neovim, Strata, Thunar, the desktop clock, Discord (Vesktop), Zen Browser and
-  Spotify all re-theme when the wallpaper changes. Strata, Thunar and Zen pick
-  up the new palette on their next launch; the other apps recolour open windows.
-  The login screen follows too.
-  Strata is the default file manager; Thunar stays installed and themed, and
-  remains the second `inode/directory` association. Super+E and “Show in folder”
-  follow `options/filemanager`. Without the AUR package, pick Thunar in the
-  settings panel.
-- **Settings panel** for appearance (including the palette scheme and contrast),
-  the bar, windows, animations, notifications, network, devices, displays,
-  sound, power, keyboard and mouse, accessibility, date and region, calendar,
-  startup apps and default apps, without editing config files.
-- **Capture bar** for screenshots and screen recording, with annotation.
-- **iCloud calendar** beside the clock, with the next event on the bar and a
-  card to add, edit and delete events ([docs](docs/calendar.md)).
-- **Wallpaper carousel**, a searchable **keybindings overlay**, and an
-  **update card** that runs system updates from the bar.
-- **Native workspace dots** on the bar, with smooth animation.
-- **Night light** on a schedule, a **desktop clock** on the wallpaper (eww), an
-  **AI sidebar** (aichat), **virtual 7.1 surround** for headphones, and a
-  themed **Spotify** that SpotX keeps ad-free (when it is installed with
-  spotify-launcher).
-- **`./doctor.sh`** checks the live system against the config and tells you
-  what is broken and how to fix it.
-
 ## First steps
 
 | Keys | Does |
@@ -68,24 +39,19 @@ you have no login manager, type `start-hyprland` in the console.
 
 ## Screenshots
 
-Each wallpaper re-themes the whole desktop: bar, borders, terminal and overlays.
+Each wallpaper re-themes the whole desktop: bar, borders and terminals.
 
 | | |
 |---|---|
 | ![Cosy retreat](screenshots/cosy-1.webp) | ![Cosy retreat, terminals](screenshots/cosy-2.webp) |
 | ![Northern lights](screenshots/aurora-1.webp) | ![Northern lights, terminals](screenshots/aurora-2.webp) |
 | ![Synthwave](screenshots/synthwave-1.webp) | ![Synthwave, terminals](screenshots/synthwave-2.webp) |
-
-| Settings (`Super + I`) | Keybindings (`Super + H`) |
-|---|---|
-| ![Settings panel](screenshots/settings.webp) | ![Keybindings overlay](screenshots/keybinds.webp) |
-| **Wallpaper carousel (`Super + Ctrl + W`)** | **Capture bar (`Super + Shift + S`)** |
-| ![Wallpaper carousel](screenshots/carousel.webp) | ![Capture bar](screenshots/capture.webp) |
+| ![Lakeside knight](screenshots/lake-1.webp) | ![Lakeside knight, terminals](screenshots/lake-2.webp) |
 
 ## More
 
-- [Guide](docs/guide.md) — customisation, troubleshooting, maintenance, and
-  links to a deep dive for each component
+- [Guide](docs/guide.md) — every feature, customisation, troubleshooting,
+  maintenance, and links to a deep dive for each component
 - [All keybindings](docs/keybindings.md)
 
 ## License
