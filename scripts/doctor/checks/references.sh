@@ -3,10 +3,9 @@
 # Config reference integrity: every path a tracked file points at must exist.
 #
 # Nothing is enumerated here. The conf and Lua files to walk come from git, the
-# source/require targets come out of those files, the
-# literal ~/.config paths come out of every tracked file, and wall.sh's optional
-# colour scripts come out of wall.sh's own loop header. A config added tomorrow
-# is covered the moment it is committed.
+# source/require targets come out of those files, and the literal ~/.config
+# paths come out of every tracked file. A config added tomorrow is covered the
+# moment it is committed.
 #
 # The listings are read NUL-delimited (-z). Without it git renders a path
 # holding a quote or a non-ASCII byte as a C-quoted string ("\303\274..."),
@@ -56,17 +55,6 @@
 #   doctor.sh exit 1 on a healthy machine, which is how a health check teaches
 #   its user to ignore the exit code.
 #
-# wall.sh's colour fan-out is a WARN for a second, independent reason: the
-# script guards each entry with `[ -x "$script" ]` and documents them as
-# optional, so a missing one is expected rather than merely survivable. It
-# keeps its own wording and fix hint — pointing at the loop to edit rather than
-# at a stray reference — and the distinction is worth keeping even though both
-# now land on the same severity, so that re-tightening literal references
-# later cannot silently sweep the deliberately-optional ones up with them.
-# That list is lifted from wall.sh's `for ... in ... ; do` header rather than
-# matched by filename, so the waybar entry — which is not an
-# apply_wal_colors.sh — is covered too.
-#
 # DOCTOR_ROOT is assumed to be a git work tree; doctor.sh establishes that once
 # via doctor_require_repo, so an empty listing here means "no configs", not "no
 # repository".
@@ -85,9 +73,6 @@
 #     in the configs make one unlikely.
 #   - A ~/.config/../ reference resolves outside DOCTOR_ROOT. It is only ever
 #     stat'ed, never written, and no such reference exists in practice.
-#   - If wall.sh ever stops iterating its colour scripts in a `for` loop the
-#     optional list comes back empty and those paths fall through to the
-#     generic literal-reference wording. Same severity, less specific hint.
 #
 
 # Cache root, overridable so the test suite can point at a throwaway directory
@@ -150,16 +135,6 @@ _ref_source_targets() {
 # Lua modules are dot-separated and resolved from the hypr/ configuration root.
 _ref_require_targets() {
     sed -nE 's/.*require\("([A-Za-z0-9_.-]+)"\).*/\1/p' "$1" 2>/dev/null
-}
-
-# _ref_wall_optional
-# wall.sh's existence-guarded colour fan-out, one path per line, taken from the
-# loop header that iterates it.
-_ref_wall_optional() {
-    local wall="$DOCTOR_ROOT/scripts/hyprland/wall.sh"
-    [ -f "$wall" ] || return 0
-    sed -n '/^[[:space:]]*for[[:space:]].*[[:space:]]in/,/do$/p' "$wall" 2>/dev/null \
-        | grep -IoE "$DOCTOR_REF_PATTERN"
 }
 
 # _ref_check_sources — Hyprland source chains.
@@ -226,10 +201,7 @@ _ref_check_requires() {
 
 # _ref_check_literals — literal ~/.config paths anywhere in the tracked tree.
 _ref_check_literals() {
-    local wall="scripts/hyprland/wall.sh" optional
     local file path rel full
-
-    optional="$(_ref_wall_optional)"
 
     while IFS= read -r -d '' file; do
         case "$file" in
@@ -245,13 +217,8 @@ _ref_check_literals() {
             full="$DOCTOR_ROOT/$rel"
             [ -e "$full" ] && continue
 
-            if [ "$file" = "$wall" ] && printf '%s\n' "$optional" | grep -qxF -- "$path"; then
-                warn "$wall applies colours via ~/.config/$rel, which is missing" \
-                     "restore $(doctor_q "$full"), or remove it from the list in $(doctor_q "$DOCTOR_ROOT/$wall")"
-            else
-                warn "$file references ~/.config/$rel, which does not exist" \
-                     "restore $(doctor_q "$full"), or drop the reference from $(doctor_q "$DOCTOR_ROOT/$file")"
-            fi
+            warn "$file references ~/.config/$rel, which does not exist" \
+                 "restore $(doctor_q "$full"), or drop the reference from $(doctor_q "$DOCTOR_ROOT/$file")"
         done < <(_ref_extract_paths "$DOCTOR_ROOT/$file")
     done < <(git -C "$DOCTOR_ROOT" ls-files -z 2>/dev/null)
 }

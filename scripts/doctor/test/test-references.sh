@@ -28,7 +28,6 @@ ref_out_file="$DOCTOR_TEST_TMP/references.out"
 ref_fixture="$(make_fixture)"
 
 mkdir -p "$ref_fixture/hypr/config/spaced dir" \
-         "$ref_fixture/scripts/hyprland" \
          "$ref_fixture/scripts/doctor/test" \
          "$ref_fixture/scripts/doctor/checks" \
          "$ref_fixture/docs"
@@ -132,21 +131,6 @@ EOF
 
 cat > "$ref_fixture/present.sh" <<'EOF'
 p="$HOME/.config/present.sh"
-EOF
-
-# --- wall.sh colour fan-out -------------------------------------------------
-# The optional list is taken from the `for ... in ... ; do` header, so the
-# waybar entry — which is not an apply_wal_colors.sh — must be WARN too. The
-# reference outside the loop is not existence-guarded, so it stays an ERROR.
-cat > "$ref_fixture/scripts/hyprland/wall.sh" <<'EOF'
-#!/bin/bash
-for script in \
-    "$HOME/.config/ghostty/apply_wal_colors.sh" \
-    "$HOME/.config/mako/apply_wal_colors.sh" \
-    "$HOME/.config/scripts/waybar/waybar.sh"; do
-    [ -x "$script" ] && "$script" &
-done
-"$HOME/.config/gone/wall-hard-ref.sh"
 EOF
 
 # --- a tracked symlink whose content is generated outside the repo ----------
@@ -256,22 +240,6 @@ assert_not_contains "$ref_out" "references ~/.config/y," \
 assert_not_contains "$ref_out" "generated/never-exists.css" \
     "content of a tracked symlink is not scanned"
 
-# --- wall.sh colour fan-out -------------------------------------------------
-assert_contains "$ref_out" "applies colours via ~/.config/ghostty/apply_wal_colors.sh" \
-    "missing wall.sh colour script is reported"
-ref_wall_line="$(grep -F 'applies colours via ~/.config/ghostty' "$ref_out_file")"
-assert_contains "$ref_wall_line" "WARN" "missing wall.sh colour script is WARN severity"
-assert_contains "$ref_out" "applies colours via ~/.config/scripts/waybar/waybar.sh" \
-    "the fan-out list is the whole for-loop, not just apply_wal_colors.sh"
-
-# Both land on WARN now, so the thing worth asserting is that the guarded and
-# unguarded references keep separate wording and separate fix hints: one sends
-# the reader to the loop to edit, the other to a stray reference.
-assert_contains "$ref_out" "wall.sh references ~/.config/gone/wall-hard-ref.sh" \
-    "an unguarded reference in wall.sh keeps the generic wording"
-assert_not_contains "$ref_out" "applies colours via ~/.config/gone/wall-hard-ref.sh" \
-    "a reference outside the loop is not treated as an optional colour script"
-
 # --- palette cache ----------------------------------------------------------
 assert_contains "$ref_out" "$ref_cache_empty/wal/colors-hyprland.conf" \
     "missing Hyprlock palette cache is reported"
@@ -295,8 +263,8 @@ done
 # --- tallies ----------------------------------------------------------------
 # Only what stops the session: 4 source targets, 1 Lua module, 2 Hyprland outputs.
 assert_eq "$DOCTOR_ERRORS" "7" "session-breaking references counted as errors"
-# 5 literal references, 3 guarded loop entries and 2 fallback palette inputs.
-assert_eq "$DOCTOR_WARNINGS" "10" "degraded-feature references counted as warnings"
+# 4 literal references and 2 fallback palette inputs.
+assert_eq "$DOCTOR_WARNINGS" "6" "degraded-feature references counted as warnings"
 assert_eq "$DOCTOR_NOTICES" "0" "nothing here is a notice"
 
 # --- every fix hint is copy-pasteable ---------------------------------------
@@ -306,8 +274,6 @@ assert_contains "$ref_out" "restore $ref_fixture/hypr/config/spaced\\ dir/gone.c
     "source hint shell-quotes a target containing a space"
 assert_contains "$ref_out" "restore $ref_fixture/gone/missing2.sh, or drop the reference from $ref_fixture/has\\ space.sh" \
     "literal hint shell-quotes the referencing file's name"
-assert_contains "$ref_out" "restore $ref_fixture/ghostty/apply_wal_colors.sh, or remove it from the list in $ref_fixture/scripts/hyprland/wall.sh" \
-    "colour script hint points at the list to edit"
 assert_contains "$ref_out" "change the wallpaper (Super+Ctrl+W)" \
     "palette hint offers the wallpaper carousel without requiring a saved selection"
 assert_contains "$ref_out" "$ref_fixture/scripts/theming/generate-palette.sh /path/to/wallpaper.jpg" \
@@ -393,13 +359,9 @@ done
 # ok is the all-clear and nothing else: gating it on the error count alone
 # would print a green tick over a warning the reader is meant to act on.
 ref_warn_fixture="$(make_fixture)"
-mkdir -p "$ref_warn_fixture/scripts/hyprland"
-cat > "$ref_warn_fixture/scripts/hyprland/wall.sh" <<'EOF'
+cat > "$ref_warn_fixture/warn-only.sh" <<'EOF'
 #!/bin/bash
-for script in \
-    "$HOME/.config/ghostty/apply_wal_colors.sh"; do
-    [ -x "$script" ] && "$script" &
-done
+"$HOME/.config/gone/warn-only.sh"
 EOF
 git -C "$ref_warn_fixture" add -A
 git -C "$ref_warn_fixture" commit -qm "fixture"
