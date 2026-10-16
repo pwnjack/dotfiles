@@ -26,8 +26,9 @@ declare -a wal
 # shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
 declare -A role=()
 # Tested as a condition: under set -e a failure inside $(...) would end this
-# script silently. If the palette cannot be read, nothing is exported and the
-# card uses its built-in palette.
+# script silently. A palette that was never generated reads as palette.sh's
+# fallback; only a failing helper leaves nothing exported, and then the card
+# uses its built-in colours.
 if wal_load && role_load && foreground=$(wal_readable_on "${wal[0]}") \
     && accent=$(wal_role primary) && on_accent=$(wal_role on_primary); then
     export UPDATES_BACKGROUND="${wal[0]}" UPDATES_ACCENT="$accent"
