@@ -18,12 +18,14 @@
 # so -1 means unpinned and never appears in a map. A stream that ends
 # produces "remove: id:<n> all keys" in the monitor output.
 #
-# SOUND_PACTL and SOUND_PW_METADATA name the binaries, for tests.
+# SOUND_PACTL and SOUND_PW_METADATA name the binaries and SOUND_SETTLE the
+# watch's start-state quiet period (seconds), for tests.
 
 set -euo pipefail
 
 PACTL="${SOUND_PACTL:-pactl}"
 PW_METADATA="${SOUND_PW_METADATA:-pw-metadata}"
+SETTLE="${SOUND_SETTLE:-0.5}"
 
 # fail <message> — the error as JSON, then exit 1. Without jq it can only be
 # the fixed jq message, which needs no escaping.
@@ -103,7 +105,7 @@ cmd_route() {
 }
 
 cmd_pins() {
-    local watch=0 line
+    local watch=0
     case "${1-}" in
         "") ;;
         --watch) watch=1 ;;
@@ -111,20 +113,43 @@ cmd_pins() {
     esac
     [ $# -le 1 ] || usage
     need pw-metadata "$PW_METADATA"; need jq jq
+    if ((watch)); then pins_watch; else pins_once; fi
+}
 
-    while IFS= read -r line; do apply_line "$line" || true; done < <("$PW_METADATA" -n default)
+# pins_once — one dump, one map.
+pins_once() {
+    local dump line
+    dump=$("$PW_METADATA" -n default 2>/dev/null) || fail "Could not read routing metadata"
+    while IFS= read -r line; do apply_line "$line" || true; done <<<"$dump"
     print_pins
-    ((watch)) || return 0
+}
 
-    # The monitor replays the dump first, which changes nothing by now.
-    local monitor_fd
-    exec {monitor_fd}< <("$PW_METADATA" -n default -m)
+# pins_watch — the monitor is the only source: it replays the current state
+# and then streams changes, so no removal can fall between a dump and a
+# subscription. The replay arrives in one burst; the first quiet SETTLE
+# seconds end it, and the map built by then is the start state.
+pins_watch() {
+    local fd line started=0 status
+    exec {fd}< <("$PW_METADATA" -n default -m)
     monitor_pid=$!
     trap '[ -z "$monitor_pid" ] || kill "$monitor_pid" 2>/dev/null || true' EXIT
     trap 'exit 0' INT TERM
-    while IFS= read -r line <&"$monitor_fd"; do
-        if apply_line "$line"; then print_pins; fi
+    while :; do
+        if ((started)); then
+            IFS= read -r line <&"$fd" || break
+        else
+            status=0
+            IFS= read -r -t "$SETTLE" line <&"$fd" || status=$?
+            if ((status > 128)); then
+                print_pins; started=1
+                continue
+            fi
+            ((status == 0)) || break
+        fi
+        if apply_line "$line" && ((started)); then print_pins; fi
     done
+    wait "$monitor_pid" || fail "Could not read routing metadata"
+    ((started)) || print_pins
 }
 
 case "${1-}" in

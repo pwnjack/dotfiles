@@ -20,12 +20,22 @@ case "$*" in
     "-f json list sinks") echo '[{"name":"alsa_output.pci-0000_00_1f.3.analog-stereo"},{"name":"effect_input.virtual_surround"}]' ;;
 esac
 STUB
-# pw-metadata serves the dump in $PWM_DUMP, or the monitor stream in $PWM_MONITOR with -m.
+# pw-metadata serves the dump in $PWM_DUMP, or the monitor stream in $PWM_MONITOR
+# with -m. PWM_SPLIT=<n> pauses the monitor after its first n lines (the replay);
+# PWM_FAIL=dump|monitor makes that mode exit 1.
 cat > "$TMP/bin/pw-metadata" <<'STUB'
 #!/bin/sh
 case "$*" in
-    "-n default -m") cat "$PWM_MONITOR" ;;
-    "-n default") cat "$PWM_DUMP" ;;
+    "-n default -m")
+        [ "${PWM_FAIL:-}" = monitor ] && exit 1
+        if [ -n "${PWM_SPLIT:-}" ]; then
+            head -n "$PWM_SPLIT" "$PWM_MONITOR"; sleep 0.6; tail -n +"$((PWM_SPLIT + 1))" "$PWM_MONITOR"
+        else
+            cat "$PWM_MONITOR"
+        fi ;;
+    "-n default")
+        [ "${PWM_FAIL:-}" = dump ] && exit 1
+        cat "$PWM_DUMP" ;;
     *) exit 2 ;;
 esac
 STUB
@@ -77,10 +87,24 @@ assert_eq "$(run pins)" '{"107":"236"}' "pins reads the pinned target by object 
 PWM_DUMP="$FIX/pw-metadata-unpinned.txt"
 assert_eq "$(run pins)" '{}' "-1 is unpinned and left out"
 
-PWM_DUMP="$FIX/pw-metadata-unpinned.txt"
-assert_eq "$(run pins --watch | tr '\n' ' ')" '{} {"107":"236"} {} ' "watch prints the start state, then each change"
-PWM_DUMP="$FIX/pw-metadata-pinned.txt"
-assert_eq "$(run pins --watch | tr '\n' ' ')" '{"107":"236"} {} ' "watch starts from a pin already present and ignores repeats"
+# The monitor's replay is the fixture's first five lines; the rest are events.
+export PWM_SPLIT=5 SOUND_SETTLE=0.2
+assert_eq "$(run pins --watch | tr '\n' ' ')" '{"107":"236"} {} ' "watch starts from the replay, then prints each change"
+PWM_MONITOR="$FIX/pw-metadata-unpinned.txt"
+assert_eq "$(run pins --watch | tr '\n' ' ')" '{} ' "watch ignores a -1 replay and a target.node line"
+# A pin in the dump that the monitor's replay lacks was removed before the
+# subscription: it must not survive.
+PWM_DUMP="$FIX/pw-metadata-pinned.txt" PWM_MONITOR="$FIX/pw-metadata-unpinned.txt"
+assert_not_contains "$(run pins --watch)" 107 "a stale pin from a separate dump never shows"
+PWM_MONITOR="$FIX/pw-metadata-watch.txt"
+unset PWM_SPLIT
+
+out=$(PWM_FAIL=dump run pins); rc=$?
+assert_eq "$rc" 1 "a failing dump fails pins"
+assert_eq "$(jq -r .ok <<<"$out")" false "a failing dump is reported as JSON"
+out=$(PWM_FAIL=monitor run pins --watch); rc=$?
+assert_eq "$rc" 1 "a failing monitor fails pins --watch"
+assert_eq "$(jq -rs 'last | .ok' <<<"$out")" false "a failing monitor ends with a JSON error"
 
 out=$(run frobnicate 2>&1); rc=$?
 assert_eq "$rc" 2 "an unknown subcommand exits 2"
