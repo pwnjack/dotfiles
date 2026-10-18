@@ -27,6 +27,7 @@ Item {
         property var about: null
         property var devices: null
         property var calendar: null
+        property var sound: null
         property color background: "#05090c"
         property color foreground: "#cfddde"
         property color accent: "#6097a1"
@@ -38,7 +39,7 @@ Item {
         property bool keepPendingOnRevert: false
         function keepDisplay() { calls = calls.concat([{op:"displayKeep"}]); }
         function revertDisplay() { if (!keepPendingOnRevert) pendingDisplay = null; calls = calls.concat([{op:"displayRevert"}]); }
-        property var catalog: ({categories: [{id:"appearance",title:"Appearance",description:"Look and feel"}, {id:"input",title:"Input",description:"Mouse and keyboard"}, {id:"monitors",title:"Displays",description:"Screens"}, {id:"network",title:"Network",description:"Connections"}, {id:"startup",title:"Startup",description:"Login"}, {id:"devices",title:"Devices",description:"Wireless peripherals"}, {id:"calendar",title:"Calendar",description:"iCloud calendars"}, {id:"about",title:"About this machine",placement:"footer"}], rows: [
+        property var catalog: ({categories: [{id:"appearance",title:"Appearance",description:"Look and feel"}, {id:"input",title:"Input",description:"Mouse and keyboard"}, {id:"monitors",title:"Displays",description:"Screens"}, {id:"network",title:"Network",description:"Connections"}, {id:"startup",title:"Startup",description:"Login"}, {id:"devices",title:"Devices",description:"Wireless peripherals"}, {id:"calendar",title:"Calendar",description:"iCloud calendars"}, {id:"sound",title:"Sound",description:"Ports and profiles",sections:[{id:"output",title:"Output",titleFrom:"sound-output"},{id:"input",title:"Input",titleFrom:"sound-input"}]}, {id:"about",title:"About this machine",placement:"footer"}], rows: [
             {id:"blur",category:"appearance",title:"Blur",description:"Frosted glass",kind:"toggle"},
             {id:"size",category:"appearance",title:"Size",description:"Radius",kind:"slider",min:1,max:20,step:1},
             {id:"font",category:"appearance",title:"Font",description:"Main font",kind:"text"},
@@ -51,7 +52,9 @@ Item {
             {id:"mic",category:"input",title:"Mic",description:"Level",kind:"slider",min:0,max:100,step:1,format:"percent"},
             {id:"speed",category:"input",title:"Speed",description:"Animation speed",kind:"slider",min:1,max:10,step:1,ends:["Slow","Fast"],invert:true,dependsOn:"ntp"},
             {id:"network.wifi",category:"network",title:"Wi-Fi",description:"Radio",kind:"toggle",inView:true},
-            {id:"opt-lock",category:"startup",title:"Lock",description:"Lock on autologin",kind:"toggle"}
+            {id:"opt-lock",category:"startup",title:"Lock",description:"Lock on autologin",kind:"toggle"},
+            {id:"sound.output-port",category:"sound",section:"output",title:"Port",description:"Connector",kind:"toggle"},
+            {id:"sound.input-port",category:"sound",section:"input",title:"Port",description:"Connector",kind:"toggle"}
         ]})
         property var values: ({blur:{value:true,reset:true},size:{value:4},font:{value:"Sans"},nickname:{value:"Bob"},theme:{value:"B",choices:[{label:"A",value:"A"},{label:"B",value:"B"}]},focus:{value:"1"},zone:{value:"Europe/Rome",choices:Array.from({length:30},(_,i)=>i===7?{label:"Europe / Rome",value:"Europe/Rome"}:i===8?{label:"New York",value:"America/New_York"}:{label:"Zone "+i,value:"Z"+i})},ntp:{value:true,note:"Synchronized with a time server"},idle:{value:0},mic:{value:62},speed:{value:3},"network.wifi":{value:true},"opt-lock":{value:false}})
         readonly property var visibleRows: catalog.rows.filter(row => query ? row.title.toLowerCase().includes(query.toLowerCase()) : row.category === category && !row.inView)
@@ -62,6 +65,7 @@ Item {
         function action(id) { calls = calls.concat([{action:id}]); }
         function submit(request) { calls = calls.concat([request]); }
         function calendarRequest(request) { calls = calls.concat([request]); }
+        function soundRequest(request) { calls = calls.concat([request]); }
     }
     SettingsView { id: view; anchors.fill: parent; controller: controller }
     TestCase {
@@ -270,13 +274,84 @@ Item {
             compare(Network.securityOf(snap.accessPoints[0]), "open");
             compare(Network.connectPlan(snap, {ssid:"Cafe"}).kind, "add");
         }
+        function soundFixture() {
+            return {
+                outputs: [{name: "alsa_output.hdmi", description: "HDA NVidia Digital Stereo (HDMI)", label: "HDMI", custom: "", shown: true, virtual: false},
+                          {name: "virtual_surround", description: "Virtual Surround 7.1", label: "Surround", custom: "", shown: true, virtual: true}],
+                inputs: [{name: "alsa_input.usb", description: "G533 Mic", label: "G533 Mic", custom: "Headset mic", shown: false, virtual: false}],
+                defaultSink: "virtual_surround", defaultSource: "alsa_input.usb"};
+        }
+        function test_sound_view_rows() {
+            controller.sound = soundFixture();
+            controller.select("sound"); wait(20);
+            verify(findChild(view,"soundView").visible);
+            compare(findChild(view,"soundTag-alsa_output.hdmi").text, "Speaker");
+            compare(findChild(view,"soundTag-virtual_surround").text, "Virtual");
+            compare(findChild(view,"soundTag-alsa_input.usb").text, "Mic");
+            compare(findChild(view,"soundName-alsa_output.hdmi").placeholderText, "HDMI");
+            compare(findChild(view,"soundName-alsa_input.usb").text, "Headset mic");
+            verify(findChild(view,"show-alsa_output.hdmi").enabled);
+            verify(!findChild(view,"show-virtual_surround").enabled, "the default output stays shown");
+            verify(!findChild(view,"show-alsa_input.usb").enabled, "the default input stays shown");
+            verify(findChild(view,"show-alsa_output.hdmi").checked);
+            verify(!findChild(view,"show-alsa_input.usb").checked);
+            mouseClick(findChild(view,"show-alsa_output.hdmi"));
+            compare(controller.calls, [{op: "soundShow", name: "alsa_output.hdmi", shown: false}]);
+        }
+        function test_sound_name_field() {
+            controller.sound = soundFixture();
+            controller.select("sound"); wait(20);
+            const field = findChild(view,"soundName-alsa_output.hdmi");
+            verify(!findChild(view,"soundApply-alsa_output.hdmi").visible, "nothing to apply before an edit");
+            mouseClick(field);
+            verify(field.activeFocus);
+            keyClick("T"); keyClick("V");
+            compare(field.text, "TV");
+            verify(findChild(view,"soundApply-alsa_output.hdmi").visible);
+            // A read that lands while the field is being typed in must not rebuild it.
+            const reply = soundFixture();
+            reply.outputs[1].shown = false;
+            controller.sound = reply; wait(20);
+            const kept = findChild(view,"soundName-alsa_output.hdmi");
+            verify(kept === field, "the row is not rebuilt under the user's hand");
+            compare(kept.text, "TV");
+            keyClick(Qt.Key_Return);
+            compare(controller.calls, [{op: "soundName", name: "alsa_output.hdmi", label: "TV"}]);
+            // Once the field lets go, the held reply is drawn.
+            field.focus = false; wait(20);
+            verify(!field.activeFocus);
+            verify(!findChild(view,"show-virtual_surround").checked);
+        }
+        function test_sound_name_apply_and_reset() {
+            controller.sound = soundFixture();
+            controller.select("sound"); wait(20);
+            findChild(view,"soundName-alsa_output.hdmi").text = "Monitor";
+            findChild(view,"soundApply-alsa_output.hdmi").click();
+            compare(controller.calls, [{op: "soundName", name: "alsa_output.hdmi", label: "Monitor"}]);
+            // Clearing a custom name sends the empty label that resets it.
+            findChild(view,"soundName-alsa_input.usb").text = "";
+            findChild(view,"soundApply-alsa_input.usb").click();
+            compare(controller.calls[1], {op: "soundName", name: "alsa_input.usb", label: ""});
+        }
+        function test_sound_section_titles() {
+            controller.select("sound"); wait(20);
+            const sections = [];
+            (function walk(i){ for (const c of i.children) { if (c.objectName && c.objectName.startsWith("section-sound/")) sections.push(c); walk(c); } })(view);
+            compare(sections.length, 2);
+            compare(sections[0].title, "Output", "no device state yet: the plain title");
+            controller.sound = {outputs: [{name: "gp", description: "G533", label: "G533 Wireless Headset Dongle", custom: "", shown: true, virtual: false}],
+                inputs: [], defaultSink: "gp", defaultSource: ""};
+            wait(20);
+            compare(sections[0].title, "Output \u00b7 G533 Wireless Headset Dongle");
+            compare(sections[1].title, "Input");
+        }
         function init() {
             controller.closed = false; controller.query = ""; controller.category = "appearance";
             controller.calls = []; controller.busy = false; controller.interacting = "";
             controller.authPending = false;
             controller.loaded = true; controller.loading = false;
             controller.pendingDisplay = null; controller.monitors = []; controller.stagedDisplays = ({}); controller.keepPendingOnRevert = false;
-            controller.network = null; controller.startup = null; controller.devices = null; controller.about = null; controller.calendar = null;
+            controller.network = null; controller.startup = null; controller.devices = null; controller.about = null; controller.calendar = null; controller.sound = null;
             controller.values = ({blur:{value:true,reset:true},size:{value:4},font:{value:"Sans"},nickname:{value:"Bob"},theme:{value:"B",choices:[{label:"A",value:"A"},{label:"B",value:"B"}]},focus:{value:"1"},zone:{value:"Europe/Rome",choices:Array.from({length:30},(_,i)=>i===7?{label:"Europe / Rome",value:"Europe/Rome"}:i===8?{label:"New York",value:"America/New_York"}:{label:"Zone "+i,value:"Z"+i})},ntp:{value:true,note:"Synchronized with a time server"},idle:{value:0},mic:{value:62},speed:{value:3},"network.wifi":{value:true},"opt-lock":{value:false}});
             view.forceActiveFocus();
             findChild(view,"settingsScroll").contentItem.contentY = 0;

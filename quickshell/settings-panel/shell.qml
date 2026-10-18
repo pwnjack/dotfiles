@@ -33,6 +33,9 @@ ShellRoot {
     property var devices: null
     // Calendar page: calendarStatus every 5 s while the page is on screen; nothing otherwise.
     property var calendar: null
+    // Sound page: soundDevices on show, after a write, and on the audio events while the page is on screen.
+    property var sound: null
+    readonly property bool soundShown: opened && !closing && category === "sound" && !query.trim()
     readonly property bool calendarShown: opened && !closing && category === "calendar" && !query.trim()
     readonly property bool devicesShown: opened && !closing && category === "devices" && !query.trim()
     // Bumped when the page is hidden, so a read still in flight cannot land afterwards.
@@ -190,7 +193,7 @@ ShellRoot {
         if (!queue.length) {
             busy = false;
             if (closing) Qt.quit();
-            else refresh();
+            else { refresh(); readSound(); }
             return;
         }
         busy = true;
@@ -301,6 +304,39 @@ ShellRoot {
         running: root.calendarShown
         onTriggered: if (!calendarReader.running) { calendarReader.generation = root.calendarGeneration; calendarReader.running = true }
     }
+    // Bumped when the page is hidden, so a read still in flight cannot land afterwards (Calendar's rule).
+    property int soundGeneration: 0
+    onSoundShownChanged: {
+        if (soundShown) readSound();
+        else { soundGeneration++; soundReader.running = false; soundTimer.stop(); }
+    }
+    function readSound() {
+        // A write in flight reads again when it drains, so a read now would show the state before it.
+        if (!soundShown || busy) return;
+        if (soundReader.running) { soundTimer.restart(); return; }
+        soundReader.generation = soundGeneration;
+        soundReader.running = true;
+    }
+    Process {
+        id: soundReader
+        command: ["bash", root.configDir + "/scripts/settings/panel-request.sh", JSON.stringify({op: "soundDevices"})]
+        property int generation: -1
+        property string reply: ""
+        stdout: StdioCollector { onStreamFinished: soundReader.reply = text }
+        onExited: {
+            if (CalendarRead.fresh(generation, root.soundGeneration, root.soundShown)) {
+                // A failed read keeps the devices already shown.
+                try {
+                    const result = JSON.parse(soundReader.reply);
+                    if (!result.ok || !result.sound) throw new Error(result.error || "no devices in the reply");
+                    root.sound = result.sound;
+                } catch (error) { console.warn("Sound read failed: " + error); }
+            }
+            soundReader.reply = "";
+        }
+    }
+    // Audio events come in bursts (a profile switch is several): one read after they settle.
+    Timer { id: soundTimer; interval: 300; onTriggered: root.readSound() }
     // Calendar writes take the same queue as every other change: the password goes on stdin, and a failure lands in `problem`.
     function calendarRequest(request) { submit(request); }
     Process {
@@ -368,7 +404,11 @@ ShellRoot {
         running: root.opened && root.liveTags.includes("audio")
         command: ["pactl", "subscribe"]
         // `sink-input #3` must not count as `sink`; clients and streams are noise.
-        stdout: SplitParser { onRead: line => { if (/ on (sink|source|card|server)( #|$)/.test(line)) root.markLive("audio"); } }
+        stdout: SplitParser { onRead: line => {
+            if (!/ on (sink|source|card|server)( #|$)/.test(line)) return;
+            root.markLive("audio");
+            if (root.soundShown) soundTimer.restart();
+        } }
     }
     Process {
         id: networkEvents

@@ -477,6 +477,13 @@ FocusScope {
                             controller: view.controller
                             theme: view
                         }
+                        // Sound: the catalog's Output and Input sections come first, then the device names.
+                        SoundView {
+                            visible: view.customPage === "sound"
+                            Layout.fillWidth: true
+                            controller: view.controller
+                            theme: view
+                        }
                         // Displays: the per-machine rules file and the automatic main display, last.
                         SettingsSection {
                             visible: view.customPage === "monitors"
