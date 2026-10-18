@@ -23,6 +23,7 @@ entry="$config_dir/quickshell/sound/shell.qml"
 ipc() { qs -p "$entry" ipc call sound "$1" 9>&-; }
 if ipc toggle >/dev/null 2>&1; then exit 0; fi
 # shellcheck source=scripts/theming/palette.sh
+# shellcheck disable=SC1091
 source "$config_dir/scripts/theming/palette.sh" || fail 'Cannot load the theme palette for the sound popover.'
 declare -a wal
 # shellcheck disable=SC2034  # read by role_load, wal_role and wal_render

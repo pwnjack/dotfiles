@@ -207,7 +207,8 @@ function byAppName(a, b) {
 
 // A route only reads as pinned when `pins` names the stream: PipeWire records
 // a stream routed to the current default as unpinned. `pending` (key -> target
-// node name, or "default") shows a requested route until the stream follows.
+// node name, or "default") shows a requested route until the stream follows,
+// and keeps the stream listed while it relinks with no active link.
 export function appList(c, opts) {
     const names = opts.names || {}
     const pins = opts.pins || {}
@@ -215,11 +216,11 @@ export function appList(c, opts) {
     const apps = []
     for (let i = 0; i < c.apps.length; i++) {
         const node = c.apps[i]
-        if (!playing(node)) continue
-        const props = node.props
         const key = String(node.id)
-        const name = props['application.name'] || node.description || node.name
         const isPending = own(pending, key)
+        if (!playing(node) && !isPending) continue
+        const props = node.props
+        const name = props['application.name'] || node.description || node.name
         const pinned = own(pins, key)
         const pin = pinned ? findSink(c, pins[key]) : null
         const sink = isPending ? findSink(c, pending[key]) : pin

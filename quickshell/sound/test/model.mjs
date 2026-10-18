@@ -206,6 +206,13 @@ const opts = { defaultId: byName(BUILTIN).id, hidden: [], names: {}, battery: {}
     // Paused apps are not listed; a null description does not throw; initials take two words.
     const paused = Object.assign(copy(byName('mpv')), { linkStates: ['paused', 'paused'] })
     assert.deepEqual(appList(classify(nodes.map(n => n.name === 'mpv' ? paused : n)), aopts).map(a => a.name), ['pw-play'])
+    // A stream relinking after a route has no active link for a moment: its
+    // pending entry keeps it listed, so the row does not blink out.
+    const relinking = classify(nodes.map(n => n.name === 'mpv' ? paused : n))
+    const kept = appList(relinking, Object.assign({}, aopts, { pending: { 163: G533 } })).find(a => a.key === '163')
+    assert.ok(kept, 'a pending stream with no active link is listed')
+    assert.equal(kept.pending, true)
+    assert.equal(appList(relinking, aopts).find(a => a.key === '163'), undefined)
     const two = { id: 500, name: 'x', description: 'google chrome browser', isSink: false, isStream: true, props: { 'media.class': 'Stream/Output/Audio', 'object.serial': 501, 'application.icon_name': 'chrome' }, volume: 0.5, muted: true, channels: 2, linkStates: ['active'], linkTargets: [79] }
     const chrome = appList(classify(nodes.concat([two])), aopts).find(a => a.key === '500')
     assert.equal(chrome.initials, 'GC')

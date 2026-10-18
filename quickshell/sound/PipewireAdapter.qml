@@ -7,9 +7,9 @@ import Quickshell.Services.Pipewire
 // shape in model.mjs), rebuilt wholesale on any change and coalesced to one
 // rebuild per event-loop turn. Properties and link states exist only for bound
 // objects, so every node and every link group is bound; all of it is released
-// when the popover exits. A stream's links come from Pipewire.linkGroups, not
-// PwNodeLinkTracker: Quickshell marks output streams isSink, and the tracker
-// then follows the links into the stream, of which there are none.
+// when the popover exits.
+// Links come from Pipewire.linkGroups: PwNodeLinkTracker follows isSink, which
+// Quickshell sets on output streams, so it sees only links into them (none).
 Scope {
     id: adapter
 
