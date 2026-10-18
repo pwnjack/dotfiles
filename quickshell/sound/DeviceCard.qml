@@ -103,40 +103,66 @@ Rectangle {
                 anchors.right: parent.right
                 // Input above 100 % is software gain, as Settings allowed.
                 max: card.kind === "output" ? 1 : 1.5
+                key: card.live ? card.device.key : ""
                 value: card.live ? card.device.volume : 0
                 muted: card.live && card.device.muted
-                onCommit: v => card.controller.setVolume(card.device.key, v)
+                onCommit: (key, v) => card.controller.setVolume(key, v)
             }
         }
 
-        Rectangle {
-            id: chip
-            objectName: card.kind + "Battery"
-            readonly property bool known: card.live && typeof card.device.battery === "number"
-            readonly property string text: known ? card.device.battery + " %" : ""
-            visible: known
-            width: chipRow.implicitWidth + card.popover.px(14)
-            height: chipRow.implicitHeight + card.popover.px(4)
-            radius: height / 2
-            color: Qt.rgba(card.popover.foreground.r, card.popover.foreground.g, card.popover.foreground.b, 0.08)
-            Row {
-                id: chipRow
-                anchors.centerIn: parent
-                spacing: card.popover.px(4)
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: String.fromCodePoint(card.popover.batteryGlyph(chip.known ? card.device.battery : 0))
-                    color: card.popover.dim
-                    font.family: card.popover.iconFont
-                    font.pixelSize: card.popover.px(11)
+        Row {
+            // The chips' own conditions: their `visible` reads false while this row's is.
+            visible: chip.known || virtualChip.shown
+            spacing: card.popover.px(6)
+            Rectangle {
+                id: chip
+                objectName: card.kind + "Battery"
+                readonly property bool known: card.live && typeof card.device.battery === "number"
+                readonly property string text: known ? card.device.battery + " %" : ""
+                visible: known
+                width: chipRow.implicitWidth + card.popover.px(14)
+                height: chipRow.implicitHeight + card.popover.px(4)
+                radius: height / 2
+                color: Qt.rgba(card.popover.foreground.r, card.popover.foreground.g, card.popover.foreground.b, 0.08)
+                Row {
+                    id: chipRow
+                    anchors.centerIn: parent
+                    spacing: card.popover.px(4)
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: String.fromCodePoint(card.popover.batteryGlyph(chip.known ? card.device.battery : 0))
+                        color: card.popover.dim
+                        font.family: card.popover.iconFont
+                        font.pixelSize: card.popover.px(11)
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: chip.text
+                        color: card.popover.dim
+                        font.family: card.popover.monoFont
+                        font.pixelSize: card.popover.px(11)
+                        font.features: ({ "tnum": 1 })
+                    }
                 }
+            }
+            // A virtual default (set elsewhere, e.g. wpctl) still shows and is controlled here.
+            Rectangle {
+                id: virtualChip
+                objectName: card.kind + "Virtual"
+                readonly property string text: "Virtual"
+                readonly property bool shown: card.live && card.device.virtual === true
+                visible: shown
+                width: virtualText.implicitWidth + card.popover.px(14)
+                height: virtualText.implicitHeight + card.popover.px(4)
+                radius: height / 2
+                color: Qt.rgba(card.popover.foreground.r, card.popover.foreground.g, card.popover.foreground.b, 0.08)
                 Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: chip.text
+                    id: virtualText
+                    anchors.centerIn: parent
+                    text: virtualChip.text
                     color: card.popover.dim
                     font.family: card.popover.monoFont
                     font.pixelSize: card.popover.px(11)
-                    font.features: ({ "tnum": 1 })
                 }
             }
         }

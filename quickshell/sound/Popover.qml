@@ -9,7 +9,9 @@ import "model.mjs" as Model
 //   properties  background, foreground, accent, accentInk, monoFont, uiScale,
 //               ready, tab ("devices"|"apps"), picker (""|"output"|"input"),
 //               output, input (DeviceView|null), outputs, inputs ({ shown, hidden }),
-//               apps (AppView[]), targets (route targets), status, meter (0-1)
+//               apps (AppView[]), targets (route targets), status, meter (0-1),
+//               pinsKnown (false while `sound.sh pins --watch` has failed or not
+//               yet printed: no route is shown as checked)
 //   functions   setTab(t), openPicker(kind), closePicker(), choose(kind, key),
 //               setVolume(key, value), setMuted(key, muted),
 //               route(appKey, targetName | "default"), openSettings(),

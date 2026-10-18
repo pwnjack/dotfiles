@@ -79,7 +79,7 @@ Column {
         Text {
             anchors.left: radio.right
             anchors.leftMargin: picker.popover.px(10)
-            anchors.right: chip.visible ? chip.left : parent.right
+            anchors.right: virtualChip.visible ? virtualChip.left : chip.visible ? chip.left : parent.right
             anchors.rightMargin: picker.popover.px(10)
             anchors.verticalCenter: parent.verticalCenter
             elide: Text.ElideRight
@@ -106,6 +106,27 @@ Column {
                 font.family: picker.popover.monoFont
                 font.pixelSize: picker.popover.px(11)
                 font.features: ({ "tnum": 1 })
+            }
+        }
+        Rectangle {
+            id: virtualChip
+            objectName: "virtualChip"
+            readonly property string text: "Virtual"
+            visible: row.device.virtual === true
+            anchors.right: chip.visible ? chip.left : parent.right
+            anchors.rightMargin: picker.popover.px(chip.visible ? 6 : 10)
+            anchors.verticalCenter: parent.verticalCenter
+            width: virtualText.implicitWidth + picker.popover.px(14)
+            height: virtualText.implicitHeight + picker.popover.px(4)
+            radius: height / 2
+            color: Qt.rgba(picker.popover.foreground.r, picker.popover.foreground.g, picker.popover.foreground.b, 0.08)
+            Text {
+                id: virtualText
+                anchors.centerIn: parent
+                text: virtualChip.text
+                color: picker.popover.dim
+                font.family: picker.popover.monoFont
+                font.pixelSize: picker.popover.px(11)
             }
         }
         MouseArea {

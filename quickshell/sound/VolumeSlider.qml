@@ -3,20 +3,25 @@ import QtQuick
 // A volume track and its percentage. While pressed, and for a moment after a
 // commit, it shows its own value: PipeWire echoes volumes late, and an echo
 // must not pull the handle from under the pointer. It commits on release and
-// on each wheel or arrow step (2 %), never while dragging. A volume above
-// `max` (software gain set elsewhere) parks the handle at the end and the
-// label keeps the true percentage.
+// on each wheel or arrow step (2 %), never while dragging, and always within
+// [0, max]. A volume above `max` (software gain set elsewhere) parks the
+// handle at the end and the label keeps the true percentage. A commit goes to
+// the `key` the gesture started on: if `key` changed by the release (the
+// default moved, the stream ended), the drag is dropped.
 Item {
     id: slider
     required property var popover
+    property string key: ""
     property real value: 0
     property real max: 1
     property bool muted: false
-    signal commit(real value)
+    signal commit(string key, real value)
 
     property real held: 0
+    property string pressedKey: ""
     readonly property bool pressed: mouse.pressed
-    readonly property real level: pressed || settling.running ? held : value
+    readonly property bool holding: pressed || settling.running
+    readonly property real level: holding ? held : value
     readonly property real step: 0.02
     implicitHeight: popover.px(22)
     activeFocusOnTab: true
@@ -26,20 +31,23 @@ Item {
         return round(Math.max(0, Math.min(1, (x - track.x) / track.width)) * max);
     }
     function send(v) {
+        if (!key) return;
         held = v;
         settling.restart();
-        commit(v);
+        commit(key, v);
     }
-    // Up never lowers an over-range volume; down from one keeps counting from it.
+    // Up never lowers an over-range volume; down from one lands within max.
     function nudge(notches) {
         const base = settling.running ? held : round(value);
-        const next = round(notches > 0 ? Math.max(base, Math.min(max, base + notches * step))
-                                        : Math.max(0, base + notches * step));
+        const next = round(Math.max(0, Math.min(max, base + notches * step)));
+        if (notches > 0 && next < base) return;
         if (next !== base) send(next);
     }
     // Ends early once the controller reports the committed value.
     Timer { id: settling; interval: 1000 }
     onValueChanged: if (settling.running && Math.abs(value - held) < 0.005) settling.stop()
+    // Another device or stream: show its own volume at once.
+    onKeyChanged: settling.stop()
 
     Keys.onRightPressed: nudge(1)
     Keys.onUpPressed: nudge(1)
@@ -101,10 +109,11 @@ Item {
                 return;
             }
             settling.stop();
+            slider.pressedKey = slider.key;
             slider.held = slider.at(event.x);
         }
         onPositionChanged: event => slider.held = slider.at(event.x)
-        onReleased: slider.send(slider.held)
+        onReleased: if (slider.key === slider.pressedKey) slider.send(slider.held)
         // Touchpads send fractions of a notch: steps fire as whole notches add up.
         property real wheelRest: 0
         onWheel: event => {

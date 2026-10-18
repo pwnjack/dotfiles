@@ -27,6 +27,7 @@ Item {
         property var apps: []
         property var targets: []
         property string status: ""
+        property bool pinsKnown: true
         property real meter: 0.38
         property var calls: []
         function record(call) { calls = calls.concat([call]); }
@@ -101,11 +102,14 @@ Item {
             controller.apps = [app(81, "Firefox", 1), app(92, "World of Warcraft", 0.85)];
             controller.targets = targets();
             controller.status = "";
+            controller.pinsKnown = true;
             controller.calls = [];
             popover.forceActiveFocus();
             // The tab fade and the card's height glide finish before any click.
             settle();
             tryCompare(findChild(popover, "picker"), "shownFraction", 0);
+            // A commit from the previous test is held until echoed or for 1 s.
+            tryVerify(() => !findChild(popover, "outputSlider").holding && !findChild(popover, "inputSlider").holding, 1500);
         }
         function cleanup() {
             if (popover.openMenu) popover.openMenu.close();
@@ -332,6 +336,83 @@ Item {
             compare(called("setVolume").length, 3);
             mouseWheel(slider, slider.width / 2, slider.height / 2, 0, 60);
             compare(called("setVolume")[3], ["setVolume", "alsa_output.usb-Logitech_G533", 0.68]);
+        }
+
+        function test_wheel_down_from_over_range_stays_in_range() {
+            const loud = headset();
+            loud.volume = 1.2;
+            controller.output = loud;
+            const hot = mic();
+            hot.volume = 1.6;
+            controller.input = hot;
+            waitForRendering(popover);
+            const output = findChild(popover, "outputSlider");
+            mouseWheel(output, output.width / 2, output.height / 2, 0, -120);
+            const input = findChild(popover, "inputSlider");
+            mouseWheel(input, input.width / 2, input.height / 2, 0, -120);
+            const sets = called("setVolume");
+            compare(sets.length, 2);
+            compare(sets[0][1], "alsa_output.usb-Logitech_G533");
+            verify(sets[0][2] <= 1.0, "output committed " + sets[0][2]);
+            compare(sets[1][1], "alsa_input.usb-Logitech_G533");
+            verify(sets[1][2] <= 1.5, "input committed " + sets[1][2]);
+        }
+
+        function test_release_after_default_changes_commits_nothing() {
+            const slider = findChild(popover, "outputSlider");
+            const track = findChild(slider, "track");
+            const at = slider.mapFromItem(track, track.width * 0.3, track.height / 2);
+            mousePress(slider, at.x, at.y);
+            const next = speakers();
+            next.current = true;
+            controller.output = next;
+            waitForRendering(popover);
+            mouseRelease(slider, at.x, at.y);
+            compare(called("setVolume").filter(call => call[1] === "alsa_output.pci-speakers"), []);
+            // The app rows hold the same rule: a row whose stream ended commits nothing.
+            controller.tab = "apps";
+            settle();
+            const appSlider = findChild(appRow("92"), "appSlider");
+            const appTrack = findChild(appSlider, "track");
+            const appAt = popover.mapFromItem(appTrack, appTrack.width * 0.3, appTrack.height / 2);
+            mousePress(popover, appAt.x, appAt.y);
+            controller.apps = [app(81, "Firefox", 1)];
+            // The row is gone: release where it was.
+            mouseRelease(popover, appAt.x, appAt.y);
+            compare(called("setVolume").filter(call => call[1] !== "92" && call[1] !== "alsa_output.usb-Logitech_G533"), []);
+            compare(called("setVolume").filter(call => call[1] === ""), []);
+        }
+
+        function test_virtual_default_is_labelled() {
+            const surround = { key: "effect_input.virtual_surround", name: "effect_input.virtual_surround",
+                label: "Surround 7.1", volume: 1, muted: false, battery: null, current: true, virtual: true };
+            controller.output = surround;
+            controller.outputs = { shown: [surround, speakers()], hidden: [] };
+            waitForRendering(popover);
+            const chip = findChild(popover, "outputVirtual");
+            verify(chip.visible);
+            compare(chip.text, "Virtual");
+            verify(!findChild(popover, "inputVirtual").visible);
+            controller.openPicker("output");
+            const picker = findChild(popover, "picker");
+            tryCompare(picker, "shownFraction", 1);
+            const rows = findChild(picker, "pickerRows");
+            const marked = findChild(rows.itemAt(0), "virtualChip");
+            verify(marked.visible);
+            compare(marked.text, "Virtual");
+            verify(!findChild(rows.itemAt(1), "virtualChip").visible);
+        }
+
+        function test_unknown_pins_check_nothing() {
+            controller.pinsKnown = false;
+            const menu = openRouteMenu("81");
+            const entries = findChild(menu.contentItem, "menuEntries");
+            compare(entries.itemAt(0).text, "Default (follows Devices)");
+            for (let i = 0; i < entries.count; i++) verify(!entries.itemAt(i).checked, entries.itemAt(i).text);
+            // Menus still route, Default included.
+            waitForRendering(popover);
+            mouseClick(entries.itemAt(0));
+            compare(called("route"), [["route", "81", "default"]]);
         }
 
         function test_mute_toggles() {

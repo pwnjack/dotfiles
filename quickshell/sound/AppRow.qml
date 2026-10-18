@@ -17,17 +17,19 @@ Item {
     onGoneChanged: if (gone) menu.close()
 
     // Default, the shown real outputs, a hidden device the stream is pinned
-    // to, then the virtual sinks. Default is checked only when unpinned.
+    // to, then the virtual sinks. Default is checked only when unpinned, and
+    // nothing is checked while the pins cannot be read (pinsKnown).
     readonly property var entries: {
         const targets = controller.targets || [];
         const route = app.route;
-        const list = [{ key: "default", label: "Default (follows Devices)", checked: route.target === "" }];
-        const entry = target => ({ key: target.name, label: target.label, checked: target.name === route.target });
+        const known = controller.pinsKnown;
+        const list = [{ key: "default", label: "Default (follows Devices)", checked: known && route.target === "" }];
+        const entry = target => ({ key: target.name, label: target.label, checked: known && target.name === route.target });
         const real = targets.filter(target => !target.virtual);
         const virtual = targets.filter(target => target.virtual);
         for (let i = 0; i < real.length; i++) list.push(entry(real[i]));
         if (route.target && !targets.some(target => target.name === route.target))
-            list.push({ key: route.target, label: route.label, checked: true });
+            list.push({ key: route.target, label: route.label, checked: known });
         for (let i = 0; i < virtual.length; i++) list.push(entry(virtual[i]));
         return list;
     }
@@ -177,9 +179,10 @@ Item {
         anchors.leftMargin: row.popover.px(4)
         anchors.right: parent.right
         y: name.y + name.height + row.popover.px(4)
+        key: row.app.key
         value: row.app.volume
         muted: row.app.muted
-        onCommit: v => row.controller.setVolume(row.app.key, v)
+        onCommit: (key, v) => row.controller.setVolume(key, v)
     }
 
     Popup {
