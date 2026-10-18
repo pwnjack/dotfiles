@@ -142,7 +142,8 @@ function deviceView(node, opts) {
 }
 
 // The current default is always shown, even hidden or virtual. Other virtual
-// sinks are never devices; other hidden devices go to `hidden`.
+// sinks are never picker entries (virtual sources, e.g. echo cancel, are inputs);
+// other hidden devices go to `hidden`.
 export function deviceList(kind, c, opts) {
     const hidden = opts.hidden || []
     const candidates = kind === 'output' ? c.outputs.concat(c.virtuals) : c.inputs
@@ -152,7 +153,7 @@ export function deviceList(kind, c, opts) {
         const node = candidates[i]
         const device = deviceView(node, view)
         if (device.current) result.shown.push(device)
-        else if (device.virtual) continue
+        else if (kind === 'output' && device.virtual) continue
         else if (hidden.indexOf(node.name) >= 0) result.hidden.push(device)
         else result.shown.push(device)
     }
@@ -220,7 +221,8 @@ export function appList(c, opts) {
         const name = props['application.name'] || node.description || node.name
         const isPending = own(pending, key)
         const pinned = own(pins, key)
-        const sink = findSink(c, isPending ? pending[key] : pinned ? pins[key] : null)
+        const pin = pinned ? findSink(c, pins[key]) : null
+        const sink = isPending ? findSink(c, pending[key]) : pin
         let tag = ''
         for (let j = 0; j < c.virtuals.length && !tag; j++) {
             if (node.linkTargets.indexOf(c.virtuals[j].id) >= 0) tag = channelTag(c.virtuals[j].channels)
@@ -235,7 +237,7 @@ export function appList(c, opts) {
             muted: node.muted,
             route: {
                 label: sink ? labelFor(sink, names) : 'Default',
-                pinned: !isPending && !!sink && pinned,
+                pinned: !!pin,
                 target: sink ? sink.name : '',
             },
             tag,

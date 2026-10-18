@@ -122,6 +122,14 @@ const opts = { defaultId: byName(BUILTIN).id, hidden: [], names: {}, battery: {}
     assert.deepEqual(inp.shown.map(d => d.name), [G533_MIC])
     assert.deepEqual(inp.hidden.map(d => d.name), [BUILTIN_MIC])
     assert.equal(inp.shown[0].label, 'G533 Wireless Headset Dongle')
+
+    // Synthetic: a virtual source (e.g. echo cancel) is a legitimate input.
+    const echo = { id: 904, name: 'echo-cancel-source', description: 'Echo-Cancel Source', isSink: false, isStream: false, props: { 'media.class': 'Audio/Source', 'node.virtual': true, 'object.serial': 904 }, volume: 1, muted: false, channels: 1, linkStates: [], linkTargets: [] }
+    const ec = classify(nodes.concat([echo]))
+    const echoIn = deviceList('input', ec, { defaultId: byName(G533_MIC).id, hidden: [], names: {}, battery: {} })
+    assert.ok(echoIn.shown.some(d => d.name === 'echo-cancel-source' && d.virtual && !d.current))
+    const echoHidden = deviceList('input', ec, { defaultId: byName(G533_MIC).id, hidden: ['echo-cancel-source'], names: {}, battery: {} })
+    assert.ok(echoHidden.hidden.some(d => d.name === 'echo-cancel-source'))
 }
 
 // routeTargets: shown real outputs, then virtuals; hidden outputs excluded.
@@ -180,6 +188,14 @@ const opts = { defaultId: byName(BUILTIN).id, hidden: [], names: {}, battery: {}
     assert.equal(pend[0].route.label, 'G533 Wireless Headset Dongle')
     assert.equal(pend[1].pending, false)
     assert.equal(appList(c, Object.assign({}, aopts, { pending: { 163: 'default' } }))[0].route.label, 'Default')
+    // Pinned and pending at once: pinned comes from the pin, the label from the pending target.
+    const pinnedAndPending = appList(c, Object.assign({}, aopts, { pins: { 163: '236' }, pending: { 163: G533 } }))[0]
+    assert.equal(pinnedAndPending.pending, true)
+    assert.equal(pinnedAndPending.route.pinned, true)
+    assert.equal(pinnedAndPending.route.label, 'G533 Wireless Headset Dongle')
+    assert.equal(pinnedAndPending.route.target, G533)
+    // A pin that resolves to no sink stays unpinned even with a pending entry.
+    assert.equal(appList(c, Object.assign({}, aopts, { pins: { 163: '9999' }, pending: { 163: G533 } }))[0].route.pinned, false)
 
     // Tag: a stream linked into the surround sink reads 7.1.
     const mpvIn = Object.assign(copy(byName('mpv')), { linkTargets: [36, 36] })
