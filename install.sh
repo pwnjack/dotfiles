@@ -97,7 +97,7 @@ PACKAGES=(
     # Terminals, shell, editors
     "ghostty" "fish" "starship" "fzf" "fd" "neovim" "zed" "kate"
     # File managers and system tools
-    "thunar" "yazi" "btop" "bottom" "resources" "fastfetch" "cava"
+    "yazi" "btop" "bottom" "resources" "fastfetch" "cava"
     # checkupdates, for the waybar updates module
     "pacman-contrib"
     # Opens Terminal=true desktop entries in options/terminal (scripts/settings/terminal.sh)
@@ -127,7 +127,7 @@ PACKAGES=(
 )
 
 AUR_PACKAGES=(
-    "strata-bin"             # GTK4 file manager (Thunar stays installed and themed)
+    "strata-bin"             # GTK4 file manager
     "zen-browser-bin"
     "vesktop"
     "waybar-weather"

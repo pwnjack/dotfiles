@@ -31,7 +31,6 @@
 !/options/
 !/defaults/
 !/pipewire/
-!/Thunar/
 !/strata/
 !/xdg-desktop-portal/
 !/swappy/
@@ -108,10 +107,6 @@ strata/*
 !strata/themes/
 strata/themes/*
 !strata/themes/tokyo-night.toml
-
-# Thunar's own files; only the theming hook is ours
-Thunar/*
-!Thunar/apply_wal_colors.sh
 
 # Vesktop's own state; only the theming hook and its theme are ours
 vesktop/*

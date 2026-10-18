@@ -6,7 +6,7 @@ as before. The repo tracks symlinks to generated files, so a wallpaper change
 never dirties git. Existing theme names, CSS variables such as `--pywal-*`,
 and the Neovim plugin name are retained for compatibility.
 
-`~/.cache/wal/` contains `colors`, `roles`, `next/` (staging), `generation.log`, `wallpaper.lock`, `rofi-wallpaper.rasi`, `colors-hyprland.{conf,lua}`, `colors-rofi.rasi`, `colors-waybar.css`, `ghostty-colors`, `thunar-gtk.css`, `strata-theme.toml`, `cava-config`, `btop.theme`, `starship.toml`, `vesktop.theme.css`, `zen-userChrome.css`, `spicetify-color.ini`, `eww-colors.scss`, `colors-wal.vim` and `.eww-reload-failed`.
+`~/.cache/wal/` contains `colors`, `roles`, `next/` (staging), `generation.log`, `wallpaper.lock`, `rofi-wallpaper.rasi`, `colors-hyprland.{conf,lua}`, `colors-rofi.rasi`, `colors-waybar.css`, `ghostty-colors`, `strata-theme.toml`, `cava-config`, `btop.theme`, `starship.toml`, `vesktop.theme.css`, `zen-userChrome.css`, `spicetify-color.ini`, `eww-colors.scss`, `colors-wal.vim` and `.eww-reload-failed`.
 
 ## Generation and publication
 
@@ -190,7 +190,7 @@ reload drops its reserved zone briefly and resizes tiled windows. Waybar and
 SwayNC import the cached stylesheet by relative path: Waybar 0.15 resolves a
 symlinked import against its own working directory and silently watches
 nothing. Shared GTK definitions expose semantic surfaces, selection pairs
-and errors for SwayNC and Thunar. SwayNC restyles with `swaync-client -rs`;
+and errors for SwayNC. SwayNC restyles with `swaync-client -rs`;
 Rofi's `colors-rofi.rasi` is read on every launch, so it needs no reload.
 
 Four components are templated: **cava**, **Starship**, **Vesktop** and **Zen**.
@@ -287,9 +287,8 @@ Users can still choose another theme.
 
 The base is clamped to a dark or light band. Foregrounds remain readable on
 the base and surface, and text on muted and highlight. Its accent comes from
-`primary`; destructive actions stay red. Thunar's GTK3 hook and import remain
-available, while GTK4 CSS belongs to the GTK theme managed by nwg-look;
-`gtk-4.0/settings.ini` remains rendered machine state.
+`primary`; destructive actions stay red. GTK4 CSS belongs to the GTK theme
+managed by nwg-look; `gtk-4.0/settings.ini` remains rendered machine state.
 
 Strata hard-codes JetBrains Mono, so a fontconfig rule scoped to its
 `io.github.lgse.Strata` application ID maps that family to `options/font`.

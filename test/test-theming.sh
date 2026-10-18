@@ -30,7 +30,6 @@ done
 declare -A outputs=(
     [rofi]=colors-rofi.rasi
     [ghostty]=ghostty-colors
-    [Thunar]=thunar-gtk.css
     [strata]=strata-theme.toml
     [cava]=cava-config
     [starship]=starship.toml
@@ -119,7 +118,7 @@ accent_cache="$tmp/accent-cache"
 mkdir -p "$accent_cache/wal"
 printf '#112233\n%.0s' {1..16} > "$accent_cache/wal/colors"
 printf 'primary=#0000aa\non_primary=#ffeedd\nsurface_container=#223344\nsurface_container_high=#334455\nsecondary_container=#445566\non_secondary_container=#ddeeff\nerror=#ff9988\non_error=#331100\n' > "$accent_cache/wal/roles"
-for component in waybar btop strata rofi Thunar; do
+for component in waybar btop strata rofi; do
     PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$accent_cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
         bash "$ROOT/$component/apply_wal_colors.sh"
     assert_eq "$?" 0 "$component renders with a primary distinct from slot 4"
@@ -144,9 +143,6 @@ rofi_colors="$(cat "$accent_cache/wal/colors-rofi.rasi")"
 assert_contains "$rofi_colors" 'selected:   #44556666;' "Rofi selection uses translucent secondary_container"
 assert_contains "$rofi_colors" 'accent:     #0000aa;' "Rofi accent uses primary"
 assert_contains "$rofi_colors" 'accentlow:  #0000aa66;' "Rofi low accent uses translucent primary"
-thunar_css="$(cat "$accent_cache/wal/thunar-gtk.css")"
-assert_contains "$thunar_css" $'background-color: #445566;\n    color: #ddeeff;' "Thunar selection uses the container pair"
-assert_contains "$thunar_css" 'background-color: #334455;' "Thunar rubberband uses surface_container_high"
 strata_accent=$(wal_oklch '#0000aa' 0.76 0.84 0.12)
 assert_contains "$(cat "$accent_cache/wal/strata-theme.toml")" "accent = \"$strata_accent\"" \
     "Strata accent follows primary with its foreground clamp"

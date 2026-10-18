@@ -27,12 +27,10 @@ skipped, since lookups fall back past them.
 ## File manager and file chooser
 
 Strata is the repo's default GUI file manager (`strata-bin` from the AUR).
-Thunar stays installed and themed, and remains the second folder association.
 `defaults/options/filemanager` selects `strata`, and `defaults/mimeapps.list`
-lists `io.github.lgse.Strata.desktop;thunar.desktop;` for `inode/directory`.
-Change repo defaults in `defaults/`; the settings overlay renders the live
-files. Super+E and “Show in folder” follow `options/filemanager`. Without the
-AUR package, pick Thunar in the settings panel.
+names `io.github.lgse.Strata.desktop` for `inode/directory`. Change repo
+defaults in `defaults/`; the settings overlay renders the live files. Super+E
+and “Show in folder” follow `options/filemanager`.
 
 `scripts/settings/file-manager.sh` makes the configured file manager answer
 D-Bus `org.freedesktop.FileManager1`, used by every “Show in folder” action.

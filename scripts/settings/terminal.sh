@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Make the configured terminal (options/terminal) the one xdg-terminal-exec
-# opens. That is how GLib apps (Thunar's "Open with", GTK launchers) and uwsm
+# opens. That is how GLib apps (a file manager's "Open with", GTK launchers) and uwsm
 # run a desktop entry with Terminal=true, such as nvim, yazi or btop; with no
 # preference it picks whichever terminal it finds first.
 #

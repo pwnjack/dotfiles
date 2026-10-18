@@ -33,17 +33,15 @@ applications, the agent harness and more) are in [internals/](internals/).
 | Terminal | Ghostty (`options/terminal`) |
 | Notifications | SwayNC |
 | Lock screen | Hyprlock |
-| File manager | Strata / Thunar / Yazi (`options/filemanager`) |
+| File manager | Strata / Yazi (`options/filemanager`) |
 | Browser | Zen Browser (`options/browser`) |
 | Editor | Neovim (LazyVim) |
 | Shell | Fish + Starship |
 | Colours | matugen, derived from the wallpaper |
 | Desktop clock | eww (`options/desktop-clock`) |
 
-Strata is the default file manager. Thunar stays installed and themed, and is
-the second `inode/directory` association. Super+E and “Show in folder” follow
-`options/filemanager`; without the AUR package, pick Thunar in the settings
-panel.
+Strata is the default file manager. Super+E and “Show in folder” follow
+`options/filemanager`.
 
 ## Structure
 
@@ -66,7 +64,7 @@ panel.
 ├── matugen/       # Palette generator config
 ├── eww/           # The desktop clock widget
 ├── khal/ vdirsyncer/   # Calendar tools (see calendar.md)
-├── gtk-3.0/ gtk-4.0/ qt5ct/ qt6ct/ strata/ Thunar/ swappy/ waypaper/ aichat/
+├── gtk-3.0/ gtk-4.0/ qt5ct/ qt6ct/ strata/ swappy/ waypaper/ aichat/
 │                  # Toolkit themes and small utilities (the GTK and Qt
 │                  # settings.ini/.conf files are rendered from defaults/,
 │                  # not tracked)
@@ -234,7 +232,7 @@ default: the apps the keybindings launch (browser, terminal, editors, file
 manager), and what opens each kind of link and file (`mimeapps.list`, rendered from `defaults/mimeapps.list`). The
 first set also becomes `$BROWSER`, `$TERMINAL`, `$EDITOR` and `$VISUAL` for
 every program Hyprland starts, which is what git, `gh`, `sudoedit` and yazi
-read, and the terminal is also the one apps like Thunar open for nvim, yazi or
+read, and the terminal is also the one file managers open for nvim, yazi or
 btop (`xdg-terminal-exec`). Don't set these in `~/.profile`, and never set
 `TERM`: each terminal sets it itself. `./doctor.sh` warns when one of these
 defaults names a program that is not installed.
@@ -292,11 +290,10 @@ Appearance page (Palette section) picks its scheme, contrast and source colour
 regenerates the current wallpaper's palette when you change one.
 
 Colours apply to Hyprland, Hyprlock, Waybar, Rofi, SwayNC, Ghostty, Strata,
-Thunar, cava, btop, Neovim, the Starship prompt, the desktop clock, Vesktop
+cava, btop, Neovim, the Starship prompt, the desktop clock, Vesktop
 (Discord), Zen Browser and Spotify (through Spicetify; see
-[spotify.md](spotify.md)). Strata, Thunar
-and Zen pick up a new palette at their next launch. Open Neovim windows
-re-theme in place unless you picked another colour scheme in them; before
+[spotify.md](spotify.md)). Strata and Zen pick up a new palette at their
+next launch. Open Neovim windows re-theme in place unless you picked another colour scheme in them; before
 its generated `colors-wal.vim` exists, Neovim uses LazyVim's tokyonight.
 fastfetch and bat (and so man pages) follow too, without rendering anything — they colour by ANSI
 index, and the terminal palette comes from matugen. ANSI green stays green on
@@ -537,7 +534,7 @@ git reset origin/main   # marks repo files as tracked without touching them
 sudo pacman -S --needed hyprland hyprlock hypridle hyprpolkitagent hyprshot \
                hyprpicker hyprsunset swappy waybar swaync awww waypaper \
                quickshell rofi rofi-emoji ghostty fish starship fzf fd neovim \
-               zed kate thunar yazi btop bottom resources fastfetch cava \
+               zed kate yazi btop bottom resources fastfetch cava \
                pacman-contrib xdg-terminal-exec cliphist wl-clipboard \
                gpu-screen-recorder slurp playerctl qt5ct qt6ct \
                nwg-look pavucontrol blueman nm-connection-editor \
