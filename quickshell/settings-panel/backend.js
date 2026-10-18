@@ -13,6 +13,7 @@ import * as network from "./network.mjs"
 import * as autostart from "./autostart.mjs"
 import { regionValue, regionEnumerators, setRegion } from "./region.js"
 import * as calendar from "./calendar.mjs"
+import * as sound from "./sound.mjs"
 
 const configDir = GLib.get_home_dir() + "/.config"
 const catalog = JSON.parse(read(configDir + "/quickshell/settings-panel/catalog.json"))
@@ -263,6 +264,8 @@ async function choicesFor(row, current, once = onceCache()) {
     return enumerators[row.choices](row, current, once)
 }
 function readOption(key) { return read(optionPath(key)).trim() }
+// An untracked option that may not exist yet: untrimmed, since sound-names is tab-separated text.
+function readOptionOrEmpty(key) { return exists(optionPath(key)) ? read(optionPath(key)) : "" }
 function networkValue(key, snap) {
     if (!snap.running) throw new Error("NetworkManager is not running")
     if (key !== "wifi") throw new Error("Unknown network setting")
@@ -1083,6 +1086,34 @@ export async function dispatch(request) {
         await saveAndApply(path, calendar.toggleHidden(before, request.name, request.shown === true),
             () => execAsync(["bash", configDir + "/scripts/calendar/sync.sh", "--render"]), true)
         await syncOverlay()
+        return {}
+    }
+    if (request.op === "soundDevices") {
+        const state = await pulseState()
+        const hidden = sound.parseHidden(readOptionOrEmpty("sound-hidden"))
+        const names = sound.parseNames(readOptionOrEmpty("sound-names"))
+        const row = device => {
+            const virtual = device.properties?.["node.virtual"] === "true"
+            const custom = Object.hasOwn(names, device.name) ? names[device.name] : ""
+            return { name: device.name, description: device.description, label: custom || sound.deriveLabel(device.description, virtual),
+                custom, shown: !hidden.includes(device.name), virtual }
+        }
+        // Sink monitors are sources too; only real inputs have no monitor_source.
+        return { sound: { outputs: state.sinks.map(row), inputs: state.sources.filter(source => !source.monitor_source).map(row),
+            defaultSink: state.info.default_sink_name, defaultSource: state.info.default_source_name } }
+    }
+    if (request.op === "soundShow" || request.op === "soundName") {
+        if (typeof request.name !== "string" || !/^[A-Za-z0-9._:-]+$/.test(request.name)) throw new Error("Invalid device name")
+        if (request.op === "soundShow") {
+            if (request.shown !== true) {
+                const { info } = await pulseState()
+                if (request.name === info.default_sink_name || request.name === info.default_source_name) throw new Error("The current device cannot be hidden")
+            }
+            await saveOrRemove(optionPath("sound-hidden"), sound.toggleHidden(readOptionOrEmpty("sound-hidden"), request.name, request.shown === true), () => syncOverlay())
+        } else {
+            const label = sound.validName(String(request.label ?? ""))
+            await saveOrRemove(optionPath("sound-names"), sound.setName(readOptionOrEmpty("sound-names"), request.name, label), () => syncOverlay())
+        }
         return {}
     }
     throw new Error("Unknown operation")

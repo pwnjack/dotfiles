@@ -1732,6 +1732,37 @@ console.log('ok: calendar visibility edits the hidden list and re-renders')
 console.log('ok: a failed calendar render restores the hidden list')
 
 events = []
+let reply = await dispatch({op:'soundDevices'})
+assert.deepEqual(reply.sound.outputs.map(r => r.name), ['alsa_output.analog','alsa_output.hdmi'])
+assert.equal(reply.sound.inputs.some(r => r.name.endsWith('.monitor')), false)
+await dispatch({op:'soundName',name:'alsa_output.hdmi',label:'TV'})
+assert.equal(files.get(base+'/options/sound-names'),'alsa_output.hdmi\tTV\n')
+assert.ok(events.some(overlaySync))
+await dispatch({op:'soundShow',name:'alsa_output.hdmi',shown:false})
+assert.equal(files.get(base+'/options/sound-hidden'),'alsa_output.hdmi\n')
+await assert.rejects(dispatch({op:'soundShow',name:'alsa_output.analog',shown:false}),/cannot be hidden/)
+await assert.rejects(dispatch({op:'soundName',name:'a b',label:'x'}),/Invalid device name/)
+failOverlay = true
+await assert.rejects(dispatch({op:'soundShow',name:'alsa_output.hdmi',shown:true}),/Previous settings restored/)
+assert.equal(files.get(base+'/options/sound-hidden'),'alsa_output.hdmi\n')
+files.delete(base+'/options/sound-names'); failOverlay = true
+await assert.rejects(dispatch({op:'soundName',name:'alsa_output.hdmi',label:'TV'}),/Previous settings restored/)
+assert.equal(files.has(base+'/options/sound-names'),false)
+// Row fields: a custom name wins over the derived label, hidden devices are not shown, and node.virtual marks a virtual sink.
+files.set(base+'/options/sound-names','alsa_output.hdmi\tTV\n'); files.set(base+'/options/sound-hidden','alsa_output.hdmi\n')
+pulse.sinks.push({name:'virtual_surround',description:'Virtual Surround 7.1 (Headset)',properties:{'node.virtual':'true'},ports:[]})
+reply = await dispatch({op:'soundDevices'})
+pulse.sinks.pop()
+const rows = Object.fromEntries(reply.sound.outputs.map(r => [r.name, r]))
+assert.deepEqual(rows['alsa_output.hdmi'], {name:'alsa_output.hdmi',description:'GA102 Digital Stereo (HDMI)',label:'TV',custom:'TV',shown:false,virtual:false})
+assert.deepEqual(rows['alsa_output.analog'], {name:'alsa_output.analog',description:'Built-in Audio Analog Stereo',label:'Built-in Audio',custom:'',shown:true,virtual:false})
+assert.equal(rows.virtual_surround.virtual, true)
+assert.equal(reply.sound.defaultSink, 'alsa_output.analog')
+assert.equal(reply.sound.defaultSource, 'alsa_input.analog')
+files.delete(base+'/options/sound-names'); files.delete(base+'/options/sound-hidden')
+console.log('ok: sound names and hidden devices')
+
+events = []
 await dispatch({op:'set',id:'calendar.default',value:'Work'})
 assert.equal(files.get(base+'/options/calendar-default'),'Work\n', 'a never-set calendar-default is created by its first save')
 await assert.rejects(dispatch({op:'set',id:'calendar.default',value:'Holidays'}),/Unknown choice/)
