@@ -205,6 +205,10 @@ function byAppName(a, b) {
     return x < y ? -1 : x > y ? 1 : a.key < b.key ? -1 : a.key > b.key ? 1 : 0
 }
 
+// A stream is keyed by its object.serial: PipeWire reuses object ids, so a
+// new stream can take an ended one's id. `pins` stays keyed by object id, as
+// pw-metadata writes it.
+//
 // A route only reads as pinned when `pins` names the stream: PipeWire records
 // a stream routed to the current default as unpinned. `pending` (key -> target
 // node name, or "default") shows a requested route until the stream follows,
@@ -216,13 +220,13 @@ export function appList(c, opts) {
     const apps = []
     for (let i = 0; i < c.apps.length; i++) {
         const node = c.apps[i]
-        const key = String(node.id)
+        const props = node.props
+        const key = String(props['object.serial'])
         const isPending = own(pending, key)
         if (!playing(node) && !isPending) continue
-        const props = node.props
         const name = props['application.name'] || node.description || node.name
-        const pinned = own(pins, key)
-        const pin = pinned ? findSink(c, pins[key]) : null
+        const id = String(node.id)
+        const pin = own(pins, id) ? findSink(c, pins[id]) : null
         const sink = isPending ? findSink(c, pending[key]) : pin
         let tag = ''
         for (let j = 0; j < c.virtuals.length && !tag; j++) {
@@ -246,6 +250,27 @@ export function appList(c, opts) {
         })
     }
     return apps.sort(byAppName)
+}
+
+// The output stream whose object.serial is `serial`, or null once it ended.
+export function streamBySerial(nodes, serial) {
+    for (let i = 0; i < nodes.length; i++) {
+        if (nodes[i].isStream && String((nodes[i].props || {})['object.serial']) === String(serial)) return nodes[i]
+    }
+    return null
+}
+
+// Has the stream with this serial linked into `target` (a sink's node.name, or
+// "default" for the actual default output, object id `defaultId`)? A stream
+// that ended is never there, even when a new one took its object id.
+export function routeReached(nodes, serial, target, defaultId) {
+    const stream = streamBySerial(nodes, serial)
+    if (!stream) return false
+    let sinkId = target === 'default' ? defaultId : -1
+    for (let i = 0; i < nodes.length && sinkId < 0; i++) {
+        if (nodes[i].isSink && nodes[i].name === target) sinkId = nodes[i].id
+    }
+    return sinkId >= 0 && stream.linkTargets.indexOf(sinkId) >= 0
 }
 
 export function badge(apps) {

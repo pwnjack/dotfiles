@@ -7,7 +7,8 @@
 #
 #   route <serial> <sink-name>   pactl move-sink-input: pin the stream
 #   route <serial> default       un-pin: the stream follows the default sink
-#   pins                         {"<object id>":"<target.object>", ...}
+#   pins                         {"<object id>":"<target.object>", ...}; a
+#                                target is a sink serial or a node.name
 #   pins --watch                 {} at once, then the whole map as one line
 #                                after every monitor line (the initial replay
 #                                included) that changes it, until killed;
@@ -18,7 +19,8 @@
 # streams, serials are not, hence `route` refuses a serial no current sink
 # input has. Un-pinning writes target.object -1 rather than removing the key,
 # so -1 means unpinned and never appears in a map. A stream that ends
-# produces "remove: id:<n> all keys" in the monitor output.
+# produces "remove: id:<n> all keys" in the monitor output; removing the one
+# key gives "remove: id:<n> key:'target.object'".
 #
 # SOUND_PACTL and SOUND_PW_METADATA name the binaries, for tests.
 
@@ -57,10 +59,11 @@ print_pins() {
 }
 
 # apply_line <metadata line> — fold one line into the map; succeeds only when
-# the map changed.
+# the map changed. A value is a serial or a node.name (WirePlumber resolves
+# both); a removal of any other key leaves the map alone.
 apply_line() {
     local id value
-    if [[ $1 =~ ^update:\ id:([0-9]+)\ key:\'target\.object\'\ value:\'(-?[0-9]+)\' ]]; then
+    if [[ $1 =~ ^update:\ id:([0-9]+)\ key:\'target\.object\'\ value:\'([^\']+)\' ]]; then
         id=${BASH_REMATCH[1]} value=${BASH_REMATCH[2]}
         if [ "$value" = -1 ]; then
             [[ -v pins[$id] ]] || return 1
@@ -69,7 +72,7 @@ apply_line() {
             [ "${pins[$id]-}" != "$value" ] || return 1
             pins[$id]=$value
         fi
-    elif [[ $1 =~ ^remove:\ id:([0-9]+)\ all\ keys ]]; then
+    elif [[ $1 =~ ^remove:\ id:([0-9]+)\ (all\ keys|key:\'target\.object\') ]]; then
         id=${BASH_REMATCH[1]}
         [[ -v pins[$id] ]] || return 1
         unset "pins[$id]"

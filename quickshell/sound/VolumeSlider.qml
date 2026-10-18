@@ -37,8 +37,9 @@ Item {
         commit(key, v);
     }
     // Up never lowers an over-range volume; down from one lands within max.
+    // During a drag or a settle the step counts from the shown (held) value.
     function nudge(notches) {
-        const base = settling.running ? held : round(value);
+        const base = holding ? held : round(value);
         const next = round(Math.max(0, Math.min(max, base + notches * step)));
         if (notches > 0 && next < base) return;
         if (next !== base) send(next);

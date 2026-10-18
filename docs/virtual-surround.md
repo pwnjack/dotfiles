@@ -35,7 +35,7 @@ a dense mix does not clip; raise the volume to compensate.
 
 1. Start the app so it is playing.
 2. Click the volume icon in Waybar → **Apps** → the app's route label (it reads
-   *Default* until routed) → **Virtual Surround 7.1 (headphones)**.
+   *Default* until routed) → **Surround 7.1**.
 3. WirePlumber remembers that per application, so it takes effect on every
    later launch. Choose **Default (follows Devices)** in the same menu to undo it.
 

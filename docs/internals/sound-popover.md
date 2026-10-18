@@ -104,18 +104,29 @@ A stream has two identifiers and they are not interchangeable:
   **reuses** it: a new stream took id 107 again on every loop of the probe.
 - the **serial** (`object.serial`) never repeats. It is the Pulse sink-input
   index, so it is what `pactl move-sink-input` takes, and the value a pin holds
-  is the target sink's serial.
+  is usually the target sink's serial.
 
 `sound.sh route <serial> <sink-name>` therefore addresses the stream by serial,
 and refuses a serial no current sink input has, so a recycled id cannot move
-the wrong stream. `pins` prints `{"<object id>": "<target serial>"}`, and
-`model.mjs` resolves a target by serial or by name.
+the wrong stream. `pins` prints `{"<object id>": "<target>"}`, where the target
+is a sink serial or, when another tool pinned by name, a `node.name`
+(WirePlumber resolves both); `model.mjs` resolves it the same way.
+
+The popover keys everything about a stream by its serial: the app row
+(`AppView.key`), a held slider, a mute or volume write and a pending route.
+The object id is used only to look up the stream's pin and the live node.
+So when a stream ends and a new one takes its id, the newcomer gets a row of
+its own, a slider held on the old row commits nothing on release, and a
+pending route is never settled by the newcomer's links (`routeReached` finds
+the stream by serial first).
 
 - **Default is `-1`.** `route <serial> default` runs
   `move-sink-input … @DEFAULT_SINK@`, which does not remove the pin: it writes
   `target.object -1` and `target.node -1`. A parser treats `-1` as unpinned and
   `pins` never prints it. A stream that ends produces
-  `remove: id:<n> all keys`.
+  `remove: id:<n> all keys`; deleting the one key (`pw-metadata -d <id>
+  target.object`) produces `remove: id:<n> key:'target.object'`, which drops
+  the pin too. A removal of `target.node` alone changes nothing.
 - **Routing to the current default is also `-1`.** Pulse's compatibility layer
   treats the default device as "no pin", so the popover cannot pin an app to
   whichever device happens to be the default. The pin is kept only when it was
@@ -166,8 +177,9 @@ appear in it. Confirmed on a Logitech G533, whose sysfs `idVendor` and
 - **Qt's V4 engine** runs `model.mjs`. It has no object spread, `matchAll`,
   `trimEnd`, `Object.hasOwn`, `Array.at` or `TextEncoder`; the file's header
   lists them and the node tests do not catch a miss.
-- **A node named `__proto__`** passes the name pattern. `parseNames` skips it
-  and `setName` in the panel writes nothing for it.
+- **A node named `__proto__`** passes the name pattern but cannot be a key of
+  a plain object. `parseNames` skips it and `setName` in the panel refuses it
+  with "Invalid device name".
 - **Replacing a model's array wipes the delegates.** The popover keys its rows
   (`syncKeys`) and updates them in place; the controller replaces its arrays on
   every change, which would otherwise reset a slider mid-drag and a hover.
@@ -192,5 +204,5 @@ appear in it. Confirmed on a Logitech G533, whose sysfs `idVendor` and
 - **Advanced…** in the popover's ⋯ menu opens `pavucontrol` for everything
   else. Routing an app is done from the popover's Apps tab; see
   `virtual-surround.md` and `gaming-wow.md`.
-- The tracked SwayNC config has no volume widget. `widget-volume` rules remain
-  in `swaync/central_control.css` and match nothing.
+- The tracked SwayNC config has no volume widget, and its stylesheet has no
+  `widget-volume` rules.

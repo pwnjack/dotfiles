@@ -18,8 +18,10 @@ export function toggleHidden(text, nodeName, shown) {
     return names.length ? names.join('\n') + '\n' : ''
 }
 // setName(text, nodeName, label) -> the new options/sound-names text: node.name <TAB> label,
-// sorted by node name. An empty label removes the device's line.
+// sorted by node name. An empty label removes the device's line. `__proto__` passes the
+// node-name pattern but cannot be a key of the plain object parseNames returns, so it is refused.
 export function setName(text, nodeName, label) {
+    if (nodeName === '__proto__') throw new Error('Invalid device name')
     const names = parseNames(text)
     if (label.trim()) names[nodeName] = label.trim()
     else delete names[nodeName]

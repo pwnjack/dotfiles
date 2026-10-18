@@ -7,13 +7,14 @@ config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
 cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/sound-popover"
 [[ $# -eq 0 ]] || { echo 'Usage: sound-popover.sh' >&2; exit 2; }
 # Run from a Waybar click, stderr goes nowhere: every failure is also a notification.
+# Neither a missing notify-send nor a closed stderr may stop it exiting 1.
 fail() {
-    notify-send -a Sound 'Sound' "$1" 2>/dev/null || true
-    echo "$1" >&2
+    if command -v notify-send >/dev/null 2>&1; then notify-send -a Sound 'Sound' "$1" 2>/dev/null || true; fi
+    echo "$1" >&2 || true
     exit 1
 }
 command -v qs >/dev/null 2>&1 || fail 'Install quickshell to show the sound popover.'
-for binary in flock hyprctl jq; do
+for binary in flock hyprctl jq mkdir head sleep; do
     command -v "$binary" >/dev/null 2>&1 || fail "$binary is required for the sound popover."
 done
 mkdir -p "$cache_dir" || fail "Cannot create $cache_dir for the sound popover."

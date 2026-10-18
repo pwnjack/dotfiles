@@ -60,8 +60,9 @@ Item {
         return { key: "alsa_input.usb-Logitech_G533", name: "alsa_input.usb-Logitech_G533", label: "G533 Mic",
             volume: 0.8, muted: false, battery: null, current: true, virtual: false };
     }
-    function app(id, name, volume) {
-        return { key: String(id), serial: 100 + id, name: name, icon: "", initials: name.slice(0, 2).toUpperCase(),
+    // An AppView is keyed by its stream's object.serial.
+    function app(serial, name, volume) {
+        return { key: String(serial), serial: serial, name: name, icon: "", initials: name.slice(0, 2).toUpperCase(),
             volume: volume, muted: false, route: { label: "Default", pinned: false, target: "" }, tag: "", pending: false };
     }
     function targets() {
@@ -317,6 +318,37 @@ Item {
             mouseRelease(slider, start.x, start.y);
             compare(called("setVolume"), [["setVolume", "92", held]]);
             compare(findChild(popover, "appsBadge").text, "3");
+        }
+
+        function test_app_slider_release_after_id_reuse_commits_nothing() {
+            controller.tab = "apps";
+            settle();
+            const slider = findChild(appRow("92"), "appSlider");
+            const track = findChild(slider, "track");
+            const at = popover.mapFromItem(track, track.width * 0.3, track.height / 2);
+            mousePress(popover, at.x, at.y);
+            // World of Warcraft's stream ends and a new one takes its object
+            // id: same name and place in the list, but another serial.
+            controller.apps = [app(81, "Firefox", 1), app(97, "World of Warcraft", 0.85)];
+            waitForRendering(popover);
+            verify(appRow("92") === null);
+            verify(appRow("97") !== null);
+            mouseRelease(popover, at.x, at.y);
+            compare(called("setVolume"), []);
+        }
+
+        function test_wheel_during_drag_counts_from_the_drag() {
+            const slider = findChild(popover, "outputSlider");
+            const track = findChild(slider, "track");
+            const at = slider.mapFromItem(track, track.width * 0.3, track.height / 2);
+            mousePress(slider, at.x, at.y);
+            const dragged = slider.level;
+            verify(Math.abs(dragged - 0.64) > 0.1, "the drag is away from the backend value");
+            mouseWheel(slider, at.x, at.y, 0, 120);
+            const expected = Math.round((dragged + 0.02) * 100) / 100;
+            compare(called("setVolume"), [["setVolume", "alsa_output.usb-Logitech_G533", expected]]);
+            compare(slider.level, expected);
+            mouseRelease(slider, at.x, at.y);
         }
 
         function test_wheel_steps_two_percent() {

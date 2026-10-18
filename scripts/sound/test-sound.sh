@@ -94,6 +94,22 @@ assert_eq "$(PWM_MONITOR="$TMP/other.txt" run pins --watch | tr '\n' ' ')" '{} '
 # subscription: it must not survive.
 assert_not_contains "$(PWM_DUMP="$FIX/pw-metadata-pinned.txt" PWM_MONITOR="$FIX/pw-metadata-unpinned.txt" run pins --watch)" 107 "a stale pin from a separate dump never shows"
 
+# A pin may name its target (WirePlumber resolves a node.name); a single-key
+# removal of target.object drops it, one of target.node does not. Lines as
+# pw-metadata 1.x prints them; both modes read the same lines.
+named="update: id:107 key:'target.object' value:'alsa_output.pci-0000_00_1f.3.analog-stereo' type:'Spa:String'"
+named_map='{"107":"alsa_output.pci-0000_00_1f.3.analog-stereo"}'
+printf '%s\n' "$named" > "$TMP/named.txt"
+printf '%s\n' "$named" "update: id:108 key:'target.object' value:'236' type:'Spa:Id'" \
+    "remove: id:107 key:'target.object'" "remove: id:108 key:'target.object'" > "$TMP/named-removed.txt"
+printf '%s\n' "$named" "remove: id:107 key:'target.node'" > "$TMP/node-removed.txt"
+assert_eq "$(PWM_DUMP="$TMP/named.txt" run pins)" "$named_map" "pins keeps a pin that names its sink"
+assert_eq "$(PWM_DUMP="$TMP/named-removed.txt" run pins)" '{}' "pins drops pins whose target.object key is removed"
+assert_eq "$(PWM_DUMP="$TMP/node-removed.txt" run pins)" "$named_map" "pins keeps a pin when only target.node is removed"
+assert_eq "$(PWM_MONITOR="$TMP/named.txt" run pins --watch | tail -n 1)" "$named_map" "watch keeps a pin that names its sink"
+assert_eq "$(PWM_MONITOR="$TMP/named-removed.txt" run pins --watch | tail -n 1)" '{}' "watch drops pins whose target.object key is removed"
+assert_eq "$(PWM_MONITOR="$TMP/node-removed.txt" run pins --watch | tr '\n' ' ')" "{} $named_map " "watch prints nothing for a target.node removal"
+
 out=$(PWM_FAIL=dump run pins); rc=$?
 assert_eq "$rc" 1 "a failing dump fails pins"
 assert_eq "$(jq -r .ok <<<"$out")" false "a failing dump is reported as JSON"

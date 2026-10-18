@@ -64,14 +64,16 @@ ShellRoot {
         for (let i = 0; i < list.shown.length; i++) if (list.shown[i].current) return list.shown[i];
         return null;
     }
-    // A device is keyed by node.name, a stream by its object id.
+    // A device is keyed by node.name, a stream by its object.serial: object
+    // ids are reused, so a key can never reach a stream that replaced the one
+    // it named. The object id is used only for the adapter's node lookup.
     function nodeFor(key) {
         const nodes = adapter.nodes;
         for (let i = 0; i < nodes.length; i++) {
             const node = nodes[i];
-            if (node.isStream ? String(node.id) === key : node.name === key) return node;
+            if (!node.isStream && node.name === key) return node;
         }
-        return null;
+        return Model.streamBySerial(nodes, key);
     }
 
     function open() {
@@ -152,13 +154,10 @@ ShellRoot {
         for (const key in requests) view[key] = requests[key].target;
         pending = view;
     }
-    // Did the stream reach the request's target? "default" is the actual
-    // default output, a name the sink of that name.
+    // Did the stream reach the request's target? The key is the stream's
+    // serial, so a stream that took the ended one's object id never counts.
     function reached(request) {
-        const stream = nodeFor(request.key);
-        if (!stream) return false;
-        const sink = request.target === "default" ? { id: adapter.defaultSink } : nodeFor(request.target);
-        return !!sink && stream.linkTargets.indexOf(sink.id) >= 0;
+        return Model.routeReached(adapter.nodes, request.key, request.target, adapter.defaultSink);
     }
     // Retire a request: done, or failed with the status line. A request a
     // newer one for the same app replaced only goes away.

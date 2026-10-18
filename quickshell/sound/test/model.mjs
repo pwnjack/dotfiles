@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import * as model from '../model.mjs'
 
-const { deriveLabel, parseHidden, parseNames, classify, playing, channelTag, batteryFor, deviceList, routeTargets, appList, badge } = model
+const { deriveLabel, parseHidden, parseNames, classify, playing, channelTag, batteryFor, deviceList, routeTargets, appList, streamBySerial, routeReached, badge } = model
 const nodes = JSON.parse(readFileSync(new URL('./fixtures/nodes.json', import.meta.url), 'utf8'))
 const copy = x => JSON.parse(JSON.stringify(x))
 
@@ -34,6 +34,7 @@ assert.deepEqual(parseNames(`${G533}\tHeadset\n${HDMI}\tMonitor\r\n`), { [G533]:
 assert.deepEqual(parseNames('a\na\t\na\tb\tc\n\t\n\tlabel\n'), {})
 assert.deepEqual(parseNames('a\nok\tfine\na\t\na\tb\tc'), { ok: 'fine' })
 assert.deepEqual(parseNames(''), {})
+assert.deepEqual(parseNames('__proto__\tX\nok\tfine\n'), { ok: 'fine' }) // never the prototype
 
 // classify
 const c = classify(nodes)
@@ -154,7 +155,7 @@ const opts = { defaultId: byName(BUILTIN).id, hidden: [], names: {}, battery: {}
     const mpv = apps[0], pw = apps[1]
     assert.equal(mpv.icon, 'mpv')
     assert.equal(pw.icon, '')
-    assert.equal(mpv.key, '163')
+    assert.equal(mpv.key, '550') // the serial: object ids are reused
     assert.equal(mpv.serial, 550)
     assert.equal(mpv.initials, 'M')
     assert.deepEqual(mpv.route, { label: 'Default', pinned: false, target: '' })
@@ -183,19 +184,19 @@ const opts = { defaultId: byName(BUILTIN).id, hidden: [], names: {}, battery: {}
     assert.equal(appList(c, Object.assign({}, aopts, { pins: { 163: '236' }, hidden: [HDMI] }))[0].route.label, 'ROG PG279Q')
 
     // Pending shows the requested target.
-    const pend = appList(c, Object.assign({}, aopts, { pending: { 163: G533 } }))
+    const pend = appList(c, Object.assign({}, aopts, { pending: { 550: G533 } }))
     assert.equal(pend[0].pending, true)
     assert.equal(pend[0].route.label, 'G533 Wireless Headset Dongle')
     assert.equal(pend[1].pending, false)
-    assert.equal(appList(c, Object.assign({}, aopts, { pending: { 163: 'default' } }))[0].route.label, 'Default')
+    assert.equal(appList(c, Object.assign({}, aopts, { pending: { 550: 'default' } }))[0].route.label, 'Default')
     // Pinned and pending at once: pinned comes from the pin, the label from the pending target.
-    const pinnedAndPending = appList(c, Object.assign({}, aopts, { pins: { 163: '236' }, pending: { 163: G533 } }))[0]
+    const pinnedAndPending = appList(c, Object.assign({}, aopts, { pins: { 163: '236' }, pending: { 550: G533 } }))[0]
     assert.equal(pinnedAndPending.pending, true)
     assert.equal(pinnedAndPending.route.pinned, true)
     assert.equal(pinnedAndPending.route.label, 'G533 Wireless Headset Dongle')
     assert.equal(pinnedAndPending.route.target, G533)
     // A pin that resolves to no sink stays unpinned even with a pending entry.
-    assert.equal(appList(c, Object.assign({}, aopts, { pins: { 163: '9999' }, pending: { 163: G533 } }))[0].route.pinned, false)
+    assert.equal(appList(c, Object.assign({}, aopts, { pins: { 163: '9999' }, pending: { 550: G533 } }))[0].route.pinned, false)
 
     // Tag: a stream linked into the surround sink reads 7.1.
     const mpvIn = Object.assign(copy(byName('mpv')), { linkTargets: [36, 36] })
@@ -209,12 +210,12 @@ const opts = { defaultId: byName(BUILTIN).id, hidden: [], names: {}, battery: {}
     // A stream relinking after a route has no active link for a moment: its
     // pending entry keeps it listed, so the row does not blink out.
     const relinking = classify(nodes.map(n => n.name === 'mpv' ? paused : n))
-    const kept = appList(relinking, Object.assign({}, aopts, { pending: { 163: G533 } })).find(a => a.key === '163')
+    const kept = appList(relinking, Object.assign({}, aopts, { pending: { 550: G533 } })).find(a => a.key === '550')
     assert.ok(kept, 'a pending stream with no active link is listed')
     assert.equal(kept.pending, true)
-    assert.equal(appList(relinking, aopts).find(a => a.key === '163'), undefined)
+    assert.equal(appList(relinking, aopts).find(a => a.key === '550'), undefined)
     const two = { id: 500, name: 'x', description: 'google chrome browser', isSink: false, isStream: true, props: { 'media.class': 'Stream/Output/Audio', 'object.serial': 501, 'application.icon_name': 'chrome' }, volume: 0.5, muted: true, channels: 2, linkStates: ['active'], linkTargets: [79] }
-    const chrome = appList(classify(nodes.concat([two])), aopts).find(a => a.key === '500')
+    const chrome = appList(classify(nodes.concat([two])), aopts).find(a => a.key === '501')
     assert.equal(chrome.initials, 'GC')
     assert.equal(chrome.icon, 'chrome')
     assert.equal(chrome.name, 'google chrome browser')
@@ -222,6 +223,41 @@ const opts = { defaultId: byName(BUILTIN).id, hidden: [], names: {}, battery: {}
     // The hyphenated key wins over the underscore one.
     const both = Object.assign(copy(two), { id: 501, props: Object.assign(copy(two.props), { 'application.icon-name': 'real' }) })
     assert.equal(appList(classify(nodes.concat([both])), aopts).find(a => a.key === '501').icon, 'real')
+
+    // mpv ends and a new stream takes its object id 163 with serial 600: a
+    // different row, and the old pending route (keyed by serial 550) is not its.
+    const reused = Object.assign(copy(byName('mpv')), { name: 'next', props: Object.assign(copy(byName('mpv').props), { 'object.serial': 600 }), linkStates: ['paused', 'paused'] })
+    const afterEnd = classify(nodes.map(n => n.name === 'mpv' ? reused : n))
+    assert.equal(appList(afterEnd, Object.assign({}, aopts, { pending: { 550: G533 } })).find(a => a.key === '600'), undefined, 'the replacement does not inherit the pending route')
+    const playingReused = Object.assign(copy(reused), { linkStates: ['active', 'active'] })
+    const next = appList(classify(nodes.map(n => n.name === 'mpv' ? playingReused : n)), Object.assign({}, aopts, { pending: { 550: G533 } })).find(a => a.key === '600')
+    assert.ok(next, 'the replacement is its own row')
+    assert.notEqual(next.key, mpv.key)
+    assert.equal(next.pending, false)
+    assert.equal(next.route.label, 'Default')
+    // Pins stay keyed by object id: a pin on id 163 now belongs to the new stream.
+    assert.equal(appList(classify(nodes.map(n => n.name === 'mpv' ? playingReused : n)), Object.assign({}, aopts, { pins: { 163: '236' } })).find(a => a.key === '600').route.target, HDMI)
+}
+
+// streamBySerial / routeReached: a pending route settles only on its own stream.
+{
+    assert.equal(streamBySerial(nodes, 550).name, 'mpv')
+    assert.equal(streamBySerial(nodes, '550').name, 'mpv')
+    assert.equal(streamBySerial(nodes, 79), null) // a sink's serial is not a stream
+    assert.equal(streamBySerial(nodes, 9999), null)
+    const builtinId = byName(BUILTIN).id
+    // mpv is linked into the built-in sink.
+    assert.equal(routeReached(nodes, '550', BUILTIN, builtinId), true)
+    assert.equal(routeReached(nodes, '550', 'default', builtinId), true)
+    assert.equal(routeReached(nodes, '550', G533, builtinId), false)
+    assert.equal(routeReached(nodes, '550', 'default', byName(G533).id), false)
+    assert.equal(routeReached(nodes, '550', 'alsa_output.gone', builtinId), false)
+    // A request whose stream ended is never reached, even when a stream that
+    // took its object id is linked into the target.
+    const reused = Object.assign(copy(byName('mpv')), { props: Object.assign(copy(byName('mpv').props), { 'object.serial': 600 }), linkTargets: [77, 77] })
+    const after = nodes.map(n => n.name === 'mpv' ? reused : n)
+    assert.equal(routeReached(after, '550', G533, builtinId), false)
+    assert.equal(routeReached(after, '600', G533, builtinId), true)
 }
 
 console.log('sound model ok')

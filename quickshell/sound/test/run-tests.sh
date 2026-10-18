@@ -2,6 +2,9 @@
 # Exercise the sound popover's model and its real QML views without a compositor.
 set -euo pipefail
 test_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+for binary in node mktemp mkdir cp; do
+    command -v "$binary" >/dev/null 2>&1 || { echo "$binary is required for the sound popover tests." >&2; exit 1; }
+done
 node "$test_dir/model.mjs"
 # The views arrive with their own tst_*.qml files; until then there is no QML half.
 compgen -G "$test_dir/tst_*.qml" > /dev/null || exit 0

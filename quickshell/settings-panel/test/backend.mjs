@@ -1717,6 +1717,9 @@ await dispatch({op:'soundShow',name:'alsa_output.hdmi',shown:false})
 assert.equal(files.get(base+'/options/sound-hidden'),'alsa_output.hdmi\n')
 await assert.rejects(dispatch({op:'soundShow',name:'alsa_output.analog',shown:false}),/cannot be hidden/)
 await assert.rejects(dispatch({op:'soundName',name:'a b',label:'x'}),/Invalid device name/)
+// __proto__ passes the name pattern but would silently store nothing.
+await assert.rejects(dispatch({op:'soundName',name:'__proto__',label:'x'}),/Invalid device name/)
+assert.equal(files.get(base+'/options/sound-names'),'alsa_output.hdmi\tTV\n','a refused name leaves the file alone')
 failOverlay = true
 await assert.rejects(dispatch({op:'soundShow',name:'alsa_output.hdmi',shown:true}),/Previous settings restored/)
 assert.equal(files.get(base+'/options/sound-hidden'),'alsa_output.hdmi\n')

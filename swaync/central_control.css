@@ -235,38 +235,3 @@ trough highlight:hover {
     color: @on_secondary_container;
     box-shadow: 0px 0px 5px rgba(0, 0, 0, 1);
 }
-
-.widget-volume {
-  background-color: @background-sec;
-  padding: 8px;
-  padding-top: 4px;
-  padding-bottom: 4px;
-  margin: 0px 2px;
-  border-radius: 10px;
-}
-
-.widget-volume label {
-  font-size: 1.4rem;
-}
-
-.widget-volume trough {
-  padding: 3px;
-  background: alpha(@background, .50);
-}
-
-.widget-volume trough slider {
-  min-height: 1.25rem;
-}
-
-.widget-volume .per-app-volume {
-  padding-right: 26px;
-}
-
-.widget-volume box {
-  padding: 8px;
-}
-
-.widget-volume .per-app-volume image {
-  margin-right: 19px;
-}
-
