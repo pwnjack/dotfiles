@@ -1,0 +1,182 @@
+[
+  {
+    "id": 36,
+    "name": "effect_input.virtual_surround",
+    "description": "Virtual Surround 7.1 (headphones)",
+    "isSink": true,
+    "isStream": false,
+    "props": {
+      "audio.channels": 8,
+      "media.class": "Audio/Sink",
+      "node.virtual": true,
+      "object.serial": 36
+    },
+    "volume": 1,
+    "muted": false,
+    "channels": 8,
+    "linkStates": [],
+    "linkTargets": []
+  },
+  {
+    "id": 77,
+    "name": "alsa_output.usb-Logitech_G533_Gaming_Headset-00.analog-stereo",
+    "description": "[G533 Wireless Headset Dongle] Analog Stereo",
+    "isSink": true,
+    "isStream": false,
+    "props": {
+      "alsa.components": "USB046d:0a66",
+      "audio.channels": 2,
+      "media.class": "Audio/Sink",
+      "object.serial": 77
+    },
+    "volume": 0.998627,
+    "muted": false,
+    "channels": 2,
+    "linkStates": [],
+    "linkTargets": []
+  },
+  {
+    "id": 79,
+    "name": "alsa_output.pci-0000_00_1f.3.analog-stereo",
+    "description": "Built-in Audio Analog Stereo",
+    "isSink": true,
+    "isStream": false,
+    "props": {
+      "alsa.components": "HDA:10ec1168,10438724,00100101",
+      "audio.channels": 2,
+      "media.class": "Audio/Sink",
+      "object.serial": 79
+    },
+    "volume": 1,
+    "muted": false,
+    "channels": 2,
+    "linkStates": [],
+    "linkTargets": []
+  },
+  {
+    "id": 66,
+    "name": "alsa_output.pci-0000_01_00.1.hdmi-stereo",
+    "description": "GA102 High Definition Audio Controller Digital Stereo (HDMI) [ROG PG279Q]",
+    "isSink": true,
+    "isStream": false,
+    "props": {
+      "alsa.components": "HDA:10de009a,10438802,00100100",
+      "audio.channels": 2,
+      "media.class": "Audio/Sink",
+      "object.serial": 236
+    },
+    "volume": 1,
+    "muted": false,
+    "channels": 2,
+    "linkStates": [],
+    "linkTargets": []
+  },
+  {
+    "id": 78,
+    "name": "alsa_input.usb-Logitech_G533_Gaming_Headset-00.mono-fallback",
+    "description": "[G533 Wireless Headset Dongle] Mono",
+    "isSink": false,
+    "isStream": false,
+    "props": {
+      "alsa.components": "USB046d:0a66",
+      "audio.channels": 1,
+      "media.class": "Audio/Source",
+      "object.serial": 78
+    },
+    "volume": 1,
+    "muted": false,
+    "channels": 1,
+    "linkStates": [],
+    "linkTargets": []
+  },
+  {
+    "id": 80,
+    "name": "alsa_input.pci-0000_00_1f.3.analog-stereo",
+    "description": "Built-in Audio Analog Stereo",
+    "isSink": false,
+    "isStream": false,
+    "props": {
+      "alsa.components": "HDA:10ec1168,10438724,00100101",
+      "audio.channels": 2,
+      "media.class": "Audio/Source",
+      "object.serial": 80
+    },
+    "volume": 1,
+    "muted": false,
+    "channels": 2,
+    "linkStates": [],
+    "linkTargets": []
+  },
+  {
+    "id": 37,
+    "name": "effect_output.virtual_surround",
+    "description": "Virtual Surround 7.1 (headphones)",
+    "isSink": false,
+    "isStream": true,
+    "props": {
+      "audio.channels": 2,
+      "media.class": "Stream/Output/Audio",
+      "node.passive": true,
+      "node.virtual": true,
+      "object.serial": 37
+    },
+    "volume": 1,
+    "muted": false,
+    "channels": 2,
+    "linkStates": [
+      "paused",
+      "paused"
+    ],
+    "linkTargets": [
+      79,
+      79
+    ]
+  },
+  {
+    "id": 163,
+    "name": "mpv",
+    "description": "mpv",
+    "isSink": false,
+    "isStream": true,
+    "props": {
+      "application.icon-name": "mpv",
+      "application.name": "mpv",
+      "media.class": "Stream/Output/Audio",
+      "object.serial": 550
+    },
+    "volume": 1,
+    "muted": false,
+    "channels": 2,
+    "linkStates": [
+      "active",
+      "active"
+    ],
+    "linkTargets": [
+      79,
+      79
+    ]
+  },
+  {
+    "id": 107,
+    "name": "pw-play",
+    "description": null,
+    "isSink": false,
+    "isStream": true,
+    "props": {
+      "application.name": "pw-play",
+      "media.class": "Stream/Output/Audio",
+      "object.serial": 556
+    },
+    "volume": 1,
+    "muted": false,
+    "channels": 2,
+    "linkStates": [
+      "active",
+      "active"
+    ],
+    "linkTargets": [
+      79,
+      79
+    ]
+  }
+]
