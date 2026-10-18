@@ -46,7 +46,8 @@ repeated fullscreen/resize cycles have not yet been confirmed through this
 launch path, so test them there before calling gameplay fully verified.
 
 Audio: to hear WoW's 7.1 mix positionally on headphones, route it to the
-virtual surround device once in `pavucontrol` (see `docs/virtual-surround.md`).
+virtual surround device once from the sound popover's Apps tab; `pavucontrol`
+stays under its ⋯ menu as Advanced… (see `docs/virtual-surround.md`).
 
 The monitor exposes VRR support, but Hyprland currently has `misc.vrr = 0`
 and `general.allow_tearing = false`. Neither `--adaptive-sync` nor the

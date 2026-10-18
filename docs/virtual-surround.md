@@ -34,10 +34,13 @@ a dense mix does not clip; raise the volume to compensate.
 ### Routing an app
 
 1. Start the app so it is playing.
-2. `pavucontrol` → **Playback** → the app's dropdown → **Virtual Surround 7.1
-   (headphones)**.
+2. Click the volume icon in Waybar → **Apps** → the app's route label (it reads
+   *Default* until routed) → **Virtual Surround 7.1 (headphones)**.
 3. WirePlumber remembers that per application, so it takes effect on every
-   later launch. Choose the headset in the same dropdown to undo it.
+   later launch. Choose **Default (follows Devices)** in the same menu to undo it.
+
+`pavucontrol` still works for this: it is under the popover's ⋯ menu as
+**Advanced…**, and its **Playback** tab has the same per-app dropdown.
 
 To pin it at launch instead, set `PULSE_SINK=effect_input.virtual_surround`
 in the app's environment: for a Lutris game that is *Configure → System

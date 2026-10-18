@@ -29,7 +29,6 @@
   "widgets": [
     "label",
     "mpris",
-    "volume",
     "dnd",
     "notifications"
   ],
@@ -44,15 +43,6 @@
     "mpris": {
       "image-size": 96,
       "blacklist": ["playerctld"]
-    },
-    "volume": {
-      "label": " 󰕾  ",
-      "show-per-app": true,
-      "show-per-app-label": false,
-      "show-per-app-icon": true,
-      "expand-button-label": "  ",
-      "collapse-button-label": "  ",
-      "empty-list-label": "No players"
     }
   }
 }

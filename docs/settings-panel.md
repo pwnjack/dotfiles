@@ -9,15 +9,16 @@ clicking outside, or Super+I closes it.
 Once pending saves finish, the process exits. Failed saves keep the error visible
 by reopening the panel. Text fields apply with Return or their Apply button, which appears while the text differs from the saved value; sliders save on release.
 
-`catalog.json` is the only list of settings: 124 rows on 17 pages (16 in the
+`catalog.json` is the only list of settings: 121 rows on 17 pages (16 in the
 sidebar, plus About), with search, editable display cards and per-row resets.
 Pages sit in five sidebar groups, and rows sit in titled sections inside each
 page, one line each: label on the left, control on the right. Reload Hyprland,
 Restart bar and Update system… live in the title bar's ⋯ menu; Restart bar also
 appears as a button in the Bar page's Layout section, and Update now in Default
 Apps' Launcher & updates section. Things another surface already owns stay
-there: the keybind cheatsheet (Super+H), Do Not Disturb, output volume, mute and
-per-app volume (SwayNC), running updates (the update card; the panel only
+there: the keybind cheatsheet (Super+H), Do Not Disturb (SwayNC), choosing the
+output and input device, their volume and mute, and per-app volume and routing
+(the sound popover on the bar's volume icon), running updates (the update card; the panel only
 chooses whether the bar shows the module), screenshot and recording options
 (the capture bar) and picking wallpapers (the carousel; the panel only holds
 the random-wallpaper-at-login switch and palette options). The palette is
@@ -35,7 +36,7 @@ read through `scripts/theming/palette.sh` on every launch.
 | Network | connectivity | 1 | Its own view: Wi-Fi, Wired, VPN (see [Network](#network)) |
 | Devices | connectivity | — | Its own view: wireless peripherals (see [Devices](#devices)) |
 | Displays | hardware | 1 | One card per output, plus Options (see [Displays](#displays)) |
-| Sound | hardware | 6 | Output, Input |
+| Sound | hardware | 3 | Output, Input, then its own Devices list (see [Sound](#sound)) |
 | Power | hardware | 9 | Power mode, Lock & sleep, Wake screen, Night Light |
 | Keyboard & Mouse | input | 15 | Keyboard, Mouse, Touchpad, Pointer |
 | Accessibility | input | 2 | Vision |
@@ -158,14 +159,13 @@ and contrast. Error messages use matugen's error colour.
   the file byte-for-byte on failure; `powerprofile` drives
   `powerprofilesctl`; the `idle` source adds, retimes and removes only the
   suspend listener it marked, and refuses to change a hand-written one;
-  `pulse` (`pulse.js`) serves the six Sound rows from four `pactl -f json`
+  `pulse` (`pulse.js`) serves the three Sound rows from four `pactl -f json`
   reads (`info`, `list sinks/sources/cards`) made once per request in
   parallel. PipeWire's pulse server reports `card: null` on every sink, so a
   sink's card is the one whose name equals `properties["device.name"]`. Sink
-  monitors are sources too and are left out of Input Device; unplugged ports
-  and profiles without a sink (`off`, input-only) are left out of the
-  choices. With no valid default, the device selector keeps its choices so
-  the panel can recover, while ports, profile and level report the error.
+  monitors are sources too and are left out when finding the default input;
+  unplugged ports and profiles without a sink (`off`, input-only) are left out
+  of the choices. With no valid default, the rows report the error.
 - Live refresh: rows tagged `"live": "audio"`, and the unsearched Displays
   page, are re-read while they are on screen and nothing else is.
   `shell.qml` runs `pactl subscribe` only while an audio row is visible and
@@ -370,6 +370,26 @@ with no readable battery (a dongle or a wired keyboard) shows "Connected" and "N
 A USB headset's battery comes from `headsetcontrol` (optional; without it the headset has no
 battery row), and a headset switched off behind its dongle shows "Asleep".
 `scripts/hyprland/settings-panel.sh devices` opens it.
+
+## Sound
+
+The catalog holds three rows, all for the current default device: the output's
+Port and Profile, and the input's Port. Their section headings follow the
+default (`titleFrom`: "Output · Speakers"). Choosing the device, its
+volume and mute, and per-app volume and routing belong to the sound popover on
+the bar's volume icon, which the Output section's footer says.
+
+Below those rows a Devices list names every output and input: a text field for
+a custom name and a switch for whether the popover shows it. Names save to
+`options/sound-names` (one `node.name`, a tab, the label per line) and hidden
+devices to `options/sound-hidden` (one `node.name` per line); both are
+untracked machine state that the popover watches, so a change shows there at
+once. A name is at most 40 characters with no line breaks or tabs, and an empty
+one restores the derived label. The switch of the current default device is
+disabled, because the popover always shows it. Nothing is disabled in the
+system: hiding only leaves a device out of the popover's lists. The page reads
+`soundDevices` when it opens, after a write and on audio events while it is
+shown. See `docs/internals/sound-popover.md`.
 
 ## Calendar
 

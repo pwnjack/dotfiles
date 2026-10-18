@@ -17,8 +17,8 @@ Rows may declare
 a text `check` (`xkb-*`, `font`, `command`), `optional` and `reload`. Beyond
 Hyprland options and `options/` files, the backend drives gsettings plus both
 GTK `settings.ini` files, Kvantum, `xdg-mime` into `mimeapps.list`, `powerprofilesctl`, hypridle's marked suspend listener and
-PipeWire through `pactl` (Sound: devices, ports, card profile, mic level;
-volume stays in SwayNC); `docs/settings-panel.md` describes each and its
+PipeWire through `pactl` (Sound: ports and the card profile; devices, volume
+and per-app routing live in the sound popover); `docs/settings-panel.md` describes each and its
 traps. Rows tagged `live`, and the Displays page, refresh while on screen
 only (`pactl subscribe` / `Hyprland.rawEvent`); nothing runs when closed.
 Displays edits go through apply-with-revert: a `systemd-run --user` timer
