@@ -21,18 +21,13 @@ case "$*" in
 esac
 STUB
 # pw-metadata serves the dump in $PWM_DUMP, or the monitor stream in $PWM_MONITOR
-# with -m. PWM_SPLIT=<n> pauses the monitor after its first n lines (the replay);
-# PWM_FAIL=dump|monitor makes that mode exit 1.
+# with -m. PWM_FAIL=dump|monitor makes that mode exit 1.
 cat > "$TMP/bin/pw-metadata" <<'STUB'
 #!/bin/sh
 case "$*" in
     "-n default -m")
         [ "${PWM_FAIL:-}" = monitor ] && exit 1
-        if [ -n "${PWM_SPLIT:-}" ]; then
-            head -n "$PWM_SPLIT" "$PWM_MONITOR"; sleep 0.6; tail -n +"$((PWM_SPLIT + 1))" "$PWM_MONITOR"
-        else
-            cat "$PWM_MONITOR"
-        fi ;;
+        cat "$PWM_MONITOR" ;;
     "-n default")
         [ "${PWM_FAIL:-}" = dump ] && exit 1
         cat "$PWM_DUMP" ;;
@@ -87,17 +82,17 @@ assert_eq "$(run pins)" '{"107":"236"}' "pins reads the pinned target by object 
 PWM_DUMP="$FIX/pw-metadata-unpinned.txt"
 assert_eq "$(run pins)" '{}' "-1 is unpinned and left out"
 
-# The monitor's replay is the fixture's first five lines; the rest are events.
-export PWM_SPLIT=5 SOUND_SETTLE=0.2
-assert_eq "$(run pins --watch | tr '\n' ' ')" '{"107":"236"} {} ' "watch starts from the replay, then prints each change"
-PWM_MONITOR="$FIX/pw-metadata-unpinned.txt"
-assert_eq "$(run pins --watch | tr '\n' ' ')" '{} ' "watch ignores a -1 replay and a target.node line"
+# The replay is ordinary changes: {} first, then one map per changing line.
+assert_eq "$(run pins --watch | tr '\n' ' ')" '{} {"107":"236"} {} ' "watch prints {}, then each change"
+assert_eq "$(PWM_MONITOR="$FIX/pw-metadata-unpinned.txt" run pins --watch | tr '\n' ' ')" '{} ' "watch ignores a -1 replay and a target.node line"
+printf '%s\n' \
+    "update: id:0 key:'default.audio.sink' value:'{\"name\":\"x\"}' type:'Spa:String:JSON'" \
+    "update: id:107 key:'target.node' value:'66' type:'Spa:Id'" \
+    "remove: id:107 all keys" > "$TMP/other.txt"
+assert_eq "$(PWM_MONITOR="$TMP/other.txt" run pins --watch | tr '\n' ' ')" '{} ' "lines for other keys print nothing"
 # A pin in the dump that the monitor's replay lacks was removed before the
 # subscription: it must not survive.
-PWM_DUMP="$FIX/pw-metadata-pinned.txt" PWM_MONITOR="$FIX/pw-metadata-unpinned.txt"
-assert_not_contains "$(run pins --watch)" 107 "a stale pin from a separate dump never shows"
-PWM_MONITOR="$FIX/pw-metadata-watch.txt"
-unset PWM_SPLIT
+assert_not_contains "$(PWM_DUMP="$FIX/pw-metadata-pinned.txt" PWM_MONITOR="$FIX/pw-metadata-unpinned.txt" run pins --watch)" 107 "a stale pin from a separate dump never shows"
 
 out=$(PWM_FAIL=dump run pins); rc=$?
 assert_eq "$rc" 1 "a failing dump fails pins"
