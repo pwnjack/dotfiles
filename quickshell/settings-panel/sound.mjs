@@ -5,8 +5,9 @@ export { deriveLabel, parseHidden, parseNames }
 const MAX_NAME = 40
 // validName(text) -> the trimmed custom name; an empty result means "no custom name".
 export function validName(text) {
+    // Checked before trimming, so a control character at either edge is refused rather than dropped.
+    if (/[\r\n\t]/.test(String(text))) throw new Error('Names cannot contain line breaks or tabs')
     const name = String(text).trim()
-    if (/[\r\n\t]/.test(name)) throw new Error('Names cannot contain line breaks or tabs')
     if (name.length > MAX_NAME) throw new Error(`Names are at most ${MAX_NAME} characters`)
     return name
 }

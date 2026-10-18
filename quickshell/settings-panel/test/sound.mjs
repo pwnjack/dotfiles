@@ -9,7 +9,7 @@ assert.deepEqual(S.parseNames('a\tTV\n'), { a: 'TV' })
 assert.equal(S.validName('  Desk speakers  '), 'Desk speakers', 'trimmed')
 assert.equal(S.validName(''), '')
 assert.equal(S.validName('x'.repeat(40)), 'x'.repeat(40))
-for (const bad of ['a\tb', 'a\nb', 'a\rb']) assert.throws(() => S.validName(bad), { message: 'Names cannot contain line breaks or tabs' })
+for (const bad of ['a\tb', 'a\nb', 'a\rb', '\tDesk', 'Desk\n', 'Desk\r', 'Desk\t', '\t']) assert.throws(() => S.validName(bad), { message: 'Names cannot contain line breaks or tabs' })
 assert.throws(() => S.validName('x'.repeat(41)), { message: 'Names are at most 40 characters' })
 
 assert.equal(S.toggleHidden('', 'a', false), 'a\n')
