@@ -28,6 +28,7 @@ Item {
         property var devices: null
         property var calendar: null
         property var sound: null
+        property string soundError: ""
         property color background: "#05090c"
         property color foreground: "#cfddde"
         property color accent: "#6097a1"
@@ -66,6 +67,7 @@ Item {
         function submit(request) { calls = calls.concat([request]); }
         function calendarRequest(request) { calls = calls.concat([request]); }
         function soundRequest(request) { calls = calls.concat([request]); }
+        function retrySound() { calls = calls.concat([{retrySound: true}]); }
     }
     SettingsView { id: view; anchors.fill: parent; controller: controller }
     TestCase {
@@ -298,6 +300,38 @@ Item {
             mouseClick(findChild(view,"show-alsa_output.hdmi"));
             compare(controller.calls, [{op: "soundShow", name: "alsa_output.hdmi", shown: false}]);
         }
+        function soundTexts() {
+            const texts = [];
+            (function walk(i){ for (const c of i.children) { if (c.visible && typeof c.text === "string") texts.push(c.text); walk(c); } })(findChild(view,"soundView"));
+            return texts;
+        }
+        function test_sound_read_error_without_list() {
+            controller.soundError = "Could not read audio devices: pactl failed";
+            controller.select("sound"); wait(20);
+            verify(findChild(view,"soundError").visible);
+            compare(findChild(view,"soundErrorText").text, "Could not read audio devices: pactl failed");
+            compare(String(findChild(view,"soundErrorText").color), String(view.warn));
+            verify(findChild(view,"soundRetry").visible);
+            verify(!soundTexts().includes("Reading devices…"), "an error replaces the reading row");
+            findChild(view,"soundRetry").click();
+            compare(controller.calls, [{retrySound: true}]);
+        }
+        function test_sound_read_error_keeps_list() {
+            controller.sound = soundFixture();
+            controller.soundError = "Could not read audio devices: pactl failed";
+            controller.select("sound"); wait(20);
+            compare(findChild(view,"soundErrorText").text, "Could not read audio devices: pactl failed The list below may be out of date.");
+            verify(findChild(view,"soundRetry").visible);
+            verify(findChild(view,"soundName-alsa_output.hdmi").visible, "the device rows stay");
+            controller.soundError = "";
+            wait(20);
+            verify(!findChild(view,"soundError").visible);
+        }
+        function test_sound_reading_row() {
+            controller.select("sound"); wait(20);
+            verify(soundTexts().includes("Reading devices…"));
+            verify(!findChild(view,"soundError").visible);
+        }
         function test_sound_name_field() {
             controller.sound = soundFixture();
             controller.select("sound"); wait(20);
@@ -351,7 +385,7 @@ Item {
             controller.authPending = false;
             controller.loaded = true; controller.loading = false;
             controller.pendingDisplay = null; controller.monitors = []; controller.stagedDisplays = ({}); controller.keepPendingOnRevert = false;
-            controller.network = null; controller.startup = null; controller.devices = null; controller.about = null; controller.calendar = null; controller.sound = null;
+            controller.network = null; controller.startup = null; controller.devices = null; controller.about = null; controller.calendar = null; controller.sound = null; controller.soundError = "";
             controller.values = ({blur:{value:true,reset:true},size:{value:4},font:{value:"Sans"},nickname:{value:"Bob"},theme:{value:"B",choices:[{label:"A",value:"A"},{label:"B",value:"B"}]},focus:{value:"1"},zone:{value:"Europe/Rome",choices:Array.from({length:30},(_,i)=>i===7?{label:"Europe / Rome",value:"Europe/Rome"}:i===8?{label:"New York",value:"America/New_York"}:{label:"Zone "+i,value:"Z"+i})},ntp:{value:true,note:"Synchronized with a time server"},idle:{value:0},mic:{value:62},speed:{value:3},"network.wifi":{value:true},"opt-lock":{value:false}});
             view.forceActiveFocus();
             findChild(view,"settingsScroll").contentItem.contentY = 0;

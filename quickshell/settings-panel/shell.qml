@@ -35,6 +35,8 @@ ShellRoot {
     property var calendar: null
     // Sound page: soundDevices on show, after a write, and on the audio events while the page is on screen.
     property var sound: null
+    // The last failed soundDevices read, shown on the Sound page with a Retry; cleared by the next good read.
+    property string soundError: ""
     readonly property bool soundShown: opened && !closing && category === "sound" && !query.trim()
     readonly property bool calendarShown: opened && !closing && category === "calendar" && !query.trim()
     readonly property bool devicesShown: opened && !closing && category === "devices" && !query.trim()
@@ -322,19 +324,27 @@ ShellRoot {
         command: ["bash", root.configDir + "/scripts/settings/panel-request.sh", JSON.stringify({op: "soundDevices"})]
         property int generation: -1
         property string reply: ""
+        property string errorText: ""
         stdout: StdioCollector { onStreamFinished: soundReader.reply = text }
-        onExited: {
+        stderr: StdioCollector { onStreamFinished: soundReader.errorText = text }
+        onExited: code => {
             if (CalendarRead.fresh(generation, root.soundGeneration, root.soundShown)) {
-                // A failed read keeps the devices already shown.
-                try {
-                    const result = JSON.parse(soundReader.reply);
-                    if (!result.ok || !result.sound) throw new Error(result.error || "no devices in the reply");
+                // A failed read keeps the devices already shown; soundError says the list may be out of date.
+                let result = null;
+                try { result = JSON.parse(soundReader.reply); } catch (_) { /* No reply: the helper failed before answering. */ }
+                if (code === 0 && result && result.ok && result.sound) {
                     root.sound = result.sound;
-                } catch (error) { console.warn("Sound read failed: " + error); }
+                    root.soundError = "";
+                } else {
+                    const detail = String(soundReader.errorText || "").trim().split("\n").pop();
+                    root.soundError = "Could not read audio devices: " + ((result && result.error) || detail || "the settings helper exited " + code + " without a usable reply");
+                }
             }
             soundReader.reply = "";
+            soundReader.errorText = "";
         }
     }
+    function retrySound() { readSound(); }
     // Audio events come in bursts (a profile switch is several): one read after they settle.
     Timer { id: soundTimer; interval: 300; onTriggered: root.readSound() }
     // Calendar writes take the same queue as every other change: the password goes on stdin, and a failure lands in `problem`.

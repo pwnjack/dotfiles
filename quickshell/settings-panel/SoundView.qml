@@ -36,9 +36,25 @@ SettingsSection {
     Component.onCompleted: sync()
 
     PanelRow {
-        visible: !page.sound
+        visible: !page.sound && !page.controller.soundError
         theme: page.theme
         Label { text: "Reading devices…"; color: page.theme.dim; font.pixelSize: 13 }
+    }
+    PanelRow {
+        objectName: "soundError"
+        visible: !!page.controller.soundError
+        theme: page.theme
+        Label {
+            objectName: "soundErrorText"
+            text: page.controller.soundError + (page.sound ? " The list below may be out of date." : "")
+            color: page.theme.warn; font.pixelSize: 13; wrapMode: Text.Wrap; Layout.fillWidth: true
+        }
+        PanelButton {
+            objectName: "soundRetry"
+            theme: page.theme
+            text: "Retry"
+            onClicked: page.controller.retrySound()
+        }
     }
     PanelRow {
         visible: !!page.sound && !page.entries.length
