@@ -339,6 +339,8 @@ ShellRoot {
     Timer { id: soundTimer; interval: 300; onTriggered: root.readSound() }
     // Calendar writes take the same queue as every other change: the password goes on stdin, and a failure lands in `problem`.
     function calendarRequest(request) { submit(request); }
+    // Sound writes (a device's name or visibility) take the same queue; a failure lands in `problem`.
+    function soundRequest(request) { submit(request); }
     Process {
         id: reader
         stdout: StdioCollector { onStreamFinished: root.readReply = text }
