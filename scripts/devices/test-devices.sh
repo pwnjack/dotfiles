@@ -170,6 +170,7 @@ assert_eq "$(field "$out" 1-2 name)" "Logitech G533" "headset name is headsetcon
 assert_eq "$(field "$out" 1-2 percent)" 80 "headset percent is read"
 assert_eq "$(field "$out" 1-2 state)" connected "a headset with a level is connected"
 assert_eq "$(field "$out" 1-2 charging)" false "available is not charging"
+assert_eq "$(field "$out" 1-2 usb)" "046d:0a66" "a headset row carries its USB id"
 
 headset BATTERY_CHARGING 65
 assert_eq "$(field "$(hc "$r")" 1-2 charging)" true "BATTERY_CHARGING is charging"
@@ -194,6 +195,7 @@ assert_eq "$(field "$(hc "$r")" 1-2 kind)" keyboard "a device that cannot report
 r=$(root)
 headset BATTERY_AVAILABLE 50
 assert_eq "$(jq -c 'map(.id)' <<<"$(hc "$r")")" '["headset-046d-0a66"]' "an unmatched headset is named by its USB id"
+assert_eq "$(field "$(hc "$r")" headset-046d-0a66 usb)" "046d:0a66" "an unmatched headset carries its USB id too"
 headset BATTERY_AVAILABLE 50 success CAP_BATTERY_STATUS 2
 assert_eq "$(jq -c 'map(.id)' <<<"$(hc "$r")")" '["headset-046d-0a66","headset-046d-0a66-2"]' "identical unmatched headsets keep distinct ids"
 
@@ -203,6 +205,10 @@ input "$r" usb1/1-3/1-3:1.2/hid.1 6 MOUSE
 supply "$r" hidpp_battery_1 usb1/1-3/1-3:1.2/hid.1 TYPE=Battery SCOPE=Device CAPACITY=40
 headset BATTERY_AVAILABLE 50
 assert_eq "$(jq -c 'map(.id)' <<<"$(hc "$r")")" '["headset-046d-0a66","hidpp_battery_1"]' "a dongle already holding a battery is not claimed twice"
+
+r=$(root)
+supply "$r" m - TYPE=Battery SCOPE=Device CAPACITY=50
+assert_eq "$(jq -r '[.[] | has("usb")] | any' <<<"$(run "$r")")" false "non-headset rows have no usb key"
 
 r=$(root)
 supply "$r" m - TYPE=Battery SCOPE=Device CAPACITY=50

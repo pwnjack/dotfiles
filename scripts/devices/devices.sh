@@ -68,7 +68,7 @@ usb_of() {
     done
 }
 
-rows=""   # tab-separated: id name kind percent level charging state
+rows=""   # tab-separated: id name kind percent level charging state [usb]
 declare -A held=()   # USB devices already represented by a battery row
 
 for uevent in "$SUPPLY"/*/uevent; do
@@ -134,9 +134,9 @@ if [ -n "$HEADSETCONTROL" ] && command -v "$HEADSETCONTROL" >/dev/null 2>&1; the
         case "$level" in *[!0-9]*) level="" ;; esac
         if [ -n "$level" ] && [[ $status == BATTERY_AVAILABLE || $status == BATTERY_CHARGING ]]; then
             charging=false; [ "$status" = BATTERY_CHARGING ] && charging=true
-            rows+="$id"$'\t'"$name"$'\theadset\t'"$level"$'\t\t'"$charging"$'\tconnected\n'
+            rows+="$id"$'\t'"$name"$'\theadset\t'"$level"$'\t\t'"$charging"$'\tconnected\t'"$vid:$pid"$'\n'
         else
-            rows+="$id"$'\t'"$name"$'\theadset\t\t\tfalse\tasleep\n'
+            rows+="$id"$'\t'"$name"$'\theadset\t\t\tfalse\tasleep\t'"$vid:$pid"$'\n'
         fi
     done < <(timeout -k 1 2 "$HEADSETCONTROL" --timeout 1000 -b -o json 2>/dev/null | jq -r '
         .devices[]? | select(.status == "success" or .status == "partial")
@@ -177,7 +177,7 @@ printf '%s' "$rows" | jq -R -n --argjson low "$LOW" --argjson critical "$CRITICA
         percent: (if .[3] == "" then null else (.[3] | tonumber) end),
         level: (if .[4] == "" then null else .[4] end),
         charging: (.[5] == "true"), state: .[6]
-    } | .alert = (
+    } + (if (.[7] // "") != "" then {usb: .[7]} else {} end) | .alert = (
         if .state != "connected" then "none"
         elif ((.percent != null and .percent < $critical) or .level == "critical") then "critical"
         elif ((.percent != null and .percent < $low) or .level == "low") then "low"
