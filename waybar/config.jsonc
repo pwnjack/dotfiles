@@ -332,7 +332,7 @@
       "default": ["", "", "", ""],
     },
     "tooltip-format": "{desc}\n\nVolume: {volume}%\nMic: {source_volume}%{format_source}",
-    "on-click": "pavucontrol",
+    "on-click": "~/.config/scripts/hyprland/sound-popover.sh",
     "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
     "on-scroll-up": "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 2%+",
     "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-",
