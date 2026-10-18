@@ -6,9 +6,11 @@
 // Sidebar clusters, in order. A gap is drawn wherever the group changes.
 export const GROUPS = ["look", "connectivity", "hardware", "input", "system"]
 // Pages drawn mostly by their own view; they need no catalog sections.
-export const CUSTOM_PAGES = ["monitors", "network", "devices", "calendar", "startup", "about"]
+export const CUSTOM_PAGES = ["monitors", "network", "devices", "sound", "calendar", "startup", "about"]
 // controller.action() ids a catalog section button may run (backend.js op "action").
 export const SECTION_ACTIONS = ["reload", "waybar", "update"]
+// Live device a section heading may follow (SettingsView resolves it from controller.sound).
+export const TITLE_SOURCES = ["sound-output", "sound-input"]
 
 export function navEntries(categories) {
     const entries = categories.filter(category => category.placement !== "footer")
@@ -32,6 +34,7 @@ export function pageSections(categories, rows, searching) {
             if (!members.length) continue
             out.push({key: category.id + "/" + section.id,
                 title: searching ? category.title + " › " + section.title : section.title,
+                titleFrom: searching ? "" : section.titleFrom || "",
                 footer: searching ? "" : section.footer || "",
                 actions: searching ? [] : section.actions || [],
                 rows: members})
@@ -68,6 +71,8 @@ export function validateCatalog(catalog) {
             if (!section.title) errors.push(`${category.id}/${section.id}: no title`)
             if (!rows.some(row => row.category === category.id && row.section === section.id))
                 errors.push(`${category.id}/${section.id}: empty section`)
+            if (section.titleFrom !== undefined && !TITLE_SOURCES.includes(section.titleFrom))
+                errors.push(`${category.id}/${section.id}: bad titleFrom ${section.titleFrom}`)
             for (const action of section.actions || [])
                 if (!action.label || !SECTION_ACTIONS.includes(action.action))
                     errors.push(`${category.id}/${section.id}: bad action ${action.action}`)

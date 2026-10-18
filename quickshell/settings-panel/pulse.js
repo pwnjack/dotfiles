@@ -22,7 +22,6 @@ function cardOf(state, sink) {
     if (!card) throw new Error("The output device has no card profiles")
     return card
 }
-const devices = list => list.map(device => ({ label: device.description, value: device.name }))
 // A "not available" port has nothing plugged in. The active one is always kept.
 function ports(device) {
     if (!device.ports.length) throw new Error("This device has no ports")
@@ -37,37 +36,23 @@ const profiles = card => Object.entries(card.profiles)
 
 const shared = once => once("pulse", pulseState)
 export const pulseEnumerators = {
-    "audio-outputs": async (_row, _current, once) => devices((await shared(once)).sinks),
-    "audio-inputs": async (_row, _current, once) => devices(inputs(await shared(once))),
     "output-ports": async (_row, _current, once) => ports(output(await shared(once))),
     "input-ports": async (_row, _current, once) => ports(input(await shared(once))),
     "output-profiles": async (_row, _current, once) => { const state = await shared(once); return profiles(cardOf(state, output(state))) },
 }
 export function pulseValue(key, state) {
     switch (key) {
-    // A missing or monitor default leaves the selector empty but usable,
-    // so the panel can pick a real device and recover.
-    case "output": return state.sinks.some(sink => sink.name === state.info.default_sink_name) ? state.info.default_sink_name : ""
     case "output-port": return output(state).active_port
     case "output-profile": return cardOf(state, output(state)).active_profile
-    case "input": return inputs(state).some(source => source.name === state.info.default_source_name) ? state.info.default_source_name : ""
     case "input-port": return input(state).active_port
-    case "mic-level": {
-        const channels = Object.values(input(state).volume)
-        if (!channels.length) throw new Error("The input device reports no volume")
-        return Math.round(channels.reduce((sum, channel) => sum + parseFloat(channel.value_percent), 0) / channels.length)
-    }
     }
     throw new Error("Unknown sound setting")
 }
 export async function setPulse(key, value, state) {
     const command = {
-        output: () => ["set-default-sink", value],
         "output-port": () => ["set-sink-port", output(state).name, value],
         "output-profile": () => ["set-card-profile", cardOf(state, output(state)).name, value],
-        input: () => ["set-default-source", value],
         "input-port": () => ["set-source-port", input(state).name, value],
-        "mic-level": () => ["set-source-volume", input(state).name, `${value}%`],
     }[key]
     if (!command) throw new Error("Unknown sound setting")
     await execAsync(["pactl", ...command()])

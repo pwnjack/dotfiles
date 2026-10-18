@@ -26,8 +26,8 @@ assert.deepEqual(catalog.rows.map(row => row.id).sort(), ["a11y.text-scale", "a1
     "network.wifi", "notif.cc-width", "notif.pos-x", "notif.pos-y", "notif.timeout", "notif.timeout-low",
     "notif.transition", "notif.width", "power.dpms", "power.dpms-key", "power.dpms-mouse", "power.lock",
     "power.nightlight-end", "power.nightlight-start", "power.nightlight-temp", "power.profile", "power.suspend",
-    "region.clock", "region.formats", "region.language", "region.ntp", "region.timezone", "sound.input",
-    "sound.input-port", "sound.mic-level", "sound.output", "sound.output-port", "sound.output-profile",
+    "region.clock", "region.formats", "region.language", "region.ntp", "region.timezone",
+    "sound.input-port", "sound.output-port", "sound.output-profile",
     "startup.autologin", "startup.protonvpn", "startup.randomwallpaper", "win.dim-inactive", "win.dim-strength",
     "win.focus-on-activate", "win.layout", "win.preserve-split", "win.resize-border", "win.smart-split", "win.tearing",
     "win.xwayland"])

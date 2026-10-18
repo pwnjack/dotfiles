@@ -16,7 +16,8 @@ assert.equal(visible('').length, catalog.rows.filter(row => row.category === 'ap
 assert.deepEqual(visible('', 'network'), [])
 // Search matches section titles, and the plainer titles kept their old search terms.
 for (const [query, id] of [['night light', 'power.nightlight-start'], ['output', 'sound.output-port'],
-    ['window opening', 'anim.windowsIn'], ['windows move', 'anim.windowsMove'], ['recording volume', 'sound.mic-level'],
+    ['window opening', 'anim.windowsIn'], ['windows move', 'anim.windowsMove'], ['recording volume', 'sound.input-port'],
+    ['volume', 'sound.output-port'], ['speakers', 'sound.output-port'], ['mic', 'sound.input-port'],
     ['palette', 'appearance.theme-scheme'], ['matugen', 'appearance.theme-contrast'],
     ['source colour', 'appearance.theme-prefer'], ['colors', 'appearance.theme-scheme'],
     ['scroll factor', 'input.scroll-factor'], ['vrr', 'monitors.vrr'], ['numlock', 'input.numlock']])
@@ -51,9 +52,9 @@ const previousTitles = [
     ["Left-Handed Mouse", "input.left-handed"], ["Tap to Click Touchpad", "input.tap-to-click"],
     ["Disable Touchpad While Typing", "input.dwt"], ["Hide Idle Cursor", "input.hide-cursor"],
     ["Keep Cursor in Place", "input.no-warps"], ["Screen Zoom", "a11y.zoom"], ["Text Size", "a11y.text-scale"],
-    ["Output Device", "sound.output"], ["Output Port", "sound.output-port"],
-    ["Output Profile", "sound.output-profile"], ["Input Device", "sound.input"], ["Input Port", "sound.input-port"],
-    ["Microphone Level", "sound.mic-level"], ["Wi-Fi", "network.wifi"], ["Default Timeout", "notif.timeout"],
+    ["Output Device", "sound.output-port"], ["Output Port", "sound.output-port"],
+    ["Output Profile", "sound.output-profile"], ["Input Device", "sound.input-port"], ["Input Port", "sound.input-port"],
+    ["Microphone Level", "sound.input-port"], ["Wi-Fi", "network.wifi"], ["Default Timeout", "notif.timeout"],
     ["Low Priority Timeout", "notif.timeout-low"], ["Notification Width", "notif.width"],
     ["Control Center Width", "notif.cc-width"], ["Transition Time", "notif.transition"],
     ["Position X", "notif.pos-x"], ["Position Y", "notif.pos-y"], ["VRR Adaptive Sync", "monitors.vrr"],

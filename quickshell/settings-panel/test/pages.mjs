@@ -34,6 +34,14 @@ assert.deepEqual(pages.pageSections(categories, [], true), [])
 // A category without declared sections (the QML test fixture) still draws its rows.
 assert.deepEqual(pages.pageSections([{id: 'q', title: 'Q'}], [{id: 'q.1', category: 'q'}], false).map(s => [s.key, s.title]), [['q/', '']])
 
+// A section may name the device its heading follows; searching drops it with the rest of the page chrome.
+assert.ok(pages.CUSTOM_PAGES.includes('sound'))
+const titled = [{id: 's', title: 'Sound', group: 'hardware', sections: [{id: 'out', title: 'Output', titleFrom: 'sound-output'}, {id: 'plain', title: 'Plain'}]}]
+const titledRows = [{id: 's.1', category: 's', section: 'out', kind: 'toggle'}, {id: 's.2', category: 's', section: 'plain', kind: 'toggle'}]
+assert.deepEqual(pages.pageSections(titled, titledRows, false).map(s => s.titleFrom), ['sound-output', ''])
+assert.deepEqual(pages.pageSections(titled, titledRows, true).map(s => s.titleFrom), ['', ''])
+assert.deepEqual(pages.validateCatalog({categories: titled, rows: titledRows}), [])
+
 // mirror is its own inverse, and a no-op without invert.
 assert.equal(pages.mirror(rows[4], 3), 8)
 assert.equal(pages.mirror(rows[4], pages.mirror(rows[4], 3)), 3)
@@ -57,6 +65,7 @@ assert.match(broken(c => {
 assert.match(broken(c => { c.rows[0].section = 'missing' }), /unknown section/)
 assert.match(broken(c => { c.rows.push({id: 'a.1', category: 'a', section: 'one', kind: 'toggle'}) }), /duplicate id/)
 assert.match(broken(c => { c.categories[1].sections.push({id: 'empty', title: 'Empty'}) }), /empty section/)
+assert.match(broken(c => { c.categories[0].sections[0].titleFrom = 'x' }), /bad titleFrom/)
 assert.match(broken(c => { c.categories[0].sections[0].actions = [{label: 'Bad', action: 'rm'}] }), /bad action/)
 assert.match(broken(c => { c.rows.find(r => r.id === 'c.1').dependsOn = 'a.1' }), /dependsOn/)
 assert.match(broken(c => { c.rows.find(r => r.id === 'c.1').ends = ['One'] }), /ends/)

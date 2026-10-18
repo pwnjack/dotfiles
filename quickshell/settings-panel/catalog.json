@@ -161,16 +161,18 @@
       "group": "hardware",
       "icon": "f057e",
       "title": "Sound",
-      "description": "Devices, ports and microphone level. Volume lives in the notification sidebar.",
+      "description": "Ports and profiles. Devices, volumes and apps live in the sound popover on the bar.",
       "sections": [
         {
           "id": "output",
           "title": "Output",
-          "footer": "Volume and per-app levels live in the notification sidebar."
+          "titleFrom": "sound-output",
+          "footer": "Devices, volumes and per-app levels live in the sound popover on the bar."
         },
         {
           "id": "input",
-          "title": "Input"
+          "title": "Input",
+          "titleFrom": "sound-input"
         }
       ]
     },
@@ -365,19 +367,6 @@
     {
       "category": "sound",
       "section": "output",
-      "id": "sound.output",
-      "title": "Device",
-      "description": "Where sound plays",
-      "source": "pulse",
-      "key": "output",
-      "kind": "select",
-      "choices": "audio-outputs",
-      "live": "audio",
-      "keywords": ["speakers", "headphones", "audio"]
-    },
-    {
-      "category": "sound",
-      "section": "output",
       "id": "sound.output-port",
       "title": "Port",
       "description": "Connector on the device, e.g. headphones or line out",
@@ -386,7 +375,7 @@
       "kind": "select",
       "choices": "output-ports",
       "live": "audio",
-      "keywords": ["jack", "headphones", "speakers"]
+      "keywords": ["jack", "headphones", "speakers", "audio", "volume", "output device"]
     },
     {
       "category": "sound",
@@ -404,19 +393,6 @@
     {
       "category": "sound",
       "section": "input",
-      "id": "sound.input",
-      "title": "Device",
-      "description": "Microphone that apps record from",
-      "source": "pulse",
-      "key": "input",
-      "kind": "select",
-      "choices": "audio-inputs",
-      "live": "audio",
-      "keywords": ["microphone", "mic", "recording"]
-    },
-    {
-      "category": "sound",
-      "section": "input",
       "id": "sound.input-port",
       "title": "Port",
       "description": "Connector on the device",
@@ -425,23 +401,7 @@
       "kind": "select",
       "choices": "input-ports",
       "live": "audio",
-      "keywords": ["microphone", "mic", "jack"]
-    },
-    {
-      "category": "sound",
-      "section": "input",
-      "id": "sound.mic-level",
-      "title": "Level",
-      "description": "Above 100 % amplifies in software",
-      "source": "pulse",
-      "key": "mic-level",
-      "kind": "slider",
-      "min": 0,
-      "max": 150,
-      "step": 1,
-      "format": "percent",
-      "live": "audio",
-      "keywords": ["microphone", "mic", "gain", "recording", "volume"]
+      "keywords": ["microphone", "mic", "jack", "recording", "microphone level", "gain", "volume", "input device"]
     },
     {
       "category": "power",

@@ -41,6 +41,17 @@ FocusScope {
     // The page drawn by its own view, if any; a search shows rows only.
     readonly property string customPage: !searching && Pages.CUSTOM_PAGES.includes(controller.category) ? controller.category : ""
     readonly property var sections: Pages.pageSections(controller.catalog.categories, controller.visibleRows, searching)
+    // A section whose catalog entry has titleFrom names the current default device: "Output · Speakers".
+    // controller.sound is absent until the sound state loads, and the plain title stands in until then.
+    function sectionTitle(section) {
+        const sound = controller.sound;
+        if (!section.titleFrom || !sound) return section.title;
+        const output = section.titleFrom === "sound-output";
+        const name = output ? sound.defaultSink : sound.defaultSource;
+        const row = (output ? sound.outputs : sound.inputs)?.find(device => device.name === name);
+        const label = row ? (row.custom || row.label) : "";
+        return label ? section.title + " \u00b7 " + label : section.title;
+    }
     // Maintenance waits while a display change is pending: a reload would undo it.
     readonly property bool actionsIdle: !controller.pendingDisplay
     property alias actionsMenu: actionsMenu
@@ -440,7 +451,7 @@ FocusScope {
                                 required property var modelData
                                 objectName: "section-" + modelData.key
                                 theme: view
-                                title: modelData.title
+                                title: view.sectionTitle(modelData)
                                 footer: modelData.footer
                                 actions: modelData.actions
                                 actionsEnabled: view.actionsIdle
