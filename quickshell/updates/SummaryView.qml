@@ -21,13 +21,23 @@ Column {
         (view.info.canUpdate ? update : later).forceActiveFocus();
     }
     // The plan arrives after the card opens: Update takes focus when it
-    // appears, behind the same key guard as a newly shown view.
-    onCanUpdateChanged: if (canUpdate && card.mode === "summary") { card.armKeys(); focusPrimary(); }
+    // appears, behind the same key guard as a newly shown view. A newer check
+    // can also take it away again, and focus goes back to Later.
+    onCanUpdateChanged: if (card.mode === "summary") {
+        if (canUpdate) card.armKeys();
+        focusPrimary();
+    }
+    // A newer check replacing the shown plan changes what Update would do:
+    // a Return meant for the old list must not start it.
+    Connections {
+        target: view.controller
+        function onPlanChanged() { if (view.card.mode === "summary") view.card.armKeys(); }
+    }
 
     Header {
         width: parent.width
         card: view.card
-        busy: view.info.busy
+        busy: view.info.busy || view.controller.refreshing
         title: view.info.title
         subtitle: view.info.subtitle
     }
@@ -196,24 +206,57 @@ Column {
         }
     }
 
-    Row {
-        anchors.right: parent.right
-        spacing: view.card.px(8)
-        CardButton {
-            id: later
-            card: view.card
-            text: view.info.canUpdate ? "Later" : "Close"
-            hint: "Esc"
-            onClicked: view.controller.close()
+    Item {
+        width: parent.width
+        height: buttons.height
+        // How old the shown plan is, so a saved one never passes for a new check.
+        Row {
+            id: freshness
+            anchors.left: parent.left
+            anchors.leftMargin: view.card.px(10)
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: view.card.px(6)
+            visible: checked.text !== ""
+            Text {
+                id: clockGlyph
+                anchors.verticalCenter: parent.verticalCenter
+                text: String.fromCodePoint(0xf0150)   // clock-outline
+                color: view.card.dim
+                font.family: view.card.monoFont
+                font.pixelSize: view.card.px(12)
+            }
+            Text {
+                id: checked
+                objectName: "checked"
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.min(implicitWidth, buttons.x - view.card.px(10) - freshness.x - clockGlyph.width - freshness.spacing)
+                elide: Text.ElideRight
+                text: view.controller.planError ? "" : Model.checkedLine(view.controller.plan, view.controller.clock, view.controller.refreshing)
+                color: view.card.dim
+                font.family: view.card.monoFont
+                font.pixelSize: view.card.px(12)
+            }
         }
-        CardButton {
-            id: update
-            card: view.card
-            visible: view.info.canUpdate
-            kind: "primary"
-            text: "Update"
-            hint: "↵"
-            onClicked: view.controller.start()
+        Row {
+            id: buttons
+            anchors.right: parent.right
+            spacing: view.card.px(8)
+            CardButton {
+                id: later
+                card: view.card
+                text: view.info.canUpdate ? "Later" : "Close"
+                hint: "Esc"
+                onClicked: view.controller.close()
+            }
+            CardButton {
+                id: update
+                card: view.card
+                visible: view.info.canUpdate
+                kind: "primary"
+                text: "Update"
+                hint: "↵"
+                onClicked: view.controller.start()
+            }
         }
     }
 }

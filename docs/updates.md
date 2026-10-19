@@ -16,6 +16,19 @@ generated.
   replaced. The package list is collapsed until you open it. A failed check is
   shown as "Could not check for updates", never as "Up to date". While the
   check runs, the header badge's glyph gives way to a spinner.
+- **The last check is reused.** Every plan the planner prints, from the card or
+  the bar's half-hourly check, is also saved as
+  `$XDG_RUNTIME_DIR/updates/plan.json`. The card opens on that saved plan
+  (`updates-plan.sh --cached`). If it is under ten minutes old, the card does
+  not check again, so closing it by mistake and reopening costs nothing. If it
+  is older, the card shows it straight away and checks again behind it: the
+  spinner turns, the clock line beside the buttons says "Checking…", and the
+  new plan replaces it when it arrives. Otherwise that line says how old the
+  plan is ("4 min ago"). A saved plan is not used once pacman's local
+  database or a Flatpak installation (its `.changed` marker) has changed since
+  its check began (any install or upgrade, from the card, a terminal or
+  anywhere else), nor after a check found the upgrade unresolvable. A stale list cannot install the wrong thing: Update runs the
+  root helper's own `pacman -Syu`.
 - **Update** starts `scripts/updates/updates-run.sh` under `setsid`. The card
   then shows a progress bar and pacman's current step. Closing the card (Esc,
   a click outside) does not stop the update; reopening it resumes at the

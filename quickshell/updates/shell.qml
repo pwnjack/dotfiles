@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import "model.mjs" as Model
 
 // The update card for Waybar's custom/updates. Started by
 // scripts/hyprland/updates-popover.sh; the process exits on close. The update
@@ -34,6 +35,9 @@ ShellRoot {
     property string mode: "summary"     // summary | running | result
     property var plan: null
     property string planError: ""
+    // A saved plan is shown and a new check runs behind it.
+    property bool refreshing: false
+    property double clock: Date.now() / 1000   // epoch s, for "Checked 4 min ago"
     property var run: null
     property bool expanded: false
     property int requestedAt: 0         // epoch s of our Update press; older snapshots are ignored
@@ -114,6 +118,8 @@ ShellRoot {
         run = null;
         plan = null;
         planError = "";
+        refreshing = false;
+        clock = Date.now() / 1000;
         probeLock(held => root.decide(held));
     }
     function decide(held) {
@@ -129,7 +135,7 @@ ShellRoot {
             showResult(true);
         } else {
             mode = "summary";
-            planner.running = true;
+            savedPlan.running = true;
         }
         opened = true;
         card.appear();
@@ -186,6 +192,42 @@ ShellRoot {
         }
     }
 
+    // The last check's plan, unless pacman's database changed since
+    // (updates-plan.sh --cached). Fresh, it is the whole answer; older, it
+    // stays on screen while the planner checks again; none, the planner runs
+    // as if nothing was saved.
+    Process {
+        id: savedPlan
+        property int exitCode: -1
+        property bool outDone: false
+        command: [root.configDir + "/scripts/updates/updates-plan.sh", "--cached"]
+        function finish() {
+            if (exitCode < 0 || !outDone) return;
+            let saved = null;
+            try {
+                saved = exitCode === 0 ? JSON.parse(savedOut.text) : null;
+                if (saved && (!Array.isArray(saved.repo) || !Array.isArray(saved.aur))) saved = null;
+            } catch (error) {
+                saved = null;
+            }
+            // Nothing to show any more: the card closed or an Update began.
+            if (root.mode !== "summary" || root.plan || root.planError) return;
+            root.clock = Date.now() / 1000;
+            if (saved) root.plan = saved;
+            if (Model.planFresh(saved, root.clock)) return;
+            root.refreshing = !!saved;
+            planner.running = true;
+        }
+        stdout: StdioCollector { id: savedOut; onStreamFinished: { savedPlan.outDone = true; savedPlan.finish(); } }
+        onExited: code => { savedPlan.exitCode = code; savedPlan.finish(); }
+    }
+    Timer {
+        interval: 15000
+        repeat: true
+        running: root.opened && root.mode === "summary"
+        onTriggered: root.clock = Date.now() / 1000
+    }
+
     // updates-plan.sh prints JSON and exits 0, or prints one reason line on
     // stderr and exits 1. Both streams and the exit must be in before deciding.
     Process {
@@ -196,6 +238,10 @@ ShellRoot {
         command: [root.configDir + "/scripts/updates/updates-plan.sh"]
         function finish() {
             if (exitCode < 0 || !outDone || !errDone) return;
+            root.refreshing = false;
+            root.clock = Date.now() / 1000;
+            // An Update pressed during a re-check made this answer moot.
+            if (root.mode !== "summary") return;
             const reason = planErr.text.trim().split("\n").pop();
             if (exitCode !== 0) {
                 root.planError = reason || "The update check failed (exit " + exitCode + ").";
@@ -234,6 +280,8 @@ ShellRoot {
                 opened: root.opened, mode: root.mode, expanded: root.expanded,
                 pending: root.plan ? root.plan.repo.length + root.plan.aur.length + (root.plan.flatpak || 0) : -1,
                 planError: root.planError,
+                refreshing: root.refreshing,
+                checkedAt: root.plan && typeof root.plan.checkedAt === "number" ? root.plan.checkedAt : -1,
                 run: root.run ? { status: root.run.status, progress: root.run.progress, line: root.run.line } : null,
                 shown: card.shown
             });

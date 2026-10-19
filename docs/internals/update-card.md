@@ -10,4 +10,7 @@ Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md
 by `updates/setup-sudo.sh`, one no-argument NOPASSWD rule), then Flatpak, and
 `fold.mjs` folds the stream into `$XDG_RUNTIME_DIR/updates/state.json` through
 the pure `model.mjs` the card also imports, so card and bar agree. AUR updates
-stay in the terminal (`scripts/updates/terminal.sh`). See `docs/updates.md`.
+stay in the terminal (`scripts/updates/terminal.sh`). The planner saves each
+plan as `plan.json` beside `state.json`, and the card opens on it through
+`updates-plan.sh --cached`, checking again only when it is ten minutes old
+(`model.PLAN_FRESH_SECONDS`). See `docs/updates.md`.

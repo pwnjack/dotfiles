@@ -215,6 +215,24 @@ assert.equal(model.result(fold('nothing').snap).subtitle, 'Nothing needed updati
 }
 
 // Summary copy.
+// A saved plan: fresh for ten minutes, and the line says how old it is.
+{
+    const plan = { repo: [], aur: [], bytes: 0, kernel: false, checkedAt: 10000 }
+    assert.equal(model.planFresh(plan, 10000), true)
+    assert.equal(model.planFresh(plan, 10000 + model.PLAN_FRESH_SECONDS - 1), true)
+    assert.equal(model.planFresh(plan, 10000 + model.PLAN_FRESH_SECONDS), false)
+    assert.equal(model.planFresh(plan, 9990), false, 'a plan from the future (clock change) is not trusted')
+    assert.equal(model.planFresh({ ...plan, checkedAt: undefined }, 10000), false)
+    assert.equal(model.planFresh(null, 10000), false)
+    assert.equal(model.checkedLine(plan, 10059), 'Just now')
+    assert.equal(model.checkedLine(plan, 10060), '1 min ago')
+    assert.equal(model.checkedLine(plan, 10000 + 25 * 60 + 30), '25 min ago')
+    assert.equal(model.checkedLine(plan, 10000 + 2 * 3600 + 5), '2 h ago')
+    assert.equal(model.checkedLine(plan, 9000), 'Just now', 'a clock that went back reads as now')
+    assert.equal(model.checkedLine(plan, 10600, true), 'Checking…')
+    assert.equal(model.checkedLine(null, 10600, true), '', 'the first check has the header spinner only')
+    assert.equal(model.checkedLine({ ...plan, checkedAt: undefined }, 10600), '')
+}
 assert.deepEqual(model.summary(null), { title: 'Checking for updates…', subtitle: 'Syncing package databases', count: 0, repo: 0, canUpdate: false, note: '', terminal: '', busy: true })
 {
     const plan = { repo: [{ name: 'a' }, { name: 'b' }], aur: [{ name: 'c' }], bytes: 434110464, kernel: true }

@@ -23,6 +23,8 @@ Item {
             aur: [{ name: "spotblock-git", old: "1-1", new: "2-1" }], bytes: 115867648, kernel: false })
         property var plan: fullPlan
         property string planError: ""
+        property bool refreshing: false
+        property double clock: 100000
         property var run: null
         property bool expanded: false
         property int starts: 0
@@ -53,6 +55,7 @@ Item {
             controller.reboots = 0;
             controller.plan = controller.fullPlan;
             controller.planError = "";
+            controller.refreshing = false;
             controller.lastTerminal = "";
             card.forceActiveFocus();
             card.focusPrimary();
@@ -71,6 +74,29 @@ Item {
             tryCompare(spinner, "opacity", 1, 1000);
             controller.planError = "checkupdates failed";
             tryCompare(spinner, "opacity", 0, 1000);
+        }
+        // A saved plan says how old it is; one being re-checked says so and spins.
+        function test_checkedLine() {
+            const line = findChild(card.activeView, "checked");
+            const spinner = findChild(card.activeView, "spinner");
+            verify(line !== null);
+            compare(line.text, "", "a plan without checkedAt has no line");
+            controller.plan = Object.assign({}, controller.fullPlan, { checkedAt: controller.clock - 240 });
+            compare(line.text, "4 min ago");
+            tryCompare(spinner, "opacity", 0, 1000);
+            // The longest lines still fit beside Later and Update.
+            for (const age of [59 * 60, 23 * 3600]) {
+                controller.plan = Object.assign({}, controller.fullPlan, { checkedAt: controller.clock - age });
+                verify(!line.truncated, "'" + line.text + "' is cut short");
+            }
+            controller.refreshing = true;
+            compare(line.text, "Checking…");
+            verify(!line.truncated, "'Checking…' is cut short");
+            tryCompare(spinner, "opacity", 1, 1000);
+            verify(card.activeView.canUpdate, "the saved plan can still be updated");
+            controller.refreshing = false;
+            controller.planError = "offline";
+            compare(line.text, "", "an error has no freshness line");
         }
         function test_listCollapsedByDefault() {
             const clip = findChild(card, "listClip");
@@ -113,6 +139,16 @@ Item {
                 wait(10);
                 verify(fits(), "frame " + card.height + " trails content " + card.activeView.implicitHeight);
             }
+        }
+        // A re-check swapping the plan re-arms the key guard.
+        function test_returnIgnoredAfterPlanSwap() {
+            wait(card.activationDelay);
+            controller.plan = Object.assign({}, controller.fullPlan, { bytes: 1 });
+            keyClick(Qt.Key_Return);
+            compare(controller.starts, 0);
+            wait(card.activationDelay);
+            keyClick(Qt.Key_Return);
+            compare(controller.starts, 1);
         }
         function test_returnStartsOnce() {
             wait(card.activationDelay);

@@ -220,6 +220,29 @@ export function summary(plan, error = '') {
     }
 }
 
+// A saved plan (updates-plan.sh --cached) younger than this opens the card
+// without a new check; an older one is shown while a new check runs.
+export const PLAN_FRESH_SECONDS = 600
+
+export function planFresh(plan, nowSeconds) {
+    return !!plan && typeof plan.checkedAt === 'number'
+        && nowSeconds - plan.checkedAt >= 0 && nowSeconds - plan.checkedAt < PLAN_FRESH_SECONDS
+}
+
+// The summary's freshness line, after a clock glyph beside the buttons: how
+// long ago the shown plan was checked, or that a newer check is under way.
+// Short, because it shares the row with Later and Update. Empty while there
+// is no plan to date.
+export function checkedLine(plan, nowSeconds, refreshing = false) {
+    if (!plan) return ''
+    if (refreshing) return 'Checking…'
+    if (typeof plan.checkedAt !== 'number') return ''
+    const age = Math.max(0, nowSeconds - plan.checkedAt)
+    if (age < 60) return 'Just now'
+    if (age < 3600) return `${Math.floor(age / 60)} min ago`
+    return `${Math.floor(age / 3600)} h ago`
+}
+
 // ② Running copy. `run` is a state.json snapshot, null until the runner reports.
 export function runningSubtitle(run) {
     return run && run.total ? `${run.total} packages · you can close this` : 'You can close this'
