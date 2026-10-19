@@ -68,7 +68,13 @@ FocusScope {
         id: frame
         width: parent.width
         height: card.activeView.implicitHeight + card.px(34)
-        Behavior on height { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
+        // Eases between views. While the package list animates, the content
+        // height already moves every frame: a Behavior would restart on each
+        // step and trail the list, so the frame follows it directly instead.
+        Behavior on height {
+            enabled: !(card.activeView === summaryView && summaryView.resizing)
+            NumberAnimation { duration: 320; easing.type: Easing.OutCubic }
+        }
         radius: card.px(18)
         color: Qt.rgba(card.background.r, card.background.g, card.background.b, 0.68)
         border.width: 1

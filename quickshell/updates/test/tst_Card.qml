@@ -56,6 +56,7 @@ Item {
             controller.lastTerminal = "";
             card.forceActiveFocus();
             card.focusPrimary();
+            tryCompare(findChild(card, "listClip"), "height", 0, 1000);
             wait(50);
         }
         function test_spinnerWhileChecking() {
@@ -77,6 +78,41 @@ Item {
             compare(clip.height, 0);
             controller.toggleList();
             tryVerify(() => clip.height > 0, 1000);
+        }
+        // The frame moves with the list, not a beat behind it.
+        function test_frameTracksList() {
+            const clip = findChild(card, "listClip");
+            const fits = () => Math.abs(card.height - card.activeView.implicitHeight - card.px(34)) < 1;
+            tryVerify(fits, 1000);
+            for (const expand of [true, false]) {
+                controller.toggleList();
+                let between = 0;
+                for (let i = 0; i < 40; i++) {
+                    wait(10);
+                    if (clip.height > 0 && clip.height < card.activeView.listHeight) between += 1;
+                    verify(fits(), "frame " + card.height + " trails content " + card.activeView.implicitHeight);
+                }
+                verify(between > 2, "the list animates");
+                compare(clip.height, expand ? card.activeView.listHeight : 0);
+            }
+        }
+        // A toggle while the frame still eases to the arriving plan takes
+        // over from the list's first frame (one catch-up step, no trailing).
+        function test_frameTracksListMidEase() {
+            const fits = () => Math.abs(card.height - card.activeView.implicitHeight - card.px(34)) < 1;
+            const full = card.activeView.implicitHeight;
+            controller.plan = null;
+            tryVerify(() => card.activeView.implicitHeight < full && fits(), 1000);
+            controller.plan = controller.fullPlan;
+            wait(60);
+            verify(!fits(), "the frame is still easing");
+            const collapsed = card.activeView.implicitHeight;
+            controller.toggleList();
+            tryVerify(() => card.activeView.implicitHeight > collapsed, 1000);
+            for (let i = 0; i < 40; i++) {
+                wait(10);
+                verify(fits(), "frame " + card.height + " trails content " + card.activeView.implicitHeight);
+            }
         }
         function test_returnStartsOnce() {
             wait(card.activationDelay);

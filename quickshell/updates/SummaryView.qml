@@ -11,6 +11,10 @@ Column {
     readonly property var info: Model.summary(controller.plan, controller.planError)
     readonly property bool canUpdate: info.canUpdate
     readonly property int rowHeight: card.px(24)
+    readonly property real listHeight: Math.min(list.count * rowHeight + 2, card.px(214))
+    // The disclosure's own animation is running. Card.qml lets the frame track
+    // it frame by frame then, instead of easing after it a beat behind.
+    readonly property bool resizing: listClip.height !== (controller.expanded ? listHeight : 0)
     spacing: card.px(14)
 
     function focusPrimary() {
@@ -51,7 +55,7 @@ Column {
                     font.family: view.card.monoFont
                     font.pixelSize: view.card.px(13)
                     rotation: view.controller.expanded ? 90 : 0
-                    Behavior on rotation { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+                    Behavior on rotation { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
@@ -84,14 +88,16 @@ Column {
             objectName: "listClip"
             width: parent.width
             clip: true
-            height: view.controller.expanded ? Math.min(list.count * view.rowHeight + 2, view.card.px(214)) : 0
+            height: view.controller.expanded ? view.listHeight : 0
             Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
             Rectangle { width: parent.width; height: 1; color: view.card.hairline }
+            // Full height from the start, so the rows exist before the
+            // first frame of the reveal instead of being built during it.
             ListView {
                 id: list
-                anchors.fill: parent
-                anchors.topMargin: 1
-                anchors.bottomMargin: 1
+                y: 1
+                width: parent.width
+                height: view.listHeight - 2
                 model: view.controller.plan ? view.controller.plan.repo : []
                 boundsBehavior: Flickable.StopAtBounds
                 delegate: Item {
