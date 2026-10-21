@@ -70,16 +70,20 @@ Workers share none of this conversation. Every brief:
 
 Inside Herdr (`HERDR_ENV=1`) every worker, Claude or Codex, implementer,
 reviewer or read-only explorer, runs in a visible pane; never the Agent tool.
-Write the brief to `/tmp/delegate/<slug>.brief.md`, then with
+Write the brief to `/tmp/delegate/<role>-<task>.brief.md`, then with
 `run_in_background: true`:
 
 ```bash
-~/.claude/skills/delegate/pane.sh claude <alias> <effort> <slug> /tmp/delegate/<slug>.brief.md
-~/.claude/skills/delegate/pane.sh codex <alias> <effort> <slug> /tmp/delegate/<slug>.brief.md
+~/.claude/skills/delegate/pane.sh claude <alias> <effort> <role> <task> /tmp/delegate/<role>-<task>.brief.md
+~/.claude/skills/delegate/pane.sh codex <alias> <effort> <role> <task> /tmp/delegate/<role>-<task>.brief.md
 ```
 
-The slug is `a-z0-9-` and short (`dlg-<kind>-<slug>` fits 32 characters). The
-script opens a pane beside you, hands over the brief, asks for a JSON report,
+The pane is named `<role>-<model>-<task>` (`impl-sonnet-privacy`,
+`review-sol-privacy`) so the user reads it at a glance. Role is `impl`,
+`review`, `explore` or `fix`. Task is one or two `a-z0-9-` words naming the
+work, the same for an implementer and its reviewer; it never repeats the role,
+the family or the alias (the script refuses that), and the name fits 32
+characters. The script opens a pane beside you, hands over the brief, asks for a JSON report,
 and exits with one verdict line (meanings in the script header):
 
 - `REPORT`: the report is printed; `jq . <report>` for the rest.

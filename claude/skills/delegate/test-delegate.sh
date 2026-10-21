@@ -106,56 +106,64 @@ gate() { env -u HERDR_ENV -u HERDR_PANE_ID -u DELEGATE_EXPENSIVE ${OPTIN:+DELEGA
   "$here/pane.sh" "$@" >/dev/null 2>&1; echo $?; }
 check() { if [ "$1" = "$2" ]; then echo "ok   gate $3"; else echo "FAIL gate $3: exit $1 want $2"; fail=1; fi; }
 b=$tmp/brief.md
-check "$(gate codex medium slug "$b")"            2 "missing alias"
-check "$(gate codex sol ultra slug "$b")"               2 "ultra refused"
-check "$(OPTIN=1 gate codex astra ultra slug "$b")"     2 "ultra refused even with opt-in"
-check "$(gate codex sol high slug)"                     2 "missing brief"
-check "$(gate codex sol high slug /nonexistent)"        2 "unreadable brief"
-check "$(gate codex sol high slug "$b" extra)"          2 "extra argument"
-check "$(gate codex sol high a-slug-of-23-characters "$b")" 2 "slug over Herdr's name limit"
-check "$(gate claude sonnet high a-slug-of-22-character "$b")" 2 "claude slug over Herdr's name limit"
-check "$(gate claude sonnet medium slug "$b")"    8 "valid claude, no herdr"
-check "$(gate claude haiku high slug "$b")"       8 "claude haiku, no herdr"
-check "$(gate claude gpt-4 high slug "$b")"       2 "malformed claude alias"
-check "$(gate claude fable high slug "$b")"       2 "fable refused without opt-in"
-check "$(OPTIN=1 gate claude fable high slug "$b")" 8 "fable allowed with opt-in"
-check "$(gate claude nova high slug "$b")"        2 "a Claude alias that ships later is opt-in"
-check "$(OPTIN=1 gate claude nova high slug "$b")" 8 "a later Claude alias with opt-in"
-check "$(gate claude sonnet slug "$b")"           2 "claude needs an effort"
-check "$(gate claude sonnet max slug "$b")"       2 "max refused"
-check "$(gate claude sonnet ultra slug "$b")"     2 "ultra refused for claude too"
-check "$(gate bogus sol high slug "$b")"          2 "unknown kind"
+check "$(gate codex medium impl slug "$b")"            2 "missing alias"
+check "$(gate codex sol ultra impl slug "$b")"               2 "ultra refused"
+check "$(OPTIN=1 gate codex astra ultra impl slug "$b")"     2 "ultra refused even with opt-in"
+check "$(gate codex sol high impl slug)"                     2 "missing brief"
+check "$(gate codex sol high impl slug /nonexistent)"        2 "unreadable brief"
+check "$(gate codex sol high impl slug "$b" extra)"          2 "extra argument"
+task() { printf 't%.0s' $(seq "$1"); }   # a task word of n characters
+check "$(gate codex sol high impl "$(task 24)" "$b")"   2 "name over Herdr's 32 characters"
+check "$(gate codex sol high impl "$(task 23)" "$b")"   8 "a name of exactly 32 characters"
+check "$(gate claude sonnet high impl "$(task 21)" "$b")" 2 "claude name over Herdr's 32 characters"
+check "$(gate codex sol high bogus slug "$b")"          2 "unknown role"
+check "$(gate codex sol high review "$b")"              2 "role without a task"
+for t in dlg-x impl-x review codex-x claude sol-x -x x- x--y x-y-z; do
+  check "$(gate codex sol high review "$t" "$b")"       2 "task '$t' repeats the name or is malformed"
+done
+check "$(gate codex sol high review solar "$b")"        8 "a task that merely starts like the alias"
+check "$(gate claude sonnet medium impl slug "$b")"    8 "valid claude, no herdr"
+check "$(gate claude haiku high impl slug "$b")"       8 "claude haiku, no herdr"
+check "$(gate claude gpt-4 high impl slug "$b")"       2 "malformed claude alias"
+check "$(gate claude fable high impl slug "$b")"       2 "fable refused without opt-in"
+check "$(OPTIN=1 gate claude fable high impl slug "$b")" 8 "fable allowed with opt-in"
+check "$(gate claude nova high impl slug "$b")"        2 "a Claude alias that ships later is opt-in"
+check "$(OPTIN=1 gate claude nova high impl slug "$b")" 8 "a later Claude alias with opt-in"
+check "$(gate claude sonnet impl slug "$b")"           2 "claude needs an effort"
+check "$(gate claude sonnet max impl slug "$b")"       2 "max refused"
+check "$(gate claude sonnet ultra impl slug "$b")"     2 "ultra refused for claude too"
+check "$(gate bogus sol high impl slug "$b")"          2 "unknown kind"
 check "$(gate)"                                   2 "no arguments"
 check "$(env HERDR_ENV=1 HERDR_PANE_ID= CODEX_MODELS_CACHE="$tmp/real.json" CODEX_CONFIG="$tmp/config-ok.toml" \
-  "$here/pane.sh" claude sonnet medium slug "$b" >/dev/null 2>&1; echo $?)" 7 "inside Herdr but unusable: NOSTART, not NOHERDR"
-check "$(gate codex sol high Bad_Slug "$b")"            2 "slug with invalid characters"
-check "$(gate codex sol high slug "$b")"                8 "valid, no herdr"
-check "$(gate codex terra medium slug "$b")"            8 "older-generation alias"
-check "$(gate codex astra high slug "$b")"              2 "astra refused without opt-in"
-check "$(OPTIN=1 gate codex astra high slug "$b")"      8 "astra allowed with opt-in"
-check "$(CACHE=$tmp/solfirst.json gate codex sol medium slug "$b")" 8 "sol ranked first in a new generation still launches"
-check "$(gate codex --is-expensive astra slug "$b")"    2 "subcommand is not an alias"
-check "$(CONFIG=$tmp/config-astra.toml gate codex inherit low slug "$b")" 2 "inherit onto astra refused"
-check "$(CONFIG=$tmp/config-snap.toml gate codex inherit low slug "$b")" 2 "inherit onto an astra snapshot refused"
-check "$(CONFIG=$tmp/config-astra.toml gate codex nova low slug "$b")" 2 "degrade onto astra refused"
-check "$(CONFIG=$tmp/config-astra.toml OPTIN=1 gate codex inherit low slug "$b")" 8 "inherit onto astra with opt-in"
-check "$(CONFIG=$tmp/config-table.toml gate codex inherit low slug "$b")" 2 "no top-level model: refused"
-check "$(CONFIG=$tmp/config-nomodel.toml gate codex inherit low slug "$b")" 2 "no model key: refused"
-check "$(CONFIG=$tmp/config-nomodel.toml OPTIN=1 gate codex inherit low slug "$b")" 8 "no model key with opt-in"
-check "$(CONFIG=$tmp/config-single.toml gate codex inherit low slug "$b")" 2 "single-quoted astra refused"
-check "$(CONFIG=$tmp/config-profile.toml gate codex inherit low slug "$b")" 2 "profile-selected astra refused"
-check "$(CONFIG=$tmp/config-astra.toml CACHE=/nonexistent gate codex sol low slug "$b")" 2 "missing catalogue cannot fail open onto astra"
-check "$(CONFIG=$tmp/config-astra.toml CACHE=$tmp/broken.json gate codex nova low slug "$b")" 2 "corrupt catalogue cannot fail open onto astra"
+  "$here/pane.sh" claude sonnet medium impl slug "$b" >/dev/null 2>&1; echo $?)" 7 "inside Herdr but unusable: NOSTART, not NOHERDR"
+check "$(gate codex sol high impl Bad_Slug "$b")"       2 "task with invalid characters"
+check "$(gate codex sol high impl slug "$b")"                8 "valid, no herdr"
+check "$(gate codex terra medium impl slug "$b")"            8 "older-generation alias"
+check "$(gate codex astra high impl slug "$b")"              2 "astra refused without opt-in"
+check "$(OPTIN=1 gate codex astra high impl slug "$b")"      8 "astra allowed with opt-in"
+check "$(CACHE=$tmp/solfirst.json gate codex sol medium impl slug "$b")" 8 "sol ranked first in a new generation still launches"
+check "$(gate codex --is-expensive astra impl slug "$b")"    2 "subcommand is not an alias"
+check "$(CONFIG=$tmp/config-astra.toml gate codex inherit low impl slug "$b")" 2 "inherit onto astra refused"
+check "$(CONFIG=$tmp/config-snap.toml gate codex inherit low impl slug "$b")" 2 "inherit onto an astra snapshot refused"
+check "$(CONFIG=$tmp/config-astra.toml gate codex nova low impl slug "$b")" 2 "degrade onto astra refused"
+check "$(CONFIG=$tmp/config-astra.toml OPTIN=1 gate codex inherit low impl slug "$b")" 8 "inherit onto astra with opt-in"
+check "$(CONFIG=$tmp/config-table.toml gate codex inherit low impl slug "$b")" 2 "no top-level model: refused"
+check "$(CONFIG=$tmp/config-nomodel.toml gate codex inherit low impl slug "$b")" 2 "no model key: refused"
+check "$(CONFIG=$tmp/config-nomodel.toml OPTIN=1 gate codex inherit low impl slug "$b")" 8 "no model key with opt-in"
+check "$(CONFIG=$tmp/config-single.toml gate codex inherit low impl slug "$b")" 2 "single-quoted astra refused"
+check "$(CONFIG=$tmp/config-profile.toml gate codex inherit low impl slug "$b")" 2 "profile-selected astra refused"
+check "$(CONFIG=$tmp/config-astra.toml CACHE=/nonexistent gate codex sol low impl slug "$b")" 2 "missing catalogue cannot fail open onto astra"
+check "$(CONFIG=$tmp/config-astra.toml CACHE=$tmp/broken.json gate codex nova low impl slug "$b")" 2 "corrupt catalogue cannot fail open onto astra"
 # A classifier that errors (here: jq failing on its codename query) must not
 # read as "standard".
 mkdir -p "$tmp/badjq"
 printf '#!/bin/sh\ncase " $* " in *" -rn "*) exit 5 ;; esac\nexec %s "$@"\n' "$(command -v jq)" > "$tmp/badjq/jq"
 chmod +x "$tmp/badjq/jq"
-check "$(PATH="$tmp/badjq:$PATH" CONFIG=$tmp/config-astra.toml gate codex inherit low slug "$b")" 2 "classifier error cannot fail open onto astra"
-check "$(PATH="$tmp/badjq:$PATH" gate codex sol low slug "$b")" 2 "classifier error refuses even a standard alias"
-check "$(gate codex nova low slug "$b")"                2 "a codename that ships later is opt-in"
-check "$(OPTIN=1 gate codex nova low slug "$b")"        8 "unknown alias with opt-in degrades onto the config model"
-check "$(CACHE=/nonexistent gate codex sol low slug "$b")" 8 "missing catalogue degrades"
+check "$(PATH="$tmp/badjq:$PATH" CONFIG=$tmp/config-astra.toml gate codex inherit low impl slug "$b")" 2 "classifier error cannot fail open onto astra"
+check "$(PATH="$tmp/badjq:$PATH" gate codex sol low impl slug "$b")" 2 "classifier error refuses even a standard alias"
+check "$(gate codex nova low impl slug "$b")"                2 "a codename that ships later is opt-in"
+check "$(OPTIN=1 gate codex nova low impl slug "$b")"        8 "unknown alias with opt-in degrades onto the config model"
+check "$(CACHE=/nonexistent gate codex sol low impl slug "$b")" 8 "missing catalogue degrades"
 
 # pane.sh verdicts against a stub herdr. SCEN picks how the fake agent
 # behaves; the third `agent get` while working is when it "finishes".
@@ -165,7 +173,9 @@ cat > "$tmp/bin/herdr" <<'STUB'
 S=$STATE
 report='{"status":"complete","summary":"s","files_changed":[],"commands_run":[],"tests_run":[],"blockers":[],"concerns":[]}'
 case "$1 $2" in
-  "agent list") echo '{"result":{"agents":[]}}' ;;
+  "agent list") if [ "$SCEN" = column ]; then
+                  echo '{"result":{"agents":[{"tab_id":"t0","pane_id":"p9","name":"review-sol-x"},{"tab_id":"t9","pane_id":"p7","name":"impl-sol-y"},{"tab_id":"t0","pane_id":"p8","name":"reviewer"}]}}'
+                else echo '{"result":{"agents":[]}}'; fi ;;
   "pane split") printf '%s\n' "$@" > "$S/split"
                 [ "$SCEN" = splitfail ] && echo '{}' || echo '{"result":{"pane_id":"p1"}}' ;;
   "pane close") touch "$S/closed" ;;
@@ -189,7 +199,7 @@ case "$1 $2" in
     if { [ "$SCEN" = wait ] || [ "$SCEN" = keepwait ]; } && [ "$st" = blocked ] && [ "$g" -ge 2 ]; then st=working g=0; echo 0 > "$S/gets"; echo working > "$S/status"; fi
     if [ "$st" = working ] && [ "$g" -ge 3 ]; then
       case "$SCEN" in
-        happy|wait|claude|keep|keepwait|resume) echo "$report" > "$(cat "$S/report")"; st=idle ;;
+        happy|wait|claude|keep|keepwait|resume|inherit|degrade|column) echo "$report" > "$(cat "$S/report")"; st=idle ;;
         # only a recovered prompt (escape, then exactly one resend) produces the report
         hooks|hooksresume) [ ! -s "$S/screen" ] && [ "$(cat "$S/prompts")" = 2 ] && { echo "$report" > "$(cat "$S/report")"; st=idle; } ;;
         quota|keepquota) st=idle; printf 'working\nYou have hit your usage limit. Try again later.\n' > "$S/screen" ;;
@@ -217,11 +227,11 @@ verdict() {
   local sc=$1 want=$2 word=$3 close=$4; shift 4
   local st="$tmp/state-$sc" out rc closed=no
   mkdir -p "$st"
-  [ $# -gt 0 ] || set -- codex sol medium "t-$sc" "$b"
+  [ $# -gt 0 ] || set -- codex sol medium impl "t-$sc" "$b"
   [ "$sc" = wait ] && { echo blocked > "$st/status"; echo "$tmp/handoff/w.json" > "$st/report"; }
   [ "$sc" = keepwait ] && { echo blocked > "$st/status"; echo "$tmp/handoff/kw.json" > "$st/report"; }
   out=$(env SCEN="$sc" STATE="$st" PATH="$tmp/bin:$PATH" HERDR_ENV=1 HERDR_PANE_ID=p0 HERDR_TAB_ID=t0 \
-    DELEGATE_HANDOFF_DIR="$tmp/handoff" CODEX_MODELS_CACHE="$tmp/real.json" CODEX_CONFIG="$tmp/config-ok.toml" \
+    DELEGATE_HANDOFF_DIR="$tmp/handoff" CODEX_MODELS_CACHE="${CACHE:-$tmp/real.json}" CODEX_CONFIG="$tmp/config-ok.toml" \
     DELEGATE_POLL=0.1 DELEGATE_QUIET=2 DELEGATE_LAND=3 DELEGATE_KEEP="${KEEP:-}" \
     "$here/pane.sh" "$@" 2>/dev/null); rc=$?
   [ -e "$st/closed" ] && closed=yes
@@ -230,7 +240,7 @@ verdict() {
 }
 mkdir -p "$tmp/handoff"
 verdict happy       0 REPORT   yes
-verdict claude      0 REPORT   yes claude sonnet high t-claude "$b"
+verdict claude      0 REPORT   yes claude sonnet high impl t-claude "$b"
 leaf='You are a leaf worker. Do not delegate, spawn subagents, or start other agents. Do the work yourself.'
 if grep -qx -- claude "$tmp/state-claude/start" && grep -A1 -x -- --model "$tmp/state-claude/start" | grep -qx sonnet \
    && grep -A1 -x -- --effort "$tmp/state-claude/start" | grep -qx high \
@@ -254,8 +264,20 @@ missing=
 for k in status summary files_changed commands_run tests_run blockers concerns; do
   grep -q "\b$k\b" "$tmp/state-claude/msg" || missing="$missing $k"
 done
-if [ -z "$missing" ] && grep -q "write your report to $tmp/handoff/t-claude-" "$tmp/state-claude/msg"
+if [ -z "$missing" ] && grep -q "write your report to $tmp/handoff/impl-t-claude-" "$tmp/state-claude/msg"
 then echo "ok   pane prompt: names the report path and every key"; else echo "FAIL pane prompt: missing$missing"; fail=1; fi
+# The pane is named <role>-<model>-<task>: the alias, or "codex" when
+# config.toml's model runs (inherit, or an alias that degraded onto it).
+verdict inherit     0 REPORT   yes codex inherit medium review t-inherit "$b"
+CACHE=/nonexistent verdict degrade 0 REPORT yes codex sol medium review t-degrade "$b"
+for want in claude:impl-sonnet-t-claude happy:impl-sol-t-happy inherit:review-codex-t-inherit degrade:review-codex-t-degrade; do
+  got=$(sed -n 3p "$tmp/state-${want%%:*}/start" 2>/dev/null)
+  if [ "$got" = "${want#*:}" ]; then echo "ok   pane name: $got"; else echo "FAIL pane name: '$got' want ${want#*:}"; fail=1; fi
+done
+# A later delegate joins this tab's delegate column, found by its role prefix.
+verdict column      0 REPORT   yes
+if [ "$(tr '\n' ' ' < "$tmp/state-column/split")" = "pane split --pane p9 --direction down --cwd $PWD --ratio 0.5 --no-focus " ]
+then echo "ok   pane column: splits the last delegate in this tab"; else echo "FAIL pane column: split $(cat "$tmp/state-column/split")"; fail=1; fi
 verdict hooks       0 REPORT   yes    # hook-review screen swallowed the first prompt
 if [ "$(cat "$tmp/state-hooks/keys" 2>/dev/null)" = esc ] && [ "$(cat "$tmp/state-hooks/prompts")" = 2 ]
 then echo "ok   pane hooks: one escape, one resend"; else echo "FAIL pane hooks: escape/resend not as expected"; fail=1; fi

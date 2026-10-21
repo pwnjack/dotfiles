@@ -4,8 +4,8 @@
 # verdict. Run it with the Bash tool's run_in_background; the harness re-invokes
 # the orchestrator when it exits.
 #
-#   pane.sh codex <alias> <effort> <slug> <brief-file>
-#   pane.sh claude <alias> <effort> <slug> <brief-file>
+#   pane.sh codex <alias> <effort> <role> <task> <brief-file>
+#   pane.sh claude <alias> <effort> <role> <task> <brief-file>
 #   pane.sh --wait <pane> <report> [minutes]   # resume after answering it
 #   pane.sh --resume <pane> <message-file> [minutes]   # a follow-up round
 #
@@ -13,8 +13,12 @@
 # alias: a codename (luna, terra, sol, ...) or inherit. Effort, both kinds:
 # low|medium|high|xhigh. Only the standard names (CLAUDE_STANDARD here,
 # STANDARD in codex-model.sh) run freely; any other, including one config.toml
-# would launch, needs DELEGATE_EXPENSIVE=1, set only when the user asked. Slug:
-# a-z0-9-, short enough that dlg-<kind>-<slug> fits Herdr's 32 characters.
+# would launch, needs DELEGATE_EXPENSIVE=1, set only when the user asked.
+# Role: impl|review|explore|fix. Task: one or two a-z0-9- words naming the
+# work, shared by an implementer and its reviewer. The pane is named
+# <role>-<model>-<task> (the alias, or "codex" for config.toml's model) so the
+# sidebar reads at a glance; the task must not repeat a role, a family or the
+# alias, and the name must fit Herdr's 32 characters.
 #
 # First stdout line: <VERDICT> pane=... report=... elapsed=...
 #   REPORT 0  report written; pane closed      BLOCKED 3  approval or question
@@ -42,9 +46,10 @@ poll=${DELEGATE_POLL:-3} quiet=${DELEGATE_QUIET:-20} land=${DELEGATE_LAND:-45}
 start=$(date +%s) kind='' pane='' report='' model='' effort='' msg='' waiting='' landed=0 note='' body=
 
 CLAUDE_STANDARD="haiku sonnet opus"
+ROLES='impl|review|explore|fix'
 CLAUDE_PLUGINS_OFF='{"enabledPlugins":{"superpowers@anthropic-plugin-directory":false}}'
 
-usage() { echo "usage: $0 claude|codex <alias> <effort> <slug> <brief> | --wait <pane> <report> [minutes] | --resume <pane> <message-file> [minutes]" >&2; exit 2; }
+usage() { echo "usage: $0 claude|codex <alias> <effort> <role> <task> <brief> | --wait <pane> <report> [minutes] | --resume <pane> <message-file> [minutes]" >&2; exit 2; }
 # A report path no other round can share: an old path returns its old report.
 newreport() { local f; f=$(mktemp "$dir/$1-XXXXXXXX.json") && rm -f "$f" && echo "$f"; }
 # The report request every prompt ends with; the report path is always new.
@@ -94,16 +99,16 @@ elif [ "${1:-}" = --resume ]; then
 else
   kind=${1:-} limit=$(( 45 * 60 ))
   case "$kind" in claude|codex) ;; *) usage ;; esac
-  [ $# -eq 5 ] || usage
-  alias=$2 effort=$3 slug=$4 brief=$5
+  [ $# -eq 6 ] || usage
+  alias=$2 effort=$3 role=$4 task=$5 brief=$6 label=$2
   case "$effort" in low|medium|high|xhigh) ;; *)
     echo "effort must be low|medium|high|xhigh (got '$effort')" >&2; exit 2 ;;
   esac
   case "$alias" in *[!a-z]*|'') usage ;; esac
-  # Herdr agent names (dlg-<kind>-<slug>) max out at 32 characters.
-  name=dlg-$kind-$slug
-  case "$slug" in *[!a-z0-9-]*|'') usage ;; esac
-  [ "${#name}" -le 32 ] || { echo "slug too long: $name is over 32 characters" >&2; exit 2; }
+  [[ $role =~ ^($ROLES)$ ]] || { echo "role must be $ROLES (got '$role')" >&2; exit 2; }
+  [[ $task =~ ^[a-z0-9]+(-[a-z0-9]+)?$ ]] || { echo "task must be one or two a-z0-9 words joined by '-' (got '$task')" >&2; exit 2; }
+  [[ ! $task =~ ^($ROLES|dlg|claude|codex|$alias)(-|$) ]] || {
+    echo "task '$task' repeats what the name already says; name the work" >&2; exit 2; }
   [ -r "$brief" ] || { echo "brief not readable: $brief" >&2; exit 2; }
 fi
 
@@ -120,7 +125,7 @@ elif [ "$kind" = codex ]; then
   case "$rc" in
     0) ;;
     3) echo "codex alias $alias unresolved; degrading to inherit" >&2
-       resolved=$("$here/codex-model.sh" inherit "$effort") ;;
+       resolved=$("$here/codex-model.sh" inherit "$effort") label=codex ;;
     *) exit 2 ;;
   esac
   model=$(sed -n 1p <<<"$resolved") effort=$(sed -n 2p <<<"$resolved")
@@ -147,11 +152,15 @@ print(m if isinstance(m, str) else "")' "${CODEX_CONFIG:-${CODEX_HOME:-$HOME/.co
     fi
   done
   model=${model:-$launched}
+  [ "$alias" != inherit ] || label=codex
   args=(-c "model_reasoning_effort=$effort")
   [ -z "$model" ] || args=(-m "$model" "${args[@]}")
 fi
 
 if [ -n "$kind" ]; then
+  # Built once the model is known: a degraded alias would name the wrong one.
+  name=$role-$label-$task
+  [ "${#name}" -le 32 ] || { echo "task too long: $name is over Herdr's 32 characters" >&2; exit 2; }
   # NOHERDR means outside Herdr, the only case where a caller may fall back to
   # an invisible worker; a broken Herdr inside a Herdr session is NOSTART.
   if [ "${HERDR_ENV:-}" != 1 ]; then
@@ -162,12 +171,12 @@ if [ -n "$kind" ]; then
     echo "inside Herdr, but the herdr command or HERDR_PANE_ID is missing"; exit 7
   fi
   dir=${DELEGATE_HANDOFF_DIR:-/tmp/delegate}; mkdir -p "$dir"
-  report=$(newreport "$slug") || exit 2
+  report=$(newreport "$role-$task") || exit 2
 
   # The orchestrator gets at most one delegate column: the first delegate splits
   # it right, later ones split the newest delegate down.
-  column=$(herdr agent list | jq -r --arg tab "${HERDR_TAB_ID:-}" \
-    '[.result.agents[] | select(.tab_id == $tab and ((.name // "") | startswith("dlg-")))] | last | .pane_id // empty')
+  column=$(herdr agent list | jq -r --arg tab "${HERDR_TAB_ID:-}" --arg roles "$ROLES" \
+    '[.result.agents[] | select(.tab_id == $tab and ((.name // "") | test("^(" + $roles + ")-")))] | last | .pane_id // empty')
   if [ -n "$column" ]; then split=(--pane "$column" --direction down)
   else split=(--pane "$HERDR_PANE_ID" --direction right); fi
   # The worker starts where the caller runs (a worktree, for SDD), not in the

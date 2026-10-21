@@ -130,9 +130,13 @@ task, it belongs in a skill or in this directory.
   and turned Codex off for the session.
 - After `--wait`, the question just answered can still read as `blocked` for a
   moment, so a block in the first seconds of a resumed wait is not reported.
-- Herdr agent names are at most 32 characters, so `dlg-<kind>-<slug>`
-  must fit; a longer one failed with
-  `invalid_agent_name` and left an empty pane. `pane.sh` refuses it.
+- Herdr agent names match `^[a-z][a-z0-9_-]{0,31}$` (no spaces, dots or
+  capitals); anything else fails with `invalid_agent_name` and leaves an empty
+  pane. `pane.sh` names each pane `<role>-<model>-<task>`, refuses one that
+  would not fit, and finds the delegate column by the role prefix. The older
+  `dlg-<kind>-<slug>` read `dlg-claude-dlg-impl-privacy` in the sidebar,
+  because callers repeated the prefix and the kind in the slug and the model
+  was missing.
 - Herdr's `done` can mean the turn ended while the TUI is still up; it is
   treated like `idle`.
 - Headless `codex exec` waits for stdin forever unless given `< /dev/null` (or
