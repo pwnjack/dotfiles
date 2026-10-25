@@ -16,7 +16,6 @@ Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md
 - `state/` — the machine-state overlay: the engine (`overlay.mjs`), its CLI (`overlay-cli.mjs`), `overlay.sh` (`sync` and `check`, under a lock) and `derived.sh` (files computed from options); see `docs/internals/state.md`
 - `spotify/` — the SpotX launch wrapper, its desktop-entry setup and the Spicetify theme selection (see Spotify)
 - `ssh/` — `setup.sh`, the `~/.ssh/config` Include (see SSH agent)
-- `agents/` — `setup.sh`, which wires in the AI agent harness
 - `keybinds/` — `keybinds-sheet.sh`, the one parser of `keybinds.lua`; `docs/` — `generate-keybindings.sh`, which renders `docs/keybindings.md` from it
 - `doctor/` — the library and check modules behind `doctor.sh` (see Doctor architecture)
 - `hooks/` — the git hooks (`pre-commit`, `post-merge`, with `post-checkout` a symlink to it) and `snapshot.sh`

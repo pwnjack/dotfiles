@@ -73,7 +73,6 @@ Strata is the default file manager. Super+E and “Show in folder” follow
 ├── sddm/          # Login-screen wallpaper sync (see its README)
 ├── updates/       # Root helper and sudoers setup for the update card
 ├── ssh/           # The ssh-agent fragment ~/.ssh/config includes
-├── claude/ codex/ # Optional AI agent harness (see below)
 ├── wallpapers/    # Bundled wallpapers
 ├── screenshots/   # The README images
 ├── docs/          # This guide, the deep dives listed above and internals/
@@ -409,26 +408,18 @@ The `.env` file is loaded by:
 
 ## AI agent harness (optional)
 
-`claude/` and `codex/` hold a small delegation harness for Claude Code and
-Codex: global instructions, one `delegate` skill, and curated settings. Only what was written here is tracked — logins, history, memory,
-caches and anything the tools write themselves stay out of the repo, so a
-fresh machine stays fresh.
-
-`install.sh` offers it (default No) when Claude Code or Codex is installed; it
-carries the repo owner's personal agent instructions and plugins, so it is
-never applied silently. `scripts/agents/setup.sh` skips any tool that is not
-installed. After installing and signing in to Claude Code and/or Codex, run:
+The Claude Code and Codex harness (global instructions, skills, curated
+settings) lives in its own repository,
+[agent-harness](https://github.com/pwnjack/agent-harness), so it also works on
+machines without these dotfiles. `install.sh` offers it (default No) when
+Claude Code or Codex is installed and the harness is cloned:
 
 ```bash
-~/.config/scripts/agents/setup.sh            # or --dry-run to preview
+git clone https://github.com/pwnjack/agent-harness.git ~/Developer/agent-harness
+~/Developer/agent-harness/setup.sh            # or --dry-run to preview
 ```
 
-It symlinks the skill and global instructions into `~/.claude` and `~/.codex`,
-merges `claude/settings.json` into the live settings (other keys are left
-alone), installs the enabled Claude plugins, and lets Herdr install its own
-hooks when Herdr is present. Codex models are named by codename (`sol`,
-`luna`, …) and always resolve to the newest listed version; see
-`docs/internals/agents.md`.
+Its own documentation covers what it installs and how to remove it.
 
 ## Maintenance
 

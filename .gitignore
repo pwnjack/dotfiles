@@ -64,10 +64,6 @@
 !/aichat/
 !/electron-flags.conf
 
-# AI agent harness
-!/claude/
-!/codex/
-
 # ---------------------------------------------------------------------------
 # Inside tracked directories: what programs write at runtime.
 

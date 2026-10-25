@@ -343,19 +343,22 @@ bash "$ssh_setup_root/scripts/ssh/setup.sh" "${ssh_setup_args[@]}" \
 # Script modes need no fixing here: git tracks the executable bit, and the
 # deployment copies preserve it.
 
-# AI agent harness (Claude Code / Codex / Herdr). It installs the repo owner's
-# personal agent instructions, skills and plugins, so it is opt-in (default No)
-# and only offered when one of those tools is installed. A dry run previews it
-# from the clone, since nothing has been deployed to $CONFIG_DIR yet.
+# AI agent harness (Claude Code / Codex / Herdr) lives in its own repository.
+# It installs the repo owner's personal agent instructions, skills and
+# plugins, so it is opt-in (default No) and only offered when one of those
+# tools is installed and the harness has been cloned.
 if command -v claude &> /dev/null || command -v codex &> /dev/null; then
-    if [ "$DRY_RUN" = true ]; then
+    HARNESS_DIR="$HOME/Developer/agent-harness"
+    if [ ! -x "$HARNESS_DIR/setup.sh" ]; then
+        info "AI agent harness (optional): git clone https://github.com/pwnjack/agent-harness.git ~/Developer/agent-harness, then run its setup.sh"
+    elif [ "$DRY_RUN" = true ]; then
         info "AI agent harness (opt-in) would do:"
-        bash "$DOTFILES_DIR/scripts/agents/setup.sh" --dry-run || warning "Agent harness dry run reported a problem (see above)"
+        bash "$HARNESS_DIR/setup.sh" --dry-run || warning "Agent harness dry run reported a problem (see above)"
     else
         read -p "Install the AI agent harness (Claude Code/Codex skills, instructions, plugins)? (y/N) " -n 1 -r || true
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            bash "$CONFIG_DIR/scripts/agents/setup.sh" || warning "Agent harness setup reported a problem (see above)"
+            bash "$HARNESS_DIR/setup.sh" || warning "Agent harness setup reported a problem (see above)"
         fi
     fi
 fi

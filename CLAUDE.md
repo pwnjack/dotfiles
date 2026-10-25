@@ -62,9 +62,9 @@ Doc named per item is in `docs/internals/`.
 - **Default applications**: `mimeapps.list`, the `BROWSER`/`TERMINAL`/`EDITOR`/`VISUAL` variables exported from `options/` by `envvars.lua`, `xdg-terminal-exec` (`scripts/settings/terminal.sh`), D-Bus `FileManager1` (`scripts/settings/file-manager.sh`) and the file chooser (`scripts/settings/file-chooser.sh`), one source each. `default-apps.md`.
 - **User preferences** (`options/`): rendered copy (defaults in `defaults/options/`); one value per file, used as-is. Empty means "no preference" only for `mainmonitor` and `bar-output`; switches are on only when the file says `enabled`. Nothing guesses a monitor connector name; `hardware/monitor.lua` stays host-neutral. `options.md`.
 
-### AI agent harness (`claude/`, `codex/`)
+### AI agent harness
 
-`claude/` and `codex/` track only what was authored here: the `delegate` skill, the global instructions (`claude/CLAUDE.global.md`, `codex/AGENTS.global.md`) and curated settings — never logins, memory, caches or tool-written config. `scripts/agents/setup.sh` wires it in. Read `docs/internals/agents.md` before changing any of it.
+Lives in its own repository, `~/Developer/agent-harness` (github.com/pwnjack/agent-harness); `install.sh` only offers to run its `setup.sh`. Change the harness there, never here.
 
 ### Scripts (`scripts/`)
 

@@ -1,6 +1,0 @@
-# Codex status bar — the tracked slice of ~/.codex/config.toml.
-# Codex keeps machine state (project trust, hook hashes, counters) in that same
-# file, so the repo tracks only these keys; apply-config.sh merges them in.
-[tui]
-status_line = ["model-with-reasoning", "context-used", "used-tokens", "context-window-size", "five-hour-limit", "weekly-limit"]
-status_line_use_colors = true
