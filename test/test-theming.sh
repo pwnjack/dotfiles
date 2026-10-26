@@ -344,6 +344,32 @@ HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" \
     bash "$ROOT/strata/apply_wal_colors.sh"
 assert_eq "$?" 0 "Strata rerender succeeds"
 assert_eq "$(stat -c '%y' "$strata_theme")" "$strata_stamp" "an unchanged Strata palette leaves the cache untouched"
+
+# Running Strata watches only its themes directory, so a changed render must
+# touch the link itself; an unchanged one, or a link elsewhere, must not.
+strata_config="$tmp/strata-config"
+strata_cache="$tmp/strata-cache"
+mkdir -p "$strata_config/strata/themes" "$strata_cache/wal"
+ln -s "$ROOT/scripts" "$strata_config/scripts"
+strata_link="$strata_config/strata/themes/tokyo-night.toml"
+strata_render() {
+    printf "$1"'\n%.0s' {1..16} > "$strata_cache/wal/colors"
+    touch -h -d '2000-01-01' "$strata_link"
+    HOME="$tmp/home" XDG_CONFIG_HOME="$strata_config" XDG_CACHE_HOME="$strata_cache" \
+        bash "$ROOT/strata/apply_wal_colors.sh"
+    if [ "$(stat -c '%Y' "$strata_link")" = "$(date -d '2000-01-01' +%s)" ]; then
+        echo untouched
+    else
+        echo touched
+    fi
+}
+ln -s "$strata_cache/wal/strata-theme.toml" "$strata_link"
+assert_eq "$(strata_render '#112233')" touched "a new Strata palette touches the theme link"
+assert_eq "$(strata_render '#112233')" untouched "an unchanged Strata palette leaves the theme link alone"
+ln -sfn "$tmp/elsewhere.toml" "$strata_link"
+assert_eq "$(strata_render '#445566')" untouched "a theme link to another file is left alone"
+assert_eq "$(stat -c '%F' "$strata_link")" "symbolic link" "the theme link stays a link"
+
 strata_themes=("$strata_theme")
 for background in '#05090c' '#f4f4f4' '#808080' '#777777' '#556677' '#a0a0a0'; do
     palette_cache="$tmp/${background#\#}"

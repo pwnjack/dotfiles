@@ -3,8 +3,8 @@
 # Render the matugen palette as a custom Strata theme.
 # strata/themes/tokyo-night.toml links to this cache file, replacing the bundled
 # default so fresh Strata installs use the palette without setup. Users can
-# still pick another theme in Strata. Themes are read only at startup: open
-# windows and an idle --portal chooser (about two minutes) keep the old palette.
+# still pick another theme in Strata. A running Strata watches only its themes
+# directory, so a new palette touches that link to make it re-read the theme.
 # Always render the cache, even without Strata installed; no app is launched.
 
 set -euo pipefail
@@ -12,6 +12,7 @@ set -euo pipefail
 config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
 cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/wal"
 rendered="$cache_dir/strata-theme.toml"
+link="$config_dir/strata/themes/tokyo-night.toml"
 
 declare -a wal=()
 # shellcheck source=scripts/theming/palette.sh disable=SC1091
@@ -60,7 +61,12 @@ mkdir -p "$cache_dir"
 temporary=$(mktemp "$rendered.XXXXXX")
 trap 'rm -f -- "$temporary"' EXIT
 publish() {
-    cmp -s "$temporary" "$rendered" || mv -f -- "$temporary" "$rendered"
+    cmp -s "$temporary" "$rendered" && return
+    mv -f -- "$temporary" "$rendered"
+    # Replacing the cache file emits no event in the themes directory.
+    if [ "$link" -ef "$rendered" ]; then
+        touch -ch -- "$link"
+    fi
 }
 cat > "$temporary" <<EOF_THEME && publish
 # Generated from the matugen palette - do not edit manually.

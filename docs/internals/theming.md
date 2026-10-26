@@ -301,11 +301,14 @@ Strata hard-codes JetBrains Mono, so a fontconfig rule scoped to its
 `io.github.lgse.Strata` application ID maps that family to `options/font`.
 The rule is read at startup.
 
-Strata reads themes only at startup and has no live reload (upstream #1620).
-Normal windows exit with the last window; an idle `--portal` chooser exits
-about two minutes after its last dialogue. Open windows and an idle chooser
-keep the old palette until the process exits. The hook writes cache files
-and never launches or restarts Strata.
+Since 1.1.0 (upstream #1620) a running Strata, including an idle `--portal`
+chooser, watches `strata/themes/` and re-applies the selected theme when one of
+its `.toml` files changes. The hook replaces the cache file behind the link,
+which raises no event in that directory, so after a changed render it runs
+`touch -h` on the link; the resulting attribute event makes Strata re-read the
+theme. An unchanged palette leaves both the cache file and the link alone. The
+hook only touches the link when it resolves to the rendered file. It writes
+no tracked content and never launches or restarts Strata.
 
 ## The way back
 
