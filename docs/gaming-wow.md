@@ -1,6 +1,30 @@
 # WoW / Battle.net on this setup
 
-## Current working baseline (2026-09-12)
+## Current cursor trial (2026-10-22)
+
+Battle.net currently runs from the same Lutris entry with
+`system.gamescope: false`. The launch chain is Rofi -> Lutris -> UMU/Proton ->
+Battle.net -> WoW. Only that toggle was changed; the prefix, runner,
+environment, and stored Gamescope flags and resolutions were retained.
+An exact machine-local copy of the Lutris YAML was saved before the trial;
+keep it until gameplay has been verified. To return to the previous launch
+path, close Battle.net and its Lutris launcher, restore that copy, and relaunch.
+
+The user confirmed that Battle.net's cursor now behaves normally without
+Gamescope. The direct launcher reports class `steam_app_default`, title
+`Battle.net`, so the existing executable-class rule does not float it. For
+this trial, the main window was floated and moved to workspace 2 with temporary
+dispatches; no tracked window rules were changed. Its observed size settled at
+1264x680. Permanent direct-launcher geometry remains to be decided if this
+launch path is kept.
+
+WoW camera dragging is **unverified**: the account has no active subscription,
+so gameplay could not be tested. On the next playable session, check repeated
+right-drag camera rotations, release/reacquire, and workspace switching. Also
+inspect the direct game's class and fullscreen/workspace rule matching. Do not
+describe the Gamescope-free path as fully verified for gameplay yet.
+
+## Previous Gamescope baseline (2026-09-12)
 
 Launch **Battle.net from Rofi**: the entry is Lutris's own desktop file
 (`~/.local/share/applications/net.lutris.battlenet-3.desktop`, machine-local),
