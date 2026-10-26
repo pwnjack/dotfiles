@@ -313,7 +313,7 @@
 
   // Pulseaudio
   "pulseaudio": {
-    "scroll-step": 2,
+    "scroll-step": 1,
     "format": "<span size='large'>{icon}</span>  {volume}%{format_source}",
     "format-bluetooth": "<span size='large'>{icon}</span>  {volume}% <span size='large'></span>{format_source}",
     "format-bluetooth-muted": "<span size='large'></span>  Muted <span size='large'></span>{format_source}",
@@ -334,8 +334,8 @@
     "tooltip-format": "{desc}\n\nVolume: {volume}%\nMic: {source_volume}%{format_source}",
     "on-click": "~/.config/scripts/hyprland/sound-popover.sh",
     "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
-    "on-scroll-up": "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 2%+",
-    "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-",
+    "on-scroll-up": "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 1%+",
+    "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 1%-",
   },
   // Bluetooth
   "bluetooth": {

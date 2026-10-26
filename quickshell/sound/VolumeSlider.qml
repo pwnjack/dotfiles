@@ -3,7 +3,7 @@ import QtQuick
 // A volume track and its percentage. While pressed, and for a moment after a
 // commit, it shows its own value: PipeWire echoes volumes late, and an echo
 // must not pull the handle from under the pointer. It commits on release and
-// on each wheel or arrow step (2 %), never while dragging, and always within
+// on each wheel or arrow step (1 %), never while dragging, and always within
 // [0, max]. A volume above `max` (software gain set elsewhere) parks the
 // handle at the end and the label keeps the true percentage. A commit goes to
 // the `key` the gesture started on: if `key` changed by the release (the
@@ -22,7 +22,7 @@ Item {
     readonly property bool pressed: mouse.pressed
     readonly property bool holding: pressed || settling.running
     readonly property real level: holding ? held : value
-    readonly property real step: 0.02
+    readonly property real step: 0.01
     implicitHeight: popover.px(22)
     activeFocusOnTab: true
 

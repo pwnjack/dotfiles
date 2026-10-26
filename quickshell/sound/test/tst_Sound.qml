@@ -345,29 +345,29 @@ Item {
             const dragged = slider.level;
             verify(Math.abs(dragged - 0.64) > 0.1, "the drag is away from the backend value");
             mouseWheel(slider, at.x, at.y, 0, 120);
-            const expected = Math.round((dragged + 0.02) * 100) / 100;
+            const expected = Math.round((dragged + 0.01) * 100) / 100;
             compare(called("setVolume"), [["setVolume", "alsa_output.usb-Logitech_G533", expected]]);
             compare(slider.level, expected);
             mouseRelease(slider, at.x, at.y);
         }
 
-        function test_wheel_steps_two_percent() {
+        function test_wheel_steps_one_percent() {
             const slider = findChild(popover, "outputSlider");
             mouseWheel(slider, slider.width / 2, slider.height / 2, 0, 120);
-            compare(called("setVolume"), [["setVolume", "alsa_output.usb-Logitech_G533", 0.66]]);
+            compare(called("setVolume"), [["setVolume", "alsa_output.usb-Logitech_G533", 0.65]]);
             // Before the echo arrives, the next notch counts from the last commit.
             mouseWheel(slider, slider.width / 2, slider.height / 2, 0, 120);
-            compare(called("setVolume")[1], ["setVolume", "alsa_output.usb-Logitech_G533", 0.68]);
+            compare(called("setVolume")[1], ["setVolume", "alsa_output.usb-Logitech_G533", 0.66]);
             const echo = headset();
-            echo.volume = 0.68;
+            echo.volume = 0.66;
             controller.output = echo;
             mouseWheel(slider, slider.width / 2, slider.height / 2, 0, -120);
-            compare(called("setVolume")[2], ["setVolume", "alsa_output.usb-Logitech_G533", 0.66]);
+            compare(called("setVolume")[2], ["setVolume", "alsa_output.usb-Logitech_G533", 0.65]);
             // Half notches (touchpads) add up to one step.
             mouseWheel(slider, slider.width / 2, slider.height / 2, 0, 60);
             compare(called("setVolume").length, 3);
             mouseWheel(slider, slider.width / 2, slider.height / 2, 0, 60);
-            compare(called("setVolume")[3], ["setVolume", "alsa_output.usb-Logitech_G533", 0.68]);
+            compare(called("setVolume")[3], ["setVolume", "alsa_output.usb-Logitech_G533", 0.66]);
         }
 
         function test_wheel_down_from_over_range_stays_in_range() {
