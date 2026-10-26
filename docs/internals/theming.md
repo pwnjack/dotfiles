@@ -228,6 +228,13 @@ ext-background-effect blur region empty unless the toplevel has a
 `backdrop-filter`, which Hyprland honours. Ghostty's `background-blur` speaks
 KDE's protocol and does nothing here.
 
+SwayNC is GTK4 and needs the same rule, or its layer blur rules do nothing.
+The control centre sets it on `.control-center`, a direct child of its
+full-screen window, and GTK sends that box's rounded outline. On a toast card,
+inside the animated notification list, GTK sends no region at all, so the
+toast window itself carries the rule. GTK then sends the whole 400-pixel column,
+and the layer rule's `ignore_alpha` keeps the blur to the card's pixels.
+
 **Neovim** gets `wal/colors-wal.vim` from `nvim/apply_wal_colors.sh`, which
 renders the layout the retained `pywal16.nvim` plugin expects. When that file
 is absent, LazyVim uses tokyonight. The script re-applies the scheme over

@@ -18,6 +18,12 @@
 
 }
 
+/* GTK 4.24 sends Hyprland an empty blur region without a backdrop-filter. On
+   the card inside the animated list it sends none, so the window carries it. */
+.floating-notifications.background {
+  backdrop-filter: blur(20px);
+}
+
 .notification-row {
   outline: none;
   margin: 0;

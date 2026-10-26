@@ -25,7 +25,10 @@
   
 /* CONTROL CENTER ------------------------------------------------------------------------ */
 
+/* GTK 4.24 sends Hyprland an empty blur region without a backdrop-filter;
+   Hyprland's blur settings decide the strength. */
 .control-center {
+  backdrop-filter: blur(20px);
   background: alpha(@background, .50);
   border-radius: 18px;
   border: 1px solid @border;
