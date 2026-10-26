@@ -1,4 +1,5 @@
-// I/O around overlay.mjs. Called by overlay.sh, which holds the lock.
+// I/O around overlay.mjs. Called by overlay.sh, which holds the lock, and by
+// the doctor (check only, which writes nothing).
 //
 //   overlay-cli.mjs sync <config dir> <state dir> [--replace <backup dir>] [--restore] [<live path>...]
 //   overlay-cli.mjs check <config dir> <state dir>
@@ -196,13 +197,17 @@ if (command === 'sync') {
         catch (error) { failed = true; console.error(`overlay: ${target}: ${error.message}`) }
     }
 } else if (command === 'check') {
+    // One line per file that does not parse: "<kind> <target>: <reason>". A live
+    // file that does not parse is skipped by every sync until it is fixed.
     for (const target of known) {
         const format = overlay.formatFor(target)
         if (format === 'dir') continue
-        const text = readText(paths(target).overrides)
-        if (text === null) continue
-        try { overlay.parse(format, text) }
-        catch (error) { failed = true; console.log(`${target}: ${error.message}`) }
+        for (const kind of ['overrides', 'live']) {
+            const text = readText(paths(target)[kind])
+            if (text === null) continue
+            try { overlay.parse(format, text) }
+            catch (error) { failed = true; console.log(`${kind} ${target}: ${error.message}`) }
+        }
     }
 } else {
     console.error('usage: overlay-cli.mjs sync|check <config dir> <state dir> ...')

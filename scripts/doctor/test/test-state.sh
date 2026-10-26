@@ -13,9 +13,15 @@ printf 'zen\n' > "$st_root/defaults/options/browser"
 printf 'nvim\n' > "$st_root/defaults/options/editor"
 printf '[Settings]\na=1\n' > "$st_root/defaults/gtk-3.0/settings.ini"
 printf 'x\n' > "$st_root/defaults/options/.hidden"
-printf 'options/*\ngtk-3.0/settings.ini\n' > "$st_root/.gitignore"
+printf 'options/*\ngtk-3.0/settings.ini\n*.overlay-tmp\n' > "$st_root/.gitignore"
 git -C "$st_root" init -q
 git -C "$st_root" add .gitignore defaults scripts
+# Editor leftovers beside the defaults are not targets, as in overlay-cli.mjs.
+printf 'old\n' > "$st_root/defaults/gtk-3.0/settings.ini~"
+printf 'old\n' > "$st_root/defaults/options/#browser#"
+# options/ is one target: the overlay reads only the files directly inside it.
+mkdir -p "$st_root/defaults/options/nested"
+printf 'x\n' > "$st_root/defaults/options/nested/unused"
 printf 'zen\n' > "$st_root/options/browser"          # editor missing
 printf '[Settings]\na=1\n' > "$st_root/gtk-3.0/settings.ini"
 git -C "$st_root" add -f gtk-3.0/settings.ini        # tracked by mistake
@@ -33,6 +39,10 @@ assert_eq "$DOCTOR_WARNINGS" "2" "state: bad overrides and XDG_STATE_HOME"
 assert_contains "$st_text" "options/editor" "state: names the missing option"
 assert_contains "$st_text" "gtk-3.0/settings.ini" "state: names the tracked live file"
 assert_not_contains "$st_text" ".hidden" "state: dot-files are not targets"
+assert_not_contains "$st_text" "settings.ini~" "state: editor backups are not targets"
+assert_not_contains "$st_text" "#browser#" "state: editor autosaves are not targets"
+assert_not_contains "$st_text" "nested" "state: a directory inside options/ is not a target"
+assert_contains "$st_text" "Overrides file does not parse: gtk-3.0/settings.ini" "state: names the bad overrides file"
 assert_not_contains "$st_text" "✓" "state: no all-clear when something was found"
 
 # Clean tree: everything rendered, untracked, ignored, no overrides, default state home.
@@ -45,8 +55,27 @@ check_state > "$DOCTOR_TEST_TMP/state.out" 2>&1
 assert_eq "$((DOCTOR_ERRORS + DOCTOR_WARNINGS))" "0" "state: a synced tree is clean"
 assert_contains "$(cat "$DOCTOR_TEST_TMP/state.out")" "✓" "state: prints the all-clear when nothing is found"
 
+# A live file that does not parse: every sync skips it, so it is reported.
+printf '[Settings]\nnot a pair\n' > "$st_root/gtk-3.0/settings.ini"
+doctor_reset
+check_state > "$DOCTOR_TEST_TMP/state.out" 2>&1
+st_text="$(cat "$DOCTOR_TEST_TMP/state.out")"
+assert_eq "$DOCTOR_ERRORS.$DOCTOR_WARNINGS" "0.1" "state: a malformed live file is a warning"
+assert_contains "$st_text" "Live file does not parse, so every sync skips it: gtk-3.0/settings.ini: line 2" "state: names the malformed live file"
+printf '[Settings]\na=1\n' > "$st_root/gtk-3.0/settings.ini"
+
+# A crash between write and rename leaves the overlay's temporary file holding
+# this machine's settings; git must never offer to track it.
+printf 'options/*\ngtk-3.0/settings.ini\n' > "$st_root/.gitignore"
+doctor_reset
+check_state > "$DOCTOR_TEST_TMP/state.out" 2>&1
+st_text="$(cat "$DOCTOR_TEST_TMP/state.out")"
+assert_eq "$DOCTOR_ERRORS" "1" "state: an unignored temporary file is an error"
+assert_contains "$st_text" "gtk-3.0/.settings.ini.overlay-tmp" "state: names the temporary file"
+assert_not_contains "$st_text" ".browser.overlay-tmp" "state: a temporary file already ignored is fine"
+
 # An unanchored ignore rule that would hide a defaults/ file.
-printf 'options/*\ngtk-3.0/settings.ini\nsettings.ini\n' > "$st_root/.gitignore"
+printf 'options/*\ngtk-3.0/settings.ini\n*.overlay-tmp\nsettings.ini\n' > "$st_root/.gitignore"
 doctor_reset
 check_state > "$DOCTOR_TEST_TMP/state.out" 2>&1
 assert_eq "$DOCTOR_ERRORS" "1" "state: a defaults file matching an ignore rule is an error"

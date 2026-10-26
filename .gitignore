@@ -92,6 +92,8 @@ gtk-4.0/settings.ini
 qt5ct/qt5ct.conf
 qt6ct/qt6ct.conf
 swaync/config.json
+# its write-then-rename file, left behind only by a crash
+*.overlay-tmp
 
 # Only the Hyprland portal preference is ours
 xdg-desktop-portal/*

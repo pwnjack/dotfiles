@@ -64,8 +64,17 @@ printf '[Settings]\ngtk-theme-name=Adwaita\n' > "$tree/gtk-3.0/settings.ini"
 printf 'garbage\n' > "$tmp/state/overrides/gtk-3.0/settings.ini"
 set +e; out=$(run "$tree" check 2>&1); status=$?; set -e
 assert_eq "$status" "1" "check fails on a bad overrides file"
-assert_contains "$out" "gtk-3.0/settings.ini" "check names the target"
+assert_contains "$out" "overrides gtk-3.0/settings.ini" "check names the target"
 rm "$tmp/state/overrides/gtk-3.0/settings.ini"
+# A live file that does not parse is reported too: every sync skips it.
+printf '[Settings]\nnot a pair\n' > "$tree/gtk-3.0/settings.ini"
+set +e; out=$(run "$tree" check 2>&1); status=$?; set -e
+assert_eq "$status" "1" "check fails on a malformed live file"
+assert_contains "$out" "live gtk-3.0/settings.ini: line 2" "check names the live file and line"
+assert_eq "$(cat "$tree/gtk-3.0/settings.ini")" "$(printf '[Settings]\nnot a pair')" "check leaves the live file untouched"
+printf '[Settings]\ngtk-theme-name=Adwaita\n' > "$tree/gtk-3.0/settings.ini"
+run "$tree" check
+assert_eq "$?" "0" "check passes once the live file parses"
 
 # --replace: a live file with no render record is backed up and replaced.
 fresh="$tmp/fresh"

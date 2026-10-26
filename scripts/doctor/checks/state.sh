@@ -3,7 +3,8 @@
 # The machine-state overlay (scripts/state/overlay.sh): every file under
 # defaults/ has a rendered live copy at the same path, which git ignores and
 # never tracks. Targets come from defaults/ itself; nothing is listed here.
-# Dot-files under defaults/ are not targets, as in overlay-cli.mjs.
+# Dot-files and editor leftovers (`name~`, `#name#`) under defaults/ are not
+# targets, as in overlay-cli.mjs.
 
 DOCTOR_STATE_DIR="${DOCTOR_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles}"
 
@@ -11,7 +12,18 @@ DOCTOR_STATE_DIR="${DOCTOR_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/dotf
 _st_live_paths() {
     local defaults="$DOCTOR_ROOT/defaults"
     [ -d "$defaults" ] || return 0
-    find "$defaults" -type f ! -name '.*' -printf '%P\0'
+    # options/ is one target whose keys are the files directly inside it.
+    find "$defaults" -mindepth 1 \( -name '.*' -o -name '*~' -o -name '#*#' \) -prune \
+        -o -path "$defaults/options/*" -type d -prune \
+        -o -type f -printf '%P\0'
+}
+# _st_temp_path <live path> -> the file overlay-cli.mjs writes before renaming it
+# into place; a crash can leave it behind, holding this machine's settings.
+_st_temp_path() {
+    case "$1" in
+        */*) printf '%s/.%s.overlay-tmp' "${1%/*}" "${1##*/}" ;;
+        *) printf '.%s.overlay-tmp' "$1" ;;
+    esac
 }
 
 _st_tracked() { git -C "$DOCTOR_ROOT" ls-files --error-unmatch -- "$1" >/dev/null 2>&1; }
@@ -24,7 +36,7 @@ _st_have_node() { command -v node >/dev/null 2>&1; }
 
 check_state() {
     group "Machine state"
-    local before=$((DOCTOR_ERRORS + DOCTOR_WARNINGS)) path line hint
+    local before=$((DOCTOR_ERRORS + DOCTOR_WARNINGS)) path line hint temp
     hint="bash $(doctor_q "$DOCTOR_ROOT/scripts/state/overlay.sh") sync"
     while IFS= read -r -d '' path; do
         if _st_default_ignored "$path"; then
@@ -37,10 +49,18 @@ check_state() {
         elif ! _st_ignored "$path"; then
             err "$path is not ignored by .gitignore" "add it to the overlay block in $(doctor_q "$DOCTOR_ROOT/.gitignore")"
         fi
+        temp=$(_st_temp_path "$path")
+        if ! _st_ignored "$temp"; then
+            err "$temp, the overlay's temporary file, is not ignored by .gitignore" "add *.overlay-tmp to the overlay block in $(doctor_q "$DOCTOR_ROOT/.gitignore")"
+        fi
     done < <(_st_live_paths)
     if _st_have_node && [ -f "$DOCTOR_ROOT/scripts/state/overlay-cli.mjs" ]; then
         while IFS= read -r line; do
-            [ -n "$line" ] && warn "Overrides file does not parse: $line" "fix or delete it under $(doctor_q "$DOCTOR_STATE_DIR/overrides")"
+            case "$line" in
+                'live '*) warn "Live file does not parse, so every sync skips it: ${line#live }" "fix it, or delete it and run $hint" ;;
+                'overrides '*) warn "Overrides file does not parse: ${line#overrides }" "fix or delete it under $(doctor_q "$DOCTOR_STATE_DIR/overrides")" ;;
+                ?*) warn "Overlay check: $line" "$hint" ;;
+            esac
         done < <(_st_overrides_report)
     fi
     if [ -n "${XDG_STATE_HOME:-}" ] && [ "$XDG_STATE_HOME" != "$HOME/.local/state" ]; then

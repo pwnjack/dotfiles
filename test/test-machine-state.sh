@@ -34,6 +34,17 @@ for live in options/browser gtk-3.0/settings.ini gtk-4.0/settings.ini qt5ct/qt5c
     assert_eq "$([ -f "$cfg/$live" ] && echo yes || echo no)" "yes" "$live is rendered"
 done
 
+# A crash between write and rename leaves overlay-cli.mjs's temporary file,
+# holding this machine's settings, beside every kind of live file.
+temps=()
+while IFS= read -r -d '' live; do
+    case "$live" in */*) temp="${live%/*}/.${live##*/}.overlay-tmp" ;; *) temp=".$live.overlay-tmp" ;; esac
+    printf 'machine settings\n' > "$cfg/$temp"
+    temps+=("$cfg/$temp")
+done < <(cd "$cfg/defaults" && find . -mindepth 1 -type f ! -name '.*' -printf '%P\0')
+assert_eq "$(g status --porcelain)" "" "the overlay's temporary files are ignored by git (${#temps[@]} targets)"
+rm -f -- "${temps[@]}"
+
 echo firefox > "$cfg/options/browser"
 sed -i 's|^x-scheme-handler/https=.*|x-scheme-handler/https=firefox.desktop|' "$cfg/mimeapps.list"
 sed -i '/^\[Default Applications\]/a x-scheme-handler/ftp=firefox.desktop' "$cfg/mimeapps.list"

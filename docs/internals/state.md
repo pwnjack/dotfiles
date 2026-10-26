@@ -29,7 +29,7 @@ In a Hyprlang file a value ends at a `#` comment (`##` is a literal `#`), and a 
 
 An override equal to its default never survives a sync, so promoting a value to the default needs no clean-up. To make a value the repo default, edit the file under `defaults/` and commit it.
 
-`overlay.sh check` reports an overrides file that does not parse. The script does nothing in a tree without `defaults/`, refuses to run unless its tree is `~/.config` (or `OVERLAY_STATE_DIR` is set, which tests use), and needs `node` and `flock`.
+`overlay.sh check` reports an overrides or live file that does not parse; sync skips a live file like that, leaving it untouched, until it is fixed or deleted. The doctor runs the same check, and also requires `.gitignore` to ignore each target's `.<name>.overlay-tmp`, the file a sync writes before renaming it into place. The script does nothing in a tree without `defaults/`, refuses to run unless its tree is `~/.config` (or `OVERLAY_STATE_DIR` is set, which tests use), and needs `node` and `flock`.
 
 Sync runs:
 
