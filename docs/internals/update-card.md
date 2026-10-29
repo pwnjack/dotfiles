@@ -13,4 +13,7 @@ the pure `model.mjs` the card also imports, so card and bar agree. AUR updates
 stay in the terminal (`scripts/updates/terminal.sh`). The planner saves each
 plan as `plan.json` beside `state.json`, and the card opens on it through
 `updates-plan.sh --cached`, checking again only when it is ten minutes old
-(`model.PLAN_FRESH_SECONDS`). See `docs/updates.md`.
+(`model.PLAN_FRESH_SECONDS`). The bar refreshes after any pacman transaction
+through `updates/waybar-updates.hook`, which setup installs: a hook rather
+than a watcher process, so nothing runs between updates. See
+`docs/updates.md`.

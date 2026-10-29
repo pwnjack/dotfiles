@@ -4,7 +4,8 @@
 # Installs a root-owned copy of system-update-root.sh, then grants passwordless
 # sudo for that installed copy, with no arguments, only. The update card can
 # then run `pacman -Syu` in the background without a password prompt and
-# without making a user-writable script root-equivalent.
+# without making a user-writable script root-equivalent. It also installs
+# waybar-updates.hook, so the bar's count follows updates run anywhere.
 # This installer still reads the user-writable source before invoking sudo, so
 # review updates/system-update-root.sh before approving an installation or an
 # upgrade.
@@ -15,6 +16,9 @@ INSTALLED_HELPER="/usr/local/bin/system-update"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_SCRIPT="$SCRIPT_DIR/system-update-root.sh"
+# A pacman hook that refreshes the bar's count after any transaction.
+HOOK_SOURCE="$SCRIPT_DIR/waybar-updates.hook"
+INSTALLED_HOOK="/etc/pacman.d/hooks/zz-waybar-updates.hook"
 
 # The rule is written for $USER. Under `sudo` that is root, which would grant
 # root a rule it does not need and leave the user without one.
@@ -90,6 +94,17 @@ else
         echo "✗ Failed to install root-owned helper"
         exit 1
     fi
+fi
+
+# Same test as the helper's: pacman runs the hook's Exec as root.
+if [[ ! -L "$INSTALLED_HOOK" ]] && cmp -s "$HOOK_SOURCE" "$INSTALLED_HOOK" &&
+   [[ "$(stat -c '%U:%G %a' "$INSTALLED_HOOK" 2>/dev/null)" = "root:root 644" ]]; then
+    echo "✓ Bar refresh hook is already current"
+elif sudo install -D -m 0644 -o root -g root "$HOOK_SOURCE" "$INSTALLED_HOOK"; then
+    echo "✓ Installed $INSTALLED_HOOK"
+else
+    echo "✗ Failed to install the bar refresh hook"
+    exit 1
 fi
 
 if $grant_current; then

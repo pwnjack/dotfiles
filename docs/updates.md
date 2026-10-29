@@ -45,7 +45,10 @@ generated.
   `model.tooltip()` (printed by `scripts/updates/tooltip.mjs`): a row per
   non-zero source, the download size, a kernel line, and when it last
   checked. While running it shows pacman's step, and after a run the card's
-  result copy. If node fails, a one-line tooltip stands in.
+  result copy. If node fails, a one-line tooltip stands in. A pacman hook
+  (`updates/waybar-updates.hook`) refreshes it after every package
+  transaction, so an update run in a terminal (`paru`, `pacman -Syu`) clears
+  the count at once instead of at the next half-hourly check.
 - **AUR and Flatpak-only updates run in a terminal.** The card says how many there are and
   offers the terminal (`scripts/updates/terminal.sh aur|pacman|flatpak`, which
   opens `options/terminal`). Every pending mix has a path: Update runs repo
@@ -62,7 +65,8 @@ bash ~/.config/updates/setup-sudo.sh
 
 Run it in your own terminal; it asks for your sudo password itself. It
 installs `updates/system-update-root.sh` as the root-owned
-`/usr/local/bin/system-update` and writes `/etc/sudoers.d/system-update`. It is
+`/usr/local/bin/system-update`, writes `/etc/sudoers.d/system-update` and
+installs the bar's refresh hook as `/etc/pacman.d/hooks/zz-waybar-updates.hook`. It is
 idempotent and verifies the NOPASSWD entry by reading `sudo -n -l`, without
 running the update.
 

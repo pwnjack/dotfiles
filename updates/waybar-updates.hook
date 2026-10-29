@@ -1,0 +1,17 @@
+# Refresh the bar's updates module after every package transaction, whatever
+# ran it (the update card, paru, pacman in a terminal). Without it an update
+# typed into a terminal left the count stale until the next half-hourly check.
+# Installed as a root-owned copy by updates/setup-sudo.sh. pkill fails when no
+# bar is running, and pacman would report that as a hook error.
+
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Package
+Target = *
+
+[Action]
+Description = Refreshing the bar's update count...
+When = PostTransaction
+Exec = /usr/bin/sh -c '/usr/bin/pkill -RTMIN+9 -x waybar; exit 0'

@@ -273,8 +273,9 @@
   // notice, the same stateless grammar custom/battery uses for peripherals.
   // The interval is long because checkupdates syncs a private pacman DB over
   // the network on every run; signal 9 is what makes a finished update clear
-  // the count immediately rather than up to half an hour later. A click opens
-  // the update card.
+  // the count immediately rather than up to half an hour later. The pacman
+  // hook updates/waybar-updates.hook sends it after every transaction, the
+  // card's run and terminal paths after theirs. A click opens the update card.
   "custom/updates": {
     "format": "{}",
     "return-type": "json",
