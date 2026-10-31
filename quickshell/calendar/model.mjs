@@ -52,7 +52,6 @@ export function formatTime(minutes, clock, am, pm) {
     return pad(h % 12 === 0 ? 12 : h % 12) + ':' + pad(min) + ' ' + (h < 12 ? am : pm)
 }
 
-export const DURATIONS = [15, 30, 60, 120]
 export const ALERTS_TIMED = [
     { id: 'none', label: 'None' },
     { id: '0m', label: 'At time of event', trigger: 'PT0S' },

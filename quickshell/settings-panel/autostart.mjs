@@ -57,7 +57,6 @@ export function entryProblem(text) {
     }
     return ""
 }
-export function execBinary(entry) { return entry.TryExec ? unescape(entry.TryExec) : firstExecWord(unescape(entry.Exec)) }
 function firstExecWord(command) {
     let word = "", quote = "", started = false
     for (let index = 0; index < command.length; ++index) {

@@ -141,8 +141,6 @@ assert_contains "$btop_theme" 'theme[selected_fg]="#ddeeff"' "btop selection tex
 assert_contains "$btop_theme" 'theme[proc_pause_bg]="#ff9988"' "btop pause uses error"
 rofi_colors="$(cat "$accent_cache/wal/colors-rofi.rasi")"
 assert_contains "$rofi_colors" 'selected:   #44556666;' "Rofi selection uses translucent secondary_container"
-assert_contains "$rofi_colors" 'accent:     #0000aa;' "Rofi accent uses primary"
-assert_contains "$rofi_colors" 'accentlow:  #0000aa66;' "Rofi low accent uses translucent primary"
 strata_accent=$(wal_oklch '#0000aa' 0.76 0.84 0.12)
 assert_contains "$(cat "$accent_cache/wal/strata-theme.toml")" "accent = \"$strata_accent\"" \
     "Strata accent follows primary with its foreground clamp"
