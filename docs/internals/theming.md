@@ -179,6 +179,10 @@ Every script must:
 Tests use temporary `HOME`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME` and runtime
 paths and stub session commands. Never run the wallpaper pipeline, overlay
 or apply scripts from a worktree against the running desktop's user state.
+`palette.sh` enforces the last part for component scripts: an
+`apply_wal_colors.sh` whose checkout is not the config dir exits 1 when its
+cache is the login user's own (from `getent passwd`). The check lives in the
+config dir's copy of `palette.sh`, so it covers worktrees only once merged.
 
 ## Component outputs and reloads
 

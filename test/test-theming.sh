@@ -506,4 +506,35 @@ fi
 assert_contains "$(cat "$tmp/no-nvim-cache/wal/colors-wal.vim" 2>/dev/null || true)" \
     'let color15 = "#dee3e5"' "nvim renders its fallback cache even without nvim installed"
 
+# A component script from a checkout other than the live config dir (a git
+# worktree) must not render into the login user's cache, even before that
+# cache exists. getent is stubbed so a throwaway home plays the login user's;
+# btop's script touches nothing live.
+live="$tmp/live-home"
+mkdir -p "$live/.config/btop" "$tmp/getent-bin"
+ln -s "$ROOT/scripts" "$live/.config/scripts"
+printf '#!/bin/sh\necho "user:x:%s:%s::%s:/bin/sh"\n' "$(id -u)" "$(id -g)" "$live" > "$tmp/getent-bin/getent"
+chmod +x "$tmp/getent-bin/getent"
+foreign="$ROOT/btop/apply_wal_colors.sh"
+guard_run() {
+    env -u XDG_CACHE_HOME PATH="$tmp/getent-bin:$tmp/bin:$PATH" HOME="$live" XDG_CONFIG_HOME="$1" \
+        XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" bash "${@:2}" 2>&1
+}
+guard_out=$(guard_run "$live/.config" "$foreign")
+assert_eq "$?" 1 "a script from another checkout exits 1 against the live cache"
+assert_contains "$guard_out" "refusing to write the live cache" "it says why"
+printf '#!/bin/bash\n. "$1"\n' > "$tmp/wrapper.sh"
+guard_run "$live/.config" "$tmp/wrapper.sh" "$foreign" >/dev/null
+assert_eq "$?" 1 "sourcing it through a wrapper is refused too"
+ln -s "$foreign" "$live/.config/btop/apply_wal_colors.sh"
+guard_run "$live/.config" "$live/.config/btop/apply_wal_colors.sh" >/dev/null
+assert_eq "$?" 1 "a live-config symlink to another checkout's script is refused"
+[ ! -e "$live/.cache" ]
+assert_eq "$?" 0 "none of them creates the live cache"
+ln -s "$foreign" "$tmp/apply_wal_colors.sh"
+guard_run "$ROOT" "$tmp/apply_wal_colors.sh" >/dev/null
+assert_eq "$?" 0 "the live checkout still renders, also through a symlink from elsewhere"
+[ -s "$live/.cache/wal/btop.theme" ]
+assert_eq "$?" 0 "and its output lands in the live cache"
+
 test_summary theming
