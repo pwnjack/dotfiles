@@ -41,7 +41,7 @@ if ! pkill -USR2 -x waybar 2>/dev/null; then
     bash "$script_dir/../../waybar/apply_wal_colors.sh" || true
     bash "$script_dir/bar-modes.sh" --no-reload || true
     bash "$script_dir/clock-format.sh" --no-reload || true
-    waybar &
+    "$script_dir/../hyprland/respawn.sh" waybar &
 fi
 
 restore_tray_items

@@ -87,14 +87,18 @@ DOCTOR_DBUS_ROLE="org.freedesktop.Notifications"
 # every other check so the contract stays mechanically checkable by grep, not
 # by memory).
 _svc_autostart_daemons() {
-    local conf="$DOCTOR_ROOT/hypr/config/setup/autostart.lua" line first
+    local conf="$DOCTOR_ROOT/hypr/config/setup/autostart.lua" line first rest
     local commands
     [ -f "$conf" ] || return 0
     commands="$(sed -nE 's/^[[:space:]]*hl\.exec_cmd\("([^"]*)"\).*/\1/p' "$conf")"
 
     while read -r line; do
         line="${line%&}"
-        read -r first _ <<< "$line"
+        read -r first rest <<< "$line"
+        # respawn.sh only supervises: the daemon is the command it wraps.
+        case "$first" in
+            */scripts/hyprland/respawn.sh) read -r first _ <<< "$rest" ;;
+        esac
         [ -n "$first" ] || continue
         # Quoted: an unquoted ~/* here is tilde-expanded to $HOME before the
         # case match runs, so it would never match a literal "~/" in a file.

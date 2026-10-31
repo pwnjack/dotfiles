@@ -354,7 +354,8 @@ async function restart(name) {
         if (attempt === 29) throw new Error(`${name} did not stop`)
         await delay(50)
     }
-    detached([name])
+    // Under respawn.sh, as autostart.lua starts it, so a crash restarts it.
+    detached([configDir + "/scripts/hyprland/respawn.sh", name])
     await delay(150)
     if (name === "hyprsunset") {
         const status = await execAsync(["bash", configDir + "/scripts/hyprland/nightlight.sh", "status"])

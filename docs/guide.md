@@ -353,6 +353,19 @@ Edit `~/.config/hypr/config/setup/autostart.lua` and add a line to its
 hl.exec_cmd("your-app")
 ```
 
+A daemon that should come back after a crash goes through
+`scripts/hyprland/respawn.sh`, as Waybar, SwayNC, hypridle and hyprsunset do:
+
+```lua
+hl.exec_cmd("$HOME/.config/scripts/hyprland/respawn.sh your-daemon")
+```
+
+It restarts the daemon when it dies uncleanly, leaves it down after a clean
+exit or `pkill`, and stops trying, with a notification, after five crashes in
+30 seconds. The packaged systemd user units are not used: when a unit's main
+process crashes, systemd kills everything left in its cgroup, which would take
+down every window opened from the bar, or a running hyprlock with hypridle.
+
 XDG autostart entries are managed on the settings panel's Startup page.
 
 ### Waybar modules
