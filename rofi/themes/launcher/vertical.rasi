@@ -167,20 +167,6 @@ element-text {
     vertical-align:              0.5;
     horizontal-align:            0.0;
 }
-element-icon {
-    background-color:            transparent;
-    text-color:                  inherit;
-    size:                        32px;
-    cursor:                      inherit;
-}
-element-text {
-    background-color:            transparent;
-    text-color:                  inherit;
-    highlight:                   inherit;
-    cursor:                      inherit;
-    vertical-align:              0.5;
-    horizontal-align:            0.0;
-}
 
 // MESSAGE
 message {
