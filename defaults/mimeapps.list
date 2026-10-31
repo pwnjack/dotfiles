@@ -96,6 +96,6 @@ application/xhtml+xml=zen.desktop;
 application/x-extension-xhtml=zen.desktop;
 application/x-extension-xht=zen.desktop;
 image/jpeg=org.gnome.Shotwell-Viewer.desktop;
-text/plain=dev.zed.Zed.desktop;org.kde.kwrite.desktop;
+text/plain=dev.zed.Zed.desktop;
 text/markdown=dev.zed.Zed.desktop;
 x-scheme-handler/curseforge=curseforge.desktop;

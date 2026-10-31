@@ -9,7 +9,7 @@ return function(apps)
     hl.bind("SUPER + RETURN", hl.dsp.exec_cmd(apps.terminal)) -- Terminal ($terminal)
     hl.bind("SUPER + E", hl.dsp.exec_cmd(apps.filemanager)) -- File manager ($filemanager)
     hl.bind("SUPER + N", hl.dsp.exec_cmd(apps.terminal .. " -e " .. apps.editor)) -- Text editor ($editor)
-    hl.bind("SUPER + T", hl.dsp.exec_cmd("kwrite")) -- Text editor (KWrite)
+    hl.bind("SUPER + T", hl.dsp.exec_cmd("obsidian")) -- Notes (Obsidian)
     hl.bind("SUPER + B", hl.dsp.exec_cmd(apps.browser)) -- Web browser ($browser)
     hl.bind("SUPER + S", hl.dsp.exec_cmd("~/.config/scripts/hyprland/screenshot.sh region")) -- Screenshot a region
     hl.bind("SUPER + ALT + S", hl.dsp.exec_cmd("~/.config/scripts/hyprland/screenshot.sh region --annotate")) -- Screenshot a region and annotate

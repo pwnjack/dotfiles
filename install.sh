@@ -99,11 +99,15 @@ PACKAGES=(
     # Launchers and menus
     "rofi" "rofi-emoji"
     # Terminals, shell, editors
-    "ghostty" "fish" "starship" "fzf" "fd" "neovim" "zed" "kate"
+    "ghostty" "fish" "starship" "fzf" "fd" "neovim" "zed"
+    # Notes, on Super+T
+    "obsidian"
     # fzf.fish previews (bat/config is themed); LazyVim's grep, git UI and parsers
     "bat" "eza" "ripgrep" "lazygit" "tree-sitter-cli"
     # File managers and system tools
-    "yazi" "btop" "bottom" "resources" "fastfetch" "cava"
+    "yazi" "btop" "resources" "fastfetch" "cava"
+    # Terminal toys the fish aliases run in the accent (scripts/theming/accent-run.sh)
+    "cmatrix" "tty-clock"
     # checkupdates, for the waybar updates module
     "pacman-contrib"
     # Opens Terminal=true desktop entries in options/terminal (scripts/settings/terminal.sh)
