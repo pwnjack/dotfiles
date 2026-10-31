@@ -21,7 +21,7 @@ jobs:
     # file, not the one stat sees, and the update card's lock probe compares them.
     container:
       image: archlinux:latest
-      options: --init --tmpfs /tmp:rw,exec,nosuid,size=4g
+      options: --init --tmpfs /tmp:rw,exec,nosuid,size=4g --security-opt systempaths=unconfined
     timeout-minutes: 20
     steps:
       # git first, so the checkout is a real repository: test.sh discovers
@@ -59,6 +59,7 @@ jobs:
         run: |
           set -x
           command -v flock stat; findmnt /tmp || mount | grep ' /tmp '
+          findmnt /proc/locks || echo "proc/locks not a separate mount"
           d=$(mktemp -d); exec 9>"$d/run.lock"; flock -n 9; echo "flock=$?"
           stat -L -c '%Hd %Ld %i %d %D' "$d/run.lock"; cat /proc/locks; echo "pid=$$"
           useradd -m dbg && runuser -l dbg -c 'd=$(mktemp -d); exec 9>"$d/l"; flock -n 9; stat -L -c "%Hd %Ld %i" "$d/l"; cat /proc/locks; echo pid=$$'
