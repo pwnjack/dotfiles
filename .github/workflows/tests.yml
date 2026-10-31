@@ -21,7 +21,7 @@ jobs:
     # file, not the one stat sees, and the update card's lock probe compares them.
     container:
       image: archlinux:latest
-      options: --init --tmpfs /tmp:rw,exec,nosuid,size=4g --security-opt systempaths=unconfined
+      options: --init --tmpfs /tmp:rw,exec,nosuid,size=4g --pid=host
     timeout-minutes: 20
     steps:
       # git first, so the checkout is a real repository: test.sh discovers
