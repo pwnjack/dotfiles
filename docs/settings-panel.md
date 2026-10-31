@@ -344,6 +344,11 @@ Random wallpaper, Proton VPN), the XDG autostart **Apps**, and **Started by Hypr
 which lists what `autostart.lua` starts (parsed, read-only, with **Edit file**). The apps
 follow uwsm's generator rules (`autostart.mjs` is pure): later `Show-In` lists win, condition keys parse strictly, and `TryExec` is verbatim.
 Changes take effect at the next login; nothing is started or stopped immediately.
+The Proton VPN switch only starts the app. Its package also enables a system daemon at boot,
+and re-enables it on every upgrade, although it serves only split tunnelling (about 150 MB
+of Python); `bash ~/.config/scripts/proton/setup.sh` takes it off boot for good, so with the
+switch off nothing of Proton runs. The VPN and its kill switch work without the daemon; the
+app then reports split tunnelling as unavailable.
 `~/.config/autostart` is per-machine and gitignored.
 
 Traps:

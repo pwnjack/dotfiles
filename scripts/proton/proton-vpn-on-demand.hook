@@ -1,0 +1,17 @@
+# Keep Proton VPN's split-tunnelling daemon off at boot. proton-vpn-daemon's
+# post_upgrade re-enables and restarts proton.VPN.service on every upgrade, so
+# this puts it back: disabled, and stopped unless the Proton app is open, so an
+# upgrade never pulls the daemon from under a live session. The daemon serves
+# only split tunnelling; the VPN and its kill switch work without it.
+# Installed as a root-owned copy by scripts/proton/setup.sh.
+
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = proton-vpn-daemon
+
+[Action]
+Description = Keeping Proton VPN's split-tunnelling daemon off at boot...
+When = PostTransaction
+Exec = /usr/bin/sh -c '/usr/bin/systemctl disable --quiet proton.VPN.service; /usr/bin/pgrep -x protonvpn-app >/dev/null || /usr/bin/systemctl stop proton.VPN.service; exit 0'
