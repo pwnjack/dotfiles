@@ -15,13 +15,13 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    # --init reaps orphans, so a suite that waits for a child to exit does not
-    # see it linger as a zombie of `tail`, the container's default PID 1.
-    # /tmp is a tmpfs because on overlayfs /proc/locks names the underlying
-    # file, not the one stat sees, and the update card's lock probe compares them.
+    # The host's PID namespace, for two suites: in the container's own,
+    # /proc/locks lists nothing, and the update card's lock probe reads it;
+    # and orphans would become zombies of `tail`, the default PID 1, which a
+    # suite waiting for a child to exit sees as still running.
     container:
       image: archlinux:latest
-      options: --init --tmpfs /tmp:rw,exec,nosuid,size=4g --pid=host
+      options: --pid=host
     timeout-minutes: 20
     steps:
       # git first, so the checkout is a real repository: test.sh discovers
@@ -53,16 +53,6 @@ jobs:
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git ls-files -z -- '*.sh' 'scripts/hooks/*' | xargs -0 shellcheck -S warning
-
-      - name: Lock probe diagnostics (temporary)
-        shell: bash
-        run: |
-          set -x
-          command -v flock stat; findmnt /tmp || mount | grep ' /tmp '
-          findmnt /proc/locks || echo "proc/locks not a separate mount"
-          d=$(mktemp -d); exec 9>"$d/run.lock"; flock -n 9; echo "flock=$?"
-          stat -L -c '%Hd %Ld %i %d %D' "$d/run.lock"; cat /proc/locks; echo "pid=$$"
-          useradd -m dbg && runuser -l dbg -c 'd=$(mktemp -d); exec 9>"$d/l"; flock -n 9; stat -L -c "%Hd %Ld %i" "$d/l"; cat /proc/locks; echo pid=$$'
 
       - name: Test suites
         shell: bash
