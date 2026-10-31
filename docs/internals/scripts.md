@@ -16,6 +16,7 @@ Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md
 - `state/` — the machine-state overlay: the engine (`overlay.mjs`), its CLI (`overlay-cli.mjs`), `overlay.sh` (`sync` and `check`, under a lock) and `derived.sh` (files computed from options); see `docs/internals/state.md`
 - `spotify/` — the SpotX launch wrapper, its desktop-entry setup and the Spicetify theme selection (see Spotify)
 - `ssh/` — `setup.sh`, the `~/.ssh/config` Include (see SSH agent)
+- `proton/` — `setup.sh`, run once as your own user (it asks for sudo itself): takes Proton VPN's split-tunnelling daemon (`proton.VPN.service`) off boot and installs the pacman hook (`proton-vpn-on-demand.hook`) that keeps it off after package upgrades
 - `keybinds/` — `keybinds-sheet.sh`, the one parser of `keybinds.lua`; `docs/` — `generate-keybindings.sh`, which renders `docs/keybindings.md` from it
 - `doctor/` — the library and check modules behind `doctor.sh` (see Doctor architecture)
 - `hooks/` — the git hooks (`pre-commit`, `post-merge`, with `post-checkout` a symlink to it) and `snapshot.sh`
