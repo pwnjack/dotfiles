@@ -119,21 +119,6 @@ _sddm_has_passwordless_grant() {
     '
 }
 
-# _sddm_assignment <file> <name> — print one plain NAME="value" assignment.
-# Duplicate definitions are rejected as ambiguous instead of silently choosing
-# one and recreating the second-source-of-truth problem this parser prevents.
-_sddm_assignment() {
-    awk -v name="$2" '
-        $0 ~ "^" name "=\"[^\"]+\"$" {
-            value = $0
-            sub("^[^\"]*\"", "", value)
-            sub("\"$", "", value)
-            count++
-        }
-        END { if (count == 1) print value }
-    ' "$1" 2>/dev/null
-}
-
 # The privileged helper must remain self-contained after it is copied outside
 # the user's home, so its fallback cannot live in a sourced shared file. Parse
 # the assignment at the point where the source applies it instead.
@@ -171,8 +156,8 @@ check_sddm() {
         return 0
     fi
 
-    sudoers_file=$(_sddm_assignment "$setup_script" SUDOERS_FILE)
-    installed_helper=$(_sddm_assignment "$setup_script" INSTALLED_HELPER)
+    sudoers_file=$(doctor_assignment "$setup_script" SUDOERS_FILE)
+    installed_helper=$(doctor_assignment "$setup_script" INSTALLED_HELPER)
     if [ -z "$sudoers_file" ] || [ -z "$installed_helper" ]; then
         err "cannot derive SDDM privileged paths from sddm/setup-sudo.sh" \
             "restore the plain path assignments in $(doctor_q "$setup_script")"

@@ -54,20 +54,6 @@ _ssh_file_mode() {
     stat -c %a -- "$1" 2>/dev/null
 }
 
-# _ssh_assignment <file> <name> — one plain NAME="value" assignment, or
-# nothing when it is missing or duplicated (same rule as _upd_assignment).
-_ssh_assignment() {
-    awk -v name="$2" '
-        $0 ~ "^" name "=\"[^\"]+\"$" {
-            value = $0
-            sub("^[^\"]*\"", "", value)
-            sub("\"$", "", value)
-            count++
-        }
-        END { if (count == 1) print value }
-    ' "$1" 2>/dev/null
-}
-
 # _ssh_socket_name <envvars.lua> — the "/name" after `runtime ..` in the
 # hl.env("SSH_AUTH_SOCK", ...) line. scripts/ssh/setup.sh uses the same sed.
 _ssh_socket_name() {
@@ -85,8 +71,8 @@ check_ssh() {
     [ -n "$name" ] || return 0
     group "SSH agent"
 
-    unit=$(_ssh_assignment "$setup" SSH_AGENT_UNIT)
-    include=$(_ssh_assignment "$setup" INCLUDE_LINE)
+    unit=$(doctor_assignment "$setup" SSH_AGENT_UNIT)
+    include=$(doctor_assignment "$setup" INCLUDE_LINE)
     if [ -z "$unit" ] || [ -z "$include" ]; then
         warn "cannot derive the agent unit and Include line from scripts/ssh/setup.sh" \
             "git -C $(doctor_q "$DOCTOR_ROOT") diff -- scripts/ssh/setup.sh"
