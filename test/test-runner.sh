@@ -307,11 +307,15 @@ pids = pathlib.Path(tmp) / 'interrupt-pids'
 env = dict(os.environ, TEST_ROOT=root, TEST_JOBS='2', TMPDIR=str(private), INTERRUPT_PIDS=str(pids))
 p = subprocess.Popen(['bash', runner], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 try:
+    # The shell creates the file before it writes the line, so wait for the
+    # newline, not for the file.
     deadline = time.monotonic() + 5
-    while not pids.exists() and time.monotonic() < deadline:
+    text = ''
+    while not text.endswith('\n') and time.monotonic() < deadline:
+        text = pids.read_text() if pids.exists() else ''
         time.sleep(.01)
-    assert pids.exists(), 'suite never started'
-    suite, child = map(int, pids.read_text().split())
+    assert text.endswith('\n'), 'suite never started'
+    suite, child = map(int, text.split())
     p.send_signal(signal.SIGINT)
     output, _ = p.communicate(timeout=5)
     assert p.returncode == 130, (p.returncode, output)
