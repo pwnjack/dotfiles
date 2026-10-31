@@ -317,8 +317,8 @@ Reads `timedatectl show` and `localectl status` (both daemons are socket-activat
 about 100 ms cold). Writes time zone, NTP, language and formats through `timedated` and
 `localed` over D-Bus (`dbus.js`), authorised by polkit. Clock format is not system-wide:
 `options/clock` (`12h` or `24h`) is rendered by `scripts/waybar/clock-format.sh` into
-`~/.local/state/waybar/clock.jsonc`, which Waybar merges through `include`; hyprlock reads
-the option too.
+`~/.local/state/waybar/clock.jsonc`, which Waybar merges through `include`; hyprlock and
+the desktop clock (`docs/internals/desktop-clock.md`) read the option too.
 
 Traps:
 
@@ -394,7 +394,9 @@ one restores the derived label. The switch of the current default device is
 disabled, because the popover always shows it. Nothing is disabled in the
 system: hiding only leaves a device out of the popover's lists. The page reads
 `soundDevices` when it opens, after a write and on audio events while it is
-shown. See `docs/internals/sound-popover.md`.
+shown. A failed read keeps the list already shown and puts the error above it,
+adding that the list may be out of date (`SoundView.qml`). See
+`docs/internals/sound-popover.md`.
 
 ## Calendar
 
