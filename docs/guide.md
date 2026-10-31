@@ -544,9 +544,9 @@ git reset origin/main   # marks repo files as tracked without touching them
 sudo pacman -S --needed hyprland hyprlock hypridle hyprpolkitagent hyprshot \
                hyprpicker hyprsunset swappy uwsm xdg-desktop-portal-hyprland \
                xdg-desktop-portal-gtk waybar swaync awww waypaper quickshell \
-               rofi rofi-emoji ghostty fish starship fzf fd neovim zed kate \
-               bat eza ripgrep lazygit tree-sitter-cli yazi btop bottom \
-               resources fastfetch cava pacman-contrib xdg-terminal-exec \
+               rofi rofi-emoji ghostty fish starship fzf fd neovim zed obsidian \
+               bat eza ripgrep lazygit tree-sitter-cli yazi btop resources \
+               fastfetch cava cmatrix tty-clock pacman-contrib xdg-terminal-exec \
                cliphist wl-clipboard gpu-screen-recorder slurp playerctl \
                matugen qt5ct qt6ct nwg-look kvantum kvantum-qt5 \
                papirus-icon-theme pavucontrol blueman nm-connection-editor \

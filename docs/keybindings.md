@@ -26,7 +26,7 @@ checkout.
 | `Super + Enter` | Terminal (`options/terminal`) |
 | `Super + E` | File manager (`options/filemanager`) |
 | `Super + N` | Text editor (`options/editor`) |
-| `Super + T` | Text editor (KWrite) |
+| `Super + T` | Notes (Obsidian) |
 | `Super + B` | Web browser (`options/browser`) |
 | `Super + S` | Screenshot a region |
 | `Super + Alt + S` | Screenshot a region and annotate |
