@@ -38,10 +38,17 @@ jobs:
         with:
           persist-credentials: false
 
+      # The workspace belongs to the runner's user, not the container's root,
+      # so git refuses it until it is marked safe. bash runs with pipefail,
+      # so a git failure cannot pass as "no files".
       - name: Shellcheck
-        run: git ls-files -z -- '*.sh' 'scripts/hooks/*' | xargs -0 shellcheck -S warning
+        shell: bash
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git ls-files -z -- '*.sh' 'scripts/hooks/*' | xargs -0 shellcheck -S warning
 
       - name: Test suites
+        shell: bash
         run: |
           useradd -m ci
           cp -a "$GITHUB_WORKSPACE" /home/ci/.config
