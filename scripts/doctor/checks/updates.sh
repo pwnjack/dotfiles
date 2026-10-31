@@ -41,20 +41,6 @@ _upd_helper_present() {
     [ -e "$1" ] || [ -L "$1" ]
 }
 
-# _upd_assignment <file> <name> — one plain NAME="value" assignment, or
-# nothing when it is missing or duplicated (same rule as _sddm_assignment).
-_upd_assignment() {
-    awk -v name="$2" '
-        $0 ~ "^" name "=\"[^\"]+\"$" {
-            value = $0
-            sub("^[^\"]*\"", "", value)
-            sub("\"$", "", value)
-            count++
-        }
-        END { if (count == 1) print value }
-    ' "$1" 2>/dev/null
-}
-
 # _upd_has_grant <listing> <helper> — the exact no-arguments NOPASSWD entry.
 _upd_has_grant() {
     printf '%s\n' "$1" | awk -v command="$2 \"\"" '
@@ -99,8 +85,8 @@ check_updates() {
             "git -C $(doctor_q "$DOCTOR_ROOT") checkout -- updates/"
         return 0
     fi
-    sudoers=$(_upd_assignment "$setup" SUDOERS_FILE)
-    helper=$(_upd_assignment "$setup" INSTALLED_HELPER)
+    sudoers=$(doctor_assignment "$setup" SUDOERS_FILE)
+    helper=$(doctor_assignment "$setup" INSTALLED_HELPER)
     if [ -z "$sudoers" ] || [ -z "$helper" ]; then
         err "cannot derive the update helper paths from updates/setup-sudo.sh" \
             "git -C $(doctor_q "$DOCTOR_ROOT") diff -- updates/setup-sudo.sh"

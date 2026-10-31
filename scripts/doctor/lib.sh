@@ -82,6 +82,23 @@ doctor_q() {
     printf '%q' "$1"
 }
 
+# doctor_assignment <file> <name> — print the value of one plain NAME="value"
+# line. Checks read helper paths and unit names from the setup scripts this
+# way instead of restating them. Nothing is printed when the name is missing or
+# defined twice: a duplicate is ambiguous, and choosing one would recreate the
+# second source of truth the parser exists to prevent.
+doctor_assignment() {
+    awk -v name="$2" '
+        $0 ~ "^" name "=\"[^\"]+\"$" {
+            value = $0
+            sub("^[^\"]*\"", "", value)
+            sub("\"$", "", value)
+            count++
+        }
+        END { if (count == 1) print value }
+    ' "$1" 2>/dev/null
+}
+
 # Guards the assumption every check makes: that DOCTOR_ROOT is a git work tree,
 # since all target lists are derived from git rather than hand-written. Call it
 # once from doctor.sh before running any check — individual modules must not,

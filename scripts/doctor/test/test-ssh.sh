@@ -88,9 +88,9 @@ assert_eq "$(_ssh_socket_name "$DOCTOR_TEST_TMP/ssh-cmt/hypr/config/setup/envvar
 # The real tree: the parse must keep working against what is tracked.
 assert_eq "$(_ssh_socket_name "$REPO_DIR/hypr/config/setup/envvars.lua")" "/ssh-agent.socket" \
     "ssh: the real envvars.lua yields the socket name"
-assert_eq "$(_ssh_assignment "$REPO_DIR/scripts/ssh/setup.sh" SSH_AGENT_UNIT)" "ssh-agent.socket" \
+assert_eq "$(doctor_assignment "$REPO_DIR/scripts/ssh/setup.sh" SSH_AGENT_UNIT)" "ssh-agent.socket" \
     "ssh: the real setup.sh yields SSH_AGENT_UNIT"
-assert_eq "$(_ssh_assignment "$REPO_DIR/scripts/ssh/setup.sh" INCLUDE_LINE)" "$ssh_include" \
+assert_eq "$(doctor_assignment "$REPO_DIR/scripts/ssh/setup.sh" INCLUDE_LINE)" "$ssh_include" \
     "ssh: the real setup.sh yields INCLUDE_LINE"
 
 # Healthy.
