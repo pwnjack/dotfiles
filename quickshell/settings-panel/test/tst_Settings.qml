@@ -72,6 +72,7 @@ Item {
     SettingsView { id: view; anchors.fill: parent; controller: controller }
     TestCase {
         name: "Settings"
+        function renderFrame(item) { item.Window.window.update(); verify(waitForRendering(item)); }
         when: windowShown
         // The ⋯ menu lives in a Popup, outside the view's item tree until opened.
         function menuItem(name) { return findChild(view.actionsMenu.contentItem, name); }
@@ -183,7 +184,7 @@ Item {
             compare(controller.calls[2], {op: "calendarSignOut"});
         }
         function test_startup_view() {
-            controller.startup = startupFixture(); controller.category = "startup"; waitForRendering(view);
+            controller.startup = startupFixture(); controller.category = "startup"; renderFrame(view);
             compare(findChild(view, "session-0").text, "waybar");
             verify(findChild(view, "startup-nm-applet.desktop"));
             verify(!findChild(view, "startupSwitch-kde.desktop"), "an entry that does not apply to Hyprland has no switch");
@@ -201,7 +202,7 @@ Item {
             verify(findChild(view, "toggle-opt-lock"), "the option rows still render below the view");
         }
         function test_startup_remove_asks_twice() {
-            controller.startup = startupFixture(); controller.category = "startup"; waitForRendering(view);
+            controller.startup = startupFixture(); controller.category = "startup"; renderFrame(view);
             const remove = findChild(view, "startupRemove-mine.desktop");
             compare(remove.text, "Remove");
             mouseClick(remove);
@@ -230,7 +231,7 @@ Item {
             compare(controller.calls.length, 1);
         }
         function test_startup_stale_override_and_links() {
-            controller.startup = startupFixture(); controller.category = "startup"; waitForRendering(view);
+            controller.startup = startupFixture(); controller.category = "startup"; renderFrame(view);
             verify(findChild(view, "startupRemove-renamed.desktop"), "a stale override can be removed");
             verify(findChild(view, "startupStatus-renamed.desktop").text.indexOf("Hidden by " + userAutostart + "/renamed.desktop") >= 0);
             verify(findChild(view, "startupSwitch-renamed.desktop"));
@@ -239,7 +240,7 @@ Item {
             verify(findChild(view, "startupStatus-linked.desktop").text.indexOf("link") >= 0);
         }
         function test_startup_error_only_on_its_view() {
-            controller.startup = {error: "Permission denied: autostart.lua"}; controller.category = "startup"; waitForRendering(view);
+            controller.startup = {error: "Permission denied: autostart.lua"}; controller.category = "startup"; renderFrame(view);
             verify(findChild(view, "startupError").visible);
             verify(findChild(view, "startupError").text.indexOf("Permission denied") >= 0);
             verify(!findChild(view, "startup-nm-applet.desktop"));
@@ -247,12 +248,12 @@ Item {
             verify(findChild(view, "toggle-opt-lock"), "the option rows still render below the view");
         }
         function test_startup_add() {
-            controller.startup = startupFixture(); controller.category = "startup"; waitForRendering(view);
+            controller.startup = startupFixture(); controller.category = "startup"; renderFrame(view);
             const combo = findChild(view, "select-startupAdd");
             // The longer list pushes the combo below the fold.
             const flick = findChild(view, "settingsScroll").contentItem;
             flick.contentY = Math.max(0, combo.mapToItem(flick.contentItem, 0, 0).y - 200);
-            waitForRendering(view);
+            renderFrame(view);
             combo.forceActiveFocus();
             mouseClick(combo);
             tryCompare(combo.popup, "visible", true);
@@ -389,7 +390,7 @@ Item {
             controller.values = ({blur:{value:true,reset:true},size:{value:4},font:{value:"Sans"},nickname:{value:"Bob"},theme:{value:"B",choices:[{label:"A",value:"A"},{label:"B",value:"B"}]},focus:{value:"1"},zone:{value:"Europe/Rome",choices:Array.from({length:30},(_,i)=>i===7?{label:"Europe / Rome",value:"Europe/Rome"}:i===8?{label:"New York",value:"America/New_York"}:{label:"Zone "+i,value:"Z"+i})},ntp:{value:true,note:"Synchronized with a time server"},idle:{value:0},mic:{value:62},speed:{value:3},"network.wifi":{value:true},"opt-lock":{value:false}});
             view.forceActiveFocus();
             findChild(view,"settingsScroll").contentItem.contentY = 0;
-            waitForRendering(view);
+            renderFrame(view);
         }
         function aboutFixture() {
             return {user:"alex",realName:"Alex Example",host:"workstation",os:"Example Linux",kernel:"6.12.4-1-example",hyprland:"0.54.0",uptimeSeconds:28260,avatar:"",
@@ -397,16 +398,16 @@ Item {
                 gpus:["Example Graphics", "Second Graphics"],storage:{used:199,total:999,fraction:199/999},machine:{label:"Motherboard",value:"Example Board"}};
         }
         function test_about_card_and_page() {
-            controller.about = aboutFixture(); waitForRendering(view);
+            controller.about = aboutFixture(); renderFrame(view);
             const card = findChild(view,"accountCard"); verify(card);
             compare(findChild(view,"accountName").text,"Alex Example");
             compare(findChild(view,"accountHost").text,"Signed in on workstation");
             compare(findChild(card,"avatarInitial").text,"A");
             verify(!findChild(view,"nav-about"));
-            mouseClick(card); waitForRendering(view);
+            mouseClick(card); renderFrame(view);
             compare(controller.category,"about"); verify(card.selected);
             compare(findChild(view,"pageTitle").text,"About this machine");
-            const page = findChild(view,"aboutView"); page.shownAt = new Date(2026,9,2,12,0).getTime(); waitForRendering(view);
+            const page = findChild(view,"aboutView"); page.shownAt = new Date(2026,9,2,12,0).getTime(); renderFrame(view);
             compare(findChild(view,"about-os-value").text,"Example Linux");
             compare(findChild(view,"about-hyprland-value").text,"0.54.0");
             compare(findChild(view,"about-installed-value").text,"14 August 2025 · 1 year, 2 months ago");
@@ -425,54 +426,54 @@ Item {
             verify(findChild(view,"accountSystemSummary").text.endsWith(" · Linux 6.12.4"));
             compare(findChild(view,"accountSessionSummary").text,"Hyprland 0.54.0 · up 7h 51m");
             verify(!findChild(view,"noSettingsMatch").visible);
-            controller.query = "blur"; waitForRendering(view); verify(!card.selected);
+            controller.query = "blur"; renderFrame(view); verify(!card.selected);
         }
         function test_about_keyboard() {
-            controller.about = aboutFixture(); waitForRendering(view);
+            controller.about = aboutFixture(); renderFrame(view);
             const card = findChild(view,"accountCard"); card.forceActiveFocus(); keyClick(Qt.Key_Space);
             compare(controller.category,"about"); controller.select("appearance");
             card.forceActiveFocus(); keyClick(Qt.Key_Return); compare(controller.category,"about");
         }
         function test_about_missing_values() {
-            controller.select("about"); waitForRendering(view);
+            controller.select("about"); renderFrame(view);
             verify(findChild(view,"aboutReading").visible);
-            controller.about = {realName:"Alex",avatar:"",os:"Example Linux",session:null}; waitForRendering(view);
+            controller.about = {realName:"Alex",avatar:"",os:"Example Linux",session:null}; renderFrame(view);
             verify(!findChild(view,"aboutReading").visible);
             verify(findChild(view,"aboutSystem").visible); verify(!findChild(view,"aboutHardware").visible);
             verify(!findChild(view,"about-kernel"));
-            controller.about = {session:null}; waitForRendering(view);
+            controller.about = {session:null}; renderFrame(view);
             verify(!findChild(view,"aboutSystem").visible); verify(!findChild(view,"aboutHardware").visible);
             verify(!findChild(view,"accountSystemSummary").visible); verify(!findChild(view,"accountSessionSummary").visible);
         }
         function test_about_pending_full_read() {
             controller.about = {user:"alex",host:"workstation",os:"Example Linux",kernel:"6.12.4-1-example",uptimeSeconds:60};
-            controller.select("about"); waitForRendering(view);
+            controller.select("about"); renderFrame(view);
             verify(findChild(view,"aboutReading").visible);
             compare(findChild(view,"aboutReading").text,"Reading system information…");
             verify(findChild(view,"aboutSystem").visible);
             compare(findChild(view,"about-os-value").text,"Example Linux");
             verify(!findChild(view,"about-installed")); verify(!findChild(view,"about-upgrade"));
             verify(!findChild(view,"aboutHardware").visible);
-            controller.about = aboutFixture(); waitForRendering(view);
+            controller.about = aboutFixture(); renderFrame(view);
             verify(!findChild(view,"aboutReading").visible);
             verify(findChild(view,"about-installed").visible); verify(findChild(view,"about-upgrade").visible);
             verify(findChild(view,"aboutHardware").visible);
         }
         function test_about_core_and_model_rows() {
             const data = aboutFixture(); data.cpu.threads = 6; data.machine = {label:"Model",value:"Example Laptop"};
-            controller.about = data; controller.select("about"); waitForRendering(view);
+            controller.about = data; controller.select("about"); renderFrame(view);
             compare(findChild(view,"about-cpu-value").text,"Example CPU · 6 cores");
             compare(findChild(view,"about-machine-value").text,"Example Laptop");
         }
         function test_about_avatar_image() {
             const data = aboutFixture();
             data.avatar = decodeURIComponent(Qt.resolvedUrl(".").toString().replace(/^file:\/\//, "")) + "avatar #%.svg";
-            controller.about = data; waitForRendering(view);
+            controller.about = data; renderFrame(view);
             const initial = findChild(findChild(view,"accountCard"),"avatarInitial");
             tryCompare(initial,"visible",false);
         }
         function test_about_avatar_bad_image() {
-            controller.about = Object.assign(aboutFixture(), {avatar:"/nonexistent-avatar.png"}); waitForRendering(view);
+            controller.about = Object.assign(aboutFixture(), {avatar:"/nonexistent-avatar.png"}); renderFrame(view);
             const initial = findChild(findChild(view,"accountCard"),"avatarInitial");
             tryCompare(initial,"visible",true); compare(initial.text,"A");
         }
@@ -645,15 +646,15 @@ Item {
             compare(controller.calls[0].value,"0");
         }
         function test_note_replaces_description() {
-            controller.category = "input"; waitForRendering(view);
+            controller.category = "input"; renderFrame(view);
             const note = findChild(view, "note-ntp");
             verify(note);
             compare(note.text, "Synchronized with a time server");
         }
         function test_long_select_filters() {
-            controller.category = "input"; waitForRendering(view);
+            controller.category = "input"; renderFrame(view);
             const combo = findChild(view, "select-zone");
-            mouseClick(combo); waitForRendering(view);
+            mouseClick(combo); renderFrame(view);
             const filter = findChild(combo.popup.contentItem, "filter-zone");
             verify(filter && filter.visible);
             compare(String(filter.background.color), String(view.background), "the filter is themed, not the light platform field");
@@ -666,20 +667,20 @@ Item {
             compare(combo.filter, "");
         }
         function test_short_select_has_no_filter() {
-            controller.category = "input"; waitForRendering(view);
+            controller.category = "input"; renderFrame(view);
             const combo = findChild(view, "select-focus");
-            mouseClick(combo); waitForRendering(view);
+            mouseClick(combo); renderFrame(view);
             const filter = findChild(combo.popup.contentItem, "filter-focus");
             verify(!filter || !filter.visible);
             keyClick(Qt.Key_Escape);
         }
         function test_auth_banner_and_disabled_controls() {
-            controller.category = "input"; controller.authPending = true; waitForRendering(view);
+            controller.category = "input"; controller.authPending = true; renderFrame(view);
             verify(findChild(view, "authPending").visible);
             verify(!findChild(view, "toggle-ntp").enabled);
         }
         function test_auth_combo_arrows_open_without_committing() {
-            controller.category = "input"; waitForRendering(view);
+            controller.category = "input"; renderFrame(view);
             const combo = findChild(view, "select-zone");
             combo.forceActiveFocus();
             keyClick(Qt.Key_Up);
@@ -693,7 +694,7 @@ Item {
             keyClick(Qt.Key_Escape);
         }
         function test_auth_combo_other_keys_open_without_committing() {
-            controller.category = "input"; waitForRendering(view);
+            controller.category = "input"; renderFrame(view);
             const combo = findChild(view, "select-zone");
             for (const key of [Qt.Key_End, Qt.Key_Home, Qt.Key_PageDown]) {
                 combo.forceActiveFocus();
@@ -711,9 +712,9 @@ Item {
             keyClick(Qt.Key_Escape);
         }
         function test_filter_without_matches_commits_nothing() {
-            controller.category = "input"; waitForRendering(view);
+            controller.category = "input"; renderFrame(view);
             const combo = findChild(view, "select-zone");
-            mouseClick(combo); waitForRendering(view);
+            mouseClick(combo); renderFrame(view);
             const filter = combo.popup.contentItem.children.find(item => item.objectName === "filter-zone") || findChild(combo.popup.contentItem, "filter-zone");
             filter.forceActiveFocus();
             for (const c of "qqqq") keyClick(c);
@@ -891,7 +892,7 @@ Item {
                       {uuid: "u-work", name: "Work", state: "off", iface: null, proton: false, control: "switch"}],
                 proton: {mode: "app", active: true}};
         }
-        function openNetwork() { controller.network = networkFixture(); controller.category = "network"; waitForRendering(view); }
+        function openNetwork() { controller.network = networkFixture(); controller.category = "network"; renderFrame(view); }
         function test_network_lists_and_connects() {
             openNetwork();
             verify(findChild(view, "wifi-Home")); verify(findChild(view, "wifi-Office"));
@@ -940,9 +941,9 @@ Item {
             compare(controller.calls[controller.calls.length - 1], {op: "vpn", uuid: "u-work", active: true});
         }
         function test_network_down_and_search() {
-            controller.network = {running: false}; controller.category = "network"; waitForRendering(view);
+            controller.network = {running: false}; controller.category = "network"; renderFrame(view);
             verify(findChild(view, "networkDown").visible);
-            controller.query = "wi-fi"; waitForRendering(view);
+            controller.query = "wi-fi"; renderFrame(view);
             verify(findChild(view, "toggle-network.wifi"), "search still finds the radio row");
         }
         function test_network_password_survives_live_rebuild() {
@@ -970,7 +971,7 @@ Item {
             compare(field.text, "secret123");
             // On the name line, as a user does: the middle of an expanded row is the password field,
             // and layouts settle on the next frame, as they do before any real click.
-            waitForRendering(view);
+            renderFrame(view);
             mouseClick(findChild(view, "wifi-Neighbour"), 60, 18); // collapse
             wait(20);
             verify(!field.visible);
@@ -997,7 +998,7 @@ Item {
         function test_network_sae_connect_mirrors_the_byte_limit() {
             const data = networkFixture();
             data.wifi.networks.push({ssid: "Wpa3", signal: 50, bars: 2, security: "sae", known: false, active: false, activating: false});
-            controller.network = data; controller.category = "network"; waitForRendering(view);
+            controller.network = data; controller.category = "network"; renderFrame(view);
             mouseClick(findChild(view, "wifi-Wpa3"));
             let text = "";
             for (let i = 0; i < 128; i++) text += "é";
@@ -1043,7 +1044,7 @@ Item {
         function test_network_known_enterprise_is_activatable() {
             const fixture = networkFixture();
             fixture.wifi.networks = fixture.wifi.networks.map(n => n.ssid === "Office" ? Object.assign({}, n, {known: true}) : n);
-            controller.network = fixture; controller.category = "network"; waitForRendering(view);
+            controller.network = fixture; controller.category = "network"; renderFrame(view);
             verify(!findChild(view, "advanced-Office"), "a known unsupported network shows no Advanced button");
             mouseClick(findChild(view, "wifi-Office"));
             compare(controller.calls[controller.calls.length - 1], {op: "wifiConnect", ssid: "Office"});
