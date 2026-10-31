@@ -488,6 +488,12 @@ pure models and the panel persistence suite under Node.js (built-in TypeScript
 support and module hooks; verified with Node.js 26.11), and the installation,
 hook and theming fixtures use Python 3.
 
+GitHub Actions runs the same checks on every push to `main` and every pull
+request (`.github/workflows/tests.yml`): `shellcheck -S warning` on every
+shell script, then `./test.sh` in an Arch Linux container, from a copy of the
+repo at `~/.config` and as an unprivileged user. The doctor stays local, since
+it inspects the running desktop.
+
 ## Installation details
 
 The install script checks/installs all dependencies, deploys the configs to

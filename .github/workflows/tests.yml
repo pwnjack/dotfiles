@@ -1,0 +1,63 @@
+# Runs what the pre-commit hook runs, on the whole tree: shellcheck at warning
+# level on every shell script, then every test suite. The repo expects to live
+# at ~/.config, so the suites run from a copy there as an unprivileged user
+# (root would pass permission checks a real user fails).
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # The host's PID namespace, for two suites: in the container's own,
+    # /proc/locks lists nothing, and the update card's lock probe reads it;
+    # and orphans would become zombies of `tail`, the default PID 1, which a
+    # suite waiting for a child to exit sees as still running.
+    container:
+      image: archlinux:latest
+      options: --pid=host
+    timeout-minutes: 20
+    steps:
+      # git first, so the checkout is a real repository: test.sh discovers
+      # suites from git. glibc-locales has the Italian locale the agenda
+      # suite formats dates in. The rest is what the suites call: libnm is the NM
+      # typelib the panel's network adapter imports, and the hypridle and
+      # hyprsunset parser suites pass silently without their binaries, so
+      # drop nothing on a green run.
+      - name: Install test dependencies
+        run: >-
+          pacman -Syu --noconfirm --needed
+          git diffutils which jq shellcheck inotify-tools glibc-locales
+          nodejs python python-icalendar lua luajit gjs libnm
+          hypridle hyprsunset
+          qt6-declarative quickshell waybar matugen imagemagick khal vdirsyncer
+          gcc make pkgconf gtk3 json-glib
+          ttf-firacode-nerd noto-fonts
+
+      # The copy below would otherwise carry the job token in .git/config.
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      # The workspace belongs to the runner's user, not the container's root,
+      # so git refuses it until it is marked safe. bash runs with pipefail,
+      # so a git failure cannot pass as "no files".
+      - name: Shellcheck
+        shell: bash
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git ls-files -z -- '*.sh' 'scripts/hooks/*' | xargs -0 shellcheck -S warning
+
+      - name: Test suites
+        shell: bash
+        run: |
+          useradd -m ci
+          cp -a "$GITHUB_WORKSPACE" /home/ci/.config
+          chown -R ci:ci /home/ci/.config
+          runuser -l ci -c 'cd ~/.config && ./test.sh'
