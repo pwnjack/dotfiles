@@ -54,6 +54,15 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git ls-files -z -- '*.sh' 'scripts/hooks/*' | xargs -0 shellcheck -S warning
 
+      - name: Lock probe diagnostics (temporary)
+        shell: bash
+        run: |
+          set -x
+          command -v flock stat; findmnt /tmp || mount | grep ' /tmp '
+          d=$(mktemp -d); exec 9>"$d/run.lock"; flock -n 9; echo "flock=$?"
+          stat -L -c '%Hd %Ld %i %d %D' "$d/run.lock"; cat /proc/locks; echo "pid=$$"
+          useradd -m dbg && runuser -l dbg -c 'd=$(mktemp -d); exec 9>"$d/l"; flock -n 9; stat -L -c "%Hd %Ld %i" "$d/l"; cat /proc/locks; echo pid=$$'
+
       - name: Test suites
         shell: bash
         run: |
