@@ -20,6 +20,6 @@ Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md
 - `keybinds/` — `keybinds-sheet.sh`, the one parser of `keybinds.lua`; `docs/` — `generate-keybindings.sh`, which renders `docs/keybindings.md` from it
 - `doctor/` — the library and check modules behind `doctor.sh` (see Doctor architecture)
 - `hooks/` — the git hooks (`pre-commit`, `post-merge`, with `post-checkout` a symlink to it) and `snapshot.sh`
-- `lib/` — sourced helpers: `assert.sh` (test assertions), `deploy.sh` (the installer's copy and backup plan), `hypr-vars.sh`, and `wallpaper.sh` (which image is the current wallpaper)
+- `lib/` — sourced helpers: `assert.sh` (test assertions), `deploy.sh` (the installer's copy and backup plan), `hypr-vars.sh`, `qs-launch.sh` (the Quickshell launchers' checks, launch lock, IPC toggle, palette export and wait for IPC) and `wallpaper.sh` (which image is the current wallpaper)
 
 Scripts are bash, apart from the Node modules in `updates/` (`fold.mjs`, `tooltip.mjs`) and `state/` (`overlay.mjs`, `overlay-cli.mjs`), one Python test stub in `capture/fakes/`, `theming/score-palettes.py`, and `calendar/ics-edit.py` and `calendar/declined.py`, which are Python because time zones and recurrence exceptions need khal's `icalendar`. They check for command existence before running and read preferences from `options/`.

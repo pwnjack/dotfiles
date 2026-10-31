@@ -4,44 +4,18 @@
 #   upcoming  the next-event pill's click: upcoming unfolded
 #   new       Super+Shift+E: the new-event sheet
 # A running card is toggled over IPC (the card applies the transition table);
-# otherwise one is started. Requests are serialised; the process exits on close.
+# otherwise one is started.
 set -euo pipefail
-config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
-cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/calendar-card"
 entry=${1:-}
 [[ $# -eq 1 && $entry =~ ^(month|upcoming|new)$ ]] || { echo 'Usage: calendar-card.sh month|upcoming|new' >&2; exit 2; }
-fail() {
-    notify-send -a Calendar 'Calendar' "$1" 2>/dev/null || true
-    echo "$1" >&2
-    exit 1
-}
-command -v qs >/dev/null 2>&1 || fail 'Install quickshell to show the calendar.'
-mkdir -p "$cache_dir" || fail "Cannot create $cache_dir for the calendar."
-exec 9>"$cache_dir/launch.lock" || fail "Cannot open the calendar lock in $cache_dir."
-flock -w 10 9 || fail 'The calendar is still starting; try again.'
-shell="$config_dir/quickshell/calendar/shell.qml"
-ipc() { qs -p "$shell" ipc call calendar "$@" 9>&-; }
-if ipc toggle "$entry" >/dev/null 2>&1; then exit 0; fi
-# shellcheck source=scripts/theming/palette.sh
-source "$config_dir/scripts/theming/palette.sh" || fail 'Cannot load the theme palette for the calendar.'
-declare -a wal
-# shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
-declare -A role=()
-if wal_load && role_load && foreground=$(wal_readable_on "${wal[0]}") \
-    && accent=$(wal_role primary) && on_accent=$(wal_role on_primary); then
-    export CALENDAR_BACKGROUND="${wal[0]}" CALENDAR_ACCENT="$accent"
-    export CALENDAR_FOREGROUND="$foreground" CALENDAR_ON_ACCENT="$on_accent"
-fi
+# shellcheck source=scripts/lib/qs-launch.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/qs-launch.sh"
+qs_launch calendar calendar Calendar 'the calendar'
+if qs_ipc toggle "$entry" >/dev/null 2>&1; then exit 0; fi
+qs_theme CALENDAR
 locale=${LC_ALL:-${LC_TIME:-${LANG:-en_US.UTF-8}}}
 export CALENDAR_ENTRY="$entry" CALENDAR_LOCALE="${locale%%.*}"
-export CALENDAR_FONT CALENDAR_BAR_POSITION CALENDAR_CLOCK
-CALENDAR_FONT=$(head -n1 "$config_dir/options/font" 2>/dev/null || true)
-CALENDAR_BAR_POSITION=$(head -n1 "$config_dir/options/bar-position" 2>/dev/null || echo top)
-CALENDAR_CLOCK=$(head -n1 "$config_dir/options/clock" 2>/dev/null || echo 24h)
-qs -p "$shell" --no-duplicate --daemonize >"$cache_dir/session.log" 2>&1 9>&- \
-    || fail "The calendar failed to start; see $cache_dir/session.log"
-for ((attempt = 0; attempt < 60; attempt++)); do
-    if ipc ping >/dev/null 2>&1; then exit 0; fi
-    sleep 0.05
-done
-fail "The calendar did not answer; see $cache_dir/session.log"
+export CALENDAR_BAR_POSITION CALENDAR_CLOCK
+CALENDAR_BAR_POSITION=$(qs_option bar-position top)
+CALENDAR_CLOCK=$(qs_option clock 24h)
+qs_start

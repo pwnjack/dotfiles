@@ -231,6 +231,7 @@ ShellRoot {
     }
     IpcHandler {
         target: "settings"
+        function ping(): string { return "ready"; }
         function toggle(): void {
             // Back after a timed-out prompt: the dialog may have applied the change since.
             if (root.authStalled) { root.authStalled = false; root.refresh(); return; }
