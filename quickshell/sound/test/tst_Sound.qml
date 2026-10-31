@@ -86,6 +86,7 @@ Item {
 
     TestCase {
         name: "Sound"
+        function renderFrame(item) { item.Window.window.update(); verify(waitForRendering(item)); }
         when: windowShown
 
         function initTestCase() {
@@ -120,7 +121,7 @@ Item {
             return controller.calls.filter(call => call[0] === name);
         }
         function settle() {
-            waitForRendering(popover);
+            renderFrame(popover);
             wait(400);
         }
         function appRow(key) {
@@ -161,7 +162,7 @@ Item {
             const hidden = findChild(picker, "hiddenRows");
             verify(!hidden.itemAt(0).visible);
             mouseClick(more);
-            waitForRendering(popover);
+            renderFrame(popover);
             const row = hidden.itemAt(0);
             verify(row.visible);
             verify(row.opacity < 1);
@@ -179,7 +180,7 @@ Item {
             controller.ready = false;
             controller.output = null;
             controller.input = null;
-            waitForRendering(popover);
+            renderFrame(popover);
             compare(findChild(popover, "outputLabel").text, "Sound server not running");
             compare(findChild(popover, "inputLabel").text, "Sound server not running");
             verify(!findChild(popover, "outputSlider").visible);
@@ -202,7 +203,7 @@ Item {
             for (let i = 0; i < entries.count; i++) labels.push(entries.itemAt(i).text);
             compare(labels, ["Default (follows Devices)", "G533 Wireless Headset Dongle", "Speakers", "Surround 7.1"]);
             verify(entries.itemAt(0).checked);
-            waitForRendering(popover);
+            renderFrame(popover);
             mouseClick(entries.itemAt(3));
             compare(called("route"), [["route", "81", "effect_input.virtual_surround"]]);
             tryVerify(() => popover.openMenu === null);
@@ -243,7 +244,7 @@ Item {
         function test_default_vanishes() {
             controller.output = null;
             controller.outputs = { shown: [speakers()], hidden: [monitor()] };
-            waitForRendering(popover);
+            renderFrame(popover);
             compare(findChild(popover, "outputLabel").text, "No output");
             verify(!findChild(popover, "outputSlider").visible);
             mouseClick(findChild(popover, "outputChevron"));
@@ -261,7 +262,7 @@ Item {
             openRouteMenu("81");
             controller.apps = [app(92, "World of Warcraft", 0.85)];
             tryVerify(() => popover.openMenu === null);
-            waitForRendering(popover);
+            renderFrame(popover);
             compare(findChild(popover, "appRows").count, 1);
             compare(called("route"), []);
         }
@@ -285,7 +286,7 @@ Item {
             controller.output = echo;
             // A stream starting in the same change: a plain array model would rebuild every row.
             controller.apps = [app(81, "Firefox", 0.2), app(92, "World of Warcraft", 0.3), app(93, "mpv", 0.4)];
-            waitForRendering(popover);
+            renderFrame(popover);
             compare(slider.level, dragged);
             compare(findChild(slider, "percent").text, Math.round(dragged * 100) + " %");
             compare(called("setVolume"), []);
@@ -312,7 +313,7 @@ Item {
             mousePress(slider, start.x, start.y);
             const held = slider.level;
             controller.apps = [app(81, "Firefox", 1), app(92, "World of Warcraft", 0.1), app(93, "mpv", 0.4)];
-            waitForRendering(popover);
+            renderFrame(popover);
             verify(appRow("92") === row);
             compare(slider.level, held);
             mouseRelease(slider, start.x, start.y);
@@ -330,7 +331,7 @@ Item {
             // World of Warcraft's stream ends and a new one takes its object
             // id: same name and place in the list, but another serial.
             controller.apps = [app(81, "Firefox", 1), app(97, "World of Warcraft", 0.85)];
-            waitForRendering(popover);
+            renderFrame(popover);
             verify(appRow("92") === null);
             verify(appRow("97") !== null);
             mouseRelease(popover, at.x, at.y);
@@ -377,7 +378,7 @@ Item {
             const hot = mic();
             hot.volume = 1.6;
             controller.input = hot;
-            waitForRendering(popover);
+            renderFrame(popover);
             const output = findChild(popover, "outputSlider");
             mouseWheel(output, output.width / 2, output.height / 2, 0, -120);
             const input = findChild(popover, "inputSlider");
@@ -398,7 +399,7 @@ Item {
             const next = speakers();
             next.current = true;
             controller.output = next;
-            waitForRendering(popover);
+            renderFrame(popover);
             mouseRelease(slider, at.x, at.y);
             compare(called("setVolume").filter(call => call[1] === "alsa_output.pci-speakers"), []);
             // The app rows hold the same rule: a row whose stream ended commits nothing.
@@ -420,7 +421,7 @@ Item {
                 label: "Surround 7.1", volume: 1, muted: false, battery: null, current: true, virtual: true };
             controller.output = surround;
             controller.outputs = { shown: [surround, speakers()], hidden: [] };
-            waitForRendering(popover);
+            renderFrame(popover);
             const chip = findChild(popover, "outputVirtual");
             verify(chip.visible);
             compare(chip.text, "Virtual");
@@ -442,7 +443,7 @@ Item {
             compare(entries.itemAt(0).text, "Default (follows Devices)");
             for (let i = 0; i < entries.count; i++) verify(!entries.itemAt(i).checked, entries.itemAt(i).text);
             // Menus still route, Default included.
-            waitForRendering(popover);
+            renderFrame(popover);
             mouseClick(entries.itemAt(0));
             compare(called("route"), [["route", "81", "default"]]);
         }
@@ -456,7 +457,7 @@ Item {
             const loud = headset();
             loud.volume = 1.2;
             controller.output = loud;
-            waitForRendering(popover);
+            renderFrame(popover);
             const slider = findChild(popover, "outputSlider");
             compare(findChild(slider, "percent").text, "120 %");
             const track = findChild(slider, "track");
@@ -524,7 +525,7 @@ Item {
             const advanced = popover.openMenu.contentItem;
             compare(advanced.objectName, "advancedEntry");
             compare(advanced.text, "Advanced…");
-            waitForRendering(popover);
+            renderFrame(popover);
             mouseClick(advanced);
             compare(called("openAdvanced").length, 1);
             tryVerify(() => popover.openMenu === null);
