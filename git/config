@@ -1,5 +1,6 @@
 # Git reads this file as well as ~/.gitconfig, which keeps identity and
-# credentials and stays untracked. Only display settings live here.
+# credentials and stays untracked. Display settings and workflow defaults
+# live here; anything in ~/.gitconfig wins over them.
 #
 # delta pages diffs: syntax highlighting, word-level changes, line numbers.
 # Git starts a pager only when writing to a terminal, so scripts still read
@@ -14,3 +15,22 @@
 	navigate = true
 	line-numbers = true
 	syntax-theme = ansi
+
+# zdiff3 shows the merge base inside conflict markers; histogram gives
+# readable diffs where code moved. rerere replays a resolution git has seen.
+[merge]
+	conflictStyle = zdiff3
+[diff]
+	algorithm = histogram
+[rerere]
+	enabled = true
+# A first push sets the upstream; fetch drops branches deleted upstream.
+[push]
+	autoSetupRemote = true
+[fetch]
+	prune = true
+# fixup!/squash! commits move into place, and a rebase carries the branches
+# stacked on the one being rewritten.
+[rebase]
+	autoSquash = true
+	updateRefs = true
