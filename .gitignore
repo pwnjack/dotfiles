@@ -6,6 +6,7 @@
 # Repo files
 !/.gitignore
 !/.env.example
+!/.github/
 !/AGENTS.md
 !/CLAUDE.md
 !/LICENSE
