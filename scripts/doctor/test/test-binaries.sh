@@ -65,6 +65,9 @@ hl.exec_cmd(apps.polkitAgent)
 hl.exec_cmd("$HOME/.config/scripts/hyprland/startup.sh")
 hl.exec_cmd("$HOME/.config/scripts/hyprland/respawn.sh absent-wrapped-qq --flag")
 hl.exec_cmd("$HOME/.config/scripts/hyprland/respawn.sh cat")
+hl.exec_cmd("/usr/lib/absent-helper-qq/agent")
+hl.exec_cmd("$HOME/.config/scripts/hyprland/respawn.sh /usr/lib/absent-wrapped-helper-qq")
+hl.exec_cmd("/bin/sh -c true")
 BIN_EOF
 
 git -C "$bin_fixture" add -A
@@ -96,6 +99,13 @@ assert_contains "$(bin_line "$bin_out_file" "absent-wrapped-qq")" "WARN" \
     "missing binary under respawn.sh is WARN"
 assert_contains "$(bin_line "$bin_out_file" "absent-polkit-qq")" "WARN" \
     "missing \$polkitAgent binary is WARN"
+assert_contains "$(bin_line "$bin_out_file" "/usr/lib/absent-helper-qq/agent")" "WARN" \
+    "missing absolute-path command is WARN"
+assert_contains "$(bin_line "$bin_out_file" "/usr/lib/absent-helper-qq/agent")" "not an executable file" \
+    "it is reported as a missing file, not a package"
+assert_contains "$(bin_line "$bin_out_file" "absent-wrapped-helper-qq")" "WARN" \
+    "missing absolute-path command under respawn.sh is WARN"
+assert_not_contains "$bin_out" "/bin/sh" "an executable absolute path is fine"
 assert_contains "$(bin_line "$bin_out_file" "undefinedVariable")" "WARN" \
     "unresolvable variable is WARN"
 assert_contains "$(bin_line "$bin_out_file" "absent-pipe-qq")" "WARN" \

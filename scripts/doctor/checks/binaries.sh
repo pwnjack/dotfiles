@@ -64,11 +64,12 @@ _bin_check_token() {
 
     [ -n "$token" ] || return 0
 
-    # Paths belong to the reference check. Both `~` and `$HOME` are quoted:
-    # an unquoted ~/* in a case pattern is tilde-expanded to the running
-    # user's home, so it would never match the literal "~/" in a config.
+    # Repo paths belong to the reference check. Both `~` and `$HOME` are
+    # quoted: an unquoted ~/* in a case pattern is tilde-expanded to the
+    # running user's home, so it would never match the literal "~/" in a
+    # config. Absolute paths (a package's /usr/lib helper) are checked below.
     case "$token" in
-        /*|'~'/*|'$HOME'/*) return 0 ;;
+        '~'/*|'$HOME'/*) return 0 ;;
     esac
 
     # Environment assignments are not commands.
@@ -94,6 +95,12 @@ _bin_check_token() {
     _BIN_SEEN="$_BIN_SEEN $bin "
 
     command -v "$bin" >/dev/null 2>&1 && return 0
+
+    if [[ $bin == /* ]]; then
+        warn "$origin invokes '$bin', which is not an executable file" \
+             "pacman -F $(doctor_q "$bin") names the package that ships it"
+        return 0
+    fi
 
     # A package of the same name being installed changes the diagnosis
     # completely: the config is not missing a package, it is naming something

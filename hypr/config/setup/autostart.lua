@@ -13,7 +13,9 @@ return function(apps)
         -- System services
         hl.exec_cmd("$HOME/.config/scripts/hyprland/respawn.sh hypridle")
         hl.exec_cmd("$HOME/.config/scripts/hyprland/respawn.sh hyprsunset")
-        hl.exec_cmd("systemctl --user start " .. apps.polkitAgent)
+        -- Polkit agent: mate-polkit ships no PATH executable or user unit; its GTK3
+        -- dialog takes the matugen GTK theme at a third of hyprpolkitagent's memory.
+        hl.exec_cmd("$HOME/.config/scripts/hyprland/respawn.sh /usr/lib/mate-polkit/polkit-mate-authentication-agent-1")
         hl.exec_cmd("wl-paste --type text --watch cliphist store")
         hl.exec_cmd("wl-paste --type image --watch cliphist store")
 

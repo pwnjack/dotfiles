@@ -278,7 +278,8 @@ interactive `SetTimezone` opened hyprpolkitagent's dialog (Waybar's title read
 be clicked. Decision: **`authHidesPanel: true`** (`shell.qml`): the panel hides while a prompt
 is open. A dismissed dialog returns `org.freedesktop.DBus.Error.AccessDenied: Permission denied`, which
 `authError.mjs` maps to "Authentication was cancelled; nothing changed." (checked: the time zone
-stayed Europe/Rome).
+stayed Europe/Rome). Rechecked 2026-10-31 after the switch to mate-polkit: the panel hid, the
+dialog was reachable and themed, and Cancel left the zone unchanged with the same message.
 
 ### Per-user locale
 The systemd user manager already has `LANG=en_US.UTF-8` and `LC_TIME=it_IT.UTF-8`, and
@@ -326,7 +327,7 @@ Traps:
   `LC_TIME` and its own `locale` option for `{:%a}`-style names; `{:L%a}` is what
   makes the Formats row reach the bar, the way `date` already makes it reach hyprlock.
 
-- **Polkit focus and visibility.** `authHidesPanel` is true in `shell.qml`: a panel-shaped Overlay hid hyprpolkitagent's dialog completely, so the
+- **Polkit focus and visibility.** `authHidesPanel` is true in `shell.qml`: a panel-shaped Overlay hid the agent's dialog completely, so the
   panel hides while `authPending` is set and comes back after the answer. A dismissed
   dialog returns `org.freedesktop.DBus.Error.AccessDenied: Permission denied`, shown as
   "Authentication was cancelled; nothing changed."

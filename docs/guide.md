@@ -541,7 +541,7 @@ git reset origin/main   # marks repo files as tracked without touching them
 ```bash
 # install.sh's repo packages. install.sh itself sends any your repos lack to the
 # AUR helper; on plain Arch, move those to the paru line below.
-sudo pacman -S --needed hyprland hyprlock hypridle hyprpolkitagent hyprshot \
+sudo pacman -S --needed hyprland hyprlock hypridle mate-polkit hyprshot \
                hyprpicker hyprsunset swappy uwsm xdg-desktop-portal-hyprland \
                xdg-desktop-portal-gtk waybar swaync awww waypaper quickshell \
                rofi rofi-emoji ghostty fish starship fzf fd neovim zed obsidian \
