@@ -178,3 +178,28 @@ wal_oklch() {
                 enc(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s)
         }'
 }
+
+# A component script run from another checkout (a git worktree) would render
+# unmerged code into the live cache and reload the live desktop, so it stops
+# here. Only the login user's own cache counts as live: tests point
+# XDG_CACHE_HOME or HOME at a throwaway directory and are unaffected. Callers
+# that are not component scripts pay for no subprocess.
+_wal_refuse_foreign_checkout() {
+    local frame script='' entry home cache checkout config
+    for frame in "${BASH_SOURCE[@]}"; do
+        [[ ${frame##*/} == apply_wal_colors.sh ]] && { script=$frame; break; }
+    done
+    [[ $script ]] || return 0
+    entry=$(getent passwd "$UID" 2>/dev/null) || return 0
+    IFS=: read -r _ _ _ _ _ home _ <<< "$entry"
+    cache=$(realpath -m -- "${XDG_CACHE_HOME:-$HOME/.cache}" 2>/dev/null) || return 0
+    [[ $cache == "$(realpath -m -- "$home/.cache")" ]] || return 0
+    script=$(realpath -m -- "$script")
+    checkout=${script%/*/*}
+    config=$(realpath -m -- "${XDG_CONFIG_HOME:-$HOME/.config}")
+    [[ $checkout == "$config" ]] && return 0
+    printf '%s: not the live checkout (%s); refusing to write the live cache\n' \
+        "$script" "$config" >&2
+    exit 1
+}
+_wal_refuse_foreign_checkout
