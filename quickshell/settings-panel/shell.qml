@@ -16,7 +16,7 @@ ShellRoot {
     property bool authPending: false
     // Set when an authorised write timed out with its polkit dialog possibly still open.
     property bool authStalled: false
-    // Probed (docs/settings-panel.md): hyprpolkitagent's dialog is hidden behind this Overlay surface.
+    // Probed (docs/settings-panel.md): the polkit agent's dialog is hidden behind this Overlay surface.
     readonly property bool authHidesPanel: true
     property bool loading: true
     property bool loaded: false

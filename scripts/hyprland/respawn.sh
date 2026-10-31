@@ -21,8 +21,8 @@
 # delay. A daemon that dies RESPAWN_BURST times within RESPAWN_WINDOW seconds
 # is left down, with a notification, instead of spinning.
 #
-# Before each start the wrapper looks for the daemon by name (`pgrep -x`, so
-# the name must fit the kernel's 15 characters): when the settings panel or
+# Before each start the wrapper looks for the daemon by name (`pgrep -x` on
+# the first 15 characters, all the kernel keeps): when the settings panel or
 # waybar.sh started one while this wrapper waited out its delay, that start
 # owns it and this wrapper bows out instead of starting a second copy.
 
@@ -45,6 +45,7 @@ compositor_alive() {
 }
 
 name=${1##*/}
+name=${name:0:15}
 burst=${RESPAWN_BURST:-5}
 window=${RESPAWN_WINDOW:-30}
 delay=${RESPAWN_DELAY:-1}

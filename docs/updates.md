@@ -92,8 +92,8 @@ spelling.
   else, and never reboots.
 - The card's Update button is an accident guard, not a security boundary.
 - **polkit was rejected.** Only one agent may register per session, and
-  hyprpolkitagent's dialog cannot be styled, so an authentication prompt would
-  break the card's look and flow. (Flatpak needs nothing:
+  its dialog is a separate window, so an authentication prompt would break
+  the card's look and flow. (Flatpak needs nothing:
   `org.freedesktop.Flatpak.app-update` is `implicit active: yes`.)
 - **AUR stays in the terminal.** paru runs `sudo pacman -U <file>` on a
   freshly built package; that cannot be passwordless without a rule for

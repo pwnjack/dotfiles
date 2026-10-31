@@ -28,7 +28,4 @@ return {
     -- floating windows clear of it. Both rows reload Hyprland when saved.
     barPosition = read_option("bar-position", "top"),
     barStyle = read_option("bar-style", "floating"),
-
-    -- The package ships this systemd user unit rather than a PATH executable.
-    polkitAgent = "hyprpolkitagent.service",
 }

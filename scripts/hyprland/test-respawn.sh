@@ -141,6 +141,21 @@ assert_eq "$?" 0 "a wrapper for a daemon that is already running exits 0"
 finish_respawn
 assert_eq "$runs" 1 "and starts nothing"
 
+# A daemon named past the kernel's 15-character comm, given by absolute path
+# (mate-polkit's agent), is still found while it runs.
+long="$TMP/long/${DAEMON}-with-a-long-name"
+mkdir -p "$TMP/long"
+printf '#!/bin/bash\necho run >> "%s"\nsleep 3\n' "$TMP/long/runs" > "$long"
+chmod +x "$long"
+"$long" &
+holder=$!
+wait_for test -s "$TMP/long/runs"
+env PATH="$TMP/bin:$PATH" timeout 10 bash "$RESPAWN" "$long" >/dev/null 2>&1
+assert_eq "$?" 0 "a wrapper for a running long-named daemon exits 0"
+assert_eq "$(wc -l < "$TMP/long/runs")" 1 "and starts no second copy"
+kill "$holder" 2>/dev/null
+wait "$holder" 2>/dev/null
+
 # The session ends while the wrapper waits out its delay.
 start_respawn "139 0" RESPAWN_DELAY=1
 wait_for restart_logged

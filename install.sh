@@ -88,8 +88,10 @@ fi
 # pacman repos are installed with pacman, the rest go to the AUR helper.
 PACKAGES=(
     # Hyprland ecosystem
-    "hyprland" "hyprlock" "hypridle" "hyprpolkitagent"
+    "hyprland" "hyprlock" "hypridle"
     "hyprshot" "hyprpicker" "hyprsunset" "swappy"
+    # Polkit agent, started by autostart.lua
+    "mate-polkit"
     # Session manager; XDG autostart (the panel's Startup page) runs through it
     "uwsm"
     # Portals named in xdg-desktop-portal/hyprland-portals.conf
