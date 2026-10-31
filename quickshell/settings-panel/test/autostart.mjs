@@ -112,7 +112,7 @@ console.log('ok: parseEntry keeps the first key and only the main group')
 
 const lua = fs.readFileSync(new URL('../../../hypr/config/setup/autostart.lua', import.meta.url), 'utf8')
 const commands = autostart.sessionCommands(lua)
-assert.equal(commands[0], 'waybar')
+assert.equal(commands[0], '$HOME/.config/scripts/hyprland/respawn.sh waybar')
 assert.ok(commands.includes('systemctl --user start …'))
 assert.ok(commands.includes('wl-paste --type text --watch cliphist store'))
 assert.deepEqual(autostart.sessionCommands('-- hl.exec_cmd("commented")\nhl.exec_cmd("a \\"q\\"")'), ['a "q"'])

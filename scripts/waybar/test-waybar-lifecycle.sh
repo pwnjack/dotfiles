@@ -20,7 +20,7 @@ printf '%s\n' \
 # shellcheck disable=SC2016
 printf '%s\n' \
     '#!/bin/bash' \
-    'printf "started\n" > "$WAYBAR_LOG"' > "$TMP/bin/waybar"
+    'printf "started by %s\n" "$(ps -o args= -p "$PPID")" > "$WAYBAR_LOG"' > "$TMP/bin/waybar"
 # shellcheck disable=SC2016
 printf '%s\n' \
     '#!/bin/bash' \
@@ -30,7 +30,10 @@ printf '%s\n' \
     '    *" call "*) printf "%s\n" "$*" >> "$BUSCTL_LOG" ;;' \
     'esac' > "$TMP/bin/busctl"
 printf '%s\n' '#!/bin/bash' 'exit 0' > "$TMP/bin/sleep"
-chmod +x "$TMP/bin/pkill" "$TMP/bin/waybar" "$TMP/bin/busctl" "$TMP/bin/sleep"
+# respawn.sh looks for a running bar before it starts one; the host's own
+# Waybar must not count.
+printf '%s\n' '#!/bin/bash' 'exit 1' > "$TMP/bin/pgrep"
+chmod +x "$TMP/bin/pkill" "$TMP/bin/waybar" "$TMP/bin/busctl" "$TMP/bin/sleep" "$TMP/bin/pgrep"
 
 run_script() {
     : > "$TMP/pkill.log"
@@ -68,8 +71,9 @@ assert_absent_case() {
         [ ! -e "$TMP/waybar.log" ] || break
         sleep 0.01
     done
+    # Started under respawn.sh, so a crash brings the bar back.
     if [ -e "$TMP/waybar.log" ] && [ -e "$TMP/state/bar.css" ] && [ -e "$TMP/state/clock.jsonc" ] &&
-       [ -e "$TMP/cache/wal/colors-waybar.css" ]; then
+       [ -e "$TMP/cache/wal/colors-waybar.css" ] && grep -q '/hyprland/respawn.sh waybar$' "$TMP/waybar.log"; then
         pass "$label"
     else
         fail "$label"

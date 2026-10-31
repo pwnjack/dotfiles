@@ -118,14 +118,20 @@ _bin_package_installed() {
 # _bin_check_command <raw-command-string> <origin-file>
 # Splits pipelines and command lists, then checks each segment's first token.
 _bin_check_command() {
-    local raw="$1" origin="$2" segment first
+    local raw="$1" origin="$2" segment first rest
 
     raw="${raw%&}"
 
     while read -r segment; do
         # Leading whitespace would otherwise become the first field.
-        read -r first _ <<< "$segment"
+        read -r first rest <<< "$segment"
         _bin_check_token "$first" "$origin"
+        # respawn.sh is checked as a path; the binary it runs is checked here.
+        case "$first" in
+            */scripts/hyprland/respawn.sh)
+                read -r first _ <<< "$rest"
+                _bin_check_token "$first" "$origin" ;;
+        esac
         _bin_check_systemd_unit "$segment" "$origin"
     done < <(printf '%s\n' "$raw" | sed 's/&&/\n/g; s/||/\n/g; s/[|;]/\n/g')
 }

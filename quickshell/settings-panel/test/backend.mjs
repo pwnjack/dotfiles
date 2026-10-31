@@ -202,8 +202,10 @@ globalThis.settingsMocks = {
         SpawnFlags: {SEARCH_PATH:1,STDOUT_TO_DEV_NULL:2,STDERR_TO_DEV_NULL:4},
         spawn_async: (...args) => {
             events.push(['spawn',args[1]])
-            if (failNextSpawn && args[1][0] === failNextSpawn) { failNextSpawn = ''; return }
-            running.add(args[1][0])
+            // respawn.sh runs the daemon it wraps.
+            const program = args[1][0].endsWith('/scripts/hyprland/respawn.sh') ? args[1][1] : args[1][0]
+            if (failNextSpawn && program === failNextSpawn) { failNextSpawn = ''; return }
+            running.add(program)
         },
         timeout_add: (_priority,_ms,fn) => { setImmediate(fn); },
     },
@@ -723,19 +725,19 @@ for (const [label,original] of [['no state file',''],['one trailing newline','$l
     events=[]
     await dispatch({op:'set',id:'power.suspend',value:1800})
     assert.ok(events.some(e=>e[0]==='pkill' && e[2]==='hypridle'),`add restarts hypridle (${label})`)
-    assert.ok(events.some(e=>e[0]==='spawn' && e[1][0]==='hypridle'),`add spawns hypridle (${label})`)
+    assert.ok(events.some(e=>e[0]==='spawn' && e[1][0]===base+'/scripts/hyprland/respawn.sh' && e[1][1]==='hypridle'),`add spawns hypridle (${label})`)
     assert.equal(files.get(idleState),original+'\n\n'+suspendAt(1800),`add is byte-exact (${label})`)
 
     events=[]
     await dispatch({op:'set',id:'power.suspend',value:3600})
     assert.ok(events.some(e=>e[0]==='pkill' && e[2]==='hypridle'),`retime restarts hypridle (${label})`)
-    assert.ok(events.some(e=>e[0]==='spawn' && e[1][0]==='hypridle'),`retime spawns hypridle (${label})`)
+    assert.ok(events.some(e=>e[0]==='spawn' && e[1][0]===base+'/scripts/hyprland/respawn.sh' && e[1][1]==='hypridle'),`retime spawns hypridle (${label})`)
     assert.equal(files.get(idleState),original+'\n\n'+suspendAt(3600),`retime keeps everything else identical (${label})`)
 
     events=[]
     await dispatch({op:'set',id:'power.suspend',value:0})
     assert.ok(events.some(e=>e[0]==='pkill' && e[2]==='hypridle'),`remove restarts hypridle (${label})`)
-    assert.ok(events.some(e=>e[0]==='spawn' && e[1][0]==='hypridle'),`remove spawns hypridle (${label})`)
+    assert.ok(events.some(e=>e[0]==='spawn' && e[1][0]===base+'/scripts/hyprland/respawn.sh' && e[1][1]==='hypridle'),`remove spawns hypridle (${label})`)
     if (original === '') assert.equal(files.has(idleState),false,`removal deletes the state file (${label})`)
     else assert.equal(files.get(idleState),original,`removal restores the file byte-for-byte (${label})`)
 }

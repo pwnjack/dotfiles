@@ -37,6 +37,7 @@ hl.exec_cmd("~/.config/scripts/thing.sh")
 hl.exec_cmd("$HOME/.config/scripts/other.sh")
 hl.exec_cmd("systemctl --user start " .. apps.polkitAgent)
 hl.exec_cmd("svc-running-qq")
+hl.exec_cmd("$HOME/.config/scripts/hyprland/respawn.sh svc-wrapped-qq --flag")
 SVC_EOF
 
 cat > "$svc_fixture/install.sh" <<'SVC_EOF'
@@ -63,6 +64,10 @@ assert_not_contains "$svc_daemons" "other.sh" "\$HOME path entries are excluded 
 assert_not_contains "$svc_daemons" "polkitAgent" "bare \$variable entries are excluded from the daemon list"
 assert_eq "$(printf '%s\n' "$svc_daemons" | grep -c '^svc-running-qq$')" "1" \
     "a daemon declared twice is listed once"
+assert_eq "$(printf '%s\n' "$svc_daemons" | grep -c '^svc-wrapped-qq$')" "1" \
+    "a daemon under respawn.sh is listed by its own name"
+assert_not_contains "$svc_daemons" "respawn.sh" "respawn.sh itself is not a daemon candidate"
+assert_not_contains "$svc_daemons" "--flag" "a wrapped daemon's arguments are not daemon candidates"
 
 # --- _svc_install_packages: both arrays, comments and quotes stripped -----
 svc_pkgs="$(_svc_install_packages)"

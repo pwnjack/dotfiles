@@ -63,6 +63,8 @@ hl.exec_cmd("env")
 hl.exec_cmd("absent-daemon-qq")
 hl.exec_cmd(apps.polkitAgent)
 hl.exec_cmd("$HOME/.config/scripts/hyprland/startup.sh")
+hl.exec_cmd("$HOME/.config/scripts/hyprland/respawn.sh absent-wrapped-qq --flag")
+hl.exec_cmd("$HOME/.config/scripts/hyprland/respawn.sh cat")
 BIN_EOF
 
 git -C "$bin_fixture" add -A
@@ -90,6 +92,8 @@ assert_contains "$(bin_line "$bin_out_file" "absent-bin-qq")" "WARN" \
     "missing literal keybind binary is WARN"
 assert_contains "$(bin_line "$bin_out_file" "absent-daemon-qq")" "WARN" \
     "missing autostart binary is WARN"
+assert_contains "$(bin_line "$bin_out_file" "absent-wrapped-qq")" "WARN" \
+    "missing binary under respawn.sh is WARN"
 assert_contains "$(bin_line "$bin_out_file" "absent-polkit-qq")" "WARN" \
     "missing \$polkitAgent binary is WARN"
 assert_contains "$(bin_line "$bin_out_file" "undefinedVariable")" "WARN" \
@@ -111,6 +115,8 @@ assert_not_contains "$bin_out" "Mod" "modifier variables are never treated as bi
 assert_not_contains "$bin_out" "'bash'" "installed \$terminal produces no finding"
 assert_not_contains "$bin_out" "'cat'" "installed literal binary produces no finding"
 assert_not_contains "$bin_out" "'env'" "binary shared by keybinds and autostart produces no finding"
+assert_not_contains "$bin_out" "respawn.sh" "respawn.sh's own path is left to the reference check"
+assert_not_contains "$bin_out" "'--flag'" "a wrapped binary's arguments are not checked as binaries"
 
 # --- dedupe -------------------------------------------------------------
 # Count finding lines only: the name also appears in that finding's fix hint.

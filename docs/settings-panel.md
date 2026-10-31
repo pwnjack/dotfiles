@@ -478,8 +478,9 @@ Traps:
   import is a stylesheet error Waybar exits on — the same as a missing palette `colors-waybar.css`. So
   `install.sh` renders it, `waybar.sh` renders both includes before every start (the
   Restart Waybar button and the visibility toggle's start path both go through it), and
-  `doctor.sh` reports the dangling `waybar/bar.css` symlink as an ERROR. Login's bare
-  `waybar` is left as is so the doctor can still check the daemon is alive.
+  `doctor.sh` reports the dangling `waybar/bar.css` symlink as an ERROR. Login starts
+  Waybar under `respawn.sh` without rendering, and the doctor reads the daemon's name
+  through the wrapper to check it is alive.
 - **Tests must not read the live options.** The network and updates suites point
   `BAR_OPTIONS` at an empty directory; otherwise a user's own "hidden" breaks them, and the
   pre-commit hook with them.
