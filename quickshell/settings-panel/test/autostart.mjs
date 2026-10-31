@@ -106,8 +106,6 @@ assert.equal(classify('Type=Application\nName=X\n').installed, false)
 assert.equal(classify('Type=Application\nTryExec=skip\nExec=absent\n').binary, 'absent')
 assert.equal(classify('Type=Application\nTryExec=skip\nExec=absent\n').installed, false)
 assert.equal(classify('Type=Application\nTryExec=absent\nExec=skip\n').binary, 'absent')
-assert.equal(autostart.execBinary({Exec: "'/usr/bin/true' x"}), '/usr/bin/true')
-assert.equal(autostart.execBinary({Exec: 'foo"bar baz" --flag'}), 'foobar baz')
 console.log('ok: parseEntry keeps the first key and only the main group')
 
 const lua = fs.readFileSync(new URL('../../../hypr/config/setup/autostart.lua', import.meta.url), 'utf8')

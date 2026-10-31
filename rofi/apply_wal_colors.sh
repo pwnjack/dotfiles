@@ -34,7 +34,5 @@ cat > "$cache_dir/colors-rofi.rasi" <<EOF
     foreground: ${wal[7]};
     selected:   $(wal_role secondary_container)66;
     border:     ${wal[7]}CC;
-    accent:     $(wal_role primary);
-    accentlow:  $(wal_role primary)66;
 }
 EOF

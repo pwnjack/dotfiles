@@ -28,21 +28,15 @@ background="${wal[0]#\#}"
     printf '%s = rgba(%sCC)\n' '$foreground' "$foreground"
     printf '%s = rgb(%s)\n\n' '$foregroundfull' "$foreground"
     printf '%s = rgba(%sCC)\n' '$background' "$background"
-    printf '%s = rgb(%s)\n' '$backgroundfull' "$background"
 } > "$cache_dir/colors-hyprland.conf" || exit 1
 
 {
     echo 'return {'
-    printf '    foreground = "rgba(%sCC)",\n' "$foreground"
     printf '    foreground_full = "rgb(%s)",\n' "$foreground"
-    printf '    background = "rgba(%sCC)",\n' "$background"
-    printf '    background_full = "rgb(%s)",\n' "$background"
     echo '}'
 } > "$cache_dir/colors-hyprland.lua" || exit 1
 
-# A running Lua-configured Hyprland picks up the new module on reload. During
-# the one-time migration from Hyprlang, Hyprland intentionally stays on the
-# language it started with until the next session, so this is harmless there.
+# A running Hyprland picks up the new module on reload.
 if command -v hyprctl >/dev/null 2>&1; then
     hyprctl reload >/dev/null 2>&1 || true
 fi
