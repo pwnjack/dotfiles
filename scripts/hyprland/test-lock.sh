@@ -70,9 +70,11 @@ mkdir -p "$TMP/empty"
 XDG_CONFIG_HOME="$TMP/empty" bash "$TEST_DIR/lock.sh"
 assert_eq "$(cat "$FAKE_LOG/hyprlock")" "args=" "hyprlock starts without record.sh"
 
-# Two concurrent callers start one hyprlock.
+# Two concurrent callers start one hyprlock. The fake must outlive lock.sh's
+# 1 s flock wait, as a real hyprlock does: with a 1 s hold the lock could come
+# free while the second caller still waited, after the fake had gone.
 reset_lock
-export FAKE_HYPRLOCK_HOLD=1
+export FAKE_HYPRLOCK_HOLD=3
 bash "$TEST_DIR/lock.sh" & p1=$!
 bash "$TEST_DIR/lock.sh" & p2=$!
 wait "$p1" "$p2"
