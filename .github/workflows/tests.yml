@@ -15,18 +15,25 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    container: archlinux:latest
+    # --init reaps orphans, so a suite that waits for a child to exit does not
+    # see it linger as a zombie of `tail`, the container's default PID 1.
+    # /tmp is a tmpfs because on overlayfs /proc/locks names the underlying
+    # file, not the one stat sees, and the update card's lock probe compares them.
+    container:
+      image: archlinux:latest
+      options: --init --tmpfs /tmp:rw,exec,nosuid,size=4g
     timeout-minutes: 20
     steps:
       # git first, so the checkout is a real repository: test.sh discovers
-      # suites from git. The rest is what the suites call: libnm is the NM
+      # suites from git. glibc-locales has the Italian locale the agenda
+      # suite formats dates in. The rest is what the suites call: libnm is the NM
       # typelib the panel's network adapter imports, and the hypridle and
       # hyprsunset parser suites pass silently without their binaries, so
       # drop nothing on a green run.
       - name: Install test dependencies
         run: >-
           pacman -Syu --noconfirm --needed
-          git diffutils which jq shellcheck inotify-tools
+          git diffutils which jq shellcheck inotify-tools glibc-locales
           nodejs python python-icalendar lua luajit gjs libnm
           hypridle hyprsunset
           qt6-declarative quickshell waybar matugen imagemagick khal vdirsyncer
