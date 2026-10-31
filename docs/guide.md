@@ -529,20 +529,25 @@ git reset origin/main   # marks repo files as tracked without touching them
 # install.sh's repo packages. install.sh itself sends any your repos lack to the
 # AUR helper; on plain Arch, move those to the paru line below.
 sudo pacman -S --needed hyprland hyprlock hypridle hyprpolkitagent hyprshot \
-               hyprpicker hyprsunset swappy waybar swaync awww waypaper \
-               quickshell rofi rofi-emoji ghostty fish starship fzf fd neovim \
-               zed kate yazi btop bottom resources fastfetch cava \
-               pacman-contrib xdg-terminal-exec cliphist wl-clipboard \
-               gpu-screen-recorder slurp playerctl qt5ct qt6ct \
-               nwg-look pavucontrol blueman nm-connection-editor \
-               gnome-calculator khal vdirsyncer headsetcontrol matugen jq ffmpeg \
-               inotify-tools zoxide git-delta aichat shellcheck zip unzip gcc \
-               make pkgconf gtk3 json-glib python nodejs gjs ttf-firacode-nerd \
+               hyprpicker hyprsunset swappy uwsm xdg-desktop-portal-hyprland \
+               xdg-desktop-portal-gtk waybar swaync awww waypaper quickshell \
+               rofi rofi-emoji ghostty fish starship fzf fd neovim zed kate \
+               bat eza ripgrep lazygit tree-sitter-cli yazi btop bottom \
+               resources fastfetch cava pacman-contrib xdg-terminal-exec \
+               cliphist wl-clipboard gpu-screen-recorder slurp playerctl \
+               matugen qt5ct qt6ct nwg-look kvantum kvantum-qt5 \
+               papirus-icon-theme pavucontrol blueman nm-connection-editor \
+               gnome-calculator wireplumber pipewire-pulse networkmanager \
+               power-profiles-daemon gnome-keyring khal vdirsyncer \
+               headsetcontrol jq ffmpeg inotify-tools zoxide git-delta aichat \
+               shellcheck imagemagick zip unzip gcc make pkgconf gtk3 \
+               json-glib python nodejs gjs ttf-firacode-nerd \
                ttf-cascadia-mono-nerd ttf-nerd-fonts-symbols noto-fonts \
                noto-fonts-emoji
 
 # AUR (paru or yay)
-paru -S --needed strata-bin zen-browser-bin vesktop waybar-weather eww
+paru -S --needed strata-bin zen-browser-bin vesktop waybar-weather eww \
+               bibata-cursor-theme kripton-theme-git
 
 # Render this machine's settings (options/, GTK and Qt settings, mimeapps.list,
 # swaync and hyprsunset config) from defaults/

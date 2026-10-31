@@ -90,12 +90,18 @@ PACKAGES=(
     # Hyprland ecosystem
     "hyprland" "hyprlock" "hypridle" "hyprpolkitagent"
     "hyprshot" "hyprpicker" "hyprsunset" "swappy"
+    # Session manager; XDG autostart (the panel's Startup page) runs through it
+    "uwsm"
+    # Portals named in xdg-desktop-portal/hyprland-portals.conf
+    "xdg-desktop-portal-hyprland" "xdg-desktop-portal-gtk"
     # Bar, notifications, OSD, wallpaper
     "waybar" "swaync" "awww" "waypaper" "quickshell"
     # Launchers and menus
     "rofi" "rofi-emoji"
     # Terminals, shell, editors
     "ghostty" "fish" "starship" "fzf" "fd" "neovim" "zed" "kate"
+    # fzf.fish previews (bat/config is themed); LazyVim's grep, git UI and parsers
+    "bat" "eza" "ripgrep" "lazygit" "tree-sitter-cli"
     # File managers and system tools
     "yazi" "btop" "bottom" "resources" "fastfetch" "cava"
     # checkupdates, for the waybar updates module
@@ -106,15 +112,25 @@ PACKAGES=(
     "cliphist" "wl-clipboard" "gpu-screen-recorder" "slurp" "playerctl"
     # Theming
     "matugen" "qt5ct" "qt6ct" "nwg-look"
+    # Qt style and icon theme that defaults/ name
+    "kvantum" "kvantum-qt5" "papirus-icon-theme"
     # Applets and controls
     "pavucontrol" "blueman" "nm-connection-editor"
     "gnome-calculator"
+    # wpctl (volume keys, sound popover) and pactl (scripts/sound/sound.sh)
+    "wireplumber" "pipewire-pulse"
+    # nmcli and powerprofilesctl, read by the settings panel
+    "networkmanager" "power-profiles-daemon"
+    # Secret Service: the calendar's passwords live in the keyring
+    "gnome-keyring"
     # Calendar sync (scripts/calendar, docs/calendar.md)
     "khal" "vdirsyncer"
     # Headset battery, for scripts/devices/devices.sh
     "headsetcontrol"
     # Script dependencies
     "jq" "ffmpeg" "inotify-tools" "zoxide" "git-delta" "aichat" "shellcheck"
+    # Palette tests render a real image (scripts/theming/test)
+    "imagemagick"
     # SpotX repacks Spotify's xpui.spa (scripts/spotify/launch.sh)
     "zip" "unzip"
     # Native Waybar workspace module (scripts/waybar/build-workspaces.sh)
@@ -132,6 +148,8 @@ AUR_PACKAGES=(
     "vesktop"
     "waybar-weather"
     "eww"                    # desktop clock widget (scripts/desktop-clock)
+    "bibata-cursor-theme"    # default cursor (defaults/options/cursortheme)
+    "kripton-theme-git"      # default GTK theme (defaults/gtk-*/settings.ini)
 )
 
 info "Checking system dependencies..."
