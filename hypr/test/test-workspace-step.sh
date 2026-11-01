@@ -4,7 +4,7 @@
 set -uo pipefail
 
 here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-lua=$(command -v lua || command -v luajit) || { echo "test-workspace-step: no lua; skipped"; exit 0; }
+lua=$(command -v lua || command -v luajit) || { echo "skip: test-workspace-step (no lua)"; exit 0; }
 
 LUA_PATH="$here/../?.lua;;" "$lua" - <<'LUA'
 local step = require("config.software.workspace_step").step

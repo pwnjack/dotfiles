@@ -5,8 +5,8 @@
 set -euo pipefail
 root="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
 source "$root/scripts/lib/assert.sh"
-command -v hyprsunset >/dev/null || { echo "  skip hyprsunset render (not installed)"; exit 0; }
-[ "$(date +%H:%M)" != 23:59 ] || { echo "  skip hyprsunset render (the day boundary is now)"; exit 0; }
+command -v hyprsunset >/dev/null || { echo "  skip: hyprsunset render (not installed)"; exit 0; }
+[ "$(date +%H:%M)" != 23:59 ] || { echo "  not run: hyprsunset render (the day boundary is now)"; exit 0; }
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/cfg/hypr" "$tmp/run"
@@ -31,7 +31,7 @@ assert_not_contains "$out" "exceeded max iteration" "no variable expands into it
 cp "$root/defaults/hypr/hyprsunset.conf" "$tmp/cfg/hypr/hyprsunset.conf"
 now=$(date +%H:%M)
 if [ "$now" = 07:00 ] || [ "$now" = 20:00 ]; then
-    echo "  skip default schedule (a boundary is now)"
+    echo "  not run: default schedule (a boundary is now)"
 else
     if [[ "$now" > 07:00 && "$now" < 20:00 ]]; then want=6000K; else want=4000K; fi
     out=$(sandbox)

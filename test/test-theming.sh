@@ -322,6 +322,8 @@ if command -v script >/dev/null 2>&1; then
     else
         pass "accent-run.sh unregisters its terminal on exit"
     fi
+else
+    echo "  skip: accent-run.sh on a terminal (no script)"
 fi
 assert_eq "$(XDG_CONFIG_HOME="$ROOT" XDG_RUNTIME_DIR="$tmp/run" "$accent_run" printf ran < /dev/null)" ran \
     "accent-run.sh without a terminal only runs the program"
@@ -329,6 +331,8 @@ if command -v script >/dev/null 2>&1; then
     XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" XDG_RUNTIME_DIR="$tmp/run" \
         script -qec "$accent_run sh -c 'exit 3'" /dev/null > /dev/null < /dev/null
     assert_eq "$?" 3 "accent-run.sh keeps a failing program's exit status"
+else
+    echo "  skip: accent-run.sh exit status on a terminal (no script)"
 fi
 XDG_RUNTIME_DIR="$tmp/run" "$accent_run" accent-run-missing-command < /dev/null 2>/dev/null
 assert_eq "$?" 127 "accent-run.sh reports a missing program with status 127"

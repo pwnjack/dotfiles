@@ -38,6 +38,8 @@ assert_contains "$(cat "$strata_font")" '<test name="family"><string>JetBrains M
 if command -v xmllint >/dev/null 2>&1; then
     xmllint --noout "$strata_font"
     pass "Strata fontconfig include is valid XML"
+else
+    echo "  skip: Strata fontconfig include is valid XML (no xmllint)"
 fi
 assert_eq "$(cat "$tmp/.config/waybar/style.css")" "$style_before" "style.css is never edited"
 assert_eq "$(cat "$tmp/.config/ghostty/config")" "$ghostty_before" "ghostty/config is never edited"
@@ -56,6 +58,8 @@ assert_contains "$(cat "$strata_font")" '<string>Font &amp; Family</string>' "St
 if command -v xmllint >/dev/null 2>&1; then
     xmllint --noout "$strata_font"
     pass "Strata fontconfig include with an ampersand is valid XML"
+else
+    echo "  skip: Strata fontconfig include with an ampersand is valid XML (no xmllint)"
 fi
 echo "Main Font" > "$tmp/.config/options/font"
 

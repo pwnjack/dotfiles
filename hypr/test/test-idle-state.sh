@@ -6,7 +6,7 @@ set -euo pipefail
 source "$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)/scripts/lib/assert.sh"
 conf="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)/hypr/hypridle.conf"
 if ! command -v hypridle >/dev/null; then
-    echo "  skip hypridle parse (no hypridle)"
+    echo "  skip: hypridle parse (no hypridle)"
     exit 0
 fi
 tmp=$(mktemp -d)

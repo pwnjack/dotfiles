@@ -277,6 +277,6 @@ if [ -n "$real_matugen" ] && [ -n "$real_magick" ]; then
         fail 'grey wallpaper fallback' "$(cat "$tmp/stderr")"
     fi
 else
-    pass 'skipped: real grey wallpaper fallback requires matugen and magick'
+    echo '  skip: real grey wallpaper fallback (needs matugen and magick)'
 fi
 test_summary generate

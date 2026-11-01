@@ -10,6 +10,7 @@
 #                  Paths are repo-relative, as git and git diff report them.
 #   --list         print each suite and its owning directory, run nothing
 #   TEST_JOBS=N    run up to N suites at once (default: nproc; 1 = sequential)
+#   TEST_STRICT=1  fail a suite that skipped a check (printed a "skip:" line)
 #
 # Exits 0 if every suite passed, 1 if any failed or the root is not a git
 # repository, 2 on a usage error.
@@ -39,6 +40,14 @@
 # suite's own duration; completion order never affects the displayed output.
 # Ctrl-C terminates running suite process groups and removes captured output.
 #
+# A suite that cannot run a check on this host (its binary is absent) prints
+# one line starting "skip: <what> (<why>)" and carries on, or exits 0. The
+# runner lists those lines under the suite's result and counts them in the
+# roll-up, because a green total otherwise hides a check that never ran.
+# TEST_STRICT=1 makes such a suite a failure, which is how CI proves its image
+# lacks nothing. Only a missing dependency is a skip: a check deferred because
+# of the clock (a schedule boundary is now) says "not run", not "skip:".
+#
 # Output is CAPTURED, not streamed: the doctor's suite alone emits 222 lines,
 # and printing that on every commit is how a gate gets ignored. A failing
 # suite's output is printed in full, so diagnosing one needs no second command.
@@ -59,10 +68,10 @@ TEST_RED='\033[0;31m'
 TEST_DIM='\033[2m'
 TEST_NC='\033[0m'
 
-# Lines 3-15 are the user-facing header; everything below is an implementation
+# Lines 3-16 are the user-facing header; everything below is an implementation
 # note that does not belong in --help output.
 _test_usage() {
-    sed -n '3,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '3,16p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 # _test_dir <path> -- sets TEST_DIR_OUT to the directory a path lives in, "."
@@ -246,12 +255,17 @@ if [[ ! $TEST_JOBS =~ ^[1-9][0-9]*$ ]]; then
     echo 'test: TEST_JOBS must be a positive integer' >&2
     exit 2
 fi
+case "${TEST_STRICT:-0}" in
+    0|1) TEST_STRICT="${TEST_STRICT:-0}" ;;
+    *) echo 'test: TEST_STRICT must be 0 or 1' >&2; exit 2 ;;
+esac
 TEST_RAN=${#TEST_SELECTED[@]}
 # Clamp before arithmetic so even an enormous valid job count cannot overflow.
 if (( ${#TEST_JOBS} > ${#TEST_RAN} )) || (( TEST_JOBS > TEST_RAN )); then
     TEST_JOBS=$(( TEST_RAN > 0 ? TEST_RAN : 1 ))
 fi
 TEST_FAILED=0
+TEST_SKIPS=0
 TEST_NEXT=0
 TEST_PRINT=0
 TEST_TMP="$(mktemp -d)" || exit 1
@@ -339,15 +353,22 @@ while (( TEST_PRINT < TEST_RAN || ${#TEST_ACTIVE[@]} )); do
     while (( TEST_PRINT < TEST_NEXT )) && [ -f "$TEST_TMP/$TEST_PRINT.result" ]; do
         read -r _test_rc _test_start _test_end < "$TEST_TMP/$TEST_PRINT.result"
         _test_suite=${TEST_SELECTED[$TEST_PRINT]}
-        if [ "$_test_rc" -eq 0 ]; then
+        _test_skips="$(grep -E '^[[:space:]]*skip: ' "$TEST_TMP/$TEST_PRINT.out" 2>/dev/null | sed 's/^[[:space:]]*//')"
+        if [ "$_test_rc" -eq 0 ] && { [ -z "$_test_skips" ] || [ "$TEST_STRICT" -eq 0 ]; }; then
             printf '  %b✓%b %s %b(%ss)%b\n' "$TEST_GREEN" "$TEST_NC" "$_test_suite" \
                 "$TEST_DIM" "$(_test_duration "$_test_start" "$_test_end")" "$TEST_NC"
+            while IFS= read -r _test_line; do
+                [ -n "$_test_line" ] || continue
+                TEST_SKIPS=$((TEST_SKIPS + 1))
+                printf '      %b%s%b\n' "$TEST_DIM" "$_test_line" "$TEST_NC"
+            done <<< "$_test_skips"
         else
             TEST_FAILED=$((TEST_FAILED + 1))
             printf '  %b✗%b %s %b(%ss)%b\n' "$TEST_RED" "$TEST_NC" "$_test_suite" \
                 "$TEST_DIM" "$(_test_duration "$_test_start" "$_test_end")" "$TEST_NC"
             _test_out="$(cat "$TEST_TMP/$TEST_PRINT.out" 2>/dev/null)"
             printf '%s\n' "$_test_out" | sed 's/^/      /'
+            [ "$_test_rc" -ne 0 ] || echo '      TEST_STRICT=1: a skipped check fails its suite'
         fi
         TEST_PRINT=$((TEST_PRINT + 1))
     done
@@ -367,7 +388,9 @@ if [ "$TEST_RAN" -eq 0 ]; then
 fi
 
 if [ "$TEST_FAILED" -eq 0 ]; then
-    echo "$TEST_RAN suite$([ "$TEST_RAN" -eq 1 ] || echo s) passed"
+    printf '%s suite%s passed' "$TEST_RAN" "$([ "$TEST_RAN" -eq 1 ] || echo s)"
+    [ "$TEST_SKIPS" -eq 0 ] || printf ', %s check%s skipped' "$TEST_SKIPS" "$([ "$TEST_SKIPS" -eq 1 ] || echo s)"
+    echo
     exit 0
 fi
 

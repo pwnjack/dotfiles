@@ -97,7 +97,7 @@ Bash; check for command existence before running; read preferences from `options
 - Check modules never run loops in a pipeline (`cmd | while read`): use `while read ...; do ... done < <(cmd)`. The harness fails the suite on it.
 - Use `git ls-files -z` with `while IFS= read -r -d ''`, never plain `git ls-files`.
 - `scripts/doctor/` and `docs/` are excluded from the doctor's literal-path scan.
-- `./test.sh` discovers suites: a tracked `run-tests.sh`, or a `test-*.sh` in a directory with none, is an entry point; naming a file that way is the whole of adding one.
+- `./test.sh` discovers suites: a tracked `run-tests.sh`, or a `test-*.sh` in a directory with none, is an entry point; naming a file that way is the whole of adding one. A check whose binary is absent prints `skip: <what> (<why>)`, never `pass`; `test.sh` counts those lines and `TEST_STRICT=1` (CI) fails them.
 - `scripts/hooks/pre-commit` passes staged paths to `test.sh --for` and runs checks in a snapshot of the staged tree, never against unstaged files.
 
 ## Doctor architecture (`scripts/doctor/`)

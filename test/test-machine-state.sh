@@ -5,7 +5,7 @@
 set -euo pipefail
 repo="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
 source "$repo/scripts/lib/assert.sh"
-command -v node >/dev/null && command -v jq >/dev/null || { echo "  skip machine-state acceptance (needs node and jq)"; exit 0; }
+command -v node >/dev/null && command -v jq >/dev/null || { echo "  skip: machine-state acceptance (needs node and jq)"; exit 0; }
 # Every write below must land under the throwaway HOME: overlay.sh prefers
 # OVERLAY_STATE_DIR (and it bypasses the tree guard) over XDG_STATE_HOME.
 unset XDG_STATE_HOME OVERLAY_STATE_DIR

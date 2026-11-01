@@ -18,6 +18,9 @@ REPO_DIR="$(dirname "$TEST_DIR")"
 RUNNER="$REPO_DIR/test.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+# CI runs every suite under TEST_STRICT=1. The cases below set it themselves
+# where they mean it; inherited, it would fail the default-mode skip cases.
+unset TEST_STRICT
 
 # shellcheck disable=SC1091 # The assertion library has its own suite.
 # shellcheck source=scripts/lib/assert.sh
@@ -213,6 +216,42 @@ assert_contains "$out" "1 suite passed" "--for matches a covering path wherever 
 
 run "$root" --for; out="$RUN_OUT"
 assert_eq "$RC" "2" "--for with no path is a usage error"
+
+# --- skipped checks ----------------------------------------------------------
+# A suite that exits 0 after printing "skip:" passed without running a check.
+# The runner lists that line and counts it, and TEST_STRICT=1 fails the suite:
+# a green total must not hide a check whose dependency is missing. The skip
+# line is indented like a real suite's, and the stub also prints a line that
+# merely mentions skipping: the roll-up's "1 check skipped" is what proves it
+# did not count.
+skipping="$(fixture)"
+cat > "$skipping/scripts/waybar/test-battery.sh" <<'STUB'
+#!/bin/bash
+echo "  ok   empty capacity is skipped"
+echo "  skip: battery render (no fakebin)"
+STUB
+git -C "$skipping" commit -qam skip
+run "$skipping"; out="$RUN_OUT"
+assert_eq "$RC" 0 "a skipped check alone does not fail the run"
+if [[ $out == *'✓'*'scripts/waybar/test-battery.sh'*$'\n      '*'skip: battery render (no fakebin)'* ]]; then
+    pass "a passing suite's skip line is printed under its result"
+else
+    fail "a passing suite's skip line is printed under its result" "$out"
+fi
+assert_contains "$out" "2 suites passed, 1 check skipped" "the roll-up counts skipped checks"
+TEST_STRICT=1 run "$skipping"; out="$RUN_OUT"
+assert_eq "$RC" 1 "TEST_STRICT=1: a skipped check fails the run"
+assert_contains "$out" "1 of 2 suites failed" "TEST_STRICT=1: the skipping suite is the failure"
+assert_contains "$out" "TEST_STRICT=1: a skipped check fails its suite" "TEST_STRICT=1: the failure says why"
+# The clean fixture has no skip line, so strict mode changes nothing there and
+# the roll-up carries no skip count.
+TEST_STRICT=1 run "$root"; out="$RUN_OUT"
+assert_eq "$RC" 0 "TEST_STRICT=1: a run without skips passes"
+assert_not_contains "$out" "skipped" "a run without skips reports none"
+for strict in 2 yes; do
+    TEST_STRICT=$strict run "$root"
+    assert_eq "$RC" 2 "TEST_STRICT=$strict is a usage error"
+done
 
 # --- parallel scheduling ---------------------------------------------------
 # The first suite waits for the second to start, then finishes last. This is
