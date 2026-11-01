@@ -20,28 +20,31 @@
 # reads as missing.
 
 # _plg_typelib_present <namespace> -- host probe: a typelib for the namespace
-# exists on GI_TYPELIB_PATH or in the system directory.
+# exists on GI_TYPELIB_PATH or in the system directories.
 _plg_typelib_present() {
-    local dir
+    local dir typelib
     local -a dirs
     IFS=: read -ra dirs <<< "${GI_TYPELIB_PATH:-}"
-    for dir in "${dirs[@]}" /usr/lib/girepository-1.0; do
+    for dir in "${dirs[@]}" /usr/lib/girepository-1.0 /usr/lib64/girepository-1.0; do
         [ -n "$dir" ] || continue
-        compgen -G "$dir/$1-*.typelib" >/dev/null && return 0
+        for typelib in "$dir/$1-"*.typelib; do
+            [ -f "$typelib" ] && return 0
+        done
     done
     return 1
 }
 
 # _plg_qt_style_present <major> <style> -- host probe: Qt's built-in styles
 # need nothing, any other needs a plugin in that Qt version's styles directory.
+# DOCTOR_QT_LIBDIR can point the lookup at a private fixture's qt/qt6 trees.
 _plg_qt_style_present() {
     local dir
     case "${2,,}" in
         fusion|windows) return 0 ;;
     esac
     case "$1" in
-        5) dir=/usr/lib/qt/plugins/styles ;;
-        *) dir="/usr/lib/qt$1/plugins/styles" ;;
+        5) dir="${DOCTOR_QT_LIBDIR:-/usr/lib}/qt/plugins/styles" ;;
+        *) dir="${DOCTOR_QT_LIBDIR:-/usr/lib}/qt$1/plugins/styles" ;;
     esac
     [ -n "$(find "$dir" -maxdepth 1 -iname "*$2*.so" -print -quit 2>/dev/null)" ]
 }
