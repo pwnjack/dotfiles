@@ -76,7 +76,10 @@ DOCTOR_WAYBAR_ACTIONS=" activate close minimize minimize-raise fullscreen mode s
 # _way_placed <config>
 # Every module name inside the modules-left/center/right arrays, and inside
 # any group's "modules" array, sorted. A group places its members itself, so
-# they never appear in a modules-* array.
+# they never appear in a modules-* array. Only a group/* block counts: the
+# privacy module has a "modules" array too, of stream kinds ("audio-in"), not
+# bar modules. `top` is the enclosing top-level key (two-space indent, as
+# _way_configured reads it).
 #
 # Both array forms appear in this repo -- inline, as modules-left is written,
 # and one-per-line, as modules-right is -- so the extractor tracks the array
@@ -101,7 +104,9 @@ DOCTOR_WAYBAR_ACTIONS=" activate close minimize minimize-raise fullscreen mode s
 #   so the comment strip has to happen before the bracket test, not after.
 _way_placed() {
     awk '
-        /^[[:space:]]*"modules(-(left|center|right))?"[[:space:]]*:/ { inarr = 1 }
+        /^  "[^"]*"[[:space:]]*:/ { top = $0; sub(/^  "/, "", top); sub(/".*$/, "", top) }
+        /^[[:space:]]*"modules-(left|center|right)"[[:space:]]*:/ { inarr = 1 }
+        /^[[:space:]]*"modules"[[:space:]]*:/ && top ~ /^group\// { inarr = 1 }
         inarr {
             line = $0
             sub(/\/\/.*$/, "", line)

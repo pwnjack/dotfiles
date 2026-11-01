@@ -40,6 +40,7 @@
   // Modules Right
   "modules-right": [
     "custom/recording",
+    "privacy",
     "custom/media",
     "custom/network",
     "group/resources",
@@ -128,6 +129,22 @@
     "signal": 11,
     "exec": "~/.config/scripts/capture/record.sh status --json",
     "on-click": "~/.config/scripts/capture/record.sh stop",
+  },
+
+  // Privacy
+  // Hidden unless something holds the microphone or a portal screen share.
+  // Event-driven from PipeWire, so an idle bar runs nothing. Monitor streams
+  // (Cava, a recorder's desktop audio) are ignored by default. Our own
+  // recordings capture through KMS, not PipeWire, so they show the red
+  // recording pill and never the screen-share icon. Waybar 0.15 has no
+  // camera type.
+  "privacy": {
+    "icon-size": 16,
+    "icon-spacing": 8,
+    "modules": [
+      { "type": "screenshare", "tooltip-icon-size": 20 },
+      { "type": "audio-in", "tooltip-icon-size": 20 },
+    ],
   },
 
   // Settings

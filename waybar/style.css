@@ -25,15 +25,15 @@
    GROUPS
      left     workspaces | taskbar | window
      center   clock · weather
-     right    [rec] | [media] | [net] | [cpu·mem·gpu·disk] | [upd] | bt | [bat] | vol | tray | night·notif·set·power
+     right    [rec] | [priv] | [media] | [net] | [cpu·mem·gpu·disk] | [upd] | bt | [bat] | vol | tray | night·notif·set·power
 
    The glanced modules sit on fixed anchors: workspaces on the left edge,
    clock and weather as one centred block. Anything that appears and
    disappears is placed so that it only ever moves empty space.
 
-   recording, media, network, volume, bluetooth, updates, battery and tray
-   stand alone. Volume is a control rather than a status readout. Recording, media,
-   network, updates, bluetooth and battery stand alone because all but bluetooth
+   recording, privacy, media, network, volume, bluetooth, updates, battery and
+   tray stand alone. Volume is a control rather than a status readout. Recording,
+   privacy, media, network, updates, bluetooth and battery stand alone because all but bluetooth
    hide themselves whenever there is nothing to report — a module that comes
    and goes cannot be load-bearing for a gap, so each carries its own 15px
    on both sides and the rhythm holds either way. [brackets] mark the
@@ -140,6 +140,7 @@ window#waybar {
 #bluetooth,
 #custom-battery,
 #custom-recording,
+#privacy,
 #pulseaudio,
 #tray,
 #custom-nightlight,
@@ -214,6 +215,7 @@ window#waybar {
    on both sides of each, every neighbouring gap stays 30px whether the
    battery is showing or not. */
 #custom-recording,
+#privacy,
 #custom-media,
 #custom-updates,
 #custom-network,
@@ -464,6 +466,15 @@ tooltip label {
 
 #custom-recording.countdown {
     color: #ffb86c;
+}
+
+/* ── PRIVACY ─────────────────────────────────────────────────────────
+   ALERT EXCEPTION — see #pulseaudio.muted above. The module only exists
+   while a microphone or screen share is live, so its appearing is the alert:
+   fixed red like a recording, never the wallpaper accent. Symbolic icons
+   take the label colour. No click, so no hover pill. */
+#privacy-item {
+    color: #ff5555;
 }
 
 /* ── SYS TRAY ────────────────────────────────────────────────────────*/

@@ -275,3 +275,25 @@ check_waybar > "$way_out_file" 2>&1
 way_group_out="$(<"$way_out_file")"
 assert_not_contains "$way_group_out" "configures cpu but" "a module inside a group is placed"
 assert_not_contains "$way_group_out" "configures group/res but" "the group itself is placed"
+
+# --- only a group's "modules" places anything ------------------------------
+# The privacy module also has a "modules" key, holding objects whose "type"
+# names a stream kind, not a bar module. Reading it as placed modules reported
+# audio-in and screenshare as unconfigured.
+way_privacy_fixture="$(make_fixture)"
+way_config "$way_privacy_fixture" '{
+  "modules-right": ["privacy"],
+  "privacy": {
+    "modules": [
+      { "type": "screenshare", "tooltip-icon-size": 20 },
+      { "type": "audio-in" },
+    ],
+  },
+}'
+DOCTOR_ROOT="$way_privacy_fixture"
+doctor_reset
+check_waybar > "$way_out_file" 2>&1
+way_privacy_out="$(<"$way_out_file")"
+assert_not_contains "$way_privacy_out" "audio-in" "a privacy stream type is not a placed module"
+assert_not_contains "$way_privacy_out" "screenshare" "a privacy stream type is not a placed module"
+assert_eq "$DOCTOR_ERRORS$DOCTOR_WARNINGS" "00" "a configured privacy module is clean"
