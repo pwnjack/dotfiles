@@ -1,14 +1,15 @@
 #!/bin/bash
 # Super+Shift+S / Super+Shift+R: open the capture strip on the Screenshot or
-# Record tab. A second press of the same key closes it; the other key switches
+# Record tab (the Text tab is reached by Tab or a click; Super+Shift+T skips
+# the strip). A second press of the same key closes it; the other key switches
 # tab. Super+Shift+R while a recording runs (or counts down) stops it instead,
 # without opening anything. The capturing is scripts/hyprland/screenshot.sh
 # and scripts/capture/record.sh.
 set -euo pipefail
 mode="${1:-screenshot}"
 case "$mode" in
-    screenshot|record) ;;
-    *) echo 'Usage: capture-bar.sh [screenshot|record]' >&2; exit 2 ;;
+    screenshot|text|record) ;;
+    *) echo 'Usage: capture-bar.sh [screenshot|text|record]' >&2; exit 2 ;;
 esac
 # shellcheck source=scripts/lib/qs-launch.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/qs-launch.sh"

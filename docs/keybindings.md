@@ -30,6 +30,7 @@ checkout.
 | `Super + B` | Web browser (`options/browser`) |
 | `Super + S` | Screenshot a region |
 | `Super + Alt + S` | Screenshot a region and annotate |
+| `Super + Shift + T` | Copy text or QR from screen |
 | `Super + Shift + S` | Capture bar: screenshot |
 | `Super + Shift + R` | Capture bar: record, or stop |
 | `Super + Shift + E` | New calendar event |

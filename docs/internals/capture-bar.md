@@ -2,9 +2,15 @@
 
 Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md` keeps the rules that must hold on every edit; this file has the reasoning and the traps.
 
-`quickshell/capture/shell.qml` is the on-demand screenshot/recording strip
+`quickshell/capture/shell.qml` is the on-demand screenshot/text/recording strip
 started by `scripts/hyprland/capture-bar.sh` (lock, IPC toggle, exits on close;
-`record` while recording stops instead). IPC target `capture`: `ping`,
+`record` while recording stops instead). Its modes are `screenshot`, `text` and
+`record`, in that tab order; Tab and Shift+Tab (`Tab` and `Backtab` in the
+model) cycle them with wrap-round. `text` is region-only: its target buttons
+and Annotate hide but keep their width, and it runs
+`screenshot.sh region --text`, which pipes hyprshot's `--raw` capture to `scripts/capture/read-text.sh` (zbarimg,
+then tesseract; the only place that decodes). The bar launcher accepts `text`
+as a mode too. IPC target `capture`: `ping`,
 `toggle <mode>`, `open <mode>`, `close`, `status`, and `run` (a scripted-check
 seam: presses the action button, acts only while the strip is open). It writes
 only `options/capture-*`, synchronously (`blockWrites`) so the started script
@@ -18,7 +24,8 @@ identifies processes by pid plus `/proc` start time (`since` in
 drives Waybar `custom/recording` (`interval: once`, signal 11, which it sends on
 each change and once a second while recording, so an idle bar runs nothing).
 `screenshot.sh` stays the only screenshot command. Both post the shared saved
-toast (`scripts/capture/toast.sh`, Open / Show in folder); Show in folder goes
+toast (`scripts/capture/toast.sh`, Open / Show in folder; the same file holds
+`open_toast`, the detached Open-only toast `read-text.sh` uses for a copied link); Show in folder goes
 through D-Bus `org.freedesktop.FileManager1`, which several installed file
 managers claim, so `scripts/settings/file-manager.sh` (install.sh, and the
 panel's File manager row) copies the configured one's service file into

@@ -23,6 +23,9 @@ const files = { 'capture-shot-target': 'window\n', 'capture-rec-target': 'region
     assert.equal(M.withMode(M.initialState({}, 'screenshot'), 'bogus').mode, 'screenshot')
     assert.deepEqual(M.controls('screenshot'), ['delay', 'freeze', 'annotate'])
     assert.deepEqual(M.controls('record'), ['delay', 'audio', 'mic'])
+    assert.deepEqual(M.controls('text'), ['delay', 'freeze'])
+    assert.deepEqual(M.MODES, ['screenshot', 'text', 'record'])
+    assert.equal(M.initialState(files, 'text').mode, 'text')
 }
 
 // Delay cycle and label.
@@ -55,12 +58,29 @@ const files = { 'capture-shot-target': 'window\n', 'capture-rec-target': 'region
     assert.deepEqual(r.write, ['capture-shot-target', 'window'])
     assert.equal(r.effect, 'none')
     r = M.reduceKey(r.state, 'Tab')
+    assert.equal(r.state.mode, 'text', 'Tab goes Screenshot -> Text')
+    r = M.reduceKey(r.state, 'Tab')
     assert.equal(r.state.mode, 'record')
     assert.equal(r.state.recTarget, 'screen', 'each mode keeps its own target')
     r = M.reduceKey(r.state, 'Left')
     assert.equal(r.state.recTarget, 'screen', 'Left clamps at the start')
     r = M.reduceKey(r.state, 'Tab')
+    assert.equal(r.state.mode, 'screenshot', 'Tab wraps round')
     assert.equal(r.state.shotTarget, 'window', 'switching back restores the screenshot target')
+    r = M.reduceKey(r.state, 'Backtab')
+    assert.equal(r.state.mode, 'record', 'Shift+Tab wraps backwards from Screenshot')
+    r = M.reduceKey(r.state, 'Backtab')
+    assert.equal(r.state.mode, 'text')
+    r = M.reduceKey(r.state, 'Backtab')
+    assert.equal(r.state.mode, 'screenshot')
+    const text = M.initialState({}, 'text')
+    for (const name of ['Left', 'Right']) {
+        r = M.reduceKey(text, name)
+        assert.equal(r.state, text, name + ' does nothing on Text')
+        assert.equal(r.write, null)
+        assert.equal(r.effect, 'none')
+    }
+    assert.equal(M.reduceKey(text, 'Return').effect, 'run')
     assert.equal(M.reduceKey(s, 'Return').effect, 'run')
     assert.equal(M.reduceKey(s, 'Escape').effect, 'close')
     assert.equal(M.reduceKey(s, 'q').effect, 'none')
@@ -91,6 +111,13 @@ const files = { 'capture-shot-target': 'window\n', 'capture-rec-target': 'region
     let s = M.setOption(M.setOption(shot, 'annotate', true).state, 'delay', 3).state
     assert.deepEqual(M.command(s, idle, scripts), ['/s.sh', 'region', '--annotate', '--delay', '3'])
     assert.deepEqual(M.command(shot, idle, scripts), ['/s.sh', 'region'])
+    const text = M.initialState({}, 'text')
+    assert.deepEqual(M.action(text, idle), { kind: 'capture', glyph: 0xF113D, label: 'Copy text' })
+    assert.equal(M.action(text, { phase: 'recording', seconds: 5 }).label, 'Copy text', 'Text works normally while recording')
+    assert.deepEqual(M.command(text, idle, scripts), ['/s.sh', 'region', '--text'])
+    const textDelayed = M.setOption(M.setOption(text, 'annotate', true).state, 'delay', 5).state
+    assert.deepEqual(M.command(textDelayed, idle, scripts), ['/s.sh', 'region', '--text', '--delay', '5'], 'annotate never reaches Text')
+    assert.deepEqual(M.command(M.withMode(M.setOption(shot, 'shotTarget', 'window').state, 'text'), idle, scripts), ['/s.sh', 'region', '--text'], 'Text is always a region')
     assert.deepEqual(M.command(rec, idle, scripts), ['/r.sh', 'start', 'screen'])
     assert.deepEqual(M.command(rec, { phase: 'recording', seconds: 1 }, scripts), ['/r.sh', 'stop'])
     assert.deepEqual(M.command(rec, { phase: 'countdown', seconds: 2 }, scripts), ['/r.sh', 'stop'])

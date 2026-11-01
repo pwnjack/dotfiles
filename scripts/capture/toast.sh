@@ -1,6 +1,7 @@
 #!/bin/bash
 #
-# Sourced by record.sh and screenshot.sh: the "saved" toast both post.
+# Sourced by record.sh, screenshot.sh and read-text.sh: the toasts they post
+# that outlive the script.
 #
 # saved_toast <icon> <title> <body> <file> -- a detached toast with Open and
 # Show in folder, so the caller returns at once. notify-send --wait blocks
@@ -24,5 +25,16 @@ saved_toast() {
                     --method org.freedesktop.FileManager1.ShowItems "['file://$file']" '' \
                     || exec xdg-open "${file%/*}" ;;
         esac
+    ) &
+}
+
+# open_toast <icon> <title> <body> <url> -- a detached toast with one Open
+# action, for a copied link. Returns at once, like saved_toast.
+open_toast() {
+    local icon=$1 title=$2 body=$3 url=$4
+    (
+        exec </dev/null >/dev/null 2>&1
+        choice=$(notify-send -a Capture -i "$icon" --wait -A open=Open -- "$title" "$body") || exit 0
+        [ "$choice" = open ] && exec xdg-open "$url"
     ) &
 }

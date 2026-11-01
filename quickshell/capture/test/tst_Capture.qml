@@ -58,6 +58,16 @@ Item {
         function test_fixedWidth() {
             const shot = strip.width;
             verify(shot > 0);
+            const target = findChild(strip, "target-region");
+            const targetX = target.mapToItem(strip, 0, 0).x;
+            const actionX = findChild(strip, "action").mapToItem(strip, 0, 0).x;
+            controller.setMode("text");
+            wait(20);
+            compare(strip.width, shot);
+            compare(findChild(strip, "action").mapToItem(strip, 0, 0).x, actionX, "the action does not move on Text");
+            controller.setMode("screenshot");
+            wait(20);
+            compare(target.mapToItem(strip, 0, 0).x, targetX);
             controller.setMode("record");
             wait(20);
             compare(strip.width, shot);
@@ -74,6 +84,13 @@ Item {
             verify(findChild(strip, "record-audio").visible);
             verify(findChild(strip, "record-mic").visible);
             verify(!findChild(strip, "screenshot-freeze").visible);
+            controller.setMode("text");
+            wait(20);
+            verify(findChild(strip, "shot-delay").visible);
+            verify(findChild(strip, "screenshot-freeze").visible);
+            verify(!findChild(strip, "target-region").visible, "Text has no target selector");
+            verify(!findChild(strip, "screenshot-annotate").visible);
+            verify(!findChild(strip, "record-audio").visible);
         }
         function test_noElidedLabel() {
             // The tab labels are left out: they have no width constraint, so they cannot elide by construction.
@@ -81,6 +98,10 @@ Item {
                 "shot-delay", "screenshot-freeze", "screenshot-annotate",
                 "rec-delay", "record-audio", "record-mic", "action"];
             for (const name of names) verify(!labelOf(name).truncated, name + " is elided");
+            controller.setMode("text");
+            wait(20);
+            compare(labelOf("action").text, "Copy text");
+            verify(!labelOf("action").truncated, "Copy text is elided");
             controller.setMode("record");
             controller.status = { phase: "recording", seconds: 35999 };
             wait(20);
@@ -109,6 +130,8 @@ Item {
         }
         function test_keys() {
             keyClick(Qt.Key_Tab);
+            compare(controller.state.mode, "text");
+            keyClick(Qt.Key_Tab);
             compare(controller.state.mode, "record");
             keyClick(Qt.Key_Return);
             compare(controller.runs, 1);
@@ -132,7 +155,26 @@ Item {
         }
         function test_backtab_switches_mode() {
             keyClick(Qt.Key_Backtab);
-            compare(controller.state.mode, "record");
+            compare(controller.state.mode, "record", "Shift+Tab wraps backwards from Screenshot");
+            keyClick(Qt.Key_Backtab);
+            compare(controller.state.mode, "text");
+            keyClick(Qt.Key_Backtab);
+            compare(controller.state.mode, "screenshot");
+        }
+        function test_textTab() {
+            mouseClick(findChild(strip, "tab-text"));
+            compare(controller.state.mode, "text");
+            wait(20);
+            verify(Qt.colorEqual(findChild(strip, "tab-text").color, controller.accent));
+            keyClick(Qt.Key_Left);
+            keyClick(Qt.Key_Right);
+            compare(controller.state.shotTarget, "region", "arrows do nothing on Text");
+            mouseClick(findChild(strip, "shot-delay"));
+            compare(controller.state.delay, 3);
+            compare(labelOf("shot-delay").text, "3s");
+            mouseClick(findChild(strip, "screenshot-freeze"));
+            compare(controller.state.freeze, true);
+            compare(controller.runs, 0);
         }
         function test_target_click_does_not_close() {
             mouseClick(findChild(strip, "target-screen"));
@@ -144,6 +186,7 @@ Item {
             verify(tip, "the action tooltip exists");
             const cases = [
                 ["screenshot", { phase: "idle", seconds: 0 }],
+                ["text", { phase: "idle", seconds: 0 }],
                 ["record", { phase: "idle", seconds: 0 }],
                 ["record", { phase: "recording", seconds: 42 }]];
             for (const [mode, status] of cases) {

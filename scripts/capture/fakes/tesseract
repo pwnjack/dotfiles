@@ -1,0 +1,10 @@
+#!/bin/bash
+# Test stand-in for tesseract. TESS_OUT is the recognised text, printed with the
+# trailing newline and form feed the real one adds. TESS_NO_ITA fails any run
+# that asks for Italian, the way a missing traineddata file does.
+printf '%s\n' "$*" >> "$FAKE_LOG/tesseract"
+if [ -n "${TESS_NO_ITA-}" ] && [[ " $* " == *ita* ]]; then
+    echo 'Failed loading language ita' >&2
+    exit 1
+fi
+printf '%s\n\f' "${TESS_OUT-}"

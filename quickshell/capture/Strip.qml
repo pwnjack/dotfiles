@@ -69,13 +69,14 @@ FocusScope {
         onFinished: strip.gone()
     }
 
-    // Tab switches mode, arrows move the target, Return runs, Esc closes.
+    // Tab and Shift+Tab step through the modes, arrows move the target, Return
+    // runs, Esc closes.
     // No letter shortcuts for the toggles.
     // Returns whether the key was one the strip handles.
     function handleKey(key, autoRepeat) {
         const names = {};
         names[Qt.Key_Tab] = "Tab";
-        names[Qt.Key_Backtab] = "Tab";
+        names[Qt.Key_Backtab] = "Backtab";
         names[Qt.Key_Left] = "Left";
         names[Qt.Key_Right] = "Right";
         names[Qt.Key_Return] = "Return";
@@ -108,6 +109,7 @@ FocusScope {
             spacing: strip.px(2)
             Repeater {
                 model: [{ mode: "screenshot", glyph: 0xF0100, label: "Screenshot" },
+                        { mode: "text", glyph: 0xF113D, label: "Text" },
                         { mode: "record", glyph: 0xF0567, label: "Record" }]
                 delegate: Rectangle {
                     id: tab
@@ -204,18 +206,29 @@ FocusScope {
             y: strip.px(8)
             spacing: strip.px(4)
 
-            Repeater {
-                model: Model.TARGETS
-                delegate: StripButton {
-                    required property string modelData
-                    strip: strip
-                    objectName: "target-" + modelData
-                    baseWidth: 62
-                    glyph: strip.targets[modelData].glyph
-                    label: strip.targets[modelData].label
-                    tip: strip.targets[modelData].tip
-                    on: strip.current[Model.targetKey(strip.mode)] === modelData
-                    onClicked: strip.controller.setTarget(modelData)
+            // Text has no target: the row is hidden but keeps its width, so
+            // switching tabs moves nothing.
+            Item {
+                width: targetRow.implicitWidth
+                height: strip.px(62)
+                Row {
+                    id: targetRow
+                    visible: strip.mode !== "text"
+                    spacing: strip.px(4)
+                    Repeater {
+                        model: Model.TARGETS
+                        delegate: StripButton {
+                            required property string modelData
+                            strip: strip
+                            objectName: "target-" + modelData
+                            baseWidth: 62
+                            glyph: strip.targets[modelData].glyph
+                            label: strip.targets[modelData].label
+                            tip: strip.targets[modelData].tip
+                            on: strip.current[Model.targetKey(strip.mode)] === modelData
+                            onClicked: strip.controller.setTarget(modelData)
+                        }
+                    }
                 }
             }
             Separator {}
@@ -224,7 +237,9 @@ FocusScope {
                 height: strip.px(62)
                 Row {
                     id: shotOptions
-                    visible: strip.mode === "screenshot"
+                    // Text shares the screenshot's delay and freeze; only
+                    // Annotate is a screenshot's alone.
+                    visible: strip.mode !== "record"
                     spacing: strip.px(4)
                     StripButton {
                         strip: strip; objectName: "shot-delay"; glyph: 0xF051B
@@ -238,11 +253,19 @@ FocusScope {
                         tip: "Freeze the screen while you select"
                         onClicked: strip.controller.toggleOption("freeze")
                     }
-                    StripButton {
-                        strip: strip; objectName: "screenshot-annotate"; glyph: 0xF03EB; baseWidth: 60
-                        label: "Annotate"; on: strip.current.annotate
-                        tip: "Open the shot in swappy to mark it up"
-                        onClicked: strip.controller.toggleOption("annotate")
+                    // Text hides Annotate but keeps its slot, so the row,
+                    // and with it the strip, keeps its width.
+                    Item {
+                        width: annotate.width
+                        height: annotate.height
+                        StripButton {
+                            id: annotate
+                            visible: strip.mode === "screenshot"
+                            strip: strip; objectName: "screenshot-annotate"; glyph: 0xF03EB; baseWidth: 60
+                            label: "Annotate"; on: strip.current.annotate
+                            tip: "Open the shot in swappy to mark it up"
+                            onClicked: strip.controller.toggleOption("annotate")
+                        }
                     }
                 }
                 Row {
@@ -322,6 +345,7 @@ FocusScope {
                     visible: actionMouse.containsMouse
                     delay: 600
                     readonly property string tip: strip.mode === "screenshot" ? "Take the screenshot (Return)"
+                        : strip.mode === "text" ? "Drag a region to copy its text or QR code (Return)"
                         : actionButton.red ? "Stop and save (Return)" : "Start recording (Return)"
                     text: tip
                     contentItem: Text {

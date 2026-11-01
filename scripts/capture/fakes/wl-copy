@@ -1,0 +1,5 @@
+#!/bin/bash
+# Test stand-in for wl-copy: the clipboard is $FAKE_LOG/clip. WLCOPY_FAIL=1
+# fails like a wl-copy that cannot reach the compositor, copying nothing.
+[ -n "${WLCOPY_FAIL-}" ] && { cat >/dev/null; exit 1; }
+cat > "$FAKE_LOG/clip"

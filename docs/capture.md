@@ -1,8 +1,10 @@
-# Capture bar: screenshots and screen recording
+# Capture bar: screenshots, text and screen recording
 
 Super+Shift+S opens the capture strip on its Screenshot tab, Super+Shift+R on
-its Record tab. Super+S (region to disk) and Super+Alt+S (region to swappy)
-keep their own target. While a recording runs, a red timer sits at the left of
+its Record tab. Its Text tab, between the two, is reached with Tab, Shift+Tab or
+a click. Super+S (region to disk) and Super+Alt+S (region to swappy) keep their
+own target, and Super+Shift+T goes straight to a region selection that copies
+the text or QR code in it. While a recording runs, a red timer sits at the left of
 Waybar's right-hand modules; click it, or press Super+Shift+R, to stop and save.
 During a start delay the pill is amber and a click cancels the countdown.
 
@@ -13,11 +15,44 @@ During a start delay the pill is amber and a click cancels the countdown.
 | `quickshell/capture/` | The strip. `model.mjs` is the pure model; `Strip.qml` draws it; `shell.qml` owns the window, IPC and the option files. Exits on close. |
 | `scripts/hyprland/capture-bar.sh` | Launcher: lock, IPC toggle, palette, daemonize. `record` while recording stops instead. |
 | `scripts/capture/record.sh` | The only driver of gpu-screen-recorder. State in `$XDG_RUNTIME_DIR/capture/recording.json`, recorder log in `gsr.log` beside it. |
-| `scripts/hyprland/screenshot.sh` | The only screenshot command (hyprshot): `screen`, `window`, `region`. |
+| `scripts/hyprland/screenshot.sh` | The only screenshot command (hyprshot): `screen`, `window`, `region`; `--annotate` opens swappy, `--text` reads the shot. |
+| `scripts/capture/read-text.sh` | Reads a PNG on stdin: a QR code or barcode first, otherwise text. Copies the result and posts the toast. |
 | `scripts/hyprland/lock.sh` | The only lock path (autologin in `startup.sh` runs hyprlock directly; nothing records then); locks first, saves a recording in a detached process. |
 | Waybar `custom/recording` | Hidden when idle; `interval: once` plus signal 11; click stops (or cancels a countdown). |
 
+## Copying text or a QR code
+
+Super+Shift+T, or the Text tab's Copy text button, runs
+`screenshot.sh region --text`: drag a rectangle and hyprshot's raw capture goes
+to `read-text.sh`, which tries two decoders in order and stops at the first
+that finds something.
+
+1. `zbarimg --raw` reads QR codes and barcodes. Every symbol found is copied
+   exactly as encoded, one payload per line, and the toast says "Code copied";
+   a lone `http(s)` link adds an Open action. `--raw` is what keeps a payload
+   whole: zbarimg's default `TYPE:payload` lines cannot be told apart from a
+   payload line that itself starts with `QR-Code:`.
+2. `tesseract`, with English and Italian, reads text. The result is copied with
+   trailing whitespace removed, and the toast says "Text copied". If the
+   Italian data is not installed, it reads again with English alone.
+
+Every toast shows the first line, cut to 80 characters. A selection with
+nothing readable gives "No text found", and a copy that fails (no `wl-copy`, or
+no compositor to reach) says "Could not copy to the clipboard" instead of
+claiming success; without `tesseract` and without a code
+it says "Text recognition needs tesseract" rather than failing silently. A
+cancelled selection posts nothing. The image lives in a private temporary file
+under `$XDG_RUNTIME_DIR`, removed on exit, and the recognised text only ever
+reaches `wl-copy` on stdin and the toast body. `--text` and `--annotate` cannot
+be combined. Packages: `zbar`, `tesseract`, `tesseract-data-eng` and
+`tesseract-data-ita` (`install.sh` declares them).
+
 ## The strip
+
+The tabs run Screenshot, Text, Record. Tab steps forward and Shift+Tab back,
+both wrapping round. The Text tab always takes a region, so its target buttons
+are hidden (their space stays, so nothing moves) and Left and Right do nothing;
+its controls are the delay and Freeze, and Annotate does not apply.
 
 IPC target `capture`: `ping`, `toggle <mode>`, `open <mode>`, `close`,
 `status`, and `run`, a seam for scripted checks that presses the action button
@@ -38,7 +73,8 @@ changes. `record.sh` reads `capture-rec-target`, `capture-delay`,
 `capture-audio` and `capture-mic`, so the keybind and the strip never record
 differently; `screenshot.sh` reads `capture-freeze`. `capture-shot-target` and
 `capture-annotate` are read only by the strip, which passes target, annotate
-and delay to `screenshot.sh` as argv. The Freeze toggle (`capture-freeze`) applies to every screenshot path,
+and delay to `screenshot.sh` as argv; the Text tab passes `region --text` and
+the delay, and shares the Freeze file with Screenshot. The Freeze toggle (`capture-freeze`) applies to every screenshot path,
 including Super+S and Super+Alt+S (Super+Alt+S did not freeze before the strip);
 they ignore the strip's other options by design. The files:
 `capture-shot-target`, `capture-rec-target` (`screen|window|region`),
@@ -128,6 +164,8 @@ with 2. It takes effect at the next boot; check the running value with
 ## Testing
 
 - `scripts/capture/test-record.sh`: record.sh against fakes in `scripts/capture/fakes/`.
+- `scripts/capture/test-read-text.sh`: read-text.sh against fake `zbarimg`,
+  `tesseract`, `wl-copy`, `notify-send` and `xdg-open`, including each missing tool.
 - `scripts/hyprland/test-lock.sh`, `test-screenshot.sh`, `test-capture-bar.sh`.
 - `quickshell/capture/test/run-tests.sh`: node model tests and offscreen QML tests.
 - Live: `record.sh start region 640x360+100+100`, wait, `record.sh stop`, then

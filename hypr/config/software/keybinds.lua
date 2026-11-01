@@ -13,6 +13,7 @@ return function(apps)
     hl.bind("SUPER + B", hl.dsp.exec_cmd(apps.browser)) -- Web browser ($browser)
     hl.bind("SUPER + S", hl.dsp.exec_cmd("~/.config/scripts/hyprland/screenshot.sh region")) -- Screenshot a region
     hl.bind("SUPER + ALT + S", hl.dsp.exec_cmd("~/.config/scripts/hyprland/screenshot.sh region --annotate")) -- Screenshot a region and annotate
+    hl.bind("SUPER + SHIFT + T", hl.dsp.exec_cmd("~/.config/scripts/hyprland/screenshot.sh region --text")) -- Copy text or QR from screen
     hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd("~/.config/scripts/hyprland/capture-bar.sh screenshot")) -- Capture bar: screenshot
     hl.bind("SUPER + SHIFT + R", hl.dsp.exec_cmd("~/.config/scripts/hyprland/capture-bar.sh record")) -- Capture bar: record, or stop
     hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd("~/.config/scripts/hyprland/calendar-card.sh new")) -- New calendar event

@@ -4,7 +4,7 @@
 // it runs. shell.qml and Strip.qml only draw it; test/model.mjs runs it under node.
 
 // Qt's V4 engine (QML imports this file) has no object spread: Object.assign.
-export const MODES = ['screenshot', 'record']
+export const MODES = ['screenshot', 'text', 'record']
 export const TARGETS = ['screen', 'window', 'region']
 export const DELAYS = [0, 3, 5, 10]
 
@@ -50,8 +50,10 @@ export function withMode(state, mode) {
 
 export const targetKey = mode => mode === 'record' ? 'recTarget' : 'shotTarget'
 
+// Text has no target (it is always a dragged region) and no annotate.
 export function controls(mode) {
-    return mode === 'record' ? ['delay', 'audio', 'mic'] : ['delay', 'freeze', 'annotate']
+    if (mode === 'record') return ['delay', 'audio', 'mic']
+    return mode === 'text' ? ['delay', 'freeze'] : ['delay', 'freeze', 'annotate']
 }
 
 export const nextDelay = d => DELAYS.find(x => x > d) ?? 0
@@ -63,15 +65,20 @@ export function setOption(state, key, value) {
     return { state: Object.assign({}, state, { [key]: value }), write: [FILES[key], String(value)] }
 }
 
-// name: Tab | Left | Right | Return | Escape (shell.qml maps Qt keys to these).
+// The tab one step along MODES, wrapping round.
+export const cycleMode = (mode, step) => MODES[(MODES.indexOf(mode) + step + MODES.length) % MODES.length]
+
+// name: Tab | Backtab | Left | Right | Return | Escape (shell.qml maps Qt keys to these).
 // -> { state, write, effect: none | run | close }
 export function reduceKey(state, name) {
     const same = { state, write: null, effect: 'none' }
     switch (name) {
     case 'Tab':
-        return Object.assign({}, same, { state: withMode(state, state.mode === 'record' ? 'screenshot' : 'record') })
+    case 'Backtab':
+        return Object.assign({}, same, { state: withMode(state, cycleMode(state.mode, name === 'Tab' ? 1 : -1)) })
     case 'Left':
     case 'Right': {
+        if (state.mode === 'text') return same
         const key = targetKey(state.mode)
         const i = TARGETS.indexOf(state[key]) + (name === 'Left' ? -1 : 1)
         if (i < 0 || i >= TARGETS.length) return same
@@ -106,6 +113,7 @@ export function parseStatus(text) {
 
 // The action button. kind picks the colour: capture = accent, record/stop = red.
 export function action(state, status) {
+    if (state.mode === 'text') return { kind: 'capture', glyph: 0xF113D, label: 'Copy text' }
     if (state.mode !== 'record') return { kind: 'capture', glyph: 0xF0100, label: 'Capture' }
     if (status.phase === 'stopping') return { kind: 'stop', glyph: 0xF04DB, label: 'Saving…' }
     if (status.phase === 'countdown') return { kind: 'stop', glyph: 0xF04DB, label: `Cancel ${status.seconds}` }
@@ -120,6 +128,11 @@ export const WIDEST_ACTION_LABEL = 'Stop 9:59:59'
 
 // The argv the action runs, started detached by shell.qml once the strip is gone.
 export function command(state, status, scripts) {
+    if (state.mode === 'text') {
+        const argv = [scripts.screenshot, 'region', '--text']
+        if (state.delay) argv.push('--delay', String(state.delay))
+        return argv
+    }
     if (state.mode !== 'record') {
         const argv = [scripts.screenshot, state.shotTarget]
         if (state.annotate) argv.push('--annotate')

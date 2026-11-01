@@ -1,0 +1,10 @@
+#!/bin/bash
+# Test stand-in for zbarimg. ZBAR_OUT is what it "decodes": printed as is, exit
+# 0; empty means no symbol, exit 4 like the real one. read-text.sh must ask for
+# --raw (payloads only, no TYPE: prefix), so without it this fake decodes
+# nothing. The image path it was given, and whether that file existed, go to
+# $FAKE_LOG/zbar.
+printf '%s %s\n' "$*" "$([ -s "${!#}" ] && echo present || echo absent)" >> "$FAKE_LOG/zbar"
+[[ " $* " == *" --raw "* ]] || exit 4
+[ -n "${ZBAR_OUT-}" ] || exit 4
+printf '%s\n' "$ZBAR_OUT"

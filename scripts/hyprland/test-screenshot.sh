@@ -7,9 +7,19 @@
 set -uo pipefail
 
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SHOT="$TEST_DIR/screenshot.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+# screenshot.sh runs from a copy of the tree, so its read-text.sh is the
+# stand-in below: it logs what the capture pipes to it, and reads nothing real.
+SHOT="$TMP/tree/hyprland/screenshot.sh"
+mkdir -p "$TMP/tree/hyprland" "$TMP/tree/capture"
+cp "$TEST_DIR/screenshot.sh" "$SHOT"
+ln -s "$TEST_DIR/../capture/toast.sh" "$TMP/tree/capture/toast.sh"
+cat > "$TMP/tree/capture/read-text.sh" <<'EOF'
+#!/bin/bash
+printf 'read-text stdin=%s\n' "$(cat)" >> "$EVENTS"
+EOF
+chmod +x "$TMP/tree/capture/read-text.sh"
 
 # shellcheck source=scripts/lib/assert.sh
 . "$TEST_DIR/../lib/assert.sh"
@@ -105,10 +115,20 @@ shot screen --annotate --delay 3
 assert_eq "$(head -n1 "$EVENTS")" "sleep 3" "the delay runs first"
 assert_contains "$(sed -n 2p "$EVENTS")" "hyprshot -m output -m TEST-1 --raw" "then the capture"
 
+shot region --text
+assert_eq "$(cat "$EVENTS")" $'hyprshot -m region --raw\nread-text stdin=PNG' "text pipes the raw PNG to read-text.sh"
+freeze true
+shot region --text --delay 2
+assert_eq "$(head -n1 "$EVENTS")" "sleep 2" "text honours the delay"
+assert_contains "$(sed -n 2p "$EVENTS")" "hyprshot -m region -z --raw" "text honours capture-freeze"
+freeze false
+shot screen --text
+assert_contains "$(cat "$EVENTS")" "hyprshot -m output -m TEST-1 --raw" "text works on a screen"
+
 shot region
 case "$(cat "$EVENTS")" in sleep*) fail "no delay by default" ;; *) pass "no delay by default" ;; esac
 
-for bad in "bogus" "output" "region --delay x" "region --frobnicate"; do
+for bad in "bogus" "output" "region --delay x" "region --frobnicate" "region --text --annotate" "region --annotate --text"; do
     # shellcheck disable=SC2086
     shot $bad 2>/dev/null; rc=$?
     assert_eq "$rc" 2 "usage error: $bad"

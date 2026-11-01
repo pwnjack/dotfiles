@@ -1,4 +1,6 @@
 #!/bin/bash
 # Test stand-in for notify-send: one line per toast, arguments joined by "|".
-# With --wait it returns at once with no action chosen.
+# With --wait it returns at once with no action chosen, or with $NOTIFY_CHOICE.
 ( IFS='|'; printf '%s\n' "$*" ) >> "$FAKE_LOG/notify"
+[[ " $* " == *" --wait "* ]] && [ -n "${NOTIFY_CHOICE-}" ] && echo "$NOTIFY_CHOICE"
+exit 0

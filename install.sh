@@ -90,6 +90,8 @@ PACKAGES=(
     # Hyprland ecosystem
     "hyprland" "hyprlock" "hypridle"
     "hyprshot" "hyprpicker" "hyprsunset" "swappy"
+    # Super+Shift+T reads QR codes (zbar) and text, English and Italian (tesseract)
+    "zbar" "tesseract" "tesseract-data-eng" "tesseract-data-ita"
     # Polkit agent, started by autostart.lua
     "mate-polkit"
     # Session manager; XDG autostart (the panel's Startup page) runs through it

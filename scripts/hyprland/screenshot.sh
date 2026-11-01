@@ -2,23 +2,25 @@
 #
 # Capture a screenshot.
 #
-# Usage: screenshot.sh screen|window|region [--annotate] [--delay N]
+# Usage: screenshot.sh screen|window|region [--annotate|--text] [--delay N]
 #
-# The one capture command: Super+S, Super+Alt+S and the capture strip all call
-# it, so all of them honour options/capture-freeze ("true" freezes the screen
-# while selecting).
+# The one capture command: Super+S, Super+Alt+S, Super+Shift+T and the capture
+# strip all call it, so all of them honour options/capture-freeze ("true"
+# freezes the screen while selecting).
 #
 #   screen     the focused monitor, no selection
 #   window     click a window (hyprshot's own picker)
 #   region     drag a rectangle
 #   --annotate open the shot in swappy instead of writing it; where it lands
 #              is then swappy's decision, from swappy/config
+#   --text     read a QR code, a barcode or text in the shot and copy it
+#              (scripts/capture/read-text.sh); no file is written
 #   --delay N  wait N seconds first (the strip's delay; Super+S has none)
 #
-# Without --annotate the file goes to ~/Pictures/Screenshots.
+# Without --annotate or --text the file goes to ~/Pictures/Screenshots.
 #
-# --annotate uses hyprshot's LONG --raw, and never -s. Both rules come from
-# reading /usr/bin/hyprshot rather than its --help:
+# --annotate and --text use hyprshot's LONG --raw, and never -s. Both rules
+# come from reading /usr/bin/hyprshot rather than its --help:
 #
 #   * -s is a no-op here. save_geometry() does
 #     `if [ $RAW -eq 1 ]; then grim -g "$geometry" -; return 0; fi`, returning
@@ -33,16 +35,17 @@
 #
 
 usage() {
-    echo "usage: ${0##*/} screen|window|region [--annotate] [--delay N]" >&2
+    echo "usage: ${0##*/} screen|window|region [--annotate|--text] [--delay N]" >&2
     exit 2
 }
 
 mode="${1:-region}"
 [ $# -gt 0 ] && shift
-annotate=0 delay=0
+annotate=0 text=0 delay=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --annotate) annotate=1 ;;
+        --text) text=1 ;;
         --delay) delay="${2-}"; shift ;;
         *) usage ;;
     esac
@@ -52,6 +55,7 @@ case "$mode" in
     screen|window|region) ;;
     *) usage ;;
 esac
+(( annotate && text )) && usage
 [[ "$delay" =~ ^[0-9]+$ ]] || usage
 delay=$((10#$delay))
 
@@ -71,6 +75,10 @@ fi
 
 if (( annotate )); then
     hyprshot "${args[@]}" --raw | swappy -f -
+    exit
+fi
+if (( text )); then
+    hyprshot "${args[@]}" --raw | "${BASH_SOURCE[0]%/*}/../capture/read-text.sh"
     exit
 fi
 
