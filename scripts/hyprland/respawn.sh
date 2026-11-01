@@ -12,6 +12,9 @@
 # would close every window opened from the bar and a hypridle crash would
 # take a running hyprlock with it. This wrapper keeps the process tree and the
 # environment a plain start has, in the plain and the uwsm session alike.
+# A daemon whose package also ships D-Bus activation for its unit (SwayNC does)
+# gets a drop-in under systemd/user/<unit>.d/ so that unit skips itself while
+# this wrapper's copy runs.
 #
 # A clean end is final: status 0, or death by SIGHUP, SIGINT, SIGPIPE or
 # SIGTERM, so `pkill -x <name>` still stops a daemon for good. bash reports a

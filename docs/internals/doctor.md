@@ -10,7 +10,7 @@ scripts/doctor/
 │   ├── symlinks.sh          # check_symlinks   — from `git ls-files -s` mode 120000
 │   ├── references.sh        # check_references — from Lua require(), Hyprlang source, literal paths
 │   ├── binaries.sh          # check_binaries   — from Lua keybind/autostart hl.exec_cmd() calls
-│   ├── services.sh          # check_services   — from autostart daemons, D-Bus roles, install.sh arrays
+│   ├── services.sh          # check_services   — from autostart daemons, failed respawn.sh units, D-Bus roles, install.sh arrays
 │   ├── sddm.sh              # check_sddm       — from sddm/setup-sudo.sh and the live SDDM configuration
 │   ├── updates.sh           # check_updates    — from updates/setup-sudo.sh and sudo -l
 │   ├── waybar.sh            # check_waybar     — from config.jsonc's modules-* arrays and handler values

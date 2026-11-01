@@ -1,8 +1,9 @@
 #!/bin/bash
 #
-# Autostart daemons, D-Bus role ownership, and install.sh package drift.
+# Autostart daemons, respawn.sh units gone failed, D-Bus role ownership, and
+# install.sh package drift.
 #
-# Three independent probes share one module because they are the three ways
+# Four independent probes share one module because they are the four ways
 # this repo's runtime state can silently diverge from its config without any
 # file going missing (which the other checks already cover):
 #
@@ -17,6 +18,14 @@
 #      home before matching, so it can never match a literal "~/" in a config
 #      file — a real bug caught in the binaries.sh task and fixed the same way
 #      here: quote the tilde.
+#
+#   1b. Wrapped daemons — the respawn.sh lines of the same list. Their package
+#      may ship D-Bus activation naming a systemd user unit, which starts a
+#      second copy when a client calls the bus name before ours owns it. The
+#      copy exits at once and the unit ends `failed`; a drop-in under
+#      systemd/user/<unit>.d/ keeps it from starting, and a unit that is
+#      failed anyway is WARN. Unit names equal binary names here; an unknown
+#      unit is not failed, so a daemon without one needs no special case.
 #
 #   2. D-Bus role ownership — DOCTOR_DBUS_ROLE names one well-known bus name
 #      that only a single process can hold. Only the notification daemon is in
@@ -107,6 +116,22 @@ _svc_autostart_daemons() {
         esac
         printf '%s\n' "$first"
     done < <(printf '%s\n' "$commands") | sort -u
+}
+
+# _svc_wrapped_daemons -> the autostart targets started through respawn.sh,
+# one per line, deduplicated, by base name (as respawn.sh names them), so the
+# polkit agent's path gives the unit name a lookup would use.
+_svc_wrapped_daemons() {
+    local conf="$DOCTOR_ROOT/hypr/config/setup/autostart.lua"
+    [ -f "$conf" ] || return 0
+    sed -nE 's/^[[:space:]]*hl\.exec_cmd\("[^"]*\/scripts\/hyprland\/respawn\.sh +([^ "]*\/)?([^ "\/]+).*"\).*/\2/p' "$conf" | sort -u
+}
+
+# _svc_unit_failed <unit> -> 0 when that systemd user unit is in the failed
+# state. Non-zero when systemctl is absent or the unit is unknown.
+_svc_unit_failed() {
+    command -v systemctl >/dev/null 2>&1 || return 1
+    systemctl --user is-failed --quiet "$1" 2>/dev/null
 }
 
 # _svc_install_packages -> every PACKAGES/AUR_PACKAGES entry in install.sh,
@@ -202,6 +227,14 @@ check_services() {
              "check what happened to it: journalctl --user -b | grep $(doctor_q "$daemon")"
     done < <(_svc_autostart_daemons)
 
+    # --- 1b. respawn.sh daemons whose packaged unit started a second copy ---
+    while read -r daemon; do
+        [ -n "$daemon" ] || continue
+        _svc_unit_failed "$daemon.service" || continue
+        warn "'$daemon' runs under respawn.sh but its unit $(doctor_q "$daemon.service") is failed" \
+             "systemctl --user status $(doctor_q "$daemon.service"); then systemctl --user reset-failed $(doctor_q "$daemon.service")"
+    done < <(_svc_wrapped_daemons)
+
     # --- 2. install.sh packages actually installed --------------------------
     if command -v pacman >/dev/null 2>&1; then
         while read -r pkg; do
@@ -231,6 +264,6 @@ check_services() {
     if [ "$DOCTOR_ERRORS" = "$before_e" ] \
         && [ "$DOCTOR_WARNINGS" = "$before_w" ] \
         && [ "$DOCTOR_NOTICES" = "$before_n" ]; then
-        ok "every autostart daemon is running, install.sh packages are present, and no D-Bus role is contested"
+        ok "every autostart daemon is running, no respawn.sh unit has failed, install.sh packages are present, and no D-Bus role is contested"
     fi
 }

@@ -38,6 +38,7 @@ hl.exec_cmd("$HOME/.config/scripts/other.sh")
 hl.exec_cmd("systemctl --user start " .. apps.polkitAgent)
 hl.exec_cmd("svc-running-qq")
 hl.exec_cmd("$HOME/.config/scripts/hyprland/respawn.sh svc-wrapped-qq --flag")
+hl.exec_cmd("$HOME/.config/scripts/hyprland/respawn.sh svc-wrapped-ok-qq")
 SVC_EOF
 
 cat > "$svc_fixture/install.sh" <<'SVC_EOF'
@@ -86,6 +87,8 @@ _svc_package_installed() {
     esac
 }
 _svc_bus_owner() { printf 'swaync'; }
+# Never the real systemctl: only the wrapped daemon and the bare one are "failed".
+_svc_unit_failed() { case "$1" in svc-wrapped-qq.service|svc-down-qq.service) return 0 ;; *) return 1 ;; esac; }
 # Providers are stubbed so the orphan finding does not depend on which
 # notification daemons this particular host happens to have installed.
 _svc_role_providers() { printf 'swaync\nmako\n'; }
@@ -116,6 +119,16 @@ assert_contains "$(svc_line "$svc_out_file" "'mako' is installed")" "INFO" \
 assert_not_contains "$svc_out" "'swaync' is installed with a tracked config" \
     "the bus owner itself is never reported as orphaned"
 
+assert_contains "$(svc_line "$svc_out_file" "'svc-wrapped-qq' runs under respawn.sh")" "WARN" \
+    "a failed unit of a respawn.sh daemon is WARN"
+assert_eq "$(grep -cF "'svc-wrapped-qq' runs under respawn.sh" "$svc_out_file")" "1" \
+    "a failed wrapped unit warns once"
+assert_not_contains "$svc_out" "'svc-wrapped-ok-qq' runs under respawn.sh" \
+    "a wrapped daemon whose unit is not failed is silent"
+assert_not_contains "$svc_out" "'svc-down-qq' runs under respawn.sh" \
+    "a bare autostart daemon is not probed for a failed unit"
+assert_contains "$svc_out" "svc-wrapped-qq.service" "the hint names the unit"
+
 assert_eq "$DOCTOR_ERRORS" "0" "nothing in this module is ERROR severity"
 assert_not_contains "$svc_out" "✓" "no green tick while findings exist"
 
@@ -132,6 +145,7 @@ _svc_is_running() { [ "$1" = "svc-running-qq" ]; }
 _svc_package_installed() { [ "$1" = "svc-present-pkg-qq" ]; }
 _svc_bus_owner() { return 1; }
 _svc_role_providers() { return 0; }
+_svc_unit_failed() { return 1; }
 
 svc_clean_file="$DOCTOR_TEST_TMP/services-clean"
 doctor_reset
@@ -173,6 +187,10 @@ assert_not_contains "$svc_degraded_out" "is installed with a tracked config" \
 assert_eq "$DOCTOR_ERRORS" "0" "an unavailable pacman/busctl is degraded, not an error"
 
 # Restore the real probes for anything sourced after this file.
+_svc_unit_failed() {
+    command -v systemctl >/dev/null 2>&1 || return 1
+    systemctl --user is-failed --quiet "$1" 2>/dev/null
+}
 _svc_is_running() {
     command -v pgrep >/dev/null 2>&1 || return 1
     pgrep -x "$1" >/dev/null 2>&1

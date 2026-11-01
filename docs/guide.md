@@ -365,6 +365,9 @@ exit or `pkill`, and stops trying, with a notification, after five crashes in
 30 seconds. The packaged systemd user units are not used: when a unit's main
 process crashes, systemd kills everything left in its cgroup, which would take
 down every window opened from the bar, or a running hyprlock with hypridle.
+If the daemon's package also ships D-Bus activation for its unit, as SwayNC's
+does, add a drop-in under `systemd/user/<unit>.d/` so the unit skips itself
+while your copy runs (see `systemd/user/swaync.service.d/respawn.conf`).
 
 XDG autostart entries are managed on the settings panel's Startup page.
 

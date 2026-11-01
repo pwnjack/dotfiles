@@ -36,6 +36,7 @@
 !/xdg-desktop-portal/
 !/swappy/
 !/fontconfig/
+!/systemd/
 
 # Theming
 !/gtk-3.0/
@@ -73,6 +74,14 @@ fontconfig/*
 !fontconfig/conf.d/
 fontconfig/conf.d/*
 !fontconfig/conf.d/50-strata-font.conf
+
+# Only the SwayNC respawn drop-in is ours; systemd and the user's units are not
+systemd/*
+!systemd/user/
+systemd/user/*
+!systemd/user/swaync.service.d/
+systemd/user/swaync.service.d/*
+!systemd/user/swaync.service.d/respawn.conf
 
 # Secrets (API keys); .env.example is the template
 .env
