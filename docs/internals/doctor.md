@@ -22,12 +22,13 @@ scripts/doctor/
 │   ├── calendar.sh          # check_calendar   — from calendar-sync.timer, install.sh's calendar packages and the keyring
 │   ├── defaults.sh          # check_defaults   — from envvars.lua's hl.env(apps.*) lines, options/, mimeapps.list
 │   ├── state.sh             # check_state      — from defaults/ and the overlay's own check
-│   └── plugins.sh           # check_plugins    — gi:// imports' typelibs, defaults/qt*ct styles' Qt plugins
+│   ├── plugins.sh           # check_plugins    — gi:// imports' typelibs, defaults/qt*ct styles' Qt plugins
+│   └── themes.sh            # check_themes     — selected GTK, icon, cursor and Kvantum themes that are not installed
 └── test/
     ├── run-tests.sh         # Dependency-free harness; auto-discovers test-*.sh
     └── test-*.sh            # One per module, plus lib and entry point; sourced into one shell
 ```
 
-All modules are sourced into a single shell, so: one public `check_<name>` function each, private helpers prefixed (`_ref_`, `_bin_`, `_svc_`, `_sddm_`, `_upd_`, `_way_`, `_wsm_`, `_hctl_`, `_hw_`, `_as_`, `_ssh_`, `_cal_`, `_def_`, `_st_`, `_plg_`), and reserved names (`group ok err warn note summary doctor_reset doctor_q doctor_assignment doctor_require_repo _finding`) are never redefined. Host probes (`pgrep`, `pacman`, `busctl`, `command -v` via `_way_have_cmd`, `/sys/class/drm` via `_hw_present_outputs`, `$HOME` via `_wsm_home`, the build script's `--check` via `_wsm_current`, typelib and Qt style lookups via `_plg_typelib_present` and `_plg_qt_style_present`) each live in their own tiny function so tests can stub them — or aim them at a fixture, which is what `DOCTOR_DRM_SYSFS` and `DOCTOR_QT_LIBDIR` do.
+All modules are sourced into a single shell, so: one public `check_<name>` function each, private helpers prefixed (`_ref_`, `_bin_`, `_svc_`, `_sddm_`, `_upd_`, `_way_`, `_wsm_`, `_hctl_`, `_hw_`, `_as_`, `_ssh_`, `_cal_`, `_def_`, `_st_`, `_plg_`, `_thm_`), and reserved names (`group ok err warn note summary doctor_reset doctor_q doctor_assignment doctor_require_repo _finding`) are never redefined. Host probes (`pgrep`, `pacman`, `busctl`, `command -v` via `_way_have_cmd`, `/sys/class/drm` via `_hw_present_outputs`, `$HOME` via `_wsm_home`, the build script's `--check` via `_wsm_current`, typelib and Qt style lookups via `_plg_typelib_present` and `_plg_qt_style_present`, theme lookups via `_thm_present`) each live in their own tiny function so tests can stub them — or aim them at a fixture, which is what `DOCTOR_DRM_SYSFS`, `DOCTOR_QT_LIBDIR` and `DOCTOR_THEME_HOME`/`DOCTOR_THEME_SHARE` do.
 
 `ok` is the all-clear and nothing else — print it only when a check found nothing at all, never as a consolation summary. Every path in a fix hint goes through `doctor_q`, and hints never contain `<placeholder>` text (the shell parses `<foo>` as a redirection).
