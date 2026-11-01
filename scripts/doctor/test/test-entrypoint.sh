@@ -62,6 +62,7 @@ assert_contains "$ep_out" "Waybar" "the waybar check ran"
 assert_contains "$ep_out" "Hyprctl Lua compatibility" "the hyprctl compatibility check ran"
 assert_contains "$ep_out" "Hardware" "the hardware check ran"
 assert_contains "$ep_out" "Typelibs and plugins" "the typelib and plugin check ran"
+assert_contains "$ep_out" "Themes" "the theme check ran"
 
 # --- a tree with no ERRORs ------------------------------------------------
 ep_clean="$(make_fixture)"
