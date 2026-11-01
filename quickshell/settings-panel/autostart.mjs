@@ -211,7 +211,7 @@ export function withStatus(entries, units) {
 
 export const minimalOverride = name => `[Desktop Entry]\nType=Application\nName=${name.replace(/[\r\n]+/g, " ")}\nHidden=true\n`
 // The Name minimalOverride writes for an entry: the masked file's Name, else its id.
-export const overrideName = (id, systemText) => parseEntry(systemText).Name || id.replace(/\.desktop$/, "")
+export function overrideName(id, systemText) { return parseEntry(systemText).Name || id.replace(/\.desktop$/, "") }
 // The Name in a file shaped exactly like minimalOverride writes it (comments and blank
 // lines aside), or null for anything else; that was written by hand and must never be
 // deleted as "ours".
@@ -220,7 +220,7 @@ function minimalNameOf(text) {
     return lines.length === 4 && lines[0] === "[Desktop Entry]" && lines[1] === "Type=Application"
         && lines[2].startsWith("Name=") && lines[3] === "Hidden=true" ? lines[2] : null
 }
-export const isMinimalShape = text => minimalNameOf(text) !== null
+export function isMinimalShape(text) { return minimalNameOf(text) !== null }
 export function isMinimalOverride(text, name) {
     if (typeof name !== "string") throw new Error("isMinimalOverride needs the expected name")
     return minimalNameOf(text) === "Name=" + name.replace(/[\r\n]+/g, " ")
