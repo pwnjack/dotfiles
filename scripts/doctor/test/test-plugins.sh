@@ -20,12 +20,17 @@ printf "import GLib from 'gi://GLib';\n" > "$plg_root/quickshell/panel/glib.mjs"
 printf "import X from 'gi://Untracked';\n" > "$plg_root/quickshell/panel/scratch.js"
 printf "Example: gi://DocOnly\n" > "$plg_root/docs/notes.md"
 printf "# gi://DoctorOnly\n" > "$plg_root/scripts/doctor/x.sh"
+# A tracked binary holding the bytes: git grep would print "Binary file ...
+# matches" in place of the match unless binaries are skipped.
+printf 'PNG\0gi://BinaryOnly\0' > "$plg_root/quickshell/panel/pic.png"
 printf '[Appearance]\nstyle=kvantum\n' > "$plg_root/defaults/qt5ct/qt5ct.conf"
-printf '[Appearance]\nstyle=kvantum\n' > "$plg_root/defaults/qt6ct/qt6ct.conf"
+# Spaces round the value and CRLF endings, as a hand- or Windows-edited file
+# has them: the "installed Qt 6 style" assertion below fails unless both trim.
+printf '[Appearance]\r\nstyle = kvantum \r\n' > "$plg_root/defaults/qt6ct/qt6ct.conf"
 # The live qt5ct file overrides its default. The [Interface] style comes first
 # and never counts.
 printf '[Interface]\nstyle=other\n[Appearance]\nicon_theme=x\nstyle=Breeze\n' > "$plg_root/qt5ct/qt5ct.conf"
-git -C "$plg_root" add quickshell/panel/nm.js quickshell/panel/glib.mjs docs scripts defaults
+git -C "$plg_root" add quickshell/panel/nm.js quickshell/panel/glib.mjs quickshell/panel/pic.png docs scripts defaults
 
 plg_saved_root="$DOCTOR_ROOT"
 DOCTOR_ROOT="$plg_root"
@@ -39,6 +44,8 @@ assert_not_contains "$plg_text" "gi://GLib" "plugins: an installed typelib is fi
 assert_not_contains "$plg_text" "Untracked" "plugins: an untracked file names no target"
 assert_not_contains "$plg_text" "DocOnly" "plugins: docs/ is not scanned"
 assert_not_contains "$plg_text" "DoctorOnly" "plugins: the doctor's own tree is not scanned"
+assert_not_contains "$plg_text" "Binary file" "plugins: a binary file names no namespace"
+assert_not_contains "$plg_text" "BinaryOnly" "plugins: binary files are not scanned"
 assert_contains "$plg_text" "Qt 5 has no 'Breeze' style plugin, which qt5ct/qt5ct.conf selects" "plugins: the live file's style wins over its default"
 assert_not_contains "$plg_text" "'other'" "plugins: only [Appearance] style counts"
 assert_not_contains "$plg_text" "Qt 6" "plugins: an installed Qt 6 style is fine"
@@ -78,6 +85,12 @@ _plg_typelib_present FakeNs && plg_r=found || plg_r=missing
 assert_eq "$plg_r" found "plugins: the probe searches every GI_TYPELIB_PATH entry"
 _plg_typelib_present Fake && plg_r=found || plg_r=missing
 assert_eq "$plg_r" missing "plugins: the probe matches a whole namespace, not a prefix"
+# A directory whose name holds glob characters is a literal path.
+mkdir -p "$DOCTOR_TEST_TMP/gi[x]*"
+: > "$DOCTOR_TEST_TMP/gi[x]*/BracketNs-1.0.typelib"
+GI_TYPELIB_PATH="$DOCTOR_TEST_TMP/gi[x]*"
+_plg_typelib_present BracketNs && plg_r=found || plg_r=missing
+assert_eq "$plg_r" found "plugins: a GI_TYPELIB_PATH entry with [ or * is matched literally"
 GI_TYPELIB_PATH="$plg_saved_gi"
 _plg_qt_style_present 5 Fusion && plg_r=found || plg_r=missing
 assert_eq "$plg_r" found "plugins: Fusion is built in"

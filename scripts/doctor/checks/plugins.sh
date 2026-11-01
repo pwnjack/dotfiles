@@ -22,12 +22,16 @@
 # _plg_typelib_present <namespace> -- host probe: a typelib for the namespace
 # exists on GI_TYPELIB_PATH or in the system directory.
 _plg_typelib_present() {
-    local dir
+    local dir file
     local -a dirs
     IFS=: read -ra dirs <<< "${GI_TYPELIB_PATH:-}"
     for dir in "${dirs[@]}" /usr/lib/girepository-1.0; do
         [ -n "$dir" ] || continue
-        compgen -G "$dir/$1-*.typelib" >/dev/null && return 0
+        # Only the version is a pattern: the quoted directory and namespace
+        # match literally, so a path holding [ or * is still found.
+        for file in "$dir/$1"-*.typelib; do
+            [ -f "$file" ] && return 0
+        done
     done
     return 1
 }
@@ -64,7 +68,7 @@ check_plugins() {
         _plg_typelib_present "$ns" && continue
         warn "No typelib for gi://$ns, which tracked JavaScript imports" \
             "sudo pacman -Fy, then pacman -Fx 'girepository-1.0/$ns-[0-9.]+\\.typelib' names the package to install"
-    done < <(git -C "$DOCTOR_ROOT" grep -hoE 'gi://[A-Za-z][A-Za-z0-9]*' -- . ':!docs/' ':!scripts/doctor/' 2>/dev/null |
+    done < <(git -C "$DOCTOR_ROOT" grep -IhoE 'gi://[A-Za-z][A-Za-z0-9]*' -- . ':!docs/' ':!scripts/doctor/' 2>/dev/null |
         sed 's|^gi://||' | sort -u)
 
     while IFS= read -r -d '' file; do
