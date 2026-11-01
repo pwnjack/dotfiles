@@ -92,7 +92,21 @@ GI_TYPELIB_PATH="$DOCTOR_TEST_TMP/gi[x]*"
 _plg_typelib_present BracketNs && plg_r=found || plg_r=missing
 assert_eq "$plg_r" found "plugins: a GI_TYPELIB_PATH entry with [ or * is matched literally"
 GI_TYPELIB_PATH="$plg_saved_gi"
+plg_saved_qt="${DOCTOR_QT_LIBDIR-}"
+DOCTOR_QT_LIBDIR="$DOCTOR_TEST_TMP/qt-lib"
+mkdir -p "$DOCTOR_QT_LIBDIR/qt/plugins/styles" "$DOCTOR_QT_LIBDIR/qt6/plugins/styles"
+: > "$DOCTOR_QT_LIBDIR/qt/plugins/styles/libQtFiveStyle.so"
+: > "$DOCTOR_QT_LIBDIR/qt6/plugins/styles/libQtSixStyle.so"
+_plg_qt_style_present 5 qtfivestyle && plg_r=found || plg_r=missing
+assert_eq "$plg_r" found "plugins: the real Qt 5 lookup finds a plugin case-insensitively"
+_plg_qt_style_present 6 qtsixstyle && plg_r=found || plg_r=missing
+assert_eq "$plg_r" found "plugins: the real Qt 6 lookup finds a plugin case-insensitively"
+_plg_qt_style_present 5 qtsixstyle && plg_r=found || plg_r=missing
+assert_eq "$plg_r" missing "plugins: Qt 5 cannot use a Qt 6 plugin"
+_plg_qt_style_present 6 qtfivestyle && plg_r=found || plg_r=missing
+assert_eq "$plg_r" missing "plugins: Qt 6 cannot use a Qt 5 plugin"
 _plg_qt_style_present 5 Fusion && plg_r=found || plg_r=missing
 assert_eq "$plg_r" found "plugins: Fusion is built in"
 _plg_qt_style_present 6 no-such-style-xyz && plg_r=found || plg_r=missing
 assert_eq "$plg_r" missing "plugins: an unknown style is missing"
+DOCTOR_QT_LIBDIR="$plg_saved_qt"
