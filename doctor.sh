@@ -48,7 +48,7 @@ esac
 # shellcheck source=scripts/doctor/lib.sh
 source "$DOCTOR_SELF_DIR/scripts/doctor/lib.sh"
 
-for _doctor_module in symlinks references binaries services sddm updates waybar workspaces hyprctl hardware autostart ssh calendar defaults state; do
+for _doctor_module in symlinks references binaries services sddm updates waybar workspaces hyprctl hardware autostart ssh calendar defaults state plugins; do
     # shellcheck source=/dev/null
     source "$DOCTOR_SELF_DIR/scripts/doctor/checks/$_doctor_module.sh"
 done
@@ -79,5 +79,6 @@ check_ssh
 check_calendar
 check_defaults
 check_state
+check_plugins
 
 summary
