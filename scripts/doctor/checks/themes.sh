@@ -39,7 +39,7 @@ _thm_cursor() {
     for dir; do
         [ -f "$dir/$name/index.theme" ] || continue
         inherits="$(_thm_ini "$dir/$name/index.theme" 'Icon Theme' Inherits)"
-        IFS=, read -ra parents <<< "$inherits"
+        IFS=',;' read -ra parents <<< "$inherits"
         for parent in "${parents[@]}"; do
             parent="${parent#"${parent%%[![:space:]]*}"}"
             parent="${parent%"${parent##*[![:space:]]}"}"

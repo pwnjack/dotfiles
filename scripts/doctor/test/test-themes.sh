@@ -184,11 +184,14 @@ mkdir -p "$thm_xdg/data/themes/XdgGtk/gtk-3.0" "$thm_xdg/dirs/icons/XdgIcons" "$
 printf 'Directories=16x16\n' > "$thm_xdg/dirs/icons/XdgIcons/index.theme"
 : > "$thm_xdg/cfg/Kvantum/XdgKv/XdgKv.kvconfig"
 unset DOCTOR_THEME_HOME DOCTOR_THEME_SHARE
+thm_saved_dh="${XDG_DATA_HOME:-}" thm_saved_dd="${XDG_DATA_DIRS:-}" thm_saved_ch="${XDG_CONFIG_HOME:-}"
 export XDG_DATA_HOME="$thm_xdg/data" XDG_DATA_DIRS="/nonexistent:$thm_xdg/dirs" XDG_CONFIG_HOME="$thm_xdg/cfg"
 thm_probe gtk XdgGtk; assert_eq "$thm_r" found "themes: GTK theme found in XDG_DATA_HOME"
 thm_probe icon XdgIcons; assert_eq "$thm_r" found "themes: icon theme found in XDG_DATA_DIRS"
 thm_probe kvantum XdgKv; assert_eq "$thm_r" found "themes: Kvantum theme found in XDG_CONFIG_HOME"
-unset XDG_DATA_HOME XDG_DATA_DIRS XDG_CONFIG_HOME
+if [ -n "$thm_saved_dh" ]; then XDG_DATA_HOME="$thm_saved_dh"; else unset XDG_DATA_HOME; fi
+if [ -n "$thm_saved_dd" ]; then XDG_DATA_DIRS="$thm_saved_dd"; else unset XDG_DATA_DIRS; fi
+if [ -n "$thm_saved_ch" ]; then XDG_CONFIG_HOME="$thm_saved_ch"; else unset XDG_CONFIG_HOME; fi
 
 # The real gsettings probe, against a fake gsettings and a PATH without one.
 thm_bin="$DOCTOR_TEST_TMP/thm-bin"
