@@ -43,6 +43,7 @@ Use `scripts/theming/palette.sh` (`wal_load`, `role_load`, `wal_role`, `wal_read
 
 Doc named per item is in `docs/internals/`.
 
+- **Session daemons**: `scripts/hyprland/respawn.sh` is the only starter of Waybar, SwayNC, hypridle, hyprsunset and the polkit agent (autostart, `waybar.sh`, the settings panel). Packaged systemd user units are not used on purpose (a crash kills their cgroup); a daemon whose package ships D-Bus activation gets a skip drop-in under `systemd/user/<unit>.d/`, like SwayNC's. `scripts.md`.
 - **Wallpaper carousel** (Super+Ctrl+W): `quickshell/wallpaper-carousel/`, applies through `carousel-apply.sh`, which runs `wall.sh` exactly once. `wallpaper-carousel.md`.
 - **Keybindings overlay** (Super+H): `quickshell/keybinds-overlay/`, read-only. `keybinds-overlay.md`.
 - **Workspaces** (`waybar/workspaces/`, C): native Waybar CFFI module built by `scripts/waybar/build-workspaces.sh`; `module.c` must export all five `wbcffi_*` functions. `workspaces.md`.
