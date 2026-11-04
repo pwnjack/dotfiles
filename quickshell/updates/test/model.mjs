@@ -382,4 +382,22 @@ assert.equal(model.glide(0.9996, 1, 0.016), 1)
          dim('Click: details')].join('\n'))
 }
 
+// Opening view: a held lock is a run; an unseen finished run shows its result
+// only when the bar flags it, so a done run left unseen (card closed mid-run)
+// opens on the summary and its new updates instead.
+{
+    const finished = status => ({ status, finishedAt: 1793817799 })
+    assert.equal(model.openingMode(true, finished('done'), ''), 'running')
+    assert.equal(model.openingMode(true, null, ''), 'running')
+    assert.equal(model.openingMode(false, finished('done'), ''), 'summary')
+    for (const status of ['restart', 'attention', 'failed']) {
+        assert.equal(model.openingMode(false, finished(status), ''), 'result', status)
+        assert.equal(model.openingMode(false, finished(status), '1793817799\n'), 'summary', `${status} seen`)
+        assert.equal(model.openingMode(false, finished(status), '1793810000'), 'result', `${status} older ack`)
+    }
+    // A stale "running" with a free lock, or no state at all: the summary.
+    assert.equal(model.openingMode(false, finished('running'), ''), 'summary')
+    assert.equal(model.openingMode(false, null, ''), 'summary')
+}
+
 console.log('model: ok')

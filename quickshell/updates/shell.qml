@@ -125,12 +125,13 @@ ShellRoot {
     function decide(held) {
         const snap = readSnapshot();
         ackFile.reload();
-        if (held) {
+        const opening = Model.openingMode(held, snap, ackFile.text());
+        if (opening === "running") {
             // The runner deletes the old state right after taking the lock.
             run = snap && snap.status === "running" ? snap : null;
             mode = "running";
             card.shown = run ? run.progress : 0;
-        } else if (snap && snap.status !== "running" && ackFile.text().trim() !== String(snap.finishedAt)) {
+        } else if (opening === "result") {
             run = snap;
             showResult(true);
         } else {

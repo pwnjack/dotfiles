@@ -243,9 +243,22 @@ export function checkedLine(plan, nowSeconds, refreshing = false) {
     return `${Math.floor(age / 3600)} h ago`
 }
 
+// The view the card opens on: 'running' while run.lock is held, 'result' for a
+// finished run the card has not shown yet (`ack` is the ack file's text, the
+// finishedAt it last showed), 'summary' otherwise. An unseen run opens its
+// result only when the bar flags it (restart, attention, failed): a plain
+// 'done' left unseen because the card was closed mid-run would otherwise
+// stand in front of the updates published since.
+export function openingMode(held, snap, ack) {
+    if (held) return 'running'
+    if (snap && snap.status !== 'running' && snap.status !== 'done'
+        && String(ack).trim() !== String(snap.finishedAt)) return 'result'
+    return 'summary'
+}
+
 // ② Running copy. `run` is a state.json snapshot, null until the runner reports.
 export function runningSubtitle(run) {
-    return run && run.total ? `${run.total} packages · you can close this` : 'You can close this'
+    return run && run.total ? `${run.total} packages` : ''
 }
 export function runningLine(run) { return run ? run.line : 'Starting…' }
 export function runningKey(run) { return run ? run.key : 'start' }
