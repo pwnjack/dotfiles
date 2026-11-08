@@ -14,10 +14,8 @@
 #      neither of which is "a process that should still be alive". This is
 #      deliberately the same split binaries.sh uses for the identical reason.
 #
-#      An unquoted `~/*` case pattern is tilde-expanded to the running user's
-#      home before matching, so it can never match a literal "~/" in a config
-#      file — a real bug caught in the binaries.sh task and fixed the same way
-#      here: quote the tilde.
+#      The `~/*` case pattern is quoted: unquoted, it is tilde-expanded to the
+#      running user's home before matching and never matches a literal "~/".
 #
 #   1b. Wrapped daemons — the respawn.sh lines of the same list. Their package
 #      may ship D-Bus activation naming a systemd user unit, which starts a
@@ -27,7 +25,15 @@
 #      failed anyway is WARN. Unit names equal binary names here; an unknown
 #      unit is not failed, so a daemon without one needs no special case.
 #
-#   2. D-Bus role ownership — DOCTOR_DBUS_ROLE names one well-known bus name
+#   2. Package drift — PACKAGES and AUR_PACKAGES arrays parsed out of
+#      install.sh. Both arrays close on a bare `)` at column 0 with no
+#      continuation, which is what the awk state machine below assumes. If a
+#      future edit indents the closing paren or puts a second array entry on
+#      that line, the parser silently stops seeing members past that point — a
+#      silent under-report, not a crash, and worth knowing if this check ever
+#      looks confidently wrong.
+#
+#   3. D-Bus role ownership — DOCTOR_DBUS_ROLE names one well-known bus name
 #      that only a single process can hold. Only the notification daemon is in
 #      scope; scaling to more would need the variable to become a newline list
 #      and the lookup below to loop over it, which is not worth building for a
@@ -44,14 +50,6 @@
 #      "Provides : None", so a Provides lookup finds nothing and the orphan
 #      finding — the reason this section exists — would never fire.
 #
-#   3. Package drift — PACKAGES and AUR_PACKAGES arrays parsed out of
-#      install.sh. Verified against the live file (lines 89-121): both arrays
-#      close on a bare `)` at column 0 with no continuation, which is what the
-#      awk state machine below assumes. If a future edit indents the closing
-#      paren or puts a second array entry on that line, the parser silently
-#      stops seeing members past that point — a silent under-report, not a
-#      crash, and worth knowing if this check ever looks confidently wrong.
-#
 # Severity: a daemon not running is WARN (one feature — the thing it does —
 # stops working, but the session is fine). Everything else here is INFO: who
 # owns a D-Bus name, an orphaned config directory, a package drifted out of
@@ -62,26 +60,21 @@
 # Accepted risks:
 #
 #   * The daemon-running check does not verify a matching package is
-#     installed first. "Installed but not running" in the task brief is read
-#     as "autostart declares it, so it is expected to be alive" rather than a
-#     literal pacman cross-check — the binary-to-package name mapping is not
-#     1:1 (`swayosd-server` ships from package `swayosd`) and reconstructing
-#     that mapping is its own project. A daemon
-#     that was deliberately uninstalled still gets one WARN instead of silence
-#     — a known false positive, cheap to dismiss, cheaper than a wrong map.
+#     installed first: "autostart declares it, so it is expected to be alive"
+#     is the whole rule. The binary-to-package name mapping is not 1:1, and
+#     reconstructing it is its own project. A daemon that was deliberately
+#     uninstalled still gets one WARN instead of silence — a known false
+#     positive, cheap to dismiss, cheaper than a wrong map.
 #
 #   * `pgrep -x` matches on `comm`, which the kernel truncates at 15 bytes.
 #     Every name in this repo's autostart.lua is short enough that this never
-#     bites (`swayosd-server` is 14 bytes, the longest of them), so no
-#     workaround is implemented. `pgrep -f` was tried and rejected: it matches
-#     full command lines, so `pgrep -f swaync` can match an unrelated shell
-#     invocation that merely mentions "swaync" in its argv, and `-f hypridle`
-#     etc. are just as porous. `-x` is the correct tool here, not a shortcut.
+#     bites, so no workaround is implemented. `pgrep -f` was tried and
+#     rejected: it matches full command lines, so `pgrep -f swaync` can match
+#     an unrelated shell invocation that merely mentions "swaync" in its argv.
 #
-#   * `pacman`, `busctl` and `pgrep` availability are each checked once in
-#      check_services before the loop that depends on them, not inside every
-#      iteration — so an unavailable tool skips the whole probe silently
-#      instead of one warning-shaped finding per item.
+#   * `pacman` and `busctl` are checked once in check_services before the
+#     probe that depends on them, so an unavailable tool skips the whole probe
+#     silently instead of producing one warning-shaped finding per item.
 #
 
 # The single-owner bus name being audited. See the header note on why this
@@ -156,10 +149,14 @@ _svc_is_running() {
     pgrep -x "$1" >/dev/null 2>&1
 }
 
-# _svc_package_installed <name> -> 0 when a package of that name is installed.
-_svc_package_installed() {
-    command -v pacman >/dev/null 2>&1 || return 1
-    pacman -Q "$1" >/dev/null 2>&1
+# _svc_missing_packages -> the install.sh packages pacman does not consider
+# installed (a package providing the name counts), one per line. One pacman
+# call for the whole list: one `pacman -Q` per package took half a doctor run.
+_svc_missing_packages() {
+    local pkgs
+    mapfile -t pkgs < <(_svc_install_packages)
+    [ "${#pkgs[@]}" -gt 0 ] || return 0
+    pacman -T -- "${pkgs[@]}" 2>/dev/null || true
 }
 
 # _svc_bus_owner <bus-name> -> the process name that owns it on the session
@@ -239,10 +236,9 @@ check_services() {
     if command -v pacman >/dev/null 2>&1; then
         while read -r pkg; do
             [ -n "$pkg" ] || continue
-            _svc_package_installed "$pkg" && continue
             note "install.sh lists '$pkg' but it is not installed" \
                  "pacman -S $(doctor_q "$pkg")   (or your AUR helper, if it is AUR-only)"
-        done < <(_svc_install_packages)
+        done < <(_svc_missing_packages)
     fi
 
     # --- 3. D-Bus role ownership + orphaned notification-daemon configs ----
@@ -250,7 +246,6 @@ check_services() {
         local bus_name="$DOCTOR_DBUS_ROLE"
         owner="$(_svc_bus_owner "$bus_name")"
         if [ -n "$owner" ]; then
-            note "$bus_name is currently owned by '$owner'"
             while read -r candidate; do
                 [ -n "$candidate" ] || continue
                 [ "$candidate" = "$owner" ] && continue

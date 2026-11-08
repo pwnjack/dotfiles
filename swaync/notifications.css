@@ -1,16 +1,7 @@
 /* Original theme: https://github.com/zDyanTB/HyprNova */
 /* Edited (poorly) by @GeodeArc */
 
-@define-color text            @foreground;
-@define-color border          alpha(@foreground, 0.9);
-@define-color background-alt  @surface_container;
-@define-color selected        @secondary_container;
-@define-color hover           @surface_container_high;
-@define-color urgent          @error;
-
 * {
-  color: @text;
-
   all: unset;
   font-size: 11px;
   font-family: "FiraCode Nerd Font";

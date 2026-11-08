@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Wire the tracked SSH agent setup into this machine, so a key's passphrase is
 # asked once per login: OpenSSH's socket-activated agent holds the key, and
 # ssh/config (AddKeysToAgent yes) hands it over on first use. SSH_AUTH_SOCK

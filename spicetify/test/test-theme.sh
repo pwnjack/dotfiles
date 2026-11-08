@@ -11,16 +11,8 @@ repo=$(cd -- "$here/../.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-failed=0 checks=0
-# Records the exit status of the command just before it.
-check() {
-    local rc=$?
-    checks=$((checks + 1))
-    if [ "$rc" -ne 0 ]; then
-        failed=$((failed + 1))
-        echo "FAIL: $1"
-    fi
-}
+# shellcheck source=scripts/lib/assert.sh
+. "$repo/scripts/lib/assert.sh"
 
 home="$tmp/home" config="$tmp/config" cache="$tmp/cache" state="$tmp/state"
 mkdir -p "$home" "$config/spicetify" "$config/scripts/theming" "$cache/wal" "$tmp/bin"
@@ -105,5 +97,4 @@ check "a refresh queued behind the patch lock runs when it is released"
 [ "$(basename "$(readlink "$repo/spicetify/Themes/Pywal/color.ini")")" = spicetify-color.ini ]
 check "the tracked color.ini points at the rendered file"
 
-echo "test-theme: $checks checks, $failed failed"
-[ "$failed" -eq 0 ]
+test_summary theme

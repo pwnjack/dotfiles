@@ -52,10 +52,6 @@
 #   - The two-space indent rule assumes the file keeps its current formatting.
 #     A reformat that changes top-level indentation makes the block list come
 #     back empty, which shows up immediately as every placed module reported.
-#   - A group/* module declares its children in a nested "modules": [...] that
-#     _way_placed does not read, so every child's config block would come back
-#     as a false orphan INFO. No group is used here (zero in the live config),
-#     which is the only reason the claim above about tomorrow's module holds.
 #
 
 # Waybar's own action keywords. They sit exactly where a command would, and are

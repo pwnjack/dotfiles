@@ -1,7 +1,5 @@
 # Spotify (SpotX and Spicetify)
 
-Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md` keeps the rules that must hold on every edit; this file has the reasoning and the traps.
-
 `scripts/spotify/launch.sh` is what starts Spotify: `setup.sh` (run by
 `install.sh`, skipped without spotify-launcher) points a per-user copy of
 `spotify-launcher.desktop` at it. spotify-launcher swaps in a fresh client

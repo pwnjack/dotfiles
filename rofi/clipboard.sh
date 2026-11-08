@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #
 # Clipboard History
 # Pick an entry to copy it again, or clear the whole history.
@@ -24,4 +24,9 @@ if [ "$chosen" = "$clear" ]; then
     exit 0
 fi
 
-printf '%s\n' "$chosen" | cliphist decode | wl-copy
+# Decoded to a file first: an entry that has gone from the history, or one that
+# fails to decode, must not reach wl-copy and replace the clipboard with nothing.
+tmp=$(mktemp) || exit 1
+trap 'rm -f -- "$tmp"' EXIT
+printf '%s\n' "$chosen" | cliphist decode > "$tmp" && [ -s "$tmp" ] || exit 1
+wl-copy < "$tmp"

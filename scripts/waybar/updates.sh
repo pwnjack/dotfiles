@@ -2,12 +2,9 @@
 #
 # Pending updates for waybar -- repo, AUR and Flatpak, one count.
 #
-# There is no update notifier on this machine. The arch-update tray entry in
-# ~/.config/autostart names a binary that is not installed, and Discover's
-# notifier carries OnlyShowIn=KDE so it never starts under Hyprland. This
-# module is the replacement, and it does not duplicate the updater: a click
-# opens the update card (scripts/hyprland/updates-popover.sh), and the terminal
-# path for AUR updates is scripts/updates/terminal.sh.
+# This module is the update notifier, and it does not duplicate the updater: a
+# click opens the update card (scripts/hyprland/updates-popover.sh), and the
+# terminal path for AUR updates is scripts/updates/terminal.sh.
 #
 # The count comes from the card's own planner, scripts/updates/updates-plan.sh,
 # so the bar's number is the card's number. The planner owns the exit-status
@@ -46,8 +43,7 @@ read -r mode 2>/dev/null < "$BAR_OPTIONS/bar-updates"
 # A finished run the card has not shown yet (ack != finishedAt) keeps a
 # class so the result is not missed: restart replaces the module, attention
 # marks the normal count.
-STATE_DIR="${UPDATES_STATE_DIR-}"
-[ -n "$STATE_DIR" ] || STATE_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}/updates"
+STATE_DIR="${UPDATES_STATE_DIR:-${XDG_RUNTIME_DIR:-/run/user/$UID}/updates}"
 run_status='' run_progress=0 run_finished=0 snap=''
 if [ -r "$STATE_DIR/state.json" ]; then
     IFS=$'\t' read -r run_status run_progress run_finished < <(

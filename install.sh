@@ -30,11 +30,11 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --dry-run) DRY_RUN=true; shift ;;
         --no-backup) NO_BACKUP=true; shift ;;
-        --help)
-            head -n 10 "$0" | tail -n 6
+        -h|--help)
+            sed -n '3,9p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
-        *) echo "Unknown option: $1"; exit 1 ;;
+        *) echo "install: unknown option '$1'" >&2; exit 2 ;;
     esac
 done
 
@@ -53,7 +53,7 @@ execute() {
 }
 
 check_dependency() {
-    if ! command -v "$1" &> /dev/null; then
+    if ! command -v "$1" >/dev/null 2>&1; then
         warning "$1 not found - some features may not work"
         return 1
     fi
@@ -163,17 +163,17 @@ AUR_PACKAGES=(
 info "Checking system dependencies..."
 MISSING_PACMAN=()
 MISSING_AUR=("${AUR_PACKAGES[@]}")
-for pkg in "${PACKAGES[@]}"; do
-    if pacman -Qq "$pkg" &> /dev/null; then
-        continue
-    fi
-    if pacman -Si "$pkg" &> /dev/null; then
+# pacman -T prints the names not installed (a providing package counts), in
+# one call for the whole list.
+while read -r pkg; do
+    [ -n "$pkg" ] || continue
+    if pacman -Si "$pkg" >/dev/null 2>&1; then
         MISSING_PACMAN+=("$pkg")
     else
         # Not in any configured repo - try the AUR instead
         MISSING_AUR+=("$pkg")
     fi
-done
+done < <(pacman -T -- "${PACKAGES[@]}" || true)
 
 if [ ${#MISSING_PACMAN[@]} -gt 0 ]; then
     warning "Missing packages: ${MISSING_PACMAN[*]}"
@@ -191,16 +191,16 @@ info "Checking AUR packages..."
 STILL_MISSING_AUR=()
 for pkg in "${MISSING_AUR[@]}"; do
     # Accept either the package itself or its non -bin/-git variant
-    if ! pacman -Qq "$pkg" &> /dev/null \
-        && ! pacman -Qq "${pkg%-bin}" &> /dev/null \
-        && ! pacman -Qq "${pkg}-git" &> /dev/null; then
+    if ! pacman -Qq "$pkg" >/dev/null 2>&1 \
+        && ! pacman -Qq "${pkg%-bin}" >/dev/null 2>&1 \
+        && ! pacman -Qq "${pkg}-git" >/dev/null 2>&1; then
         STILL_MISSING_AUR+=("$pkg")
     fi
 done
 
 if [ ${#STILL_MISSING_AUR[@]} -gt 0 ]; then
     warning "Missing AUR packages: ${STILL_MISSING_AUR[*]}"
-    if command -v paru &> /dev/null || command -v yay &> /dev/null; then
+    if command -v paru >/dev/null 2>&1 || command -v yay >/dev/null 2>&1; then
         read -p "Install missing AUR packages? (y/N) " -n 1 -r || true
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -268,13 +268,15 @@ else
     warning "Could not generate a palette - change the wallpaper (Super+Ctrl+W) to retry"
 fi
 
-# Current-wallpaper state + generated configs (cache-backed, symlinked from the repo)
+# Current-wallpaper state (cache-backed, symlinked from the repo), through the
+# same helper wall.sh uses.
 if [ -n "$FIRST_WALLPAPER" ]; then
-    execute ln -sfn "$FIRST_WALLPAPER" "$HOME/.cache/current_wallpaper"
+    # shellcheck source=scripts/lib/wallpaper.sh
+    . "$DOTFILES_DIR/scripts/lib/wallpaper.sh"
     if [ "$DRY_RUN" = false ]; then
-        echo "* { wallpaper: url(\"$FIRST_WALLPAPER\", width); }" > "$HOME/.cache/wal/rofi-wallpaper.rasi"
+        wallpaper_record "$FIRST_WALLPAPER"
     else
-        echo "[DRY RUN] write $HOME/.cache/wal/rofi-wallpaper.rasi"
+        echo "[DRY RUN] record $FIRST_WALLPAPER as the current wallpaper"
     fi
     success "Wallpaper state initialized"
 fi
@@ -373,7 +375,7 @@ bash "$ssh_setup_root/scripts/ssh/setup.sh" "${ssh_setup_args[@]}" \
 # It installs the repo owner's personal agent instructions, skills and
 # plugins, so it is opt-in (default No) and only offered when one of those
 # tools is installed and the harness has been cloned.
-if command -v claude &> /dev/null || command -v codex &> /dev/null; then
+if command -v claude >/dev/null 2>&1 || command -v codex >/dev/null 2>&1; then
     HARNESS_DIR="$HOME/Developer/agent-harness"
     if [ ! -x "$HARNESS_DIR/setup.sh" ]; then
         info "AI agent harness (optional): git clone https://github.com/pwnjack/agent-harness.git ~/Developer/agent-harness, then run its setup.sh"
@@ -403,11 +405,11 @@ fi
 
 # Set fish as default shell
 if check_dependency "fish"; then
-    if [ "$SHELL" != "$(which fish)" ]; then
+    if [ "$SHELL" != "$(command -v fish)" ]; then
         read -p "Set fish as default shell? (y/N) " -n 1 -r || true
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            execute chsh -s "$(which fish)"
+            execute chsh -s "$(command -v fish)"
             success "Fish set as default shell (logout to apply)"
         fi
     else
@@ -429,13 +431,7 @@ echo "  2. Select Hyprland from your login manager"
 echo "  3. Press SUPER+ENTER to open terminal (ghostty)"
 echo "  4. Press SUPER+CTRL+W to pick a wallpaper (colors follow automatically)"
 echo ""
-info "Key bindings:"
-echo "  SUPER+ENTER      - Terminal"
-echo "  SUPER+Q          - Close window"
-echo "  SUPER+SPACE      - Application launcher"
-echo "  SUPER+L          - Lock screen"
-echo "  SUPER+SHIFT+L    - Power menu"
-echo "  SUPER+H          - Keybinds cheatsheet"
+info "SUPER+H shows every key binding; docs/keybindings.md is the same list."
 echo ""
 if [ "$NO_BACKUP" = false ] && { [ "$DOTFILES_DIR" != "$CONFIG_DIR" ] || [ -d "$BACKUP_DIR" ]; }; then
     info "Backup location: $BACKUP_DIR"

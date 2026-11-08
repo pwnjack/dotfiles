@@ -7,8 +7,8 @@
 # from a generator template, keeps it existing on a fresh checkout where
 # matugen has never run and no template is installed.
 #
-# The themes override background/selected with literals, so only foreground
-# and border show.
+# Every theme overrides selected with a literal and sets its borders from
+# foreground, so only background (the menus) and foreground are read from here.
 #
 # rofi reads its theme on every launch, so there is nothing to reload.
 #
@@ -22,9 +22,6 @@ declare -a wal=()
 # shellcheck source=scripts/theming/palette.sh
 . "$config_dir/scripts/theming/palette.sh"
 wal_load
-# shellcheck disable=SC2034  # read by role_load and wal_role
-declare -A role=()
-role_load
 
 mkdir -p "$cache_dir"
 
@@ -32,7 +29,5 @@ cat > "$cache_dir/colors-rofi.rasi" <<EOF
 * {
     background: ${wal[0]}CC;
     foreground: ${wal[7]};
-    selected:   $(wal_role secondary_container)66;
-    border:     ${wal[7]}CC;
 }
 EOF

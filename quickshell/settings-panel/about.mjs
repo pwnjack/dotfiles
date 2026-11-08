@@ -18,6 +18,9 @@ export function installedFromPacmanLog(firstLine) {
 export function lastFullUpgrade(logText) {
     let latest = null, pending = null
     for (const line of text(logText).split('\n')) {
+        // A new pacman invocation ends a declined or empty upgrade's claim on the
+        // next completed transaction.
+        if (line.includes('[PACMAN] Running')) pending = null
         if (line.includes('starting full system upgrade')) {
             pending = installedFromPacmanLog(line)
         } else if (line.includes('[ALPM] transaction completed') && pending) {

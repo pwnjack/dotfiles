@@ -1,16 +1,7 @@
 /* Original theme: https://github.com/zDyanTB/HyprNova */
 /* Edited (poorly) by @GeodeArc */
 
-@define-color text            @foreground;
-@define-color border          alpha(@foreground, 0.8);
-@define-color background-alt  alpha(@surface_container, .4);
-@define-color background-bg  alpha(@surface_container, .75);
-@define-color selected        @secondary_container;
-@define-color hover           alpha(@selected, .4);
-@define-color urgent          @error;
-
 * {
-  color:            @text;
   all:              unset;
   font-size:        14px;
   font-family:      "FiraCode Nerd Font";
@@ -19,10 +10,10 @@
 }
 
 /* Avoid 'annoying' backgroud */
-.blank-window {  
-  background: transparent;  
+.blank-window {
+  background: transparent;
 }
-  
+
 /* CONTROL CENTER ------------------------------------------------------------------------ */
 
 /* GTK 4.24 sends Hyprland an empty blur region without a backdrop-filter;
@@ -128,7 +119,7 @@ progressbar {
 .notification-group-close-all-button {
   background: transparent;
   color: @text;
-  margin: 4px; 
+  margin: 4px;
   border-radius: 100px;
   padding: 4px;
 }
@@ -136,7 +127,7 @@ progressbar {
 .notification-group-collapse-button:hover,
 .notification-group-close-all-button:hover {
   background: @hover;
-}  
+}
 
 /* WIDGETS --------------------------------------------------------------------------- */
 
@@ -184,16 +175,16 @@ progressbar {
     margin: 0px 10px 0px 10px;
 }
 
-.mpris-background { 
+.mpris-background {
   filter: blur(6px);
   opacity: 0.6;
   background-color: @background-alt;
-} 
+}
 
 .widget-mpris > box > button {
   color: @text;
 }
- 
+
 .widget-mpris button {
   color: #FFF;
   padding: 2px;
@@ -209,12 +200,12 @@ progressbar {
   border-radius: 10px;
   margin: 6px;
 }
- 
+
 .widget-mpris-title {
   font-weight: 600;
   font-size: 0.9rem;
 }
- 
+
 .widget-mpris-subtitle {
   font-weight: 500;
   font-size: 0.8rem;

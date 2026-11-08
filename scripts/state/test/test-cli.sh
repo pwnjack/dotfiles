@@ -91,10 +91,10 @@ bare="$tmp/bare"
 make_tree "$bare"
 mkdir -p "$bare/gtk-3.0" "$tmp/nobackup"
 printf '[Settings]\ngtk-theme-name=Old\n' > "$bare/gtk-3.0/settings.ini"
-env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state3" bash "$bare/scripts/state/overlay.sh" sync --replace ''
+# Run from an empty directory: a relative backup path built from '' would land here.
+(cd "$tmp/nobackup" && env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state3" bash "$bare/scripts/state/overlay.sh" sync --replace '')
 assert_eq "$(cat "$bare/gtk-3.0/settings.ini")" "$(printf '[Settings]\ngtk-theme-name=Kripton')" "--replace '' replaces the stale file"
-assert_eq "$(find "$tmp/nobackup" -mindepth 1 | wc -l)" "0" "--replace '' creates nothing under an unused backup parent"
-assert_eq "$([ -e "$tmp/backup3" ] && echo yes || echo no)" "no" "--replace '' creates no backup directory"
+assert_eq "$(find "$tmp/nobackup" -mindepth 1 | wc -l)" "0" "--replace '' writes no backup, not even under the working directory"
 
 # --replace ignores stale live content but keeps recorded overrides.
 keep="$tmp/keep"

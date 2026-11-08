@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #
 # Power Menu
 # Lock, suspend, logout, reboot and shutdown. Logout, reboot and shutdown ask

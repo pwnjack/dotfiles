@@ -69,7 +69,7 @@ if [ "$mode" = screen ]; then
 else
     args=(-m "$mode")
 fi
-[ "$mode" != screen ] && grep -qx true "$HOME/.config/options/capture-freeze" 2>/dev/null && args+=(-z)
+[ "$mode" != screen ] && grep -qx true "${XDG_CONFIG_HOME:-$HOME/.config}/options/capture-freeze" 2>/dev/null && args+=(-z)
 
 (( delay > 0 )) && sleep "$delay"
 
@@ -84,8 +84,10 @@ fi
 
 # hyprshot saves and copies to the clipboard; -s drops its own toast, which has
 # no actions, for the shared one with Open and Show in folder. A cancelled
-# selection writes no file and gets no toast.
-file="$HOME/Pictures/Screenshots/Screenshot_$(date '+%Y-%m-%d_%H:%M:%S').png"
+# selection writes no file and gets no toast. Milliseconds in the name: two
+# captures started in one second must not share a file, and a cancelled one
+# must not mistake the other's file for its own.
+file="$HOME/Pictures/Screenshots/Screenshot_$(date '+%Y-%m-%d_%H-%M-%S.%3N').png"
 hyprshot "${args[@]}" -s -o "${file%/*}" -f "${file##*/}"
 [ -s "$file" ] || exit 0
 # shellcheck source=scripts/capture/toast.sh

@@ -58,7 +58,7 @@ ShellRoot {
     Component.onCompleted: open()
     function navigate(step) {
         if (!loading && !submitting && entries.length)
-            selectedIndex = (selectedIndex + step + entries.length) % entries.length;
+            selectedIndex = ((selectedIndex + step) % entries.length + entries.length) % entries.length;   // any step, either way round
     }
     function confirm() {
         if (loading || submitting || !selected)

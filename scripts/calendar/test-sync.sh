@@ -25,7 +25,7 @@ assert_eq "$code" 0 "no account: exit 0"
 assert_json_field "$(status)" '.state' none "no account: state none"
 assert_eq "$(count vdirsyncer.argv)" 0 "no account: vdirsyncer never runs"
 assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "no account: no agenda"
-assert_contains "$(cat "$FAKE_LOG/pkill")" "-RTMIN+12 waybar" "no account: Waybar signalled"
+assert_contains "$(cat "$FAKE_LOG/pkill")" "-x -RTMIN+12 waybar" "no account: Waybar signalled"
 
 # Success, first run discovers.
 mkdir -p "$FAKE_KEYRING"; printf 'me@example.com' > "$FAKE_KEYRING/username"
@@ -82,7 +82,7 @@ assert_json_field "$(status)" '.kind' auth "a 401 on an error line is an auth fa
 before=$(count vdirsyncer.argv)
 sync_run --render
 assert_eq "$(count vdirsyncer.argv)" "$before" "--render: no vdirsyncer"
-assert_contains "$(tail -n1 "$FAKE_LOG/pkill")" "-RTMIN+12 waybar" "--render: signals"
+assert_contains "$(tail -n1 "$FAKE_LOG/pkill")" "-x -RTMIN+12 waybar" "--render: signals"
 
 # Declined invitations: a successful sync writes the list and the agenda omits them.
 mkdir -p "$CALENDAR_DATA/home"; echo Home > "$CALENDAR_DATA/home/displayname"
@@ -139,7 +139,7 @@ assert_eq "$(cat "$CALENDAR_STATE_DIR/declined")" "$(printf 'Home\tstale\t*')" "
 assert_eq "$(find "$CALENDAR_STATE_DIR" -name 'declined.*' | wc -l)" 0 "failed publish: the temp file is removed"
 assert_contains "$(cat "$TMP/mverr")" "keeping the previous list" "failed publish: one line on stderr"
 assert_json_field "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" 'length' 4 "failed publish: agenda still rendered (the kept list hides nothing here)"
-assert_contains "$(cat "$FAKE_LOG/pkill")" "-RTMIN+12 waybar" "failed publish: Waybar still signalled"
+assert_contains "$(cat "$FAKE_LOG/pkill")" "-x -RTMIN+12 waybar" "failed publish: Waybar still signalled"
 
 # The rename and the temp-file cleanup both fail (a state dir that lost write permission):
 # still not fatal, so the sync exits 0, stays ok, renders and signals.
@@ -160,7 +160,7 @@ assert_json_field "$(status)" '.state' ok "failed publish and cleanup: state sta
 assert_eq "$(cat "$CALENDAR_STATE_DIR/declined")" "$(printf 'Home\tstale\t*')" "failed publish and cleanup: the previous list is kept"
 assert_contains "$(cat "$TMP/rmerr")" "keeping the previous list" "failed publish and cleanup: one line on stderr"
 assert_json_field "$(cat "$CALENDAR_RUNTIME_DIR/agenda.json")" 'length' 4 "failed publish and cleanup: agenda rendered"
-assert_contains "$(cat "$FAKE_LOG/pkill")" "-RTMIN+12 waybar" "failed publish and cleanup: Waybar signalled"
+assert_contains "$(cat "$FAKE_LOG/pkill")" "-x -RTMIN+12 waybar" "failed publish and cleanup: Waybar signalled"
 
 # Tools: a missing khal is its own failure, and removes the agenda it can no longer back.
 printf '[{"stale":true}]' > "$CALENDAR_RUNTIME_DIR/agenda.json"

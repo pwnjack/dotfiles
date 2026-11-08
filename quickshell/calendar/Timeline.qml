@@ -88,6 +88,7 @@ Item {
                     id: label
                     x: tl.card.px(6); anchors.verticalCenter: parent.verticalCenter
                     text: blk.modelData.title + (blk.seg.cut ? " ›" : "")
+                    textFormat: Text.PlainText
                     visible: implicitWidth + tl.card.px(12) <= blk.width       // whole, or not at all
                     color: "#05090c"; font.family: tl.card.c.monoFont; font.pixelSize: tl.card.px(12); font.weight: Font.DemiBold
                 }

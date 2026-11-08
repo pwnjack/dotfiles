@@ -44,8 +44,7 @@ NET_QUIET=$NET_LINGER
 # The Bar page's mode (options/bar-network): traffic (the rate only while data
 # moves), always, or offline (never the rate). Offline itself shows in every
 # mode. NET_MODE overrides the file for the tests.
-BAR_OPTIONS="${BAR_OPTIONS-}"
-[ -n "$BAR_OPTIONS" ] || BAR_OPTIONS="$HOME/.config/options"
+BAR_OPTIONS="${BAR_OPTIONS:-$HOME/.config/options}"
 if [ -z "${NET_MODE+set}" ]; then
     NET_MODE=''
     read -r NET_MODE 2>/dev/null < "$BAR_OPTIONS/bar-network"

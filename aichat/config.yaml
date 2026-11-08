@@ -62,35 +62,3 @@ clients:
         max_output_tokens: 65536
         supports_vision: true
         supports_function_calling: true
-
-# OpenAI / ChatGPT
-# Set OPENAI_API_KEY environment variable
-# - type: openai
-#   # Models: gpt-4o, gpt-4o-mini, gpt-4-turbo, o1, o1-mini
-
-# Anthropic / Claude
-# Set ANTHROPIC_API_KEY environment variable
-# - type: claude
-#   # Models: claude-sonnet-4-20250514, claude-opus-4-20250514, claude-3-5-haiku-20241022
-
-# Groq (fast inference)
-# Set GROQ_API_KEY environment variable
-# - type: groq
-#   # Models: llama-3.3-70b-versatile, mixtral-8x7b-32768
-
-# Mistral
-# Set MISTRAL_API_KEY environment variable
-# - type: mistral
-#   # Models: mistral-large-latest, mistral-small-latest, codestral-latest
-
-# OpenRouter (access to many models)
-# Set OPENROUTER_API_KEY environment variable
-# - type: openai-compatible
-#   name: openrouter
-#   api_base: https://openrouter.ai/api/v1
-#   # Models: anthropic/claude-3.5-sonnet, openai/gpt-4o, google/gemini-pro-1.5
-
-# Local Ollama
-# - type: ollama
-#   api_base: http://localhost:11434
-#   # Models: llama3, codellama, mistral, phi3

@@ -5,7 +5,6 @@ import QtQuick
 // jumping. It stays visible while it closes; `open` is the state it is heading to.
 Item {
     id: reveal
-    required property var card
     property bool open: false
     property real padding: 0
     default property alias content: holder.data

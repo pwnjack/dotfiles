@@ -25,6 +25,8 @@ FocusScope {
     readonly property var busyDays: card.c.busy[monthKey] || []
     readonly property string todayKey: Model.dayKey(Math.floor(Date.now() / 1000))
     property int focusIndex: -1
+    // A picker reopened for another draft forgets the last arrow-key cursor.
+    onEnabledChanged: if (enabled) focusIndex = -1
     implicitHeight: col.implicitHeight
     Keys.onPressed: event => {
         const step = ({ [Qt.Key_Left]: -1, [Qt.Key_Right]: 1, [Qt.Key_Up]: -7, [Qt.Key_Down]: 7 })[event.key];

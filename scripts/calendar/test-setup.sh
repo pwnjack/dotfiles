@@ -77,7 +77,7 @@ assert_contains "$(cat "$FAKE_LOG/systemctl.argv")" "--user disable --now calend
 assert_eq "$([[ -e $CALENDAR_DATA ]] && echo yes || echo no)" no "sign-out: local copy removed"
 assert_eq "$([[ -e $CALENDAR_STATE_DIR ]] && echo yes || echo no)" no "sign-out: state dir removed"
 assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "sign-out: agenda removed"
-assert_contains "$(tail -n1 "$FAKE_LOG/pkill")" "-RTMIN+12 waybar" "sign-out: Waybar signalled"
+assert_contains "$(tail -n1 "$FAKE_LOG/pkill")" "-x -RTMIN+12 waybar" "sign-out: Waybar signalled"
 # Sign-out while a sync is paused in vdirsyncer (a detached sync is outside the unit, so
 # stopping the unit does not reach it): the removal waits for sync.lock, and when it cannot
 # get it, it touches nothing. Once the sync ends, sign-out removes the copy for good.

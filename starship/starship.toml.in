@@ -72,7 +72,7 @@ format = '[ $symbol ($version) ]($style)'
 [docker_context]
 symbol = " "
 style = "bg:@role_surface_container_highest@ fg:@role_on_surface@"
-format = '[ $symbol $context ]($style) $path'
+format = '[ $symbol $context ]($style)'
 
 [elixir]
 symbol = " "
@@ -159,4 +159,3 @@ disabled = false
 # use the Arch glyph, since CachyOS is Arch-based.
 CachyOS = "\U000F08C7"
 Arch = "󰣇"
-Fedora = ""

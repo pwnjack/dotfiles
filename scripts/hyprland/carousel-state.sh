@@ -68,7 +68,8 @@ try:
     values.sort(key=(lambda item: item[1]) if order == 'date' else (lambda item: str(item[0]).casefold()))
     data['entries'] = [dict(path=str(p), url=p.as_uri(), name=p.name) for p, _ in values]
     data['error'] = '; '.join(errors)
-    data['current'] = str(Path(settings.get('wallpaper', '')).expanduser())
+    saved = settings.get('wallpaper', '')
+    data['current'] = str(Path(saved).expanduser()) if saved else ''
     # sys.argv[4]: what awww shows now (scripts/lib/wallpaper.sh), empty when
     # awww could not be queried.
     if sys.argv[4]:

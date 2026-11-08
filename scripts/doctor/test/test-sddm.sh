@@ -378,6 +378,16 @@ touch -t 202003010000 \
     "$sddm_clean/host/themes/fixture-theme/Backgrounds/wallpaper.jpg"
 sddm_run_check
 
+# A Backgrounds directory others can write to is refused by the helper; the
+# doctor says so instead of pointing at sudo.
+chmod g+w "$sddm_clean/host/themes/fixture-theme/Backgrounds"
+sddm_run_check
+assert_contains "$sddm_out" "Backgrounds directory is writable by others" \
+    "a group-writable Backgrounds directory is an error"
+assert_contains "$sddm_out" "chmod go-w" "with the chmod that fixes it"
+chmod g-w "$sddm_clean/host/themes/fixture-theme/Backgrounds"
+sddm_run_check
+
 {
     group "SDDM"
     ok "SDDM wallpaper sync is healthy"
@@ -390,11 +400,11 @@ assert_eq "$DOCTOR_WARNINGS" "0" "clean host records no warnings"
 
 # --- doctor and root helper accept the same Current= grammar --------------
 printf '[Theme]\n  Current = other-theme  \n' > "$sddm_clean/host/sddm.conf"
-assert_eq "$(_sddm_current_theme)" "" \
-    "indented Current assignment is rejected like the root helper rejects it"
-printf '[Theme]\nCurrent=other-theme\n' > "$sddm_clean/host/sddm.conf"
 assert_eq "$(_sddm_current_theme)" "other-theme" \
-    "unindented Current= assignment matches the root helper grammar"
+    "a padded Current assignment is read like the root helper reads it"
+printf '[General]\nCurrent=not-a-theme\n[Theme]\n# a comment\nCursorTheme=x\nFacesDir=y\nCurrent=other-theme\n' > "$sddm_clean/host/sddm.conf"
+assert_eq "$(_sddm_current_theme)" "other-theme" \
+    "Current is read from the Theme section wherever it sits, never from another section"
 
 # --- updater rejects ambiguous or unsafe installed-helper paths -----------
 sddm_script_fixture="$(make_fixture)"
@@ -611,6 +621,7 @@ printf 'original background\n' > "$sddm_decode_background"
 cp "$REPO_DIR/sddm/update_sddm_root.sh" "$sddm_decode_helper"
 sed -i \
     -e "s|^RUNUSER=.*|RUNUSER=\"$sddm_decode_bin/runuser\"|" \
+    -e "s|^LOCK_FILE=.*|LOCK_FILE=\"$sddm_decode_bin/sddm-wallpaper.lock\"|" \
     -e "s|/usr/share/sddm/themes|$sddm_decode_themes|g" \
     -e "s|/etc/sddm.conf|$sddm_decode_conf|g" \
     "$sddm_decode_helper"
@@ -691,12 +702,14 @@ case "$(/usr/bin/cat "$input" 2>/dev/null)" in
 esac
 SDDM_FFMPEG_EOF
 
+# The helper asks for owner and mode together; the fixture answers for its two
+# directories (root-owned 0755 unless a test says otherwise) and defers the rest.
 cat > "$sddm_decode_bin/stat" <<'SDDM_STAT_EOF'
 #!/bin/bash
-if [[ "$1" == "-c" && "$2" == "%u" && "$3" == "--" ]]; then
+if [[ "$1" == "-c" && "$2" == "%u %a" && "$3" == "--" ]]; then
     case "$4" in
-        */fixture-theme) printf '%s\n' "${SDDM_TEST_THEME_OWNER:-0}" ;;
-        */Backgrounds) printf '%s\n' "${SDDM_TEST_BACKGROUNDS_OWNER:-0}" ;;
+        */fixture-theme) printf '%s %s\n' "${SDDM_TEST_THEME_OWNER:-0}" "${SDDM_TEST_THEME_MODE:-755}" ;;
+        */Backgrounds) printf '%s %s\n' "${SDDM_TEST_BACKGROUNDS_OWNER:-0}" "${SDDM_TEST_BACKGROUNDS_MODE:-755}" ;;
         *) /usr/bin/stat "$@" ;;
     esac
 else
@@ -714,6 +727,7 @@ sddm_decode_run() {
         SDDM_TEST_FFMPEG_LOG="$sddm_decode_ffmpeg_log" \
         SDDM_TEST_THEME_OWNER="${SDDM_TEST_THEME_OWNER:-0}" \
         SDDM_TEST_BACKGROUNDS_OWNER="${SDDM_TEST_BACKGROUNDS_OWNER:-0}" \
+        SDDM_TEST_BACKGROUNDS_MODE="${SDDM_TEST_BACKGROUNDS_MODE:-755}" \
         PATH="$sddm_decode_bin:/usr/bin:/bin" \
         bash "${1:-$sddm_decode_helper}" fixture-user 2>&1)
     sddm_decode_status=$?
@@ -783,6 +797,15 @@ assert_eq "${#sddm_decode_temporaries[@]}" "0" \
     "termination between mktemp and rename leaves no temporary behind"
 assert_eq "$(cat "$sddm_decode_background")" "original background" \
     "terminated decode leaves the previous background intact"
+
+# A root-owned but world-writable Backgrounds directory lets another user swap
+# the temporary file for a symlink before root writes: refused the same way.
+printf 'decodable\n' > "$sddm_decode_source"
+printf 'original background\n' > "$sddm_decode_background"
+SDDM_TEST_BACKGROUNDS_MODE=777 sddm_decode_run
+assert_eq "$sddm_decode_status" "1" "a world-writable Backgrounds directory is refused"
+assert_contains "$sddm_decode_out" "writable by others" "unsafe Backgrounds mode reports the violated invariant"
+assert_eq "$(cat "$sddm_decode_background")" "original background" "unsafe Backgrounds mode cannot replace the background"
 
 # The helper enforces the root-owned destination invariant itself rather than
 # relying on the report-only doctor check.

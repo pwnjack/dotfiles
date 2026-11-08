@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #
 # Keybinds sheet
 #
@@ -206,7 +206,7 @@ _format_keys() {
 US=$'\x1f'
 RS=$'\x1e'
 
-declare -A ROW_SECTION=() ROW_MODS=() ROW_KEYS=() ROW_DESC=() ROW_LABEL=() ROW_N=()
+declare -A ROW_SECTION=() ROW_MODS=() ROW_KEYS=() ROW_DESC=()
 declare -a ORDER=()
 
 # Binds above the first `## Heading` still need a section a reader can name.
@@ -232,12 +232,10 @@ while IFS= read -r line || [ -n "$line" ]; do
     [[ "$line" == *") -- "* ]] && comment="$(_trim "${line##*) -- }")"
     if [ -n "$comment" ]; then
         desc="$(_expand_vars "$comment")"
-        label="$desc"
     else
         action="${line#*hl.dsp.}"
         action="${action%%(*}"
         desc="$(_squeeze "${action//./ }")"
-        label="$desc"
     fi
 
     bindtype="bind"
@@ -245,18 +243,15 @@ while IFS= read -r line || [ -n "$line" ]; do
     [[ "$line" == *"locked = true"* ]] && bindtype="${bindtype}l"
     [[ "$line" == *"repeating = true"* ]] && bindtype="${bindtype}e"
 
-    sig="$section$US$bindtype$US$mods$US$label"
-    if [ -z "${ROW_N[$sig]:-}" ]; then
+    sig="$section$US$bindtype$US$mods$US$desc"
+    if [ -z "${ROW_DESC[$sig]+set}" ]; then
         ORDER+=("$sig")
         ROW_SECTION[$sig]="$section"
         ROW_MODS[$sig]="$(_mods_display "$mods")"
         ROW_KEYS[$sig]="$(_key_display "$key")"
         ROW_DESC[$sig]="$desc"
-        ROW_LABEL[$sig]="$label"
-        ROW_N[$sig]=1
     else
         ROW_KEYS[$sig]="${ROW_KEYS[$sig]}$RS$(_key_display "$key")"
-        ROW_N[$sig]=$(( ROW_N[$sig] + 1 ))
     fi
 done < "$conf"
 
@@ -272,14 +267,8 @@ for sig in "${ORDER[@]}"; do
     [ -n "${ROW_MODS[$sig]}" ] && combo="${ROW_MODS[$sig]} + $combo"
     combo="  $combo"
 
-    if [ "${ROW_N[$sig]}" -gt 1 ]; then
-        text="${ROW_LABEL[$sig]}"
-    else
-        text="${ROW_DESC[$sig]}"
-    fi
-
     COMBOS+=("$combo")
-    LABELS+=("$text")
+    LABELS+=("${ROW_DESC[$sig]}")
     SECTIONS+=("${ROW_SECTION[$sig]}")
     MODS+=("${ROW_MODS[$sig]}")
     KEYTXT+=("$keytxt")

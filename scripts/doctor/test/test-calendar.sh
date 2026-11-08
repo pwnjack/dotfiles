@@ -59,7 +59,7 @@ assert_eq "$DOCTOR_WARNINGS$DOCTOR_ERRORS" "00" "calendar: healthy has no findin
 cal_healthy; cal_tools="khal"; cal_run
 assert_contains "$cal_out" "vdirsyncer is not installed" "calendar: missing vdirsyncer is reported"
 assert_contains "$cal_out" "sudo pacman -S --needed khal vdirsyncer" "calendar: install hint is derived from install.sh"
-assert_eq "$DOCTOR_ERRORS" 1 "calendar: a missing tool is one error"
+assert_eq "$DOCTOR_WARNINGS" 1 "calendar: a missing tool is one warning"
 
 cal_healthy; cal_enabled=no; cal_run
 assert_contains "$cal_out" "calendar-sync.timer is not enabled" "calendar: timer off is reported"

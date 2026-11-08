@@ -1,7 +1,6 @@
 // The capture strip's pure model (docs/capture.md). Everything the
-// strip decides lives here: the option files behind its controls, which
-// controls each mode shows, the keyboard, the action button and the command
-// it runs. shell.qml and Strip.qml only draw it; test/model.mjs runs it under node.
+// strip decides lives here: the option files behind its controls, the
+// keyboard, the action button and the command it runs. shell.qml and Strip.qml only draw it; test/model.mjs runs it under node.
 
 // Qt's V4 engine (QML imports this file) has no object spread: Object.assign.
 export const MODES = ['screenshot', 'text', 'record']
@@ -49,12 +48,6 @@ export function withMode(state, mode) {
 }
 
 export const targetKey = mode => mode === 'record' ? 'recTarget' : 'shotTarget'
-
-// Text has no target (it is always a dragged region) and no annotate.
-export function controls(mode) {
-    if (mode === 'record') return ['delay', 'audio', 'mic']
-    return mode === 'text' ? ['delay', 'freeze'] : ['delay', 'freeze', 'annotate']
-}
 
 export const nextDelay = d => DELAYS.find(x => x > d) ?? 0
 export const delayLabel = d => d ? `${d}s` : 'Off'

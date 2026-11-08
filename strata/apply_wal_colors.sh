@@ -15,7 +15,7 @@ rendered="$cache_dir/strata-theme.toml"
 link="$config_dir/strata/themes/tokyo-night.toml"
 
 declare -a wal=()
-# shellcheck source=scripts/theming/palette.sh disable=SC1091
+# shellcheck source=scripts/theming/palette.sh
 . "$config_dir/scripts/theming/palette.sh"
 wal_load
 # shellcheck disable=SC2034  # read by role_load, wal_role and wal_render

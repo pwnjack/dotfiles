@@ -104,7 +104,7 @@ assert_eq "$status_rc" 0 "status exits 0 while recording"
 assert_contains "$status_out" "recording " "status names the phase"
 assert_contains "$(rec status --json)" '"class":"recording"' "status --json carries the recording class"
 assert_contains "$(cat "$CAPTURE_STATE_DIR/recording.json")" '"phase":"recording"' "state file written"
-assert_contains "$(cat "$FAKE_LOG/pkill")" "-RTMIN+11 waybar" "Waybar signalled on start"
+assert_contains "$(cat "$FAKE_LOG/pkill")" "-x -RTMIN+11 waybar" "Waybar signalled on start"
 
 # --- start while recording stops it ---------------------------------------------
 output=$(rec status | cut -d' ' -f3-)
@@ -143,7 +143,7 @@ rec start screen; rc=$?
 assert_eq "$rc" 1 "early recorder death exits 1"
 [ ! -e "$CAPTURE_STATE_DIR/recording.json" ] && pass "early death clears state" || fail "early death clears state"
 assert_contains "$(cat "$FAKE_LOG/notify")" "Recording failed" "early death toast"
-assert_contains "$(cat "$FAKE_LOG/pkill")" "-RTMIN+11 waybar" "Waybar signalled after an early failure"
+assert_contains "$(cat "$FAKE_LOG/pkill")" "-x -RTMIN+11 waybar" "Waybar signalled after an early failure"
 assert_contains "$(cat "$FAKE_LOG/notify")" "failed to open the capture device" "toast quotes the recorder's error"
 
 reset
@@ -190,7 +190,7 @@ wait "$dead"
 printf '{"pid":%s,"since":1,"started":1,"output":"x","phase":"recording"}\n' "$dead" > "$CAPTURE_STATE_DIR/recording.json"
 assert_contains "$(rec status --json)" '"phase":"idle"' "a dead pid reads as idle"
 [ ! -e "$CAPTURE_STATE_DIR/recording.json" ] && pass "a dead pid's state is removed" || fail "a dead pid's state is removed"
-assert_contains "$(cat "$FAKE_LOG/pkill")" "-RTMIN+11 waybar" "removing a stale state signals Waybar"
+assert_contains "$(cat "$FAKE_LOG/pkill")" "-x -RTMIN+11 waybar" "removing a stale state signals Waybar"
 
 # A live process under the same pid but another start time is not the recorder.
 sleep 30 & other=$!
@@ -342,7 +342,7 @@ for hold in CAPTURE_TEST_HOLD CAPTURE_TEST_HOLD_LATE; do
     [ ! -e "$CAPTURE_STATE_DIR/recording.json" ] && ! compgen -G "$CAPTURE_STATE_DIR/stopped.*" >/dev/null \
         && pass "$hold: no state, no stop marker" || fail "$hold: state or marker left"
     [ ! -e "$FAKE_LOG/notify" ] && pass "$hold: no toast" || fail "$hold: toast" "$(cat "$FAKE_LOG/notify")"
-    assert_contains "$(tail -n1 "$FAKE_LOG/pkill")" "-RTMIN+11 waybar" "$hold: Waybar signalled"
+    assert_contains "$(tail -n1 "$FAKE_LOG/pkill")" "-x -RTMIN+11 waybar" "$hold: Waybar signalled"
 done
 
 # A videos directory that cannot be created after a countdown clears the countdown.
@@ -355,6 +355,14 @@ export CAPTURE_VIDEOS="$TMP/videos"
 assert_eq "$rc" 1 "an uncreatable videos directory exits 1"
 [ ! -e "$CAPTURE_STATE_DIR/recording.json" ] && pass "its countdown state is cleared" || fail "its countdown state is cleared"
 assert_contains "$(cat "$FAKE_LOG/notify")" "Cannot create" "its toast names the problem"
-assert_contains "$(tail -n1 "$FAKE_LOG/pkill")" "-RTMIN+11 waybar" "Waybar signalled after it"
+assert_contains "$(tail -n1 "$FAKE_LOG/pkill")" "-x -RTMIN+11 waybar" "Waybar signalled after it"
+
+# A recorder that ignores SIGINT is killed after the stop wait; stop exits 1 and says so.
+reset
+FAKE_GSR=hang rec start screen
+CAPTURE_STOP_WAIT=1 rec stop; rc=$?
+assert_eq "$rc" 1 "a hung recorder makes stop exit 1"
+assert_contains "$(cat "$FAKE_LOG/notify")" "did not finish" "and the toast says the recording was not saved"
+pkill -KILL -f "$TEST_DIR/fakes/gpu-screen-recorder" 2>/dev/null
 
 test_summary record

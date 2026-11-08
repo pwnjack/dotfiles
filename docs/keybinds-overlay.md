@@ -41,10 +41,3 @@ columns, and exits on close.
   while open: `{opened, loading, query, shown, total, columns, error}`
 - `console.info` lines (including the ready time) go to the Quickshell log named
   in `~/.cache/keybinds-overlay/session.log`; read it with `qs log <path>`.
-
-## Measurements
-
-2026-10-03, 2560×1440, three cold opens: window shown to grid ready
-258 / 261 / 263 ms; the launcher returned after 272 / 224 / 215 ms. The bash
-parse is about 200 ms of that. The backdrop and prompt appear first, so the
-delay shows as the grid arriving a moment later, not as a late window.

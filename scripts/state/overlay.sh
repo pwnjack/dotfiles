@@ -46,8 +46,4 @@ case "$command" in
     check)
         exec node "$here/overlay-cli.mjs" check "$config_dir" "$state_dir"
         ;;
-    *)
-        echo "usage: overlay.sh sync [--replace <backup dir>] [--restore] [<live path>...] | check" >&2
-        exit 2
-        ;;
 esac

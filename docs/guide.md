@@ -20,7 +20,7 @@ Deep dives, one per component:
 
 The design notes and traps behind each piece (theming, the machine-state
 overlay, options, the doctor, the desktop clock, night light, default
-applications, the agent harness and more) are in [internals/](internals/).
+applications and more) are in [internals/](internals/).
 
 ## Core stack
 
@@ -161,7 +161,7 @@ the power menu and suspend ask at once.
 The **AI sidebar** (`Super + A`) opens aichat in a narrow Ghostty window on its
 own special workspace; its API key comes from `~/.config/.env` (see below).
 
-`Super + Shift + B` restarts Waybar (a reload while it is running);
+`Super + Shift + B` reloads Waybar (and starts it if it is not running);
 `Super + Alt + B` shows and hides it.
 
 ### Idle efficiency
@@ -373,7 +373,7 @@ XDG autostart entries are managed on the settings panel's Startup page.
 
 ### Waybar modules
 
-Edit `~/.config/waybar/config.jsonc`; `Super + Shift + B` restarts the bar.
+Edit `~/.config/waybar/config.jsonc`; `Super + Shift + B` reloads the bar.
 Which resource modules show, and the bar's position and style, are set on the
 settings panel's Bar page.
 
@@ -544,28 +544,9 @@ git reset origin/main   # marks repo files as tracked without touching them
 ### Manual
 
 ```bash
-# install.sh's repo packages. install.sh itself sends any your repos lack to the
-# AUR helper; on plain Arch, move those to the paru line below.
-sudo pacman -S --needed hyprland hyprlock hypridle mate-polkit hyprshot \
-               hyprpicker hyprsunset swappy uwsm xdg-desktop-portal-hyprland \
-               xdg-desktop-portal-gtk waybar swaync awww waypaper quickshell \
-               rofi rofi-emoji ghostty fish starship fzf fd neovim zed obsidian \
-               bat eza ripgrep lazygit tree-sitter-cli yazi btop resources \
-               fastfetch cava cmatrix tty-clock pacman-contrib xdg-terminal-exec \
-               cliphist wl-clipboard gpu-screen-recorder slurp playerctl \
-               matugen qt5ct qt6ct nwg-look kvantum kvantum-qt5 \
-               papirus-icon-theme pavucontrol blueman nm-connection-editor \
-               gnome-calculator wireplumber pipewire-pulse networkmanager \
-               power-profiles-daemon gnome-keyring khal vdirsyncer \
-               headsetcontrol jq ffmpeg inotify-tools zoxide git-delta aichat \
-               shellcheck imagemagick zip unzip gcc make pkgconf gtk3 \
-               json-glib python nodejs gjs ttf-firacode-nerd \
-               ttf-cascadia-mono-nerd ttf-nerd-fonts-symbols noto-fonts \
-               noto-fonts-emoji
-
-# AUR (paru or yay)
-paru -S --needed strata-bin zen-browser-bin vesktop waybar-weather eww \
-               bibata-cursor-theme kripton-theme-git
+# The package list is the PACKAGES and AUR_PACKAGES arrays at the top of
+# install.sh: install them with pacman and your AUR helper, or let install.sh
+# do it (it sends any name your repos lack to the AUR helper).
 
 # Render this machine's settings (options/, GTK and Qt settings, mimeapps.list,
 # swaync and hyprsunset config) from defaults/
@@ -656,18 +637,18 @@ every component:
 ~/.config/scripts/theming/apply-wal.sh
 ```
 
-**Waybar issues:** press `Super + Shift + B` to restart the bar.
+**Waybar issues:** press `Super + Shift + B`, which reloads the bar and starts
+it if it is not running.
 
-**Screen does not lock when idle:**
+**Screen does not lock when idle**, or **notifications stopped**: the session
+daemons are supervised by `respawn.sh`, so restart them through it rather than
+by hand (a hand-started copy is unsupervised). Stop the old copy first, since
+the wrapper bows out while one is running, and detach the wrapper so closing
+the terminal does not end it:
 
 ```bash
-killall hypridle; hypridle &
-```
-
-**Restart notifications:**
-
-```bash
-killall swaync; swaync &
+pkill -x hypridle; setsid -f ~/.config/scripts/hyprland/respawn.sh hypridle
+pkill -x swaync;   setsid -f ~/.config/scripts/hyprland/respawn.sh swaync
 ```
 
 **Logs:**

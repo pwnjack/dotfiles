@@ -12,7 +12,7 @@
 #   cal.sh delete                      one stdin line {"calendar","uid","occurrence","scope","hash"}
 # add, update and delete hold sync.lock, the lock sync.sh holds while it talks to
 # iCloud and rewrites the copy, so a write never lands between a sync and its
-# publish; a busy lock refuses the write rather than waiting for it.
+# publish; a write waits up to 15 s for a running sync, then refuses.
 # Errors print {"ok":false,"error":"..."} and exit 1.
 # shellcheck disable=SC2154  # cal_* paths come from lib.sh
 set -euo pipefail
@@ -170,12 +170,14 @@ calendar_dir() {
     done
     return 1
 }
-# find_event <calendar> <uid> — the file in that calendar whose UID line matches exactly.
+# find_event <calendar> <uid> — the file in that calendar whose UID matches exactly.
+# Lines are unfolded first (RFC 5545 folds a long UID across lines), so a UID
+# from another client is found as khal lists it.
 find_event() {
     local dir file
     dir=$(calendar_dir "$1") || return 1
     while IFS= read -r -d '' file; do
-        if grep -qxF -e "UID:$2" -e "UID:$2"$'\r' "$file"; then printf '%s' "$file"; return 0; fi
+        if sed -e ':a' -e 'N' -e '$!ba' -e 's/\r\{0,1\}\n[ \t]//g' "$file" | grep -qxF -e "UID:$2" -e "UID:$2"$'\r'; then printf '%s' "$file"; return 0; fi
     done < <(find "$dir" -maxdepth 1 -name '*.ics' -print0)
     return 1
 }

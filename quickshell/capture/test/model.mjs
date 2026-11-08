@@ -21,9 +21,6 @@ const files = { 'capture-shot-target': 'window\n', 'capture-rec-target': 'region
     assert.equal(M.initialState(files, 'record').mode, 'record')
     assert.equal(M.initialState(files, 'nonsense').mode, 'screenshot')
     assert.equal(M.withMode(M.initialState({}, 'screenshot'), 'bogus').mode, 'screenshot')
-    assert.deepEqual(M.controls('screenshot'), ['delay', 'freeze', 'annotate'])
-    assert.deepEqual(M.controls('record'), ['delay', 'audio', 'mic'])
-    assert.deepEqual(M.controls('text'), ['delay', 'freeze'])
     assert.deepEqual(M.MODES, ['screenshot', 'text', 'record'])
     assert.equal(M.initialState(files, 'text').mode, 'text')
 }

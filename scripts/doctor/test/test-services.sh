@@ -79,12 +79,8 @@ assert_not_contains "$svc_pkgs" "comment line" "comment lines inside the array a
 
 # --- stub the host probes for deterministic findings ----------------------
 _svc_is_running() { [ "$1" = "svc-running-qq" ]; }
-_svc_package_installed() {
-    case "$1" in
-        svc-present-pkg-qq|svc-aur-present-qq|swaync) return 0 ;;
-        mako) return 0 ;;
-        *) return 1 ;;
-    esac
+_svc_missing_packages() {
+    _svc_install_packages | grep -vxE 'svc-present-pkg-qq|svc-aur-present-qq|swaync|mako'
 }
 _svc_bus_owner() { printf 'swaync'; }
 # Never the real systemctl: only the wrapped daemon and the bare one are "failed".
@@ -112,7 +108,7 @@ assert_not_contains "$svc_out" "svc-aur-present-qq' but it is not installed" \
 
 assert_contains "$(svc_line "$svc_out_file" "org.freedesktop.Notifications")" "INFO" \
     "the D-Bus owner is reported at INFO"
-assert_contains "$svc_out" "owned by 'swaync'" "the report names the actual owner"
+assert_contains "$svc_out" "while 'swaync' holds the name" "the report names the actual owner"
 
 assert_contains "$(svc_line "$svc_out_file" "'mako' is installed")" "INFO" \
     "mako installed + tracked config + not the bus owner is INFO"
@@ -142,8 +138,8 @@ git -C "$svc_clean" commit -qm "fixture"
 
 DOCTOR_ROOT="$svc_clean"
 _svc_is_running() { [ "$1" = "svc-running-qq" ]; }
-_svc_package_installed() { [ "$1" = "svc-present-pkg-qq" ]; }
-_svc_bus_owner() { return 1; }
+_svc_missing_packages() { _svc_install_packages | grep -vx 'svc-present-pkg-qq'; }
+_svc_bus_owner() { printf 'swaync'; }
 _svc_role_providers() { return 0; }
 _svc_unit_failed() { return 1; }
 
@@ -187,32 +183,8 @@ assert_not_contains "$svc_degraded_out" "is installed with a tracked config" \
 assert_eq "$DOCTOR_ERRORS" "0" "an unavailable pacman/busctl is degraded, not an error"
 
 # Restore the real probes for anything sourced after this file.
-_svc_unit_failed() {
-    command -v systemctl >/dev/null 2>&1 || return 1
-    systemctl --user is-failed --quiet "$1" 2>/dev/null
-}
-_svc_is_running() {
-    command -v pgrep >/dev/null 2>&1 || return 1
-    pgrep -x "$1" >/dev/null 2>&1
-}
-_svc_package_installed() {
-    command -v pacman >/dev/null 2>&1 || return 1
-    pacman -Q "$1" >/dev/null 2>&1
-}
-_svc_bus_owner() {
-    command -v busctl >/dev/null 2>&1 || return 1
-    busctl --user list 2>/dev/null | awk -v n="$1" '$1 == n { print $3; found=1 } END { exit !found }'
-}
-_svc_role_providers() {
-    local file pkg
-    command -v pacman >/dev/null 2>&1 || return 0
-    while read -r file; do
-        [ -n "$file" ] || continue
-        pkg="$(pacman -Qoq "$file" 2>/dev/null)"
-        [ -n "$pkg" ] || continue
-        printf '%s\n' "$pkg"
-    done < <(_svc_role_service_files "$1")
-}
+# shellcheck source=/dev/null
+source "$DOCTOR_DIR/checks/services.sh"
 
 # --- role providers are derived from D-Bus activation files ---------------
 # The scanning half is tested against a fixture directory; the pacman lookup

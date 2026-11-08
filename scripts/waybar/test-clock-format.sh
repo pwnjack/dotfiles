@@ -46,5 +46,5 @@ clock_block=$(sed -n '/^  "clock": {/,/^  },/p' "$config")
 if grep -Eq '^    "(format|interval)":' <<< "$clock_block"; then echo 'waybar/config.jsonc must not set clock.format or clock.interval' >&2; exit 1; fi
 grep -Fq '"include": ["~/.local/state/waybar/clock.jsonc"' "$config" || { echo 'waybar/config.jsonc must include ~/.local/state/waybar/clock.jsonc' >&2; exit 1; }
 # shellcheck disable=SC2016 # the literal $HOME text is what is being checked
-grep -Fq 'include=$HOME/.local/state/waybar/clock.jsonc' "$script" || { echo 'clock-format.sh must default to the include config.jsonc names' >&2; exit 1; }
+grep -Fq 'include=${CLOCK_INCLUDE:-$HOME/.local/state/waybar/clock.jsonc}' "$script" || { echo 'clock-format.sh must default to the include config.jsonc names' >&2; exit 1; }
 echo 'ok: the main config leaves the format to the include it names'

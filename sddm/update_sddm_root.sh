@@ -11,6 +11,7 @@
 TARGET_USER="${1:-${SUDO_USER:-$(id -un 1000 2>/dev/null)}}"
 USER_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
 RUNUSER=/usr/bin/runuser
+LOCK_FILE=/run/lock/sddm-wallpaper.lock
 
 if [[ -z "$USER_HOME" ]]; then
     echo "Error: could not resolve home directory for user '$TARGET_USER'" >&2
@@ -21,6 +22,14 @@ if [[ ! -x "$RUNUSER" ]]; then
     echo "Error: runuser is required to decode the SDDM wallpaper without root privileges" >&2
     exit 1
 fi
+
+# One update at a time, from discovery to publication: the watcher starts a
+# helper per cache write, so two helpers would otherwise resolve different
+# images and the one that finishes last would publish the older one, or sweep
+# the other's temporary file. /run/lock is root-only, so no user can plant the
+# lock file.
+exec 8>"$LOCK_FILE" || exit 1
+flock 8
 
 # awww cache layout: ~/.cache/awww/<version>/<monitor>, ending in the image
 # path. awww 0.12 separates the fields with NUL bytes, so grep needs -a (without
@@ -75,15 +84,25 @@ if ! "$RUNUSER" -u "$TARGET_USER" -- \
     exit 1
 fi
 
-# Determine which SDDM theme is in use (default: sddm-astronaut-theme)
+# Determine which SDDM theme is in use (default: sddm-astronaut-theme): the
+# Current key anywhere in the [Theme] section. The doctor's check_sddm parses
+# it the same way; keep the two in step.
 current_theme=""
 if [[ -f /etc/sddm.conf ]]; then
-    current_theme=$(grep -A2 "\[Theme\]" /etc/sddm.conf 2>/dev/null | grep "^Current=" | cut -d'=' -f2 | tr -d ' ')
+    current_theme=$(awk '/^\[/ { theme = ($0 == "[Theme]") } theme && /^[ \t]*Current[ \t]*=/ { sub(/^[^=]*=[ \t]*/, ""); sub(/[ \t]+$/, ""); print; exit }' /etc/sddm.conf 2>/dev/null)
 fi
 [[ -z "$current_theme" ]] && current_theme="sddm-astronaut-theme"
 
 themes_to_update=("$current_theme")
 [[ "$current_theme" != "sddm-astronaut-theme" ]] && themes_to_update+=("sddm-astronaut-theme")
+
+# root_only_dir <dir> — a directory root owns and nobody else may write to, so
+# no other user can swap its entries while root writes there.
+root_only_dir() {
+    local meta
+    meta=$(stat -c '%u %a' -- "$1" 2>/dev/null) || return 1
+    [[ -d "$1" && "$meta" =~ ^0\ [0-7]?[0-7][0145][0145]$ ]]
+}
 
 temporary=""
 cleanup_temporary() {
@@ -98,8 +117,8 @@ for theme in "${themes_to_update[@]}"; do
     theme_dir="/usr/share/sddm/themes/$theme"
     resolved_theme_dir=$(readlink -f -- "$theme_dir" 2>/dev/null)
     [[ -n "$resolved_theme_dir" ]] && [[ -d "$resolved_theme_dir" ]] || continue
-    if [[ "$(stat -c %u -- "$resolved_theme_dir" 2>/dev/null)" != "0" ]]; then
-        echo "Error: refusing SDDM theme '$theme': resolved theme directory is not root-owned" >&2
+    if ! root_only_dir "$resolved_theme_dir"; then
+        echo "Error: refusing SDDM theme '$theme': resolved theme directory is not root-owned or is writable by others" >&2
         continue
     fi
 
@@ -113,9 +132,8 @@ for theme in "${themes_to_update[@]}"; do
         fi
         backgrounds_dir=$(readlink -f -- "$backgrounds_path" 2>/dev/null)
     fi
-    if [[ -z "$backgrounds_dir" ]] || [[ ! -d "$backgrounds_dir" ]] ||
-       [[ "$(stat -c %u -- "$backgrounds_dir" 2>/dev/null)" != "0" ]]; then
-        echo "Error: refusing SDDM theme '$theme': resolved Backgrounds directory is not root-owned" >&2
+    if [[ -z "$backgrounds_dir" ]] || ! root_only_dir "$backgrounds_dir"; then
+        echo "Error: refusing SDDM theme '$theme': resolved Backgrounds directory is not root-owned or is writable by others" >&2
         continue
     fi
 
@@ -135,12 +153,17 @@ for theme in "${themes_to_update[@]}"; do
        [[ -s "$temporary" ]] && chmod 0644 -- "$temporary"; then
         if mv -f -- "$temporary" "$destination"; then
             temporary=""
-            updated=true
+            # The exit status reports the active theme; the astronaut fallback
+            # is kept in step when present but its success alone is not one.
+            [[ "$theme" == "$current_theme" ]] && updated=true
         fi
     fi
     cleanup_temporary
     trap - EXIT INT TERM
 done
 
-$updated || exit 1
+if ! $updated; then
+    echo "Error: the active SDDM theme '$current_theme' was not updated" >&2
+    exit 1
+fi
 exit 0

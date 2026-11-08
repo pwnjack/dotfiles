@@ -280,7 +280,7 @@ Item {
             mouseMove(slider, moved.x, moved.y);
             const dragged = slider.level;
             verify(Math.abs(dragged - 0.4) < 0.03, "dragged to " + dragged);
-            // Task 6 rebuilds every array and object on each PipeWire change.
+            // The controller rebuilds every array and object on each PipeWire change.
             const echo = headset();
             echo.volume = 0.9;
             controller.output = echo;

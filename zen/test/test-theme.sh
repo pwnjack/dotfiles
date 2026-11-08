@@ -11,16 +11,8 @@ repo=$(cd -- "$here/../.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-failed=0 checks=0
-# Records the exit status of the command just before it.
-check() {
-    local rc=$?
-    checks=$((checks + 1))
-    if [ "$rc" -ne 0 ]; then
-        failed=$((failed + 1))
-        echo "FAIL: $1"
-    fi
-}
+# shellcheck source=scripts/lib/assert.sh
+. "$repo/scripts/lib/assert.sh"
 
 home="$tmp/home" config="$tmp/config" cache="$tmp/cache"
 mkdir -p "$home" "$config/zen" "$config/scripts/theming" "$cache/wal"
@@ -115,5 +107,4 @@ check "a foreign userChrome.css is not an error"
 [ ! -L "$launched/chrome/userChrome.css" ] && grep -q mine "$launched/chrome/userChrome.css"
 check "a foreign userChrome.css is left untouched"
 
-echo "test-theme: $checks checks, $failed failed"
-[ "$failed" -eq 0 ]
+test_summary theme

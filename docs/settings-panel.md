@@ -83,7 +83,7 @@ and contrast. Error messages use matugen's error colour.
   `invert` (drawn mirrored, so right means faster for Hyprland's animation
   durations; stored values are unchanged). Any row may add `dependsOn`, the id
   of a toggle on the same page; the row is dimmed and disabled while that
-  toggle is off. `pages.mjs` turns the catalog into sidebar entries and drawn
+  toggle is off. `pages.mjs` turns the catalogue into sidebar entries and drawn
   sections, and its `validateCatalog` enforces every rule above.
   `test/catalog.mjs` runs that check on the real file and freezes the set of
   row ids, because ids are API; `test/search.mjs` evaluates the real
@@ -340,7 +340,7 @@ Traps:
 
 ## Startup
 
-Three sections, in this order: the catalog's **At login** switches (Lock on autologin,
+Three sections, in this order: the catalogue's **At login** switches (Lock on autologin,
 Random wallpaper, Proton VPN), the XDG autostart **Apps**, and **Started by Hyprland**,
 which lists what `autostart.lua` starts (parsed, read-only, with **Edit file**). The apps
 follow uwsm's generator rules (`autostart.mjs` is pure): later `Show-In` lists win, condition keys parse strictly, and `TryExec` is verbatim.
@@ -379,7 +379,7 @@ battery row), and a headset switched off behind its dongle shows "Asleep".
 
 ## Sound
 
-The catalog holds three rows, all for the current default device: the output's
+The catalogue holds three rows, all for the current default device: the output's
 Port and Profile, and the input's Port. Their section headings follow the
 default (`titleFrom`: "Output · Speakers"). Choosing the device, its
 volume and mute, and per-app volume and routing belong to the sound popover on
@@ -407,7 +407,7 @@ reaches `scripts/calendar/setup.sh --sign-in --stdin` on stdin, never argv; `cal
 signed in, the account, the sync line (`status.json`) with **Sync now** (every 15 minutes
 and whenever the card opens) and a two-press **Sign out**. **Calendars** follows, one
 switch per calendar (read-only ones are labelled), stored in `options/calendar-hidden`.
-The catalog sections then add **Events** (`calendar-declined`, show declined invitations)
+The catalogue sections then add **Events** (`calendar-declined`, show declined invitations)
 and **New events** (`calendar-default`, `calendar-alert`, `calendar-duration`, used by the
 card's new-event sheet). `shell.qml` reads `calendarStatus` every 5 s only while the page
 is shown; a stale read is dropped (`calendar.mjs` `fresh`). A save of `bar-agenda` or any
@@ -475,7 +475,7 @@ Traps:
 - **Unknown values read as the default; a missing file does not.** The backend shows an
   unrecognised `bar-*` value as the row's first choice, matching the renderers. A deleted
   option file disables its row, as it does for every slider and for select and toggle rows
-  without a catalog default (the Calendar row has one, so it reads its default), while the
+  without a catalogue default (the Calendar row has one, so it reads its default), while the
   bar itself falls back to the default; the next overlay sync restores the default from
   `defaults/options/`.
 - **Blur is unchanged.** Hyprland's `blur-waybar` rule ignores pixels at 50 % alpha or less,
@@ -604,7 +604,7 @@ writes, palette saves (generate, then apply, with rollback), the panel's fallbac
 colours against `palette.sh`, the Calendar page's sign-in and
 read helpers, interaction locking, display staging, the pending banner, and every
 Apply/Keep/Revert ordering and failure path against a mocked systemd guard. The desktop smoke
-check reads every catalog setting without changing them, captures
+check reads every catalogue setting without changing them, captures
 `/tmp/settings-panel-live.png`, measures opening, and verifies process exit.
 Qt's linter reports four warnings on 2026-10-16 (PanelWindow is not creatable
 outside Quickshell, an `actionsMenu` id shadowing a property, and two property

@@ -196,7 +196,7 @@ _ref_check_requires() {
             err "$lua requires $module, but $rel does not exist" \
                 "restore $(doctor_q "$full"), or drop the require from $(doctor_q "$DOCTOR_ROOT/$lua")"
         done < <(_ref_require_targets "$DOCTOR_ROOT/$lua")
-    done < <(git -C "$DOCTOR_ROOT" ls-files -z -- 'hypr/*.lua' 'hypr/**/*.lua' 2>/dev/null)
+    done < <(git -C "$DOCTOR_ROOT" ls-files -z -- 'hypr/*.lua' 2>/dev/null)
 }
 
 # _ref_check_literals — literal ~/.config paths anywhere in the tracked tree.

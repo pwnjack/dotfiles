@@ -23,6 +23,8 @@ for (const suffix of [
 }
 assert.equal(a.lastFullUpgrade(log + '[2026-01-06T10:00:00+0100] [PACMAN] starting full system upgrade\n[2026-01-07T10:00:00+0100] [PACMAN] starting full system upgrade\n[2026-01-07T10:01:00+0100] [ALPM] transaction completed'), '2026-01-07T09:00:00.000Z')
 assert.equal(a.lastFullUpgrade('[2026-01-06T10:01:00+0100] [ALPM] transaction completed'), null)
+// A declined upgrade followed by an unrelated install is not a completed upgrade.
+assert.equal(a.lastFullUpgrade('[2026-01-06T10:00:00+0100] [PACMAN] starting full system upgrade\n[2026-01-06T12:00:00+0100] [PACMAN] Running \'pacman -S jq\'\n[2026-01-06T12:00:01+0100] [ALPM] transaction completed'), null)
 assert.equal(a.osName('NAME="Example Linux"\nPRETTY_NAME="Example Rolling"'), 'Example Rolling')
 assert.equal(a.osName("NAME='Example Linux'"), 'Example Linux')
 assert.equal(a.osName(''), '')

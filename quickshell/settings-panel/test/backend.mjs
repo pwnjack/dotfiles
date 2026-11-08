@@ -378,7 +378,7 @@ registerHooks({resolve(specifier,context,next) {
     if (names[specifier]) return {url:'data:text/javascript,'+encodeURIComponent(`export default globalThis.settingsMocks.${names[specifier]}`),shortCircuit:true}
     if (specifier === './process.js') return {url:'data:text/javascript,export const execAsync = globalThis.settingsMocks.execAsync, execInput = (...a) => globalThis.settingsMocks.execInput(...a)',shortCircuit:true}
     if (specifier === './nm.js') return {url:'data:text/javascript,'+encodeURIComponent('const m = () => globalThis.settingsMocks.nm; export const nmSnapshot = (...a) => m().nmSnapshot(...a), setWifiEnabled = (...a) => m().setWifiEnabled(...a), requestScan = (...a) => m().requestScan(...a), activate = (...a) => m().activate(...a), addAndActivate = (...a) => m().addAndActivate(...a), deactivate = (...a) => m().deactivate(...a), removeConnections = (...a) => m().removeConnections(...a)'),shortCircuit:true}
-    if (specifier === './dbus.js') return {url:'data:text/javascript,'+encodeURIComponent('const m = () => globalThis.settingsMocks.dbus; export const callSystem = (...a) => m().callSystem(...a), getProperty = (...a) => m().getProperty(...a); export const CANCELLED = "Authentication was cancelled; nothing changed."'),shortCircuit:true}
+    if (specifier === './dbus.js') return {url:'data:text/javascript,'+encodeURIComponent('const m = () => globalThis.settingsMocks.dbus; export const callSystem = (...a) => m().callSystem(...a), getProperty = (...a) => m().getProperty(...a);'),shortCircuit:true}
     return next(specifier,context)
 }})
 const originalCallSystem = dbusMock.callSystem
@@ -790,6 +790,14 @@ await dispatch({op:'reset',id:'input.kb-layout'})
 assert.doesNotMatch(files.get('/fixture/.local/state/hypr/overrides.lua'),/@override input:kb_layout /)
 console.log('ok: resetting the keyboard layout while a variant override exists is rejected until the variant is reset first')
 
+// gsettings quotes with either quote style and escapes inside: both are decoded.
+gsettings['gtk-theme'] = "'It\\'s Dark'"
+result = await dispatch({op:'read',ids:['test.gtk-raw']})
+assert.equal(result.values['test.gtk-raw'].value, "It's Dark")
+gsettings['gtk-theme'] = '"say \\"hi\\" \\u00e9"'
+result = await dispatch({op:'read',ids:['test.gtk-raw']})
+assert.equal(result.values['test.gtk-raw'].value, 'say "hi" é')
+gsettings['gtk-theme'] = "'Kripton'"
 result = await dispatch({op:'read',ids:['appearance.gtk-theme','appearance.icon-theme']})
 assert.deepEqual(result.values['appearance.gtk-theme'].choices.map(c=>c.value),['A$&B','Adwaita','HighContrast','HighContrastInverse','Kripton'])
 assert.deepEqual(result.values['appearance.icon-theme'].choices.map(c=>c.value),['Papirus-Dark'])

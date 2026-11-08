@@ -1,7 +1,5 @@
 # SSH agent
 
-Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md` keeps the rules that must hold on every edit; this file has the reasoning and the traps.
-
 OpenSSH's packaged `ssh-agent.socket` (socket-activated, keys in memory only)
 holds the key, so its passphrase is asked once per login. `SSH_AUTH_SOCK` is set
 by `hypr/config/setup/envvars.lua` (`$XDG_RUNTIME_DIR/ssh-agent.socket`, guarded

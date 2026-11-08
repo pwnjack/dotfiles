@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Start Spotify through spotify-launcher, re-applying SpotX (ad blocking) and,
 # when it is set up, Spicetify on top, whenever the client is unpatched.
 #

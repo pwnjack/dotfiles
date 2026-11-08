@@ -59,13 +59,13 @@ chmod +x "$TMP/bin/"*
 
 shot() {
     : > "$EVENTS"
-    HOME="$TMP/home" PATH="$TMP/bin:$PATH" bash "$SHOT" "$@"
+    HOME="$TMP/home" XDG_CONFIG_HOME="$TMP/home/.config" PATH="$TMP/bin:$PATH" bash "$SHOT" "$@"
 }
 freeze() { printf '%s\n' "$1" > "$TMP/home/.config/options/capture-freeze"; }
 
 freeze false
 shot region
-if [[ $(cat "$EVENTS") =~ ^hyprshot\ -m\ region\ -s\ -o\ $TMP/home/Pictures/Screenshots\ -f\ Screenshot_[0-9-]+_[0-9:]+\.png$ ]]; then
+if [[ $(cat "$EVENTS") =~ ^hyprshot\ -m\ region\ -s\ -o\ $TMP/home/Pictures/Screenshots\ -f\ Screenshot_[0-9-]+_[0-9-]+\.[0-9]{3}\.png$ ]]; then
     pass "region writes to ~/Pictures/Screenshots"
 else
     fail "region argv" "$(cat "$EVENTS")"
@@ -80,7 +80,8 @@ toast_log() {
 assert_contains "$(toast_log)" "Screenshot saved" "a saved shot gets the shared toast"
 assert_contains "$(cat "$EVENTS.notify")" "Show in folder" "the toast offers Show in folder"
 rm -f "$EVENTS.notify"
-rm -rf "$TMP/home/Pictures/Screenshots"   # same-second names would collide
+# Straight after a saved shot, in the same second: the cancelled capture must
+# not find the first one's file under its own name.
 SHOT_CANCEL=1 shot region
 /usr/bin/sleep 0.3
 assert_eq "$(cat "$EVENTS.notify" 2>/dev/null)" "" "a cancelled selection gets no toast"

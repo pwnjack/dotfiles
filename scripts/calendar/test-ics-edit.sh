@@ -86,6 +86,11 @@ assert_contains "$again" "DTSTART;TZID=Europe/Rome:20261027T213000" "one again: 
 # delete
 del=$(req "$FIX/iphone-weekly.ics" "$(at '2026-10-20 20:00')" one | edit delete | raw)
 assert_contains "$del" "EXDATE;TZID=Europe/Rome:20261020T200000" "delete one: an exclusion"
+# A deleted occurrence stays deleted when the series is retimed: its exclusion moves too.
+printf '%s\n' "$del" > "$TMP/exdate.ics"
+rt=$(req "$TMP/exdate.ics" "$(at '2026-10-27 20:00')" all "$(changes '2026-10-27 19:00' '2026-10-27 21:00' 'Calcetto' custom | jq -c '. + {timesChanged: true}')" | edit update | raw)
+assert_contains "$rt" "EXDATE;TZID=Europe/Rome:20261020T190000" "retimed series: the exclusion moves to the new time"
+assert_not_contains "$rt" "EXDATE;TZID=Europe/Rome:20261020T200000" "retimed series: the old exclusion is gone"
 del=$(req "$TMP/one.ics" "$(at '2026-10-27 20:00')" one | edit delete | raw)
 assert_eq "$(grep -c '^BEGIN:VEVENT' <<<"$del")" 1 "delete one: its override goes too"
 assert_eq "$(req "$FIX/iphone-weekly.ics" 0 all | edit delete | jq -r .raw)" "" "delete all: nothing left"
@@ -173,6 +178,12 @@ mr=$(req "$MOVED" "$(at '2026-10-13 14:00')" all "$(changes '2026-10-13 15:00' '
 assert_contains "$mr" "DTSTART;TZID=Europe/Rome:20261006T150000" "all, retimed: the series moves to the new time"
 assert_contains "$mr" "DTEND;TZID=Europe/Rome:20261006T160000" "all, retimed: the series end moves with it"
 assert_not_contains "$mr" "DTSTART;TZID=Europe/Rome:20261006T100000" "all, retimed: the old series time is gone"
+assert_contains "$mr" "RECURRENCE-ID;TZID=Europe/Rome:20261013T150000" "all, retimed: the override's slot moves with the series"
+assert_contains "$mr" "DTSTART;TZID=Europe/Rome:20261013T140000" "all, retimed: the override keeps its own start"
+# A one-off edited without touching its times keeps them byte for byte (here, the UTC form).
+oo=$(req "$FIX/end-alarm.ics" 0 all "$(changes '2026-10-15 19:00' '2026-10-15 20:00' 'Renamed' 15m | jq -c '. + {timesChanged: false}')" | edit update | raw)
+assert_contains "$oo" "SUMMARY:Renamed" "one-off, title only: the title changed"
+assert_contains "$oo" "DTSTART:20261015T170000Z" "one-off, title only: DTSTART is left as it was"
 
 # A display alarm that repeats or carries a duration is not a plain preset: it is custom.
 REP="$TMP/repeat-alarm.ics"
@@ -207,6 +218,11 @@ uid=6F2C1E7A-0000-4000-8000-000000000001
 info=$(bash "$TEST_DIR/cal.sh" inspect Home "$uid" "$(at '2026-10-20 20:00')")
 assert_json_field "$info" '.recurring' true "cal.sh inspect: finds the file by UID"
 hash=$(jq -r .hash <<<"$info")
+# A UID longer than a line is folded (RFC 5545 3.1); the file is still found by it.
+long_uid=$(printf 'A%.0s' {1..80})
+sed -e "s/^UID:.*/UID:${long_uid:0:60}\r\n ${long_uid:60}/" "$FIX/iphone-weekly.ics" > "$CALENDAR_DATA/home/folded.ics"
+assert_json_field "$(bash "$TEST_DIR/cal.sh" inspect Home "$long_uid" "$(at '2026-10-20 20:00')")" '.ok' true "cal.sh inspect: finds a file whose UID is folded across lines"
+rm -f "$CALENDAR_DATA/home/folded.ics"
 upd() { jq -cn --arg h "$1" --arg m "${2:-}" --arg uid "$uid" --argjson occ "$(at '2026-10-20 20:00')" --argjson c "$(changes '2026-10-20 19:00' '2026-10-20 21:00' 'Calcetto' custom)" \
     '{calendar: "Home", uid: $uid, occurrence: $occ, scope: "all", hash: $h, moveTo: $m, changes: $c}' | bash "$TEST_DIR/cal.sh" update; }
 out=$(upd stale)

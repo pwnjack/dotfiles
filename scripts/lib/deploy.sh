@@ -38,7 +38,7 @@ deploy_dotfiles() {
     fi
     while IFS= read -r -d '' path; do
         case "$path" in
-            .git|.git/*|.github|.github/*|.claude|.claude/*|.agents|.agents/*|.codex|.codex/*) continue ;;
+            .github|.github/*) continue ;;
         esac
         files+=("$path")
     done < "$manifest"

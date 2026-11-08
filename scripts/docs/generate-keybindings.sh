@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #
 # Renders docs/keybindings.md from hypr/config/software/keybinds.lua.
 #
@@ -47,11 +47,11 @@ the bindings it documents. To change a binding, edit the config and regenerate:
 `test/test-docs.sh` fails when this file is out of date, so a stale copy cannot
 be committed.
 
-Two rows name a file rather than an application. `Super + Enter` and
-`Super + B` run whatever `options/terminal` and `options/browser` contain, read
-at Hyprland's parse time, so the answer is per-machine and the Super + H
-overlay fills in your own. Everything else here is the same on every
-checkout.
+Rows that launch an application chosen in `options/` (the terminal, browser,
+editors and file manager) print the option's name rather than one machine's
+choice: Hyprland reads the file at parse time, so the answer is per-machine
+and the Super + H overlay fills in your own. Everything else here is the same
+on every checkout.
 
 PREAMBLE
     "$cheatsheet" --markdown
@@ -72,5 +72,13 @@ if [ "${1:-}" = "--check" ]; then
     exit 0
 fi
 
-render > "$out"
+# Rendered beside the document and renamed into place, so a failed render
+# never leaves a truncated docs/keybindings.md behind.
+tmp="$out.tmp.$$"
+if ! render > "$tmp"; then
+    rm -f -- "$tmp"
+    echo "generate-keybindings: rendering failed; $out left unchanged" >&2
+    exit 1
+fi
+mv -f -- "$tmp" "$out"
 echo "wrote ${out#"$root"/}"

@@ -272,7 +272,3 @@ export function routeReached(nodes, serial, target, defaultId) {
     }
     return sinkId >= 0 && stream.linkTargets.indexOf(sinkId) >= 0
 }
-
-export function badge(apps) {
-    return apps.length
-}

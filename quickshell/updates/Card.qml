@@ -28,7 +28,7 @@ FocusScope {
     // run already under way, so a reopened card resumes where the run is.
     property real shown: 0
     FrameAnimation {
-        running: card.mode !== "summary"
+        running: card.mode === "running"
         onTriggered: {
             const run = card.controller.run;
             const target = run && typeof run.progress === "number" ? run.progress : 0;

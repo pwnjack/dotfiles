@@ -30,7 +30,6 @@ mkdir -p "$cache_dir"
 
 # The palette's foreground is colour 7, which is what the Ghostty include uses too.
 text="// Generated from the matugen palette by eww/apply_wal_colors.sh - do not edit
-\$background: ${wal[0]};
 \$foreground: ${wal[7]};"
 
 # An unchanged palette needs no reload, unless the last one failed (the

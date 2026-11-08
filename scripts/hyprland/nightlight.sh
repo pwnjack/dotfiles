@@ -94,18 +94,19 @@ neutral_temp() {
 }
 
 # Nudge the waybar module so the icon updates now instead of on the next poll.
-refresh_waybar() { pkill -RTMIN+8 waybar 2>/dev/null; }
+# Best effort: no running Waybar is not a failure of the change itself.
+refresh_waybar() { pkill -x -RTMIN+8 waybar 2>/dev/null || true; }
 
 notify() { notify-send -i "$1" -e "$2" "$3"; }
 
 case "$action" in
     on)
-        hs temperature "$(warm_temp)" >/dev/null
+        hs temperature "$(warm_temp)" >/dev/null || exit 1
         notify "$ICON_ON" "Night Light" "Warm ($(warm_temp)K) until the next schedule change"
         refresh_waybar
         ;;
     off)
-        hs temperature "$(neutral_temp)" >/dev/null
+        hs temperature "$(neutral_temp)" >/dev/null || exit 1
         notify "$ICON_OFF" "Night Light" "Neutral ($(neutral_temp)K) until the next schedule change"
         refresh_waybar
         ;;
@@ -120,7 +121,7 @@ case "$action" in
         ;;
     auto)
         # Re-apply whichever profile matches the clock right now.
-        hs reset temperature >/dev/null
+        hs reset temperature >/dev/null || exit 1
         scheduled=$(scheduled_temp)
         # The icon follows where the schedule actually landed, since "auto" can
         # resolve to either state depending on the time of day.

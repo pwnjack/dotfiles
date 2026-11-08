@@ -4,10 +4,8 @@
 # option says 12h), so a fresh checkout or a garbled option still shows a clock.
 # The include path is fixed to match config.jsonc, which cannot expand variables.
 set -euo pipefail
-option=$HOME/.config/options/clock
-include=$HOME/.local/state/waybar/clock.jsonc
-option=${CLOCK_OPTION:-$option}
-include=${CLOCK_INCLUDE:-$include}
+option=${CLOCK_OPTION:-$HOME/.config/options/clock}
+include=${CLOCK_INCLUDE:-$HOME/.local/state/waybar/clock.jsonc}
 # Weekday and day of month lead, two spaces before the time: the same gap
 # the bar uses inside a module, so date and time read as one readout. The L
 # flag is what makes Waybar name the day in the session's LC_TIME (the

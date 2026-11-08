@@ -26,8 +26,7 @@ ShellRoot {
     // Text on the accent. Not "onAccent": QML reads on<Name> as a change handler.
     readonly property color accentInk: Quickshell.env("CAPTURE_ON_ACCENT") || "#05090c"
     readonly property string monoFont: Quickshell.env("CAPTURE_FONT") || "monospace"
-    // A popover keeps the bar's own pixel sizes: scaled to the output, the
-    // update card was oversized at 1440p.
+    // Always 1: the strip keeps the bar's own pixel sizes.
     readonly property real uiScale: 1
 
     property var state: Model.initialState({}, "screenshot")
@@ -142,8 +141,7 @@ ShellRoot {
     Timer { id: layerFallback; interval: 400; onTriggered: root.launch() }
     Process {
         id: launcher
-        onExited: Qt.quit()
-        // No exited() when the command fails to start: quit anyway.
+        // Covers a normal exit and a command that failed to start (no exited()).
         onRunningChanged: if (!running && root.launched) Qt.quit()
     }
 

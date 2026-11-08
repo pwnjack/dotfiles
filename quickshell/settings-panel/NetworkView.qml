@@ -123,7 +123,7 @@ ColumnLayout {
                     RowLayout {
                         spacing: 10
                         Label { text: page.bars[entry.modelData.bars]; color: entry.modelData.active ? page.theme.accent : page.theme.foreground; font.pixelSize: 16 }
-                        Label { text: entry.modelData.ssid; color: page.theme.foreground; font.pixelSize: 13; font.weight: entry.modelData.active ? Font.DemiBold : Font.Normal; elide: Text.ElideRight; Layout.fillWidth: true }
+                        Label { text: entry.modelData.ssid; textFormat: Text.PlainText; color: page.theme.foreground; font.pixelSize: 13; font.weight: entry.modelData.active ? Font.DemiBold : Font.Normal; elide: Text.ElideRight; Layout.fillWidth: true }
                         Label { visible: entry.modelData.security !== "open" && entry.modelData.security !== "owe"; text: page.lock; color: page.theme.dim }
                         Label { text: entry.statusText; color: page.theme.dim; font.pixelSize: 12 }
                         Loader {
@@ -248,7 +248,7 @@ ColumnLayout {
                 divider: index > 0 || !!page.model?.proton
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 2
-                    Label { text: vpnRow.modelData.name; color: page.theme.foreground; font.pixelSize: 13; font.weight: Font.Medium; elide: Text.ElideRight; Layout.fillWidth: true }
+                    Label { text: vpnRow.modelData.name; textFormat: Text.PlainText; color: page.theme.foreground; font.pixelSize: 13; font.weight: Font.Medium; elide: Text.ElideRight; Layout.fillWidth: true }
                     Label {
                         text: vpnRow.modelData.state === "activated" ? "Connected" + (vpnRow.modelData.iface ? " on " + vpnRow.modelData.iface : "")
                             : vpnRow.modelData.state === "activating" ? "Connecting…" : "Off"

@@ -55,14 +55,10 @@
     "custom/power",
   ],
 
-  // Workspaces: one native module (waybar/workspaces, built and installed by
-  // scripts/waybar/build-workspaces.sh). It draws the whole row on one cairo
-  // canvas with one animation clock, so a switch is exact to the pixel, and
-  // talks to Hyprland's sockets directly. hyprland/workspaces stays unusable:
-  // its click path sends the positional `workspace` dispatcher the Lua
-  // provider removed. module_path comes from the rendered workspaces.jsonc
-  // include: Waybar passes it to dlopen verbatim, with no ~ expansion, so it
-  // cannot be written here. Colours and insets are #workspaces in style.css.
+  // Workspaces: the native module (waybar/workspaces, docs/workspaces-native.md).
+  // module_path comes from the rendered workspaces.jsonc include: Waybar passes
+  // it to dlopen verbatim, with no ~ expansion, so it cannot be written here.
+  // Colours and insets are #workspaces in style.css.
   "cffi/workspaces": {},
   // Taskbar
   "wlr/taskbar": {
@@ -87,7 +83,6 @@
       "": " Hyprland",
 
       "~": "  Terminal",
-      "zsh": "  Terminal",
 
       "VLC media player": "󰕼  VLC Media Player",
       "(.*) - VLC media player": "󰕼  VLC | $1",
@@ -300,7 +295,7 @@
     "signal": 9,
     "exec": "~/.config/scripts/waybar/updates.sh",
     "on-click": "~/.config/scripts/hyprland/updates-popover.sh",
-    "on-click-right": "pkill -RTMIN+9 waybar",
+    "on-click-right": "pkill -x -RTMIN+9 waybar",
   },
 
   // Network

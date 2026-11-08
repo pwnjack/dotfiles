@@ -1,7 +1,5 @@
 # SDDM greeter wallpaper sync
 
-Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md` keeps the rules that must hold on every edit; this file has the reasoning and the traps.
-
 `sddm/watch_wallpaper.sh` follows awww changes and asks `sddm/update_sddm.sh`
 to refresh the greeter background. The passwordless-sudo target is a root-owned
 copy installed under `/usr/local/bin`, while the tracked

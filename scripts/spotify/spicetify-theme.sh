@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Select the Pywal Spicetify theme and its live-recolour extension, once.
 #
 #   scripts/spotify/spicetify-theme.sh

@@ -5,7 +5,6 @@
       "group": "look",
       "icon": "f0e0c",
       "title": "Appearance",
-      "description": "Borders, blur, gaps, opacity, fonts and cursor",
       "sections": [
         {
           "id": "style",
@@ -46,7 +45,6 @@
       "group": "look",
       "icon": "f10a9",
       "title": "Bar",
-      "description": "Which modules the top bar shows, and when",
       "sections": [
         {
           "id": "layout",
@@ -73,7 +71,6 @@
       "group": "look",
       "icon": "f0a1d",
       "title": "Windows",
-      "description": "Tiling layout and window behavior",
       "sections": [
         {
           "id": "tiling",
@@ -94,7 +91,6 @@
       "group": "look",
       "icon": "f0a90",
       "title": "Animations",
-      "description": "Master switch and per-animation speeds",
       "sections": [
         {
           "id": "general",
@@ -111,7 +107,6 @@
       "group": "look",
       "icon": "f009c",
       "title": "Notifications",
-      "description": "SwayNC toasts and control center",
       "sections": [
         {
           "id": "position",
@@ -132,7 +127,6 @@
       "group": "connectivity",
       "icon": "f05a9",
       "title": "Network",
-      "description": "Wi-Fi, wired and VPN connections",
       "sections": []
     },
     {
@@ -140,7 +134,6 @@
       "group": "connectivity",
       "icon": "f0fb0",
       "title": "Devices",
-      "description": "Wireless peripherals, their batteries and connection",
       "sections": []
     },
     {
@@ -148,7 +141,6 @@
       "group": "hardware",
       "icon": "f0379",
       "title": "Displays",
-      "description": "Resolution, refresh rate, scale, arrangement and the main display",
       "sections": [
         {
           "id": "options",
@@ -161,7 +153,6 @@
       "group": "hardware",
       "icon": "f057e",
       "title": "Sound",
-      "description": "Ports and profiles. Devices, volumes and apps live in the sound popover on the bar.",
       "sections": [
         {
           "id": "output",
@@ -181,7 +172,6 @@
       "group": "hardware",
       "icon": "f0425",
       "title": "Power",
-      "description": "Idle timeouts, display power and night light",
       "sections": [
         {
           "id": "mode",
@@ -206,7 +196,6 @@
       "group": "input",
       "icon": "f097b",
       "title": "Keyboard & Mouse",
-      "description": "Mouse, keyboard and touchpad",
       "sections": [
         {
           "id": "keyboard",
@@ -231,7 +220,6 @@
       "group": "input",
       "icon": "f02e6",
       "title": "Accessibility",
-      "description": "Zoom and text size",
       "sections": [
         {
           "id": "vision",
@@ -244,7 +232,6 @@
       "group": "system",
       "icon": "f01e7",
       "title": "Date & Region",
-      "description": "Time zone, clock and regional formats. System-wide changes ask for your password.",
       "sections": [
         {
           "id": "datetime",
@@ -263,7 +250,6 @@
       "group": "system",
       "icon": "f00ed",
       "title": "Calendar",
-      "description": "Your iCloud calendars on the bar and in the calendar card",
       "sections": [
         {
           "id": "events",
@@ -281,7 +267,6 @@
       "group": "system",
       "icon": "f14df",
       "title": "Startup",
-      "description": "Apps started at login, and what Hyprland itself starts",
       "sections": [
         {
           "id": "login",
@@ -294,7 +279,6 @@
       "group": "system",
       "icon": "f003b",
       "title": "Default Apps",
-      "description": "Apps used by keybinds and scripts, and which app opens each file type",
       "sections": [
         {
           "id": "applications",
@@ -322,7 +306,6 @@
       "placement": "footer",
       "icon": "f02fd",
       "title": "About this machine",
-      "description": "Account, system and hardware",
       "sections": []
     }
   ],

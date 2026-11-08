@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import * as model from '../model.mjs'
 
-const { deriveLabel, parseHidden, parseNames, classify, playing, channelTag, batteryFor, deviceList, routeTargets, appList, streamBySerial, routeReached, badge } = model
+const { deriveLabel, parseHidden, parseNames, classify, playing, channelTag, batteryFor, deviceList, routeTargets, appList, streamBySerial, routeReached } = model
 const nodes = JSON.parse(readFileSync(new URL('./fixtures/nodes.json', import.meta.url), 'utf8'))
 const copy = x => JSON.parse(JSON.stringify(x))
 
@@ -163,8 +163,6 @@ const opts = { defaultId: byName(BUILTIN).id, hidden: [], names: {}, battery: {}
     assert.equal(mpv.tag, '')
     assert.equal(mpv.volume, 1)
     assert.equal(mpv.muted, false)
-    assert.equal(badge(apps), 2)
-    assert.equal(badge([]), 0)
 
     // Pinned to the built-in sink while it is the default: its label, pinned.
     const pinnedDefault = appList(c, Object.assign({}, aopts, { pins: { 163: '79' } }))

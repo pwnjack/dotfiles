@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Route Spotify through scripts/spotify/launch.sh, which keeps SpotX (and
 # Spicetify, when set up) applied across spotify-launcher's client updates.
 #

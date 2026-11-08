@@ -5,8 +5,7 @@
 # includes the matugen palette. Including it again here is a "cycle detected"
 # configuration error.
 
-# Typography
-font-family = "Fira Code Nerd Font"
+# Typography: the font comes from ghostty/config (options/font); only the size differs.
 font-size = 11
 
 # Window styling for sidebar aesthetic

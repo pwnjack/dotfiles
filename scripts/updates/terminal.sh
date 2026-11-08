@@ -19,7 +19,9 @@ case "${1-}" in
     *) echo 'Usage: terminal.sh aur|pacman|flatpak' >&2; exit 2 ;;
 esac
 
-term=$(cat "$HOME/.config/options/terminal" 2>/dev/null)
-[ -n "$term" ] || term=ghostty
+# The option may carry arguments (scripts/settings/terminal.sh); the binary is
+# its first word.
+{ read -r term _ < "$HOME/.config/options/terminal"; } 2>/dev/null
+term=${term:-ghostty}
 # shellcheck disable=SC2016  # "$@" must expand in the INNER bash
-exec "$term" -e bash -c '"$@"; pkill -RTMIN+9 waybar' bash "${cmd[@]}"
+exec "$term" -e bash -c '"$@"; pkill -x -RTMIN+9 waybar' bash "${cmd[@]}"

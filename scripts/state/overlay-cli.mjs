@@ -185,7 +185,12 @@ if (command === 'sync') {
     let restore = false
     const names = []
     for (let i = 0; i < rest.length; i++) {
-        if (rest[i] === '--replace') replace = rest[++i] ?? ''
+        if (rest[i] === '--replace') {
+            // The backup directory is required ('' means none): a missing one
+            // must not make the next flag a directory name.
+            if (i + 1 >= rest.length) { console.error('overlay: --replace needs a backup directory (\'\' for none)'); process.exit(2) }
+            replace = rest[++i]
+        }
         else if (rest[i] === '--restore') restore = true
         else names.push(rest[i])
     }

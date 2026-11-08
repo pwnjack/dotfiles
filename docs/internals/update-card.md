@@ -1,7 +1,5 @@
 # Update card
 
-Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md` keeps the rules that must hold on every edit; this file has the reasoning and the traps.
-
 `quickshell/updates/shell.qml` is the on-demand update card started by
 `scripts/hyprland/updates-popover.sh` when the bar's updates module is clicked
 (lock, IPC toggle, cursor-anchored, exits on close). Update starts

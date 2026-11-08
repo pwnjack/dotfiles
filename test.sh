@@ -48,8 +48,8 @@
 # lacks nothing. Only a missing dependency is a skip: a check deferred because
 # of the clock (a schedule boundary is now) says "not run", not "skip:".
 #
-# Output is CAPTURED, not streamed: the doctor's suite alone emits 222 lines,
-# and printing that on every commit is how a gate gets ignored. A failing
+# Output is CAPTURED, not streamed: the doctor's suite alone emits hundreds of
+# lines, and printing that on every commit is how a gate gets ignored. A failing
 # suite's output is printed in full, so diagnosing one needs no second command.
 #
 # Deliberately NOT `set -e`, for the same reason doctor.sh is not: one failing
@@ -86,7 +86,7 @@ _test_usage() {
 # subscript outright, and "." can never appear as a git ls-files path.
 #
 # Assigns rather than prints. Printing costs a fork per tracked file per pass
-# -- 470 of them on this repo, ~86ms -- and this runs on every commit once the
+# (several hundred on this repo), and this runs on every commit once the
 # pre-commit hook calls it. Inlining the case at each site would be as fast,
 # but that is exactly the duplication this function exists to prevent.
 _test_dir() {
@@ -336,8 +336,8 @@ while (( TEST_PRINT < TEST_RAN || ${#TEST_ACTIVE[@]} )); do
             # A worker killed before it could write metadata is a failure too.
             if [ ! -f "$TEST_TMP/$_test_index.result" ]; then
                 _test_end="$(_test_now_ms)"
-                printf '%s %s %s\n' "${_test_rc:-1}" "$_test_end" "$_test_end" > "$TEST_TMP/$_test_index.result"
-                [ "$_test_rc" -ne 0 ] || printf '1 %s %s\n' "$_test_end" "$_test_end" > "$TEST_TMP/$_test_index.result"
+                # A suite that left no result and exited 0 still failed.
+                printf '%s %s %s\n' "$(( ${_test_rc:-1} == 0 ? 1 : ${_test_rc:-1} ))" "$_test_end" "$_test_end" > "$TEST_TMP/$_test_index.result"
             fi
             unset 'TEST_ACTIVE[$_test_pid]'
         fi
@@ -373,7 +373,7 @@ while (( TEST_PRINT < TEST_RAN || ${#TEST_ACTIVE[@]} )); do
         TEST_PRINT=$((TEST_PRINT + 1))
     done
     if (( ${#TEST_ACTIVE[@]} )); then
-        wait -n -p _test_finished "${!TEST_ACTIVE[@]}" 2>/dev/null || true
+        wait -n "${!TEST_ACTIVE[@]}" 2>/dev/null || true
     fi
 done
 

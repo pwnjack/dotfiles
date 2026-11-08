@@ -1,7 +1,5 @@
 # Wallpaper carousel
 
-Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md` keeps the rules that must hold on every edit; this file has the reasoning and the traps.
-
 `quickshell/wallpaper-carousel/shell.qml` is a separate Quickshell application,
 opened on demand by `scripts/hyprland/wallpaper-carousel.sh` (Super+Ctrl+W).
 The launcher serialises startup and uses config-specific IPC; it exits on close

@@ -75,9 +75,9 @@ option() {
     printf '%s' "${value:-$2}"
 }
 
-signal_bar() { pkill -RTMIN+11 waybar 2>/dev/null || true; }
-notify() { notify-send -a Capture -i "$1" "$2" "${3-}" 2>/dev/null || true; }
-now() { printf '%(%s)T' -1; }
+signal_bar() { pkill -x -RTMIN+11 waybar 2>/dev/null || true; }
+# `--` keeps a body that starts with "-" (a first error line) a body.
+notify() { notify-send -a Capture -i "$1" -- "$2" "${3-}" 2>/dev/null || true; }
 
 # proc_stat <pid> -> sets proc_state and proc_since (field 22 of /proc/PID/stat).
 # Fields are counted from the text after the LAST ") ", so a comm containing
@@ -200,7 +200,7 @@ status() {
         echo idle
         return 1
     fi
-    t=$(now)
+    t=$EPOCHSECONDS
     if [ "$phase" = countdown ]; then
         seconds=$(( started > t ? started - t : 0 ))
     else
@@ -229,12 +229,12 @@ status() {
 # the recorder's state, so a TERM on the boundary is never lost.
 countdown() {
     local t
-    t=$(now)
+    t=$EPOCHSECONDS
     proc_stat $$
     write_state $$ countdown "" $(( t + $1 )) "$proc_since"
     trap 'rm -f "$state"; signal_bar; exit 0' TERM
     signal_bar
-    while (( $(now) < t + $1 )); do
+    while (( EPOCHSECONDS < t + $1 )); do
         # A waited-on background sleep, unlike a foreground one, lets the TERM trap run at once.
         sleep "$countdown_wait" 7>&- &
         wait $!
@@ -335,6 +335,10 @@ start() {
         notify dialog-error 'Recording unavailable' 'Install the gpu-screen-recorder package to record the screen.'
         return 1
     fi
+    if [ "$target" != screen ] && [ -z "$region" ] && ! command -v slurp >/dev/null 2>&1; then
+        notify dialog-error 'Recording unavailable' 'Install the slurp package to pick a region or a window.'
+        return 1
+    fi
     mkdir -p "$state_dir" || return 1
     # One start at a time: a second press while selecting is dropped.
     exec 7>"$state_dir/start.lock"
@@ -406,7 +410,7 @@ start() {
     rec_since=""
     proc_stat "$rec_pid" && rec_since=$proc_since
     rec_since=${rec_since:-0}
-    write_state "$rec_pid" recording "$file" "$(now)" "$rec_since"
+    write_state "$rec_pid" recording "$file" "$EPOCHSECONDS" "$rec_since"
     signal_bar
     # Test seam: widens the window between the state write and the first check.
     [ -n "${CAPTURE_TEST_HOLD-}" ] && sleep "$CAPTURE_TEST_HOLD"

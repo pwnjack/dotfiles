@@ -20,6 +20,19 @@ wallpaper_main_monitor() {
     head -n1 "${XDG_CONFIG_HOME:-$HOME/.config}/options/mainmonitor" 2>/dev/null || true
 }
 
+# wallpaper_record <image> — publish <image> as the current wallpaper: the
+# ~/.cache/current_wallpaper link (options/wallpaper points at it) and Rofi's
+# background include. wall.sh and install.sh both go through this, so the two
+# writers cannot drift.
+wallpaper_record() {
+    local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}" escaped
+    ln -sfn "$1" "$cache_dir/current_wallpaper" || return 1
+    escaped=${1//\\/\\\\}
+    escaped=${escaped//\"/\\\"}
+    mkdir -p "$cache_dir/wal" || return 1
+    printf '* { wallpaper: url("%s", width); }\n' "$escaped" > "$cache_dir/wal/rofi-wallpaper.rasi"
+}
+
 # wallpaper_from_query <awww-query-output> -> image path, empty when none.
 #
 # awww query prints one line per monitor: ": DP-1: 2560x1440, ... image: /path".

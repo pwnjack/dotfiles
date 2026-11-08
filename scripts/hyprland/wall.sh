@@ -134,11 +134,7 @@ fi
 rm -f -- "$publish/roles.before"
 rmdir -- "$publish"
 trap - EXIT
-ln -sfn "$wallpaper" "$cache_dir/current_wallpaper" || fail "Cannot save the current wallpaper"
-escaped=${wallpaper//\\/\\\\}
-escaped=${escaped//\"/\\\"}
-printf '* { wallpaper: url("%s", width); }\n' "$escaped" > "$cache_dir/wal/rofi-wallpaper.rasi" \
-    || fail "Cannot save the launcher background"
+wallpaper_record "$wallpaper" || fail "Cannot save the current wallpaper"
 
 failed=0
 errors=$(mktemp "$cache_dir/wal/apply-errors.XXXXXX") || errors=""

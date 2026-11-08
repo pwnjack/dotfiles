@@ -214,7 +214,6 @@ assert.equal(model.result(fold('nothing').snap).subtitle, 'Nothing needed updati
     assert.equal(model.result(snap).subtitle, '3 packages updated in 1m 42s')
 }
 
-// Summary copy.
 // A saved plan: fresh for ten minutes, and the line says how old it is.
 {
     const plan = { repo: [], aur: [], bytes: 0, kernel: false, checkedAt: 10000 }

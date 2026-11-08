@@ -33,7 +33,7 @@ Rectangle {
                 RowLayout {
                     spacing: tip.card.px(6)
                     Rectangle { width: tip.card.px(8); height: width; radius: width / 2; color: modelData.color || tip.card.c.accent }
-                    Text { text: modelData.title; color: tip.card.c.foreground; font.family: tip.card.c.monoFont
+                    Text { text: modelData.title; textFormat: Text.PlainText; color: tip.card.c.foreground; font.family: tip.card.c.monoFont
                         font.pixelSize: tip.card.px(12.5); font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.maximumWidth: tip.card.px(200) }
                 }
                 Text { text: tip.span(modelData); color: tip.card.c.accent; font.family: tip.card.c.monoFont; font.pixelSize: tip.card.px(12.5) }

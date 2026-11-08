@@ -4,6 +4,8 @@
 # shellcheck source=/dev/null
 source "$DOCTOR_DIR/lib.sh"
 # shellcheck source=/dev/null
+source "$DOCTOR_DIR/checks/waybar.sh"   # _way_placed, as doctor.sh loads it first
+# shellcheck source=/dev/null
 source "$DOCTOR_DIR/checks/hyprctl.sh"
 
 export DOCTOR_ROOT

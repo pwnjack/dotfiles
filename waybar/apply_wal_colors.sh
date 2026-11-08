@@ -26,6 +26,12 @@ role_load
 
 mkdir -p "$cache_dir"
 
+# Rendered to a temporary file and moved into place only when it differs:
+# Waybar watches this file, so a truncating write could be read half-written,
+# and a second render in the same fan-out (swaync's script runs this first)
+# must not restyle the bar again.
+out="$cache_dir/colors-waybar.css"
+tmp=$(mktemp "$out.XXXXXX") || exit 1
 {
     echo "@define-color foreground ${wal[7]};"
     echo "@define-color background ${wal[0]};"
@@ -39,4 +45,9 @@ mkdir -p "$cache_dir"
     for name in surface_container surface_container_high secondary_container on_secondary_container error on_error; do
         echo "@define-color $name $(wal_role "$name");"
     done
-} > "$cache_dir/colors-waybar.css"
+} > "$tmp"
+if [ -f "$out" ] && cmp -s "$tmp" "$out"; then
+    rm -f -- "$tmp"
+else
+    chmod 644 -- "$tmp" && mv -f -- "$tmp" "$out"
+fi

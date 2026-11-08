@@ -191,9 +191,8 @@ static void snapshot_active_done(HyprClient *c, char *reply, gpointer data)
 {
     Snap *snap = data;
     WsState *st = &snap->st;
-    if (!c->dead && snap->generation != c->generation) {
-        /* The connection it describes has been reported lost: never deliver. */
-    } else if (!c->dead) {
+    /* A snapshot of a connection already reported lost is never delivered. */
+    if (!c->dead && snap->generation == c->generation) {
         if (reply && ws_parse_active(reply, &st->active)) {
             /* An active event that arrived while this snapshot was in flight is
              * newer than the reply, however the two raced. */

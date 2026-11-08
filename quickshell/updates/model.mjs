@@ -97,7 +97,7 @@ export function target(s) {
 
 // Lines that are progress, not an explanation of an error.
 function isProgressLine(line) {
-    return line.startsWith('@@') || line.startsWith('warning: ')
+    return line.startsWith('@@')
         || /^:: (Synchronizing package databases|Starting full system upgrade|Retrieving packages|Processing package changes|Running (pre|post)-transaction hooks|Proceed with )/.test(line)
         || /^checking /.test(line)
         || /^(upgrading|installing|reinstalling|downgrading|removing) /.test(line)

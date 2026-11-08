@@ -3,8 +3,8 @@
 # add), the bar's right-click and the settings panel all run this.
 #   sync.sh            discover (daily), metasync + sync, then render and signal
 #   sync.sh --render   render agenda.json and signal only: no network
-# Locks: a second sync waits for the first (sync.lock), and so do cal.sh's writes;
-# rendering has its own lock, so an add renders at once even while a slow sync runs.
+# Locks: a second sync waits for the first (sync.lock), and so do cal.sh's writes,
+# which therefore never land mid-sync; rendering has its own lock (render.lock).
 # A sync whose account is removed while it runs (a sign-out) writes nothing, and a
 # sign-out waits for a render (render.lock) before it removes anything.
 # shellcheck disable=SC2154  # cal_* paths come from lib.sh
@@ -16,7 +16,7 @@ status_file=$cal_runtime/status.json
 khal=${CAL_KHAL:-khal}
 now=$(date +%s)
 
-signal() { pkill -RTMIN+12 waybar 2>/dev/null || true; }
+signal() { pkill -x -RTMIN+12 waybar 2>/dev/null || true; }
 
 # render — writes agenda.json from cal.sh. Returns 1 with render_error set when the
 # render lock stays busy, cal.sh fails or its output is not an array; the last agenda

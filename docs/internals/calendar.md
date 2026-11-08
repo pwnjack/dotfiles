@@ -1,7 +1,5 @@
 # Calendar
 
-Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md` keeps the rules that must hold on every edit; this file has the reasoning and the traps.
-
 `scripts/calendar/sync.sh` is the normal path to iCloud: a `flock`, then
 `vdirsyncer metasync` and `sync` into `~/.local/share/calendars/icloud/`, a daily
 discover, `writable.sh` and `declined.py`, then `agenda.json` and `status.json`

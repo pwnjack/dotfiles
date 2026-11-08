@@ -22,5 +22,5 @@ player=$(media_player)
 if playerctl -p "$player" "$@" 2>/dev/null; then
     # The bar's five-second poll is only a fallback for changes made inside a
     # player. Controls routed through this script refresh the module at once.
-    pkill -RTMIN+10 waybar 2>/dev/null || true
+    pkill -x -RTMIN+10 waybar 2>/dev/null || true
 fi

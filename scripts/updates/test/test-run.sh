@@ -191,7 +191,7 @@ ln -s "$TMP/state" "$TMP/sig/state"
 env -u UPDATES_SIGNAL PATH="$TMP/pbin:$PATH" UPDATES_HELPER="$TMP/helper" UPDATES_STATE_DIR="$TMP/state" \
     UPDATES_MODULES_DIR="$TMP/modules" bash "$RUNNER"
 assert_eq "$(cat "$TMP/sig/lock" 2>/dev/null)" free "the final bar signal comes after run.lock is released"
-assert_eq "$(cat "$TMP/sig/args" 2>/dev/null)" "-RTMIN+9 waybar" "and is the bar's refresh signal"
+assert_eq "$(cat "$TMP/sig/args" 2>/dev/null)" "-x -RTMIN+9 waybar" "and is the bar's refresh signal"
 rm -rf "$TMP/sig"
 
 echo "flatpak"

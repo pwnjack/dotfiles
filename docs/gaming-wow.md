@@ -33,12 +33,13 @@ primary launcher because its cursor behaviour is better than Faugus's here; a
 migration to Faugus was started and stopped, and the desktop entry was never
 changed.
 
-The current chain is Rofi -> Lutris -> Gamescope (SDL) -> UMU/Proton ->
+Under that baseline the chain was Rofi -> Lutris -> Gamescope (SDL) -> UMU/Proton ->
 Battle.net -> WoW. Lutris's game configuration is machine-local:
 `~/.local/share/lutris/games/battlenet-standard-1762118986.yml`. It uses the
 existing `~/Games/battlenet` prefix and `Proton-GE Latest` runner.
 
-Current Gamescope settings in that Lutris entry:
+The Gamescope settings kept in that Lutris entry (still stored, unused while
+the trial above is in force):
 
 ```yaml
 gamescope: true
@@ -50,10 +51,9 @@ gamescope_window_mode: -b
 
 Only the backend was changed from `wayland` to `sdl` during troubleshooting.
 With it, resizing works and, after one retry with unclickable controls, the
-launcher's controls respond; this is the setup to keep. Disabling Gamescope was
-considered and never applied. Existing Lutris environment and
-runner overrides remain intact; there is no verified reason to copy the
-different Faugus overrides into this baseline.
+launcher's controls respond; this was the setup kept until the trial above.
+Existing Lutris environment and runner overrides remain intact; there is no
+verified reason to copy the different Faugus overrides into this baseline.
 
 Battle.net now opens centred at **1920x1080** instead of 1280x720 on the
 2560x1440 monitor. This is the outer window size; Gamescope's internal game

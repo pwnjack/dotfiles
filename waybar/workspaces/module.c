@@ -219,6 +219,15 @@ static int slot_at(const Module *m, double px)
     return slot_at_layout(m, m->shape.value, m->presence.value, m->presence.to, px);
 }
 
+/* Focus a workspace slot through the Lua dispatcher; the one place that
+ * spells the expression. */
+static void focus_slot(Module *m, int slot)
+{
+    char lua[64];
+    g_snprintf(lua, sizeof lua, "hl.dsp.focus({ workspace = %d })", slot);
+    hypr_dispatch(m->hypr, lua);
+}
+
 static gboolean on_press(GtkWidget *w, GdkEventButton *ev, gpointer user)
 {
     (void)w;
@@ -228,9 +237,7 @@ static gboolean on_press(GtkWidget *w, GdkEventButton *ev, gpointer user)
     int slot = slot_at(m, ev->x);
     if (!slot)
         return FALSE;
-    char lua[64];
-    g_snprintf(lua, sizeof lua, "hl.dsp.focus({ workspace = %d })", slot);
-    hypr_dispatch(m->hypr, lua);
+    focus_slot(m, slot);
     return TRUE;
 }
 
@@ -263,11 +270,8 @@ static gboolean on_scroll(GtkWidget *w, GdkEventScroll *ev, gpointer user)
     /* Step through the slots the row draws, never past them: Hyprland's
      * relative "r+1" counts on through 11, 12, ... where no slot exists. */
     int slot = ws_step(&m->state, dir);
-    if (slot) {
-        char lua[64];
-        g_snprintf(lua, sizeof lua, "hl.dsp.focus({ workspace = %d })", slot);
-        hypr_dispatch(m->hypr, lua);
-    }
+    if (slot)
+        focus_slot(m, slot);
     return TRUE;
 }
 

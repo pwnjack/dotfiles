@@ -1,7 +1,5 @@
 # Native workspace module
 
-Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md` keeps the rules that must hold on every edit; this file has the reasoning and the traps.
-
 The workspace dots are one native Waybar module, `waybar/workspaces/` (C,
 GTK3/cairo, Waybar CFFI ABI 2), drawn on one canvas from one animation clock:
 the leaving pill contracts while the arriving dot stretches, both amounts

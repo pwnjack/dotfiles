@@ -230,7 +230,7 @@ ShellRoot {
     }
 
     // updates-plan.sh prints JSON and exits 0, or prints one reason line on
-    // stderr and exits 1. Both streams and the exit must be in before deciding.
+    // stderr and exits non-zero. Both streams and the exit must be in before deciding.
     Process {
         id: planner
         property int exitCode: -1
@@ -269,7 +269,7 @@ ShellRoot {
     }
     Process { id: terminalLauncher; onExited: root.close() }
     Process { id: rebooter; command: ["systemctl", "reboot"]; onExited: root.close() }
-    Process { id: barSignal; command: ["pkill", "-RTMIN+9", "waybar"] }
+    Process { id: barSignal; command: ["pkill", "-x", "-RTMIN+9", "waybar"] }
 
     IpcHandler {
         target: "updates"

@@ -1,7 +1,5 @@
 # Keybindings overlay
 
-Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md` keeps the rules that must hold on every edit; this file has the reasoning and the traps.
-
 `quickshell/keybinds-overlay/shell.qml` is an on-demand, read-only Quickshell
 HUD started by `scripts/hyprland/keybinds-overlay.sh` (lock, IPC toggle,
 daemonize; exits on close). It reads `scripts/keybinds/keybinds-sheet.sh --json`

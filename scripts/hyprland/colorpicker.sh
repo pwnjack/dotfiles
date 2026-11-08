@@ -30,7 +30,7 @@ command -v wl-copy    >/dev/null 2>&1 || exit 0
 color=$(hyprpicker -f hex -l -b -q) || exit 0   # ESC cancels: ordinary, not an error
 [ -n "$color" ] || exit 0
 
-printf '%s' "$color" | wl-copy
+printf '%s' "$color" | wl-copy || exit 1
 
 command -v notify-send >/dev/null 2>&1 || exit 0
 notify-send -i color-select 'Colour copied' "$color"

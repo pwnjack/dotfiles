@@ -31,7 +31,7 @@ WS_WERROR ?= -Werror
 WS_LDLIBS := $(shell pkg-config --libs $(PKGS)) -lm
 
 HEADERS := $(wildcard *.h)
-LIB_SRC := $(wildcard model.c anim.c render.c hypr.c module.c)
+LIB_SRC := model.c anim.c render.c hypr.c module.c
 TEST_SRC := $(wildcard test/test_*.c)
 TESTS := $(patsubst test/%.c,$(BUILD)/%,$(TEST_SRC))
 
@@ -46,7 +46,7 @@ $(BUILD)/workspaces.so: $(LIB_SRC) $(HEADERS) | $(BUILD)
 $(BUILD)/test_%: test/test_%.c test/check.h $(LIB_SRC) $(HEADERS) | $(BUILD)
 	$(CC) $(WS_CFLAGS) $(WS_WERROR) $(CFLAGS) -DHYPR_RETRY_MS=50 -DHYPR_TEST -I. -o $@ $< $(filter-out module.c,$(LIB_SRC)) $(WS_LDLIBS) $(LDLIBS) -ldl
 
-test: $(TESTS) $(if $(wildcard module.c),$(BUILD)/workspaces.so)
+test: $(TESTS) $(BUILD)/workspaces.so
 	@set -e; for t in $(TESTS); do "$$t" "$(BUILD)"; done
 
 .PHONY: test

@@ -25,6 +25,9 @@
 # --grace 5, and the live check uses --grace 30.
 #
 config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
+# Already locked (hypridle's lock_cmd after the idle lock, then before-sleep):
+# answer before waiting on the lock below, which the running hyprlock holds.
+pgrep -xu "$(id -u)" hyprlock >/dev/null && exit 0
 lock_file="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/lock.sh.lock"
 if { command exec 9>"$lock_file"; } 2>/dev/null; then
     flock -w 1 9

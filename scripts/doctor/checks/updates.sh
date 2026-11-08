@@ -42,23 +42,7 @@ _upd_helper_present() {
 }
 
 # _upd_has_grant <listing> <helper> — the exact no-arguments NOPASSWD entry.
-_upd_has_grant() {
-    printf '%s\n' "$1" | awk -v command="$2 \"\"" '
-        {
-            marker = "NOPASSWD: "
-            position = index($0, marker)
-            if (position == 0) next
-            granted = substr($0, position + length(marker))
-            count = split(granted, entries, /,/)
-            for (i = 1; i <= count; i++) {
-                sub(/^[[:space:]]+/, "", entries[i])
-                sub(/[[:space:]]+$/, "", entries[i])
-                if (entries[i] == "ALL" || entries[i] == command) found = 1
-            }
-        }
-        END { exit !found }
-    '
-}
+_upd_has_grant() { doctor_sudo_grant "$1" "$2 \"\""; }
 
 check_updates() {
     _upd_have_pacman || return 0

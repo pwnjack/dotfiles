@@ -1,7 +1,5 @@
 # Sound popover
 
-Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md` keeps the rules that must hold on every edit; this file has the reasoning and the traps.
-
 `quickshell/sound/shell.qml` is the on-demand popover started by
 `scripts/hyprland/sound-popover.sh` when Waybar's volume icon is clicked (lock,
 IPC toggle, cursor-anchored, palette passed in `SOUND_*` variables, exits on
@@ -204,5 +202,3 @@ appear in it. Confirmed on a Logitech G533, whose sysfs `idVendor` and
 - **Advanced…** in the popover's ⋯ menu opens `pavucontrol` for everything
   else. Routing an app is done from the popover's Apps tab; see
   `virtual-surround.md` and `gaming-wow.md`.
-- The tracked SwayNC config has no volume widget, and its stylesheet has no
-  `widget-volume` rules.

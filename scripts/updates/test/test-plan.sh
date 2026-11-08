@@ -95,10 +95,7 @@ fails() {
 stub checkupdates 'exit 1'
 fails "checkupdates exit 1" "Could not sync package databases"
 
-stub checkupdates 'exit 2'
-mv "$TMP/bin/checkupdates" "$TMP/checkupdates.off"
 UPDATES_REPO_CMD=nosuchcheckupdates fails "checkupdates missing" "not installed"
-mv "$TMP/checkupdates.off" "$TMP/bin/checkupdates"
 
 stub checkupdates 'echo "mesa 1-1 -> 2-1"; exit 0'
 stub pacman 'exit 1'
@@ -118,7 +115,6 @@ LOCK_T=1 fails "lock held" "still running"
 kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null
 
 stub checkupdates 'exit 2'
-stub pacman 'exit 0'
 stub pacman 'exit 0'
 out=$(run)
 assert_json_field "$out" '.repo | length' 0 "checkupdates exit 2 means none, not failure"

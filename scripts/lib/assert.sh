@@ -87,6 +87,14 @@ assert_json_lacks() {
     fi
 }
 
+# check <label> -- pass or fail by the exit status of the command just before it:
+#     grep -q needle "$out"
+#     check "the needle is rendered"
+check() {
+    local rc=$?
+    if [ "$rc" -eq 0 ]; then pass "$1"; else fail "$1" "exit status $rc"; fi
+}
+
 # test_summary [name] -- prints the tally; returns nonzero when anything failed.
 test_summary() {
     echo

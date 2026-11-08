@@ -219,6 +219,25 @@ def place_override(target, master, rid):
     replace(target, "DTEND", rid + length)
 
 
+def retime_exceptions(cal, master, shift):
+    """A series moved by `shift` keeps its exceptions on their occurrences: every
+    EXDATE and every override's RECURRENCE-ID moves with it. An override's own
+    start stays where the user put it."""
+    if not shift:
+        return
+    exdates = master.get("EXDATE")
+    if exdates is not None:
+        if not isinstance(exdates, list):
+            exdates = [exdates]
+        del master["EXDATE"]
+        for prop in exdates:
+            for item in prop.dts:
+                master.add("EXDATE", item.dt + shift)
+    for event in vevents(cal):
+        if "RECURRENCE-ID" in event:
+            replace(event, "RECURRENCE-ID", event.decoded("RECURRENCE-ID") + shift)
+
+
 def set_times(event, changes, like, keep_date=None):
     """Write DTSTART/DTEND from `changes`; `keep_date` keeps a series' first date."""
     if "DURATION" in event:
@@ -325,16 +344,20 @@ def run():
     if not changes["title"].strip():
         fail("An event needs a title")
     like = master.decoded("DTSTART")
+    # The times are written only when the user moved them: khal prints minutes, so an
+    # untouched 19:00:30 must not come back as 19:00. A request without timesChanged
+    # predates the key, so it counts as changed.
+    moved = changes.get("timesChanged", True)
     if not recurring:
-        apply(master, changes, like)
+        apply(master, changes, like, times=moved)
     elif scope == "all":
         # Dates and All day are locked for a series: keep its first date, move the time.
-        # The times are written only when the user moved them: the card's draft starts at
-        # the shown instance's times, which for an override are not the series'. A request
-        # without timesChanged predates the key, so it counts as changed.
-        moved = changes.get("timesChanged", True)
+        # The card's draft starts at the shown instance's times, which for an override
+        # are not the series'.
         apply(master, changes, like, keep_date=None if is_date(like) else like.date(),
               times=not is_date(like) and moved)
+        if not is_date(like) and moved:
+            retime_exceptions(cal, master, master.decoded("DTSTART") - like)
     else:
         target, slot = instance_for(cal, master, occurrence)
         if target is None:

@@ -21,24 +21,13 @@ _hctl_uses_lua_provider() {
 }
 
 # _hctl_uses_native_waybar_workspaces
-# True only when hyprland/workspaces is inside a modules-left/center/right
-# array. A configured-but-unplaced block cannot break clicks, and a commented
-# entry is not configuration. This deliberately mirrors Waybar's own narrow
-# JSONC window instead of stripping comments from arbitrary handler strings.
+# True only when hyprland/workspaces is placed in a bar array or a group, read
+# by waybar.sh's _way_placed (sourced before this module). A configured but
+# unplaced block cannot break clicks, and a commented entry is not configuration.
 _hctl_uses_native_waybar_workspaces() {
     local config="$DOCTOR_ROOT/waybar/config.jsonc"
     [ -f "$config" ] || return 1
-
-    awk '
-        /^[[:space:]]*"modules-(left|center|right)"[[:space:]]*:/ { inarr = 1 }
-        inarr {
-            line = $0
-            sub(/\/\/.*/, "", line)
-            if (line ~ /"hyprland\/workspaces"/) found = 1
-            if (index(line, "]")) inarr = 0
-        }
-        END { exit !found }
-    ' "$config"
+    _way_placed "$config" | grep -qx 'hyprland/workspaces'
 }
 
 # _hctl_check_file <root-relative-file>
@@ -51,7 +40,7 @@ _hctl_check_file() {
 
     [ -f "$full" ] || return 0
     [ -L "$full" ] && return 0
-    LC_ALL=C grep -Iq . "$full" 2>/dev/null || return 0
+    LC_ALL=C grep -Iq hyprctl "$full" 2>/dev/null || return 0
     quoted_full="$(doctor_q "$full")"
 
     while IFS= read -r line || [ -n "$line" ]; do

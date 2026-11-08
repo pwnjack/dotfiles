@@ -9,7 +9,7 @@ import "calendar.mjs" as CalendarRead
 
 ShellRoot {
     id: root
-    readonly property string configDir: Quickshell.env("HOME") + "/.config"
+    readonly property string configDir: Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config"
     property bool opened: true
     property bool closing: false
     property bool busy: false

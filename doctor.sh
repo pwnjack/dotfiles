@@ -48,11 +48,13 @@ esac
 # shellcheck source=scripts/doctor/lib.sh
 source "$DOCTOR_SELF_DIR/scripts/doctor/lib.sh"
 
-for _doctor_module in symlinks references binaries services sddm updates waybar workspaces hyprctl hardware autostart ssh calendar defaults state plugins themes; do
+# Source order is run order: hyprctl relies on waybar's placement reader, and
+# workspaces on both.
+DOCTOR_MODULES=(symlinks references binaries services sddm updates waybar workspaces hyprctl hardware autostart ssh calendar defaults state plugins themes)
+for _doctor_module in "${DOCTOR_MODULES[@]}"; do
     # shellcheck source=/dev/null
     source "$DOCTOR_SELF_DIR/scripts/doctor/checks/$_doctor_module.sh"
 done
-unset _doctor_module
 
 echo "Checking $DOCTOR_ROOT"
 
@@ -64,22 +66,9 @@ if ! doctor_require_repo; then
     exit 1
 fi
 
-check_symlinks
-check_references
-check_binaries
-check_services
-check_sddm
-check_updates
-check_waybar
-check_workspaces
-check_hyprctl
-check_hardware
-check_autostart
-check_ssh
-check_calendar
-check_defaults
-check_state
-check_plugins
-check_themes
+for _doctor_module in "${DOCTOR_MODULES[@]}"; do
+    "check_$_doctor_module"
+done
+unset _doctor_module
 
 summary

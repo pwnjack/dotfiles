@@ -95,7 +95,7 @@ if [ "$check" = 1 ]; then
     exit 0
 fi
 
-for tool in make cc pkg-config jq sha256sum; do
+for tool in make cc pkg-config jq; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         echo "build-workspaces: $tool is not installed" >&2
         exit 1

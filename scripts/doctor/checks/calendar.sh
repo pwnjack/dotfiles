@@ -47,7 +47,7 @@ check_calendar() {
     fi
     for tool in $tools; do
         if ! _cal_have "$tool"; then
-            err "$tool is not installed" "sudo pacman -S --needed $tools"
+            warn "$tool is not installed" "sudo pacman -S --needed $tools"
             found=1
         fi
     done

@@ -1,7 +1,5 @@
 # Capture bar, recording and locking
 
-Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md` keeps the rules that must hold on every edit; this file has the reasoning and the traps.
-
 `quickshell/capture/shell.qml` is the on-demand screenshot/text/recording strip
 started by `scripts/hyprland/capture-bar.sh` (lock, IPC toggle, exits on close;
 `record` while recording stops instead). Its modes are `screenshot`, `text` and

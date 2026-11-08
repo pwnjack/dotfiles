@@ -342,7 +342,6 @@ FocusScope {
                     Reveal {
                         Layout.fillWidth: true
                         Layout.preferredHeight: implicitHeight
-                        card: sheet.card
                         padding: sheet.card.px(10)
                         open: sheet.expanded === "startDate"
                         MonthGrid {
@@ -397,7 +396,6 @@ FocusScope {
                     Reveal {
                         Layout.fillWidth: true
                         Layout.preferredHeight: implicitHeight
-                        card: sheet.card
                         padding: sheet.card.px(10)
                         open: sheet.expanded === "endDate"
                         MonthGrid {
@@ -446,6 +444,7 @@ FocusScope {
                                 required property int index
                                 objectName: "overlap" + index
                                 text: "⚠ Overlaps " + modelData.title + " " + sheet.fmtTime(modelData.startEpoch) + "–" + sheet.fmtTime(modelData.endEpoch)
+                                textFormat: Text.PlainText
                                 color: "#eaa3a4"
                                 font.family: sheet.card.c.monoFont
                                 font.pixelSize: sheet.card.px(12.5)

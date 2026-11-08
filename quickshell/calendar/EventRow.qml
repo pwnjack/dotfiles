@@ -29,7 +29,7 @@ Rectangle {
             text: row.event.allDay ? "all day" : row.fmt(row.event.startEpoch) + "–" + row.fmt(row.event.endEpoch)
             color: row.card.c.accent; font.family: row.card.c.monoFont; font.pixelSize: row.card.px(13) }
         Rectangle { objectName: "eventDot"; width: row.card.px(9); height: width; radius: width / 2; color: row.event.color || row.card.c.accent }
-        Text { Layout.fillWidth: true; Layout.minimumWidth: 0; text: row.event.title; elide: Text.ElideRight
+        Text { Layout.fillWidth: true; Layout.minimumWidth: 0; text: row.event.title; textFormat: Text.PlainText; elide: Text.ElideRight
             color: row.card.c.foreground; font.family: row.card.c.monoFont; font.pixelSize: row.card.px(13) }
     }
     MouseArea { id: hov; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor

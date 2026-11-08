@@ -1,6 +1,6 @@
 import GLib from "gi://GLib"
 import Gio from "gi://Gio"
-import { luaValue, setKeyword, reloadConfig } from "./hyprctl.js"
+import { luaValue, setKeyword, reloadConfig, animationExpression } from "./hyprctl.js"
 
 // Per-machine state, never a tracked file: changing a setting must not dirty
 // the dotfiles repo. hyprland.lua loads this file last, if it exists.
@@ -143,16 +143,7 @@ export function resetSetting(keyword) {
 export function setAnimationPersistent(name, line) {
     return enqueue(() => applyAndSave(() => setKeyword("animation", line), () => {
         const lines = readLines().filter(l => !l.endsWith(`-- @animation ${name}`))
-        const [leaf, enabled, speed, bezier, ...styleParts] = line.split(",")
-        const fields = [
-            `leaf = ${JSON.stringify(leaf)}`,
-            `enabled = ${enabled !== "0"}`,
-            `speed = ${Number(speed)}`,
-            `bezier = ${JSON.stringify(bezier)}`,
-        ]
-        const style = styleParts.join(",")
-        if (style) fields.push(`style = ${JSON.stringify(style)}`)
-        lines.push(`hl.animation({ ${fields.join(", ")} }) -- @animation ${name}`)
+        lines.push(`${animationExpression(line)} -- @animation ${name}`)
         writeLines(lines)
     }))
 }

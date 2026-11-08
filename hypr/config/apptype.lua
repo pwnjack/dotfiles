@@ -17,7 +17,7 @@ local function read_option(name, fallback)
 end
 
 return {
-    browser = read_option("browser", "firefox"),
+    browser = read_option("browser", "zen-browser"),
     terminal = read_option("terminal", "ghostty"),
     editor = read_option("editor", "nvim"), -- TUI editor, opened in the terminal
     codeeditor = read_option("codeeditor", "zeditor"), -- GUI code editor

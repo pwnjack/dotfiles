@@ -33,9 +33,8 @@ command -v eww >/dev/null 2>&1 || exit 0
 option() {
     local value="" file="$config_dir/options/$1"
     [ -e "$file" ] || file="$config_dir/defaults/options/$1"
-    [ -r "$file" ] && IFS= read -r value < "$file"
-    value=${value#"${value%%[![:space:]]*}"}
-    printf '%s' "${value%"${value##*[![:space:]]}"}"
+    [ -r "$file" ] && read -r value < "$file"
+    printf '%s' "$value"
 }
 
 # Fd 9 is the lock below; the daemon must not inherit it, or it would hold
@@ -151,7 +150,7 @@ reload_style() {
 cmd_apply() {
     if [ "$(option desktop-clock)" != enabled ]; then
         close_clock
-        return 0
+        return
     fi
     render_font && ensure_colors || return 1
     if daemon_up; then

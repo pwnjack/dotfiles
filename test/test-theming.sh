@@ -140,7 +140,7 @@ assert_contains "$btop_theme" 'theme[selected_bg]="#445566"' "btop selection use
 assert_contains "$btop_theme" 'theme[selected_fg]="#ddeeff"' "btop selection text uses on_secondary_container"
 assert_contains "$btop_theme" 'theme[proc_pause_bg]="#ff9988"' "btop pause uses error"
 rofi_colors="$(cat "$accent_cache/wal/colors-rofi.rasi")"
-assert_contains "$rofi_colors" 'selected:   #44556666;' "Rofi selection uses translucent secondary_container"
+assert_not_contains "$rofi_colors" 'selected:' "Rofi's palette carries only what its themes read (background and foreground)"
 strata_accent=$(wal_oklch '#0000aa' 0.76 0.84 0.12)
 assert_contains "$(cat "$accent_cache/wal/strata-theme.toml")" "accent = \"$strata_accent\"" \
     "Strata accent follows primary with its foreground clamp"

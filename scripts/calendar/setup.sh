@@ -99,7 +99,7 @@ case ${1:-} in
         forget
         rm -rf -- "$cal_data" "$cal_state" "${CALENDAR_VDIR_STATUS:-${XDG_STATE_HOME:-$HOME/.local/state}/vdirsyncer/status}"
         rm -f -- "$cal_runtime/agenda.json" "$cal_runtime/status.json"
-        pkill -RTMIN+12 waybar 2>/dev/null || true
+        pkill -x -RTMIN+12 waybar 2>/dev/null || true
         # Cleanup runs first, so a keyring that refuses the clear still leaves
         # no local copy behind; the failure is reported last.
         if ! keyring_empty; then

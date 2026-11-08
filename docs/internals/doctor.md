@@ -1,7 +1,5 @@
 # Doctor architecture
 
-Moved verbatim from `CLAUDE.md` so the agent instructions stay short. `CLAUDE.md` keeps the rules that must hold on every edit; this file has the full module tree and naming rules.
-
 ```
 doctor.sh                    # Entry point: sources lib + modules, guards the repo, exits 1 on ERROR
 scripts/doctor/

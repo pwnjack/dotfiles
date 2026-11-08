@@ -11,7 +11,7 @@
 #
 #   These names are reserved by this library — check modules must not redefine
 #   them: group ok err warn note summary doctor_reset doctor_q
-#   doctor_require_repo _finding
+#   doctor_assignment doctor_sudo_grant doctor_require_repo _finding
 #
 #   Any path interpolated into a fix hint must go through doctor_q, or the hint
 #   stops being copy-pasteable the moment a path contains a space.
@@ -80,6 +80,28 @@ note() {
 # expand, so the hint can be pasted verbatim.
 doctor_q() {
     printf '%q' "$1"
+}
+
+# doctor_sudo_grant <sudo -l listing> <command> — 0 when the listing grants
+# <command> (or ALL) without a password: the entries after "NOPASSWD: ",
+# comma-separated and trimmed, compared whole. The SDDM and update helpers
+# both check their grant this way.
+doctor_sudo_grant() {
+    printf '%s\n' "$1" | awk -v command="$2" '
+        {
+            marker = "NOPASSWD: "
+            position = index($0, marker)
+            if (position == 0) next
+            granted = substr($0, position + length(marker))
+            count = split(granted, entries, /,/)
+            for (i = 1; i <= count; i++) {
+                sub(/^[[:space:]]+/, "", entries[i])
+                sub(/[[:space:]]+$/, "", entries[i])
+                if (entries[i] == "ALL" || entries[i] == command) found = 1
+            }
+        }
+        END { exit !found }
+    '
 }
 
 # doctor_assignment <file> <name> — print the value of one plain NAME="value"

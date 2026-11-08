@@ -24,12 +24,9 @@
 # Always leaves the include in place ({} when every module is "always"), so a
 # fresh checkout or a missing option still shows every module.
 set -euo pipefail
-options=$HOME/.config/options
-include=$HOME/.local/state/waybar/bar.jsonc
-options=${BAR_OPTIONS:-$options}
-include=${BAR_INCLUDE:-$include}
-css=$HOME/.local/state/waybar/bar.css
-css=${BAR_CSS:-$css}
+options=${BAR_OPTIONS:-$HOME/.config/options}
+include=${BAR_INCLUDE:-$HOME/.local/state/waybar/bar.jsonc}
+css=${BAR_CSS:-$HOME/.local/state/waybar/bar.css}
 
 # opt <name> — first line of options/<name>, empty when missing
 opt() {
@@ -69,7 +66,6 @@ else
     margin_edge=8 margin_side=10 radius=18
     border_rule='border: 1px solid @foreground;'
 fi
-[[ $border == enabled ]] || border_rule='border: none;'
 if [[ $position == top ]]; then
     margin_top=$margin_edge margin_bottom=0
 else
@@ -78,8 +74,7 @@ fi
 
 entries=()
 for module in cpu memory disk; do
-    mode=''
-    read -r mode 2>/dev/null < "$options/bar-$module" || true
+    mode=$(opt "bar-$module")
     case $mode in
         high) entries+=("\"$module\": { \"format-normal\": \"\" }") ;;
         hidden) entries+=("\"$module\": { \"format-normal\": \"\", \"format-warning\": \"\", \"format-critical\": \"\" }") ;;
@@ -93,10 +88,8 @@ trap 'rm -f "$tmp"' EXIT
     printf '{\n  "position": "%s",\n  "margin-top": %s,\n  "margin-bottom": %s,\n  "margin-left": %s,\n  "margin-right": %s' \
         "$position" "$margin_top" "$margin_bottom" "$margin_side" "$margin_side"
     [[ -z $output ]] || printf ',\n  "output": "%s"' "$output"
-    sep=','
     for entry in "${entries[@]}"; do
-        printf '%s\n  %s' "$sep" "$entry"
-        sep=','
+        printf ',\n  %s' "$entry"
     done
     printf '\n}\n'
 } > "$tmp"
@@ -106,7 +99,7 @@ mkdir -p "${css%/*}"
 tmp=$(mktemp "$css.XXXXXX")
 {
     printf 'window#waybar {\n    background: alpha(@background, %s);\n' "$alpha"
-    [[ $border_rule == 'border: none;' ]] || printf '    %s\n' "$border_rule"
+    [[ $border == enabled ]] && printf '    %s\n' "$border_rule"
     printf '    border-radius: %spx;\n}\n' "$radius"
 } > "$tmp"
 mv -f "$tmp" "$css"

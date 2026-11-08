@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #
 # Application Launcher
 # Layout comes from options/launchertype: vertical or horizontal.

@@ -2,12 +2,11 @@ import GLib from "gi://GLib"
 import Gio from "gi://Gio"
 import GioUnix from "gi://GioUnix"
 import { execAsync, execInput } from "./process.js"
-import { checkedHyprctl } from "./hyprctl.js"
+import { checkedHyprctl, reloadConfig } from "./hyprctl.js"
 import * as persist from "./persist.js"
 import { pulseState, pulseValue, pulseEnumerators, setPulse } from "./pulse.js"
 import * as displays from "./displays.mjs"
 import * as about from "./about.mjs"
-import { callSystem, getProperty } from "./dbus.js"
 import { nmSnapshot, setWifiEnabled, requestScan, activate, addAndActivate, deactivate, removeConnections } from "./nm.js"
 import * as network from "./network.mjs"
 import * as autostart from "./autostart.mjs"
@@ -15,7 +14,7 @@ import { regionValue, regionEnumerators, setRegion } from "./region.js"
 import * as calendar from "./calendar.mjs"
 import * as sound from "./sound.mjs"
 
-const configDir = GLib.get_home_dir() + "/.config"
+const configDir = GLib.get_user_config_dir()
 const catalog = JSON.parse(read(configDir + "/quickshell/settings-panel/catalog.json"))
 const byId = new Map(catalog.rows.map(row => [row.id, row]))
 const optionPath = key => `${configDir}/options/${key}`
@@ -434,9 +433,15 @@ function keywordValue(data) {
 
 const gtkIniPaths = ["gtk-3.0", "gtk-4.0"].map(dir => `${configDir}/${dir}/settings.ini`)
 const gsettingsArgs = key => ["org.gnome.desktop.interface", key]
+// A `gsettings get` reply: a quoted string with GVariant escapes (either quote
+// style, \\ \' \" \n \t \uXXXX), or a number, possibly typed ("uint32 24").
 function gvariantValue(text) {
-    const quoted = text.trim().match(/^'(.*)'$/)
-    return quoted ? quoted[1] : Number(text)
+    const bare = text.trim().replace(/^[a-z0-9]+ /, "")
+    const quoted = bare.match(/^(['"])([^]*)\1$/)
+    if (!quoted) return Number(bare)
+    const simple = { n: "\n", t: "\t", r: "\r", a: "\x07", b: "\b", f: "\f", v: "\v", "0": "\0" }
+    return quoted[2].replace(/\\(u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|[^])/g, (_, e) =>
+        e.length > 1 ? String.fromCodePoint(parseInt(e.slice(1), 16)) : (simple[e] ?? e))
 }
 const gvariantLiteral = value => typeof value === "number" ? String(value) : `'${String(value).replace(/[\\']/g, "\\$&")}'`
 const regexEscape = text => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
@@ -781,7 +786,7 @@ async function change(request) {
             // Desktop entries with Terminal=true open through xdg-terminal-exec, which this points at the new choice.
             if (row.key === "terminal") await execAsync(["bash", configDir + "/scripts/settings/terminal.sh"])
             // The Lua configuration reads these options at parse time.
-            if (row.reload) await persistReload()
+            if (row.reload) await reloadConfig()
             if (row.key === "cursortheme") await cursor(readOption(row.key), Number(await execAsync(["gsettings", "get", ...gsettingsArgs("cursor-size")])))
         }, unsetReadsDefault(row))
     }
@@ -1036,13 +1041,13 @@ export async function dispatch(request) {
     if (request.op === "autostartAdd") { await autostartAdd(request); return {} }
     if (request.op === "action") {
         if (request.id === "autostart-file") {
-            detached([readOption("terminal") || "ghostty", "-e", ...(readOption("editor") || "nvim").split(/\s+/), configDir + "/hypr/config/setup/autostart.lua"])
+            detached([...(readOption("terminal") || "ghostty").split(/\s+/), "-e", ...(readOption("editor") || "nvim").split(/\s+/), configDir + "/hypr/config/setup/autostart.lua"])
             return {}
         }
-        if (request.id === "reload") { await persistReload(); return {} }
+        if (request.id === "reload") { await reloadConfig(); return {} }
         if (request.id === "displays-file") {
             if (!exists(displayStatePath)) { makeParent(displayStatePath); write(displayStatePath, displays.STATE_HEADER) }
-            detached([readOption("terminal") || "ghostty", "-e", ...(readOption("editor") || "nvim").split(/\s+/), displayStatePath])
+            detached([...(readOption("terminal") || "ghostty").split(/\s+/), "-e", ...(readOption("editor") || "nvim").split(/\s+/), displayStatePath])
             return {}
         }
         if (request.id === "protonApp") { detached(["protonvpn-app"]); return {} }
@@ -1050,7 +1055,8 @@ export async function dispatch(request) {
         const scripts = { waybar: "/scripts/waybar/waybar.sh", update: "/scripts/settings/update.sh" }
         if (!Object.hasOwn(scripts, request.id)) throw new Error("Unknown action")
         const path = configDir + scripts[request.id]
-        detached(request.id === "waybar" ? ["bash", path] : [readOption("terminal") || "ghostty", "-e", path])
+        // options/terminal may carry arguments (scripts/settings/terminal.sh), so it is split.
+        detached(request.id === "waybar" ? ["bash", path] : [...(readOption("terminal") || "ghostty").split(/\s+/), "-e", path])
         return {}
     }
     if (request.op === "calendarStatus") {
@@ -1123,9 +1129,4 @@ export async function dispatch(request) {
 function helperFailure(error) {
     try { const reply = JSON.parse(error.stdout); if (reply && reply.error) return String(reply.error) } catch (_) { /* not JSON */ }
     return error.message
-}
-async function persistReload() {
-    await checkedHyprctl(["reload"])
-    const errors = JSON.parse(await execAsync(["hyprctl", "configerrors", "-j"]))
-    if (!Array.isArray(errors) || errors.some(error => String(error).trim())) throw new Error("Hyprland reports configuration errors")
 }

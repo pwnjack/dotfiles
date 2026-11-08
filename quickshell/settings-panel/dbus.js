@@ -1,8 +1,6 @@
 import Gio from "gi://Gio"
 import GLib from "gi://GLib"
-import { CANCELLED, interactiveErrorMessage } from "./authError.mjs"
-
-export { CANCELLED }
+import { interactiveErrorMessage } from "./authError.mjs"
 
 // Plain JS in, fully unpacked JS out; `interactive` lets polkit show its dialog.
 export function callSystem(name, path, iface, method, signature, args, { interactive = false } = {}) {

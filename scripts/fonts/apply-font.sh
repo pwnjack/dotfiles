@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #
 # Render options/font and options/font-gtk into the font includes
 # (~/.local/state/{rofi,waybar,ghostty,fontconfig}), Alacritty, GTK and
@@ -31,9 +31,10 @@ main_font=${main_font:-FiraCode Nerd Font}
 gtk_font=${gtk_font:-Adwaita Sans}
 
 # Every target quotes the name with double quotes, so one inside it cannot be
-# written anywhere safely.
-if [[ "$main_font$gtk_font" == *\"* ]]; then
-    echo "Font names cannot contain double quotes" >&2
+# written anywhere safely, and a backslash would escape that closing quote in
+# the CSS and Ghostty targets.
+if [[ "$main_font$gtk_font" == *[\"\\]* ]]; then
+    echo "Font names cannot contain double quotes or backslashes" >&2
     exit 1
 fi
 
@@ -54,7 +55,10 @@ state_dir="$HOME/.local/state"
 write_if_changed() {
     mkdir -p "$(dirname "$1")" || return 1
     [ -f "$1" ] && [ "$(cat "$1")" = "$2" ] && return 0
-    printf '%s\n' "$2" > "$1.tmp" && mv -f "$1.tmp" "$1"
+    # A per-process temporary: the login overlay sync and a panel font change
+    # can run this at once, and a shared name would let one rename the other's.
+    local tmp="$1.tmp.$$"
+    printf '%s\n' "$2" > "$tmp" && mv -f "$tmp" "$1" || { rm -f -- "$tmp"; return 1; }
 }
 
 write_if_changed "$state_dir/rofi/font.rasi" "configuration { font: \"$main_font 10\"; }" || failed=1

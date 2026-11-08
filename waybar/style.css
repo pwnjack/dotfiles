@@ -77,9 +77,11 @@
     border: none;
 }
 
-window#waybar {
-    opacity: 1;
-}
+/* The two alert colours are fixed, not palette: a muted sink or an offline
+   link has to read as an alert on every wallpaper. Every ALERT EXCEPTION
+   below uses one of these. */
+@define-color alert_red #ff5555;
+@define-color alert_amber #ffb86c;
 
 /* ── SCALE: text tier ────────────────────────────────────────────────
    Every module carrying digits or words. Glyphs inside these are
@@ -385,7 +387,7 @@ tooltip label {
    when the module was always on screen; now its appearing is the alert, and
    dimming it would make the one alert on the bar the quietest thing there. */
 #custom-network.offline {
-    color: #ff5555;
+    color: @alert_red;
 }
 
 /* ── SOUND ───────────────────────────────────────────────────────────*/
@@ -394,7 +396,7 @@ tooltip label {
    a warning on every wallpaper; fixed red keeps it distinct from the
    wallpaper accent. Same reasoning as #custom-battery.critical. */
 #pulseaudio.muted {
-    color: #ff5555;
+    color: @alert_red;
 }
 
 /* ── BATTERY ─────────────────────────────────────────────────────────*/
@@ -414,12 +416,12 @@ tooltip label {
    both are readable. Fixed amber keeps the warning distinct from the
    wallpaper accent; critical alerts use fixed red. */
 #custom-battery.low {
-    color: #ffb86c;
+    color: @alert_amber;
 }
 
 /* ALERT EXCEPTION — see #pulseaudio.muted above. */
 #custom-battery.critical {
-    color: #ff5555;
+    color: @alert_red;
 }
 
 /* ── RESOURCES ───────────────────────────────────────────────────────
@@ -435,14 +437,14 @@ tooltip label {
 #memory.warning,
 #custom-gpu.warning,
 #disk.warning {
-    color: #ffb86c;
+    color: @alert_amber;
 }
 
 #cpu.critical,
 #memory.critical,
 #custom-gpu.critical,
 #disk.critical {
-    color: #ff5555;
+    color: @alert_red;
 }
 
 /* ── RECORDING ───────────────────────────────────────────────────────
@@ -458,14 +460,14 @@ tooltip label {
 #custom-recording.stopping {
     padding: 0px 10px;
     margin: 4px 15px;
-    background: #ff5555;
+    background: @alert_red;
     color: #05090c;
     border-radius: 10px;
     font-weight: bold;
 }
 
 #custom-recording.countdown {
-    color: #ffb86c;
+    color: @alert_amber;
 }
 
 /* ── PRIVACY ─────────────────────────────────────────────────────────
@@ -474,7 +476,7 @@ tooltip label {
    fixed red like a recording, never the wallpaper accent. Symbolic icons
    take the label colour. No click, so no hover pill. */
 #privacy-item {
-    color: #ff5555;
+    color: @alert_red;
 }
 
 /* ── SYS TRAY ────────────────────────────────────────────────────────*/
@@ -527,5 +529,5 @@ tooltip label {
 /* ALERT EXCEPTION — see #pulseaudio.muted. Fixed amber, the same rung as
    #custom-battery.low, for the same reason. */
 #custom-updates.attention {
-    color: #ffb86c;
+    color: @alert_amber;
 }

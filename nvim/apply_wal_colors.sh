@@ -22,7 +22,6 @@ cache_dir="$cache_root/wal"
 
 declare -a wal=()
 # shellcheck source=scripts/theming/palette.sh
-# shellcheck disable=SC1091
 . "$config_dir/scripts/theming/palette.sh"
 wal_load
 

@@ -8,20 +8,26 @@ export function luaValue(value) {
     return JSON.stringify(value)
 }
 
+/** The hl.animation() call for an animation line such as "windows,1,6,default,slide":
+ *  evaluated live and written to overrides.lua from this one expression. */
+export function animationExpression(line) {
+    const [leaf, enabled, speed, bezier, ...styleParts] = String(line).split(",")
+    const fields = [
+        `leaf = ${JSON.stringify(leaf)}`,
+        `enabled = ${enabled !== "0"}`,
+        `speed = ${Number(speed)}`,
+        `bezier = ${JSON.stringify(bezier)}`,
+    ]
+    const style = styleParts.join(",")
+    if (style) fields.push(`style = ${JSON.stringify(style)}`)
+    return `hl.animation({ ${fields.join(", ")} })`
+}
+
 export async function setKeyword(keyword, value) {
     let expression
 
     if (keyword === "animation") {
-        const [leaf, enabled, speed, bezier, ...styleParts] = String(value).split(",")
-        const fields = [
-            `leaf = ${JSON.stringify(leaf)}`,
-            `enabled = ${enabled !== "0"}`,
-            `speed = ${Number(speed)}`,
-            `bezier = ${JSON.stringify(bezier)}`,
-        ]
-        const style = styleParts.join(",")
-        if (style) fields.push(`style = ${JSON.stringify(style)}`)
-        expression = `hl.animation({ ${fields.join(", ")} })`
+        expression = animationExpression(value)
     } else {
         let nested = luaValue(value)
         for (const key of keyword.split(":").reverse()) nested = `{ ${key} = ${nested} }`

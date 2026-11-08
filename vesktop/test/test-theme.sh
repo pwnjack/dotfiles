@@ -10,16 +10,8 @@ repo=$(cd -- "$here/../.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-failed=0 checks=0
-# Records the exit status of the command just before it.
-check() {
-    local rc=$?
-    checks=$((checks + 1))
-    if [ "$rc" -ne 0 ]; then
-        failed=$((failed + 1))
-        echo "FAIL: $1"
-    fi
-}
+# shellcheck source=scripts/lib/assert.sh
+. "$repo/scripts/lib/assert.sh"
 
 # The script reads its template, the palette loader and the symlink from
 # XDG_CONFIG_HOME, so a fake config that links the real two files is enough.
@@ -57,5 +49,4 @@ check "a second run renders the same theme"
 [ "$(basename "$(readlink "$repo/vesktop/themes/pywal.theme.css")")" = vesktop.theme.css ]
 check "the tracked symlink points at the rendered file"
 
-echo "test-theme: $checks checks, $failed failed"
-[ "$failed" -eq 0 ]
+test_summary theme

@@ -5,13 +5,8 @@
 # awww cache layout: ~/.cache/awww/<version>/<monitor>
 #
 
-# Empty preference means "no preference". Unlike the other consumers this
-# script FAILS rather than degrades on an empty value: the inotify guard below
-# compares a filename against it, so an empty string matches nothing and SDDM
-# sync stops with no error printed anywhere. Both use sites branch explicitly.
 # shellcheck source=scripts/lib/wallpaper.sh
 . "$(dirname "${BASH_SOURCE[0]}")/../scripts/lib/wallpaper.sh"
-monitor=$(wallpaper_main_monitor)
 cache_dir="$HOME/.cache/awww"
 update_script="$HOME/.config/sddm/update_sddm.sh"
 
@@ -29,13 +24,15 @@ update_sddm() {
 # Initial update
 update_sddm
 
-# Watch for changes to the monitor's cache file (recursive: version subdir may not exist yet)
-if command -v inotifywait &>/dev/null; then
-    inotifywait -m -r -e modify,close_write --format '%f' "$cache_dir" 2>/dev/null | while read -r file; do
+# Watch for changes to the monitor's cache file (recursive: version subdir may not exist yet).
+# close_write alone: awww rewrites the entry in place, so modify would start a
+# second conversion for the same image. The monitor preference is read per
+# event, so a change in the settings panel takes effect without a restart.
+if command -v inotifywait >/dev/null 2>&1; then
+    inotifywait -m -r -e close_write --format '%f' "$cache_dir" 2>/dev/null | while read -r file; do
+        monitor=$(wallpaper_main_monitor)
         # With no preference set, any monitor's cache entry is a real change.
         [[ -z "$monitor" || "$file" == "$monitor" ]] || continue
-        # Small delay to ensure file is fully written
-        sleep 0.5
         update_sddm
     done
 else

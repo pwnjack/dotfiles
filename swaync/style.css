@@ -1,3 +1,14 @@
 @import '../../.cache/wal/colors-waybar.css';
+
+/* One provider, so a name defined in both sheets would take the later value;
+   the shared names are therefore defined once, here. */
+@define-color text            @foreground;
+@define-color border          alpha(@foreground, 0.8);
+@define-color background-alt  alpha(@surface_container, .4);
+@define-color background-bg   alpha(@surface_container, .75);
+@define-color selected        @secondary_container;
+@define-color hover           alpha(@selected, .4);
+@define-color urgent          @error;
+
 @import 'notifications.css';
 @import 'central_control.css';

@@ -162,57 +162,6 @@ bin_clean_out="$(cat "$bin_clean_file")"
 assert_contains "$bin_clean_out" "✓" "green tick when every binary resolves"
 assert_eq "$DOCTOR_WARNINGS" "0" "clean tree produces no warnings"
 
-# --- systemd user units named in autostart ------------------------------
-# `systemctl --user start x.service` passes the binary check trivially, so the
-# unit name needs its own check or a typo fails silently every login.
-_bin_unit_exists() { [ "$1" = "real-unit-qq.service" ]; }
-
-bin_unit_fixture="$(make_fixture)"
-mkdir -p "$bin_unit_fixture/hypr/config/setup" "$bin_unit_fixture/hypr/config"
-# $viaVar mirrors how this repo actually writes it: the unit is reached
-# through an application-table reference, so the check must resolve it rather than
-# skipping the token for starting with '$'.
-cat > "$bin_unit_fixture/hypr/config/apptype.lua" <<'BIN_EOF'
-return {
-    viaVar = "bogus-via-var-qq.service",
-}
-BIN_EOF
-cat > "$bin_unit_fixture/hypr/config/setup/autostart.lua" <<'BIN_EOF'
-hl.exec_cmd("systemctl --user start real-unit-qq.service")
-hl.exec_cmd("systemctl --user start bogus-unit-qq.service")
-hl.exec_cmd("systemctl --user restart another-bogus-qq.service")
-hl.exec_cmd("systemctl --user start " .. apps.viaVar)
-hl.exec_cmd("systemctl --user daemon-reload")
-hl.exec_cmd("env")
-BIN_EOF
-git -C "$bin_unit_fixture" add -A
-git -C "$bin_unit_fixture" commit -qm "fixture"
-
-DOCTOR_ROOT="$bin_unit_fixture"
-bin_unit_file="$DOCTOR_TEST_TMP/bin-unit"
-doctor_reset
-check_binaries > "$bin_unit_file" 2>&1
-bin_unit_out="$(cat "$bin_unit_file")"
-
-assert_contains "$(bin_line "$bin_unit_file" "bogus-unit-qq.service")" "WARN" \
-    "an unknown systemd user unit is WARN"
-assert_contains "$(bin_line "$bin_unit_file" "another-bogus-qq.service")" "WARN" \
-    "the restart form is checked too"
-assert_contains "$(bin_line "$bin_unit_file" "bogus-via-var-qq.service")" "WARN" \
-    "a unit reached through a Hyprland variable is resolved and checked"
-assert_not_contains "$bin_unit_out" "real-unit-qq.service" \
-    "a unit systemd knows produces no finding"
-assert_not_contains "$bin_unit_out" "daemon-reload" \
-    "a systemctl verb that takes no unit is not mistaken for one"
-assert_not_contains "$bin_unit_out" "'systemctl'" \
-    "systemctl itself is installed and produces no finding"
-
-# Restore the real probe for anything sourced after this file.
-_bin_unit_exists() {
-    command -v systemctl >/dev/null 2>&1 || return 0
-    systemctl --user cat "$1" >/dev/null 2>&1
-}
-
 # --- installed package that ships no PATH executable --------------------
 # Real case: hyprpolkitagent installs only /usr/lib/hyprpolkitagent/… and a
 # systemd unit, so `exec-once = hyprpolkitagent` fails silently every login.
@@ -234,10 +183,8 @@ assert_not_contains "$(bin_line "$bin_pkg_file" "absent-bin-qq")" "pacman -S" \
     "no install hint for something already installed"
 
 # Restore the real lookup for anything sourced after this file.
-_bin_package_installed() {
-    command -v pacman >/dev/null 2>&1 || return 1
-    pacman -Q "$1" >/dev/null 2>&1
-}
+# shellcheck source=/dev/null
+source "$DOCTOR_DIR/checks/binaries.sh"
 
 # --- missing config files are not an error ------------------------------
 bin_empty_fixture="$(make_fixture)"

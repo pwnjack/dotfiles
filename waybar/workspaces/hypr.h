@@ -1,8 +1,10 @@
-/* Hyprland IPC for the native module, entirely asynchronous on the GLib
- * main loop. The event socket (.socket2.sock) is read line by line; every
- * query opens its own command-socket (.socket.sock) connection, as hyprctl
- * does. Nothing polls: a lost or missing Hyprland is retried every
- * HYPR_RETRY_MS. */
+/* Hyprland IPC for the native module. Events and replies are read
+ * asynchronously on the GLib main loop; each command connects and writes
+ * synchronously (see query() in hypr.c: an async write once deadlocked the
+ * compositor for five seconds). The event socket (.socket2.sock) is read line
+ * by line; every query opens its own command-socket (.socket.sock)
+ * connection, as hyprctl does. Nothing polls: a lost or missing Hyprland is
+ * retried every HYPR_RETRY_MS. */
 #pragma once
 #include "model.h"
 

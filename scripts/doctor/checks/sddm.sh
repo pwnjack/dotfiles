@@ -77,6 +77,17 @@ _sddm_resolved_owner() {
     stat -c '%U' -- "$resolved" 2>/dev/null
 }
 
+# _sddm_resolved_others_writable <dir> -> 0 when group or others may write to
+# the resolved directory: the helper refuses such a destination, since another
+# user could swap its entries while root writes there.
+_sddm_resolved_others_writable() {
+    local resolved mode
+
+    resolved=$(readlink -f -- "$1" 2>/dev/null) || return 1
+    mode=$(stat -c '%a' -- "$resolved" 2>/dev/null) || return 1
+    [[ "$mode" =~ [2367][0-7]$|[2367]$ ]]
+}
+
 # GNU stat does not dereference symlinks unless -L is supplied. Keep that
 # property: the cache-file write itself is the event the watcher consumes.
 _sddm_path_mtime() {
@@ -99,25 +110,9 @@ _sddm_newest_awww_entry() {
     [ -n "$newest" ] && printf '%s\n' "$newest"
 }
 
-_sddm_has_passwordless_grant() {
-    local listing="$1" helper="$2" username="$3"
-
-    printf '%s\n' "$listing" | awk -v command="$helper $username" '
-        {
-            marker = "NOPASSWD: "
-            position = index($0, marker)
-            if (position == 0) next
-            granted = substr($0, position + length(marker))
-            count = split(granted, entries, /,/)
-            for (i = 1; i <= count; i++) {
-                sub(/^[[:space:]]+/, "", entries[i])
-                sub(/[[:space:]]+$/, "", entries[i])
-                if (entries[i] == "ALL" || entries[i] == command) found = 1
-            }
-        }
-        END { exit !found }
-    '
-}
+# _sddm_has_passwordless_grant <listing> <helper> <user> — the helper with the
+# user as its one argument, exactly as setup-sudo.sh writes the rule.
+_sddm_has_passwordless_grant() { doctor_sudo_grant "$1" "$2 $3"; }
 
 # The privileged helper must remain self-contained after it is copied outside
 # the user's home, so its fallback cannot live in a sourced shared file. Parse
@@ -128,9 +123,10 @@ _sddm_default_theme() {
     sed -n 's/^\[\[ -z "\$current_theme" \]\] && current_theme="\([^"]*\)"$/\1/p' "$1"
 }
 
+# The Current key anywhere in the [Theme] section: the same grammar as
+# sddm/update_sddm_root.sh, so the doctor and the helper agree on the theme.
 _sddm_current_theme() {
-    grep -A2 "\[Theme\]" "$DOCTOR_SDDM_CONF" 2>/dev/null | \
-        grep "^Current=" | cut -d'=' -f2 | tr -d ' '
+    awk '/^\[/ { theme = ($0 == "[Theme]") } theme && /^[ \t]*Current[ \t]*=/ { sub(/^[^=]*=[ \t]*/, ""); sub(/[ \t]+$/, ""); print; exit }' "$DOCTOR_SDDM_CONF" 2>/dev/null
 }
 
 check_sddm() {
@@ -223,6 +219,9 @@ check_sddm() {
         elif [ "$theme_owner" != "root" ]; then
             err "resolved SDDM theme directory is owned by $theme_owner, not root — the privileged helper writes into a user-controlled directory: $theme_dir" \
                 "restore root ownership of the theme directory before enabling wallpaper sync"
+        elif _sddm_resolved_others_writable "$theme_dir"; then
+            err "resolved SDDM theme directory is writable by others — the helper refuses it, so greeter sync fails: $theme_dir" \
+                "sudo chmod go-w $(doctor_q "$theme_dir")"
         elif [ -d "$backgrounds_dir" ]; then
             backgrounds_owner=$(_sddm_resolved_owner "$backgrounds_dir")
             if [ -z "$backgrounds_owner" ]; then
@@ -231,6 +230,9 @@ check_sddm() {
             elif [ "$backgrounds_owner" != "root" ]; then
                 err "resolved SDDM Backgrounds directory is owned by $backgrounds_owner, not root — the privileged helper writes into a user-controlled directory: $backgrounds_dir" \
                     "restore root ownership of the Backgrounds directory before enabling wallpaper sync"
+            elif _sddm_resolved_others_writable "$backgrounds_dir"; then
+                err "resolved SDDM Backgrounds directory is writable by others — the helper refuses it, so greeter sync fails: $backgrounds_dir" \
+                    "sudo chmod go-w $(doctor_q "$backgrounds_dir")"
             fi
         fi
     fi

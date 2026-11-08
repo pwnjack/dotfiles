@@ -37,7 +37,7 @@ function write() {
     const pct = Math.floor(snap.progress * 100)
     const now = Date.now()
     if (signalWaybar && (snap.status !== signalled.status || (pct !== signalled.pct && now - signalled.at >= 1000))) {
-        spawn('pkill', ['-RTMIN+9', 'waybar'], { stdio: 'ignore' }).on('error', () => {})
+        spawn('pkill', ['-x', '-RTMIN+9', 'waybar'], { stdio: 'ignore' }).on('error', () => {})
         signalled = { status: snap.status, pct, at: now }
     }
 }

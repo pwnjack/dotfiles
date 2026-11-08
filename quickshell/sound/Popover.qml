@@ -34,7 +34,7 @@ FocusScope {
     readonly property string monoFont: controller.monoFont
     readonly property string iconFont: "Symbols Nerd Font"
 
-    // Task 6 binds the mic's peak monitor to this: it runs only while seen.
+    // The controller binds the mic's peak monitor to this: it runs only while seen.
     readonly property bool meterActive: controller.tab === "devices" && controller.picker === ""
     // The open menu (route or ⋯), if any; Escape is the menu's while it is set.
     property Popup openMenu: null
@@ -176,6 +176,7 @@ FocusScope {
         border.color: popover.accent
         activeFocusOnTab: true
         Keys.onReturnPressed: popover.controller.setTab(name)
+        Keys.onEnterPressed: popover.controller.setTab(name)
         Keys.onSpacePressed: popover.controller.setTab(name)
         Row {
             anchors.centerIn: parent
@@ -332,7 +333,7 @@ FocusScope {
                 Row {
                     anchors.centerIn: parent
                     Tab { objectName: "tabDevices"; name: "devices"; title: "Devices" }
-                    Tab { objectName: "tabApps"; name: "apps"; title: "Apps"; count: Model.badge(popover.controller.apps || []) }
+                    Tab { objectName: "tabApps"; name: "apps"; title: "Apps"; count: popover.controller.apps.length }
                 }
             }
 

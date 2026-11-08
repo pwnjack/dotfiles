@@ -15,7 +15,6 @@ cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/wal"
 
 declare -a wal=()
 # shellcheck source=scripts/theming/palette.sh
-# shellcheck disable=SC1091
 . "$config_dir/scripts/theming/palette.sh"
 wal_load
 

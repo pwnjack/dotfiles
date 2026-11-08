@@ -103,6 +103,6 @@ fi
 # write while the lock is still held, and the bar reads a held lock as running.
 exec 8>&-
 if [ "${UPDATES_SIGNAL-}" != none ]; then
-    pkill -RTMIN+9 waybar >/dev/null 2>&1 || true
+    pkill -x -RTMIN+9 waybar >/dev/null 2>&1 || true
 fi
 exit 0
