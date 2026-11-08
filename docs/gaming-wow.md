@@ -1,5 +1,26 @@
 # WoW / Battle.net on this setup
 
+## Runner update (2026-11-08)
+
+`~/.local/share/Steam/compatibilitytools.d/Proton-GE Latest` is a plain
+GE-Proton release directory renamed by hand; Lutris keys the runner by that
+directory name, so updating it means extracting the new tarball and swapping
+the directory, not installing through ProtonPlus (which creates
+`GE-Proton<ver>` next to it and would need the Lutris entry changed).
+
+On 2026-11-08 it was moved from GE-Proton11-6 (28 Aug) to GE-Proton11-12
+(3 Nov). Reason: after the NVIDIA 615 -> 620.70.06 driver upgrade WoW Forever
+crashed at frame 1 with `ACCESS_VIOLATION` reading address `0x8` in
+`d3d12core.dll`. The faulting code is vkd3d-proton's optimised
+`ClearUnorderedAccessView` path dereferencing a null format pointer, a bug in
+the 28 Aug vkd3d-proton build fixed upstream the next day (commit
+`940e9f93`, in vkd3d-proton v3.1, which GE-Proton11-12 bundles). The driver
+change only altered what WoW does at startup so that it hit the bug.
+
+The previous runner is kept as
+`~/.local/share/Steam/compatibilitytools.d/GE-Proton11-6-previous`; to roll
+back, close Battle.net and swap the two directory names again.
+
 ## Current cursor trial (2026-10-22)
 
 Battle.net currently runs from the same Lutris entry with
