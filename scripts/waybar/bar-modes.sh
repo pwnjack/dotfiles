@@ -11,8 +11,9 @@
 #   always  nothing rendered
 #   high    format-normal ""                  (shows from warning up)
 #   hidden  format-normal/-warning/-critical ""
-# config.jsonc must never set those three keys itself: the main file wins
-# over an include key by key, so a mode would silently stop working.
+# config.jsonc must never set those three keys, nor the disk's tooltip-format,
+# itself: the main file wins over an include key by key, so a mode would
+# silently stop working.
 #
 # Layout options (bar-position, -style, -opacity, -border, -output) are
 # rendered too: position, margins and output as top-level keys of the include,
@@ -21,8 +22,8 @@
 # main config wins over an include key by key, and a later style.css rule wins
 # over an import.
 #
-# Always leaves the include in place ({} when every module is "always"), so a
-# fresh checkout or a missing option still shows every module.
+# Always leaves the include in place, so a fresh checkout or a missing option
+# still shows every module.
 set -euo pipefail
 options=${BAR_OPTIONS:-$HOME/.config/options}
 include=${BAR_INCLUDE:-$HOME/.local/state/waybar/bar.jsonc}
@@ -72,13 +73,23 @@ else
     margin_top=0 margin_bottom=$margin_edge
 fi
 
+# Since Waybar 0.16 the disk module shows its box when either the label or the
+# tooltip renders, so a blanked disk blanks its tooltip too, or an empty,
+# hoverable pill stays behind. That makes the tooltip a per-mode key, so it is
+# rendered here like the formats: in "high" the readout shows without one.
+disk_tooltip='Disk {percentage_used}%\n\nUsed: {used} / {total}\nFree: {free}'
 entries=()
 for module in cpu memory disk; do
-    mode=$(opt "bar-$module")
-    case $mode in
-        high) entries+=("\"$module\": { \"format-normal\": \"\" }") ;;
-        hidden) entries+=("\"$module\": { \"format-normal\": \"\", \"format-warning\": \"\", \"format-critical\": \"\" }") ;;
+    case $(opt "bar-$module") in
+        high) keys='"format-normal": ""' ;;
+        hidden) keys='"format-normal": "", "format-warning": "", "format-critical": ""' ;;
+        *) keys='' ;;
     esac
+    if [[ $module == disk ]]; then
+        if [[ $keys ]]; then tip=''; else tip=$disk_tooltip; fi
+        keys+="${keys:+, }\"tooltip-format\": \"$tip\""
+    fi
+    [[ -z $keys ]] || entries+=("\"$module\": { $keys }")
 done
 
 mkdir -p "${include%/*}"

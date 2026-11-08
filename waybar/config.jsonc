@@ -276,8 +276,9 @@
     "format": "<span size='large' letter_spacing='4096'></span> {percentage_used}%",
     "path": "/",
     "on-click": "resources",
+    // tooltip-format comes from bar.jsonc: Waybar 0.16 keeps a disk box on
+    // screen while its tooltip renders, so a hidden disk blanks it there.
     "tooltip": true,
-    "tooltip-format": "Disk {percentage_used}%\n\nUsed: {used} / {total}\nFree: {free}",
   },
 
   // Updates

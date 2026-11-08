@@ -31,13 +31,19 @@ render() {
 }
 
 # mods — the include without the layout keys, for the per-module assertions
-mods() { jq -c 'del(.position, .["margin-top"], .["margin-bottom"], .["margin-left"], .["margin-right"], .output)'; }
+# (the disk's tooltip-format is asserted on its own with tip)
+mods() {
+    jq -c 'del(.position, .["margin-top"], .["margin-bottom"], .["margin-left"], .["margin-right"], .output)
+        | del(.disk["tooltip-format"]) | if .disk == {} then del(.disk) else . end'
+}
+tip() { jq -r '.disk["tooltip-format"]'; }
 
 # set_mode <module> <value>
 set_mode() { printf '%s\n' "$2" > "$TMP/opt/bar-$1"; }
 
 out=$(render --no-reload)
 assert_eq "$(mods <<< "$out")" '{}' "no option files render an empty include"
+assert_eq "$(tip <<< "$out")" $'Disk {percentage_used}%\n\nUsed: {used} / {total}\nFree: {free}' "a shown disk gets its tooltip from the include"
 
 set_mode cpu always; set_mode memory banana; set_mode disk always
 out=$(render --no-reload)
@@ -50,10 +56,12 @@ assert_eq "$(mods <<< "$out")" '{"cpu":{"format-normal":""}}' "high blanks only 
 set_mode cpu always; set_mode disk hidden
 out=$(render --no-reload)
 assert_eq "$(mods <<< "$out")" '{"disk":{"format-normal":"","format-warning":"","format-critical":""}}' "hidden blanks every state"
+assert_eq "$(tip <<< "$out")" '' "a hidden disk blanks its tooltip, which alone keeps its box (Waybar 0.16)"
 
 set_mode cpu high; set_mode memory hidden; set_mode disk high
 out=$(render --no-reload)
 assert_eq "$(mods <<< "$out" | jq -c 'keys')" '["cpu","disk","memory"]' "each module is rendered independently"
+assert_eq "$(tip <<< "$out")" '' "high blanks the disk's tooltip too"
 
 assert_eq "$(find "$TMP/out" -name 'bar.jsonc.*' | wc -l)" 0 "no temporary file is left behind"
 if [ -e "$TMP/pkill.log" ]; then
@@ -133,6 +141,11 @@ if sed -n '/^  "\(cpu\|memory\|disk\)": {/,/^  },/p' "$config" | grep -Eq '"form
     fail "config.jsonc must not set the per-state formats bar.jsonc controls"
 else
     pass "config.jsonc leaves the per-state formats to the include"
+fi
+if sed -n '/^  "disk": {/,/^  },/p' "$config" | grep -q '"tooltip-format"'; then
+    fail "config.jsonc must not set the disk's tooltip-format bar.jsonc controls"
+else
+    pass "config.jsonc leaves the disk's tooltip-format to the include"
 fi
 
 for key in position margin-top margin-bottom margin-left margin-right output; do
