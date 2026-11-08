@@ -15,6 +15,12 @@ directory ownership, and detects stalled propagation. The helper remains
 privileged only for its destination: wallpaper discovery and ffmpeg decoding
 run as the target user, while root creates a temporary JPEG inside the theme's
 `Backgrounds` directory and atomically renames it over the greeter background
-after a successful decode. The resolved theme and `Backgrounds` directories
-must remain root-owned so an unprivileged user cannot substitute either side
-of that privileged rename.
+after a successful decode, under one lock (`/run/lock/sddm-wallpaper.lock`)
+held from wallpaper discovery to publication, so two helpers started by the
+watcher cannot publish out of order. The resolved theme and `Backgrounds`
+directories must remain root-owned and not writable by group or others, so an
+unprivileged user cannot substitute either side of that privileged rename. The
+doctor's `check_sddm` mirrors the helper's rules (the `[Theme]` `Current` grammar
+and this ownership and mode test); a change to one lands in the other and in
+`scripts/doctor/test/test-sddm.sh`, or the doctor reports healthy while every
+sync fails.
