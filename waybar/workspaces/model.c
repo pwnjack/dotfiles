@@ -64,6 +64,20 @@ static bool int_member(JsonObject *o, const char *name, gint64 *out)
     return true;
 }
 
+/* A workspace object's id. Hyprland 0.57 gives only a numbered workspace an
+ * integer id; a named or special one has a string address and no id, which
+ * reads as 0 (no slot). Neither, or an id of another type, is false. */
+static bool id_member(JsonObject *o, gint64 *out)
+{
+    if (json_object_has_member(o, "id"))
+        return int_member(o, "id", out);
+    JsonNode *a = json_object_get_member(o, "address");
+    if (!a || !JSON_NODE_HOLDS_VALUE(a) || json_node_get_value_type(a) != G_TYPE_STRING)
+        return false;
+    *out = 0;
+    return true;
+}
+
 bool ws_parse_workspaces(const char *json, WsState *s)
 {
     JsonNode *root = parse_json(json);
@@ -82,7 +96,7 @@ bool ws_parse_workspaces(const char *json, WsState *s)
     for (guint i = 0; i < json_array_get_length(items); i++) {
         JsonNode *item = json_array_get_element(items, i);
         gint64 id, windows = 0;
-        if (!JSON_NODE_HOLDS_OBJECT(item) || !int_member(json_node_get_object(item), "id", &id)) {
+        if (!JSON_NODE_HOLDS_OBJECT(item) || !id_member(json_node_get_object(item), &id)) {
             ok = false;
             break;
         }
@@ -103,7 +117,7 @@ bool ws_parse_active(const char *json, int *active)
 {
     JsonNode *root = parse_json(json);
     gint64 id;
-    bool ok = root && JSON_NODE_HOLDS_OBJECT(root) && int_member(json_node_get_object(root), "id", &id);
+    bool ok = root && JSON_NODE_HOLDS_OBJECT(root) && id_member(json_node_get_object(root), &id);
     if (ok)
         *active = slot_of(id);
     if (root)
@@ -135,6 +149,18 @@ static bool parse_long(const char *start, const char *end, long *out)
     return true;
 }
 
+/* The slot of a workspace address in [start, end). Hyprland 0.57 addresses a
+ * numbered workspace by its number and a named or special one by a name that
+ * is never a number, so anything else has no slot. False when empty. */
+static bool address_slot(const char *start, const char *end, int *slot)
+{
+    if (start >= end)
+        return false;
+    long id;
+    *slot = parse_long(start, end, &id) ? ws_slot(id) : 0;
+    return true;
+}
+
 WsEvent ws_parse_event(const char *line, int *active)
 {
     const char *sep = strstr(line, ">>");
@@ -144,20 +170,20 @@ WsEvent ws_parse_event(const char *line, int *active)
     const char *data = sep + 2;
 #define IS(name) (len == sizeof(name) - 1 && strncmp(line, name, len) == 0)
 
-    if (IS("workspacev2")) { /* ID,NAME */
+    if (IS("workspacev2")) { /* ADDRESS,NAME */
         const char *comma = strchr(data, ',');
-        long id;
-        if (!comma || !parse_long(data, comma, &id))
+        /* Either half may hold a comma, so a second one makes the split a
+         * guess: the snapshot's j/activeworkspace answers it exactly. */
+        if (comma && strchr(comma + 1, ','))
+            return WS_EVENT_REFRESH;
+        if (!comma || !address_slot(data, comma, active))
             return WS_EVENT_NONE;
-        *active = ws_slot(id);
         return WS_EVENT_ACTIVE;
     }
-    if (IS("focusedmonv2")) { /* MONNAME,ID */
-        const char *comma = strrchr(data, ',');
-        long id;
-        if (!comma || !parse_long(comma + 1, comma + 1 + strlen(comma + 1), &id))
+    if (IS("focusedmonv2")) { /* MONNAME,ADDRESS; a monitor name has no comma */
+        const char *comma = strchr(data, ',');
+        if (!comma || !address_slot(comma + 1, comma + 1 + strlen(comma + 1), active))
             return WS_EVENT_NONE;
-        *active = ws_slot(id);
         return WS_EVENT_ACTIVE;
     }
     if (IS("createworkspacev2") || IS("destroyworkspacev2") || IS("openwindow") ||

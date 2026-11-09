@@ -28,6 +28,19 @@ leaves a stale library. `docs/workspaces-native.md` has the build flow and the
 way back to the CSS dots: tags `workspaces-css` (before) and
 `workspaces-native` (the merge), undone with `git revert -m 1`.
 
+## Workspace addresses
+
+Since Hyprland 0.57 a workspace is identified by its address: a numbered one
+by its number (its JSON object also carries an integer `id`), a named or
+special one by a name that is never a number, with no `id` at all. `model.c`
+gives an address that is not a whole number no slot, in `j/workspaces`,
+`j/activeworkspace` and the `workspacev2` / `focusedmonv2` events alike. A
+`workspacev2` payload with more than one comma cannot be split reliably (either
+half may hold one), so it asks for a snapshot instead. An
+object with neither an `id` nor an `address` is malformed and still rejects
+the reply: the module keeps its last state, so a reply rejected for a
+legitimate shape leaves stale dots.
+
 ## Keyboard stepping
 
 `hypr/config/software/workspace_step.lua` implements Super+Ctrl+arrow stepping and keeps it bounded to the dot row, as scrolling over the module is.
