@@ -45,6 +45,7 @@ ShellRoot {
     property var busy: ({})             // "YYYY-MM" -> [day numbers]
     property var counts: ({})           // "YYYY" -> [12 counts]
     property var draft: null
+    readonly property bool saving: adder.running || updater.running   // the sheet locks its fields
     property string addError: ""
     property string highlight: ""       // title of an event just added, briefly
     property int viewYear: new Date().getFullYear()

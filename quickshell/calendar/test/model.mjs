@@ -209,12 +209,16 @@ assert.equal(M.keepsDraft(null), false)
 // Editing
 const listed = { uid: 'calc-1', title: 'Calcetto', location: 'Campo', calendar: 'Home', color: '#ff9f0a',
     startEpoch: at('2026-10-20T20:00'), endEpoch: at('2026-10-20T22:30'), allDay: false, recurring: true }
-const info = { alert: 'custom', recurring: true, invitation: false, readOnly: false, hash: 'h1' }
+const info = { alert: 'custom', recurring: true, invitation: false, readOnly: false, title: 'Calcetto', location: 'Campo', hash: 'h1' }
 const e1 = M.draftFromEvent(listed, info, defaults)
 assert.equal(e1.mode, 'edit')
 assert.equal(e1.occurrence, listed.startEpoch)
 assert.equal(e1.originalCalendar, 'Home')
 assert.equal(e1.alert, 'custom')
+// A sync between the list and the click: the text comes from inspect, the read the hash covers.
+const fresh = M.draftFromEvent(listed, Object.assign({}, info, { title: 'Calcetto 21:00', location: '' }), defaults)
+assert.equal(fresh.title, 'Calcetto 21:00')
+assert.equal(fresh.location, '')
 assert.equal(M.alertLabel(e1), 'Custom (kept)')
 assert.deepEqual(M.alertItems(e1).map(x => x.id).slice(-1), ['custom'])
 assert.deepEqual(M.alertItems(M.newDraft(now, defaults)).map(x => x.id).includes('custom'), false)

@@ -7,7 +7,7 @@
 #   cal.sh year <YYYY>                 {"counts":[12 numbers]}
 #   cal.sh calendars                   [{"name","color","writable"}]
 #   cal.sh add                         one stdin line {"calendar","ics"} -> {"ok":true}
-#   cal.sh inspect CALENDAR UID EPOCH  {"alert","recurring","invitation","allDay","hash"}
+#   cal.sh inspect CALENDAR UID EPOCH  {"alert","recurring","invitation","allDay","title","location","hash"}
 #   cal.sh update                      one stdin line {"calendar","uid","occurrence","scope","hash","changes","moveTo"?}
 #   cal.sh delete                      one stdin line {"calendar","uid","occurrence","scope","hash"}
 # add, update and delete hold sync.lock, the lock sync.sh holds while it talks to

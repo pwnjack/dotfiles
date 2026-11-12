@@ -25,6 +25,7 @@ Item {
         property var busy: ({}); property var counts: ({})
         property var dayEvents: []; property string dayFor: ""
         property var draft: null; property string addError: ""; property string highlight: ""
+        property bool saving: false
         property int viewYear: new Date().getFullYear(); property int viewMonth: new Date().getMonth()
         property string lastAction: ""
         // The draft file is a text target here; the shell writes the same Model.draftToKeep text to draft.json.
@@ -80,7 +81,7 @@ Item {
         // cal.sh inspect is a fake: holdInspect keeps its reply pending until replyInspect.
         property bool holdInspect: false; property int asked: -1; property var inspectEvent: null
         function inspectInfo(e) {
-            return { ok: true, alert: "custom", recurring: !!e.recurring, invitation: !!e.invitation, allDay: !!e.allDay, hash: "h" };
+            return { ok: true, alert: "custom", recurring: !!e.recurring, invitation: !!e.invitation, allDay: !!e.allDay, title: e.title, location: e.location || "", hash: "h" };
         }
         function replyInspect(info) { Controller.inspectReply(Model, controller, asked, inspectEvent, info); }
         // The shell's editEvent: the controller.js path, then the fixture's inspect reply unless it is held.
@@ -265,6 +266,17 @@ Item {
             verify(!find("addButton").visible);
             verify(!find("titleField").enabled);
             verify(!find("startTime").enabled);
+        }
+        function test_fields_lock_while_a_save_waits() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            openEvent(listed({ recurring: false }));
+            controller.saving = true;
+            verify(!find("titleField").enabled);
+            verify(!find("startTime").enabled);
+            verify(!find("alertPill").enabled);
+            verify(!find("readOnlyLine").visible);        // locked, not read-only
+            controller.saving = false;
+            verify(find("titleField").enabled);
         }
         function test_read_only_calendar_says_so() {
             controller.state = Model.transition(Model.CLOSED, "clock");
@@ -489,7 +501,7 @@ Item {
             controller.status = { state: "ok", kind: "", message: "", lastSuccess: 1000, lastAttempt: 1000 };
             controller.state = Model.transition(Model.CLOSED, "clock");
             controller.draft = null; controller.adds = 0; controller.cancels = 0; controller.pickerKey = "";
-            controller.saved = ""; controller.removed = ""; controller.lastEdited = null;
+            controller.saved = ""; controller.removed = ""; controller.lastEdited = null; controller.saving = false;
             controller.draftFileText = ""; controller.addError = "";
             controller.pendingWrites = 0; controller.quitting = false; controller.closing = false; controller.quitCalls = 0;
             controller.calendars = [{ name: "Home", color: "#ff9f0a", writable: true }];
@@ -1080,7 +1092,7 @@ Item {
         }
         function test_writability_change_makes_an_open_edit_read_only() {
             const e = listed({ startEpoch: Math.floor(new Date(2026, 9, 20, 20, 0).getTime() / 1000) });
-            controller.draft = Model.draftFromEvent(e, { alert: "15m", recurring: false, invitation: false, hash: "h" }, { alert: "15m" });
+            controller.draft = Model.draftFromEvent(e, { alert: "15m", recurring: false, invitation: false, title: e.title, location: e.location || "", hash: "h" }, { alert: "15m" });
             controller.state = Model.openSheet(Model.transition(Model.CLOSED, "clock"));
             controller.calendarsReply([{ name: "Home", color: "#ff9f0a", writable: false }]);
             verify(controller.draft.readOnly, "a calendar turned read-only still offers Done");

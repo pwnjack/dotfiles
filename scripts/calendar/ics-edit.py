@@ -2,7 +2,7 @@
 """Patch one iCalendar event file for the calendar card (run by cal.sh).
 
     ics-edit.py inspect   {"raw", "addresses", "occurrence"}
-                          -> {"alert", "recurring", "invitation", "allDay", "hash"}
+                          -> {"alert", "recurring", "invitation", "allDay", "title", "location", "hash"}
     ics-edit.py update    {"raw", "occurrence", "scope", "changes"} -> {"raw"}
     ics-edit.py delete    {"raw", "occurrence", "scope"}            -> {"raw"} ("" = remove the file)
 
@@ -325,6 +325,7 @@ def run():
         print(json.dumps({"ok": True, "alert": alert_of(target), "recurring": recurring,
                           "invitation": invitation(master, own_addresses(request)),
                           "allDay": is_date(master.decoded("DTSTART")),
+                          "title": str(target.get("SUMMARY", "")), "location": str(target.get("LOCATION", "")),
                           "hash": hashlib.sha256(request["raw"].encode()).hexdigest()}))
         return
 

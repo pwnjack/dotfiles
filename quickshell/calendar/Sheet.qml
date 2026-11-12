@@ -20,6 +20,8 @@ FocusScope {
     // An event opened for editing; a read-only one (other calendar's, or an invitation) has no Done or Delete.
     readonly property bool editing: !!d && d.mode === "edit"
     readonly property bool readOnly: editing && d.readOnly
+    // A save can wait up to 15 s on a sync; text typed meanwhile would be lost when it lands.
+    readonly property bool locked: readOnly || card.c.saving
     // The start day's other events: an event being edited is the draft on the timeline, not a block under it.
     readonly property var dayEvents: d && card.c.dayFor === d.startDay
         ? card.c.dayEvents.filter(e => !Model.isDraftOf(d, e)) : []
@@ -236,7 +238,7 @@ FocusScope {
                 implicitHeight: g1.implicitHeight + sheet.card.px(8)
                 radius: sheet.card.px(12)
                 color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
-                enabled: !sheet.readOnly
+                enabled: !sheet.locked
                 ColumnLayout {
                     id: g1
                     y: sheet.card.px(4)
@@ -292,7 +294,7 @@ FocusScope {
                 implicitHeight: g2.implicitHeight + sheet.card.px(8)
                 radius: sheet.card.px(12)
                 color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
-                enabled: !sheet.readOnly
+                enabled: !sheet.locked
                 ColumnLayout {
                     id: g2
                     y: sheet.card.px(4)
@@ -473,7 +475,7 @@ FocusScope {
                 implicitHeight: g3.implicitHeight + sheet.card.px(8)
                 radius: sheet.card.px(12)
                 color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
-                enabled: !sheet.readOnly
+                enabled: !sheet.locked
                 ColumnLayout {
                     id: g3
                     y: sheet.card.px(4)

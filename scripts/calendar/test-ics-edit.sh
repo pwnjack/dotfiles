@@ -33,6 +33,8 @@ assert_json_field "$out" '.alert' custom "inspect: two alarms are custom"
 assert_json_field "$out" '.recurring' true "inspect: weekly repeats"
 assert_json_field "$out" '.invitation' false "inspect: own event"
 assert_json_field "$out" '.hash' "$(sha256sum < "$FIX/iphone-weekly.ics" | cut -d' ' -f1)" "inspect: hash of the file"
+assert_json_field "$out" '.title' Calcetto "inspect: title from the same read as the hash"
+assert_json_field "$out" '.location' 'Campo Rossi' "inspect: location from the same read"
 out=$(req "$FIX/iphone-invite.ics" "$(at '2026-10-15 19:00')" | edit inspect)
 assert_json_field "$out" '.invitation' true "inspect: someone else's invitation"
 assert_json_field "$out" '.alert' 15m "inspect: one preset alarm"

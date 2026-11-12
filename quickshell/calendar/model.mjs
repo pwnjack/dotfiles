@@ -267,9 +267,12 @@ export function clashes(draft, events) {
     return events.filter(e => !e.allDay && !isDraftOf(draft, e) && e.startEpoch < draft.end && e.endEpoch > draft.start)
 }
 // ── Editing. A draft built from a listed event and what `cal.sh inspect` found.
+// Title and location come from inspect, the read its hash covers: a sync between the
+// list and the click must not save the listed text over a newer one. The listed times
+// are written back only when the user moves them (changesOf's timesChanged).
 export function draftFromEvent(e, info, defaults) {
     return {
-        title: e.title, location: e.location || '', allDay: !!e.allDay,
+        title: info.title, location: info.location, allDay: !!e.allDay,
         start: e.startEpoch, end: e.endEpoch,
         startDay: dayKey(e.startEpoch), endDay: e.allDay ? dayKey(e.endEpoch - 1) : dayKey(e.endEpoch),
         calendar: e.calendar, alert: info.alert, timedAlert: e.allDay ? (defaults.alert || '15m') : info.alert,

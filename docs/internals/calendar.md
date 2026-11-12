@@ -18,7 +18,9 @@ output for a missing item, and anything else means the keyring could not be read
 `agenda-bar.sh` reads only `agenda.json` and the options. `model.mjs` holds the
 card's transition table, and the card is centred on the monitor, not the capsule. Edits
 go through `ics-edit.py`: the event's own TZID, overrides and EXDATEs, the hash
-check and an atomic rename, since vdirsyncer notices a new inode. iCloud colours
+check and an atomic rename, since vdirsyncer notices a new inode. The edit draft takes its title and
+location from `inspect`, the read its hash covers, and the sheet locks its fields
+while a write waits on `sync.lock`. iCloud colours
 arrive as `#RRGGBBAA` and are cut to `#RRGGBB`, because Qt reads eight digits as
 ARGB. The iCloud Reminders list is a VTODO-only collection, so `writable.sh`
 records it in `skip`. Read-only calendars come from the PROPFIND probe. iCloud
