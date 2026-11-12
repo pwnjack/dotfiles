@@ -11,10 +11,12 @@
 set -uo pipefail
 
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LAUNCH="$TEST_DIR/launch.sh"
 SETUP="$TEST_DIR/setup.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+# A copy, so pkill -f below can only match this suite's wrappers, never a real launch.
+LAUNCH="$TMP/launch.sh"
+cp "$TEST_DIR/launch.sh" "$LAUNCH"
 
 # shellcheck source=scripts/lib/assert.sh
 # shellcheck disable=SC1091
@@ -112,6 +114,8 @@ launch() {
     HOME="$h" XDG_CONFIG_HOME="$h/.config" XDG_STATE_HOME="$h/.local/state" XDG_DATA_HOME="$h/data" \
         bash "$LAUNCH" "$@" >/dev/null 2>&1 && rc=0 || rc=$?
     calls=$(cat "$CALLS")
+    # The stub client never shows in pgrep, so the wrapper's lock holder would wait out its 5 s.
+    pkill -f -- "$LAUNCH" || true
 }
 marker() { if [ -e "$SPOTIFY_INSTALL_DIR/.spotx-patched" ]; then echo yes; else echo no; fi; }
 
@@ -332,6 +336,19 @@ exec 8>&-
 wait "$waiter"
 assert_eq "$(cat "$CALLS")" "start --skip-update spotify:x" \
     "lock: the waiting launch finds Spotify running and neither updates nor patches"
+
+# --- the lock outlives exec until Spotify is visible --------------------------
+# Released at exec, a launch queued behind this one would miss the starting client.
+fresh patched
+HOME="$h" XDG_CONFIG_HOME="$h/.config" XDG_STATE_HOME="$h/.local/state" XDG_DATA_HOME="$h/data" \
+    STUB_RUNNING_FILE="$h/running" bash "$LAUNCH" >/dev/null 2>&1
+exec 8>"$h/.local/state/spotify/patch.lock"
+! flock -n 8
+check "lock: still held after exec while Spotify is not yet visible"
+: >"$h/running"
+flock -w 3 8
+check "lock: released once Spotify is visible"
+exec 8>&-
 
 # --- the lock is not inherited by Spotify ------------------------------------
 fresh patched

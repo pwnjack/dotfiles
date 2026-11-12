@@ -12,7 +12,9 @@ Spicetify runs: Spicetify's apply drops SpotX's stock `xpui.bak`, after which
 SpotX refuses the client, so a Spicetify failure gets its own toast instead of a
 retry. SpotX exits 0 on a client newer than it supports; the wrapper compares the
 logged versions and warns. Failure starts Spotify unpatched with a toast; the running-Spotify
-check happens under the lock, and a running client is never patched. SpotX
+check happens under the lock, and a running client is never patched. The lock
+outlives the wrapper's exec until `pgrep` sees the client (at most 5 s), so a
+launch queued behind it cannot miss the starting client. SpotX
 `pkill`s `[sS]potify` by name, so the wrapper's file name must not contain it.
 See `docs/spotify.md`.
 

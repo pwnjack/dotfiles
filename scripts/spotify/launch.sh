@@ -38,7 +38,8 @@
 # toast naming the log. A running Spotify is never updated or patched; the call
 # is handed to it as is (its single instance takes the URI). That check runs
 # only while holding the lock: before it, a sibling launch's own update
-# (spotify-launcher --no-exec) would look like a running client.
+# (spotify-launcher --no-exec) would look like a running client. The lock is
+# held past exec until the client is visible, or a queued launch would miss it.
 #
 # Test seams: SPOTIFY_INSTALL_DIR (the client directory), XDG_DATA_HOME (the
 # launcher state), SPOTX_URL, and the commands spotify-launcher, spicetify,
@@ -178,5 +179,7 @@ if [ -d "$apps" ] && [ ! -e "$MARKER" ]; then
             "This Spotify build is newer than SpotX supports, so some ads may show. Details: $log"
     fi
 fi
+# A copy of fd 9 keeps the lock until running() sees the client (at most 5 s).
+( for _ in {1..50}; do running && exit; sleep 0.1; done ) &
 exec 9>&-
 start "$@"
