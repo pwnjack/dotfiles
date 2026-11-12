@@ -89,10 +89,28 @@ done
 # Shared GTK definitions expose semantic surfaces, selections and errors even
 # before the first generated palette exists.
 waybar_fallback="$(cat "$tmp/cache/wal/colors-waybar.css")"
-for name in surface_container surface_container_high secondary_container on_secondary_container error on_error; do
+for name in surface_container secondary_container on_secondary_container error; do
     assert_contains "$waybar_fallback" "@define-color $name $(wal_role "$name");" \
         "Waybar defines fallback $name"
 done
+# The palette defines exactly what the importing stylesheets read: an undefined
+# name stops Waybar, and an unread one is dead output.
+# waybar/bar.css links to generated state, so its generator is read instead.
+python3 - "$tmp/cache/wal/colors-waybar.css" "$ROOT"/waybar/style.css "$ROOT"/scripts/waybar/bar-modes.sh \
+    "$ROOT"/swaync/{style,notifications,central_control}.css <<'PY_NAMES'
+import re, sys
+defined = lambda text: set(re.findall(r'@define-color\s+([\w-]+)', text))
+palette = defined(open(sys.argv[1]).read())
+local, used = set(), set()
+for path in sys.argv[2:]:
+    css = re.sub(r'/\*.*?\*/', '', open(path).read(), flags=re.S)
+    local |= defined(css)
+    used |= set(re.findall(r'@([a-z][\w-]*)', css)) - {'import', 'define-color', 'keyframes', 'media'}
+missing, unread = used - local - palette, palette - used
+if missing or unread:
+    sys.exit(f'undefined: {sorted(missing)} unread: {sorted(unread)}')
+PY_NAMES
+assert_eq "$?" 0 "Waybar palette defines exactly the names Waybar and SwayNC read"
 if git -C "$ROOT" grep -nE '@color[0-9]' -- swaync; then
     fail "SwayNC still uses ANSI slots for surfaces or selections"
 else
@@ -124,16 +142,13 @@ for component in waybar btop strata rofi; do
     assert_eq "$?" 0 "$component renders with a primary distinct from slot 4"
 done
 waybar_css="$(cat "$accent_cache/wal/colors-waybar.css")"
-assert_contains "$waybar_css" '@define-color color4 #112233;' "Waybar preserves ANSI blue"
+assert_contains "$waybar_css" '@define-color color8 #112233;' "Waybar keeps its ANSI slot"
 assert_contains "$waybar_css" '@define-color accent #0000aa;' "Waybar accent follows primary"
-assert_contains "$waybar_css" '@define-color on_accent #ffeedd;' "Waybar accent text follows on_primary"
-assert_contains "$waybar_css" $'@define-color color15 #112233;\n@define-color accent #0000aa;\n@define-color on_accent #ffeedd;' \
-    "Waybar appends role definitions after the slots"
 btop_theme="$(cat "$accent_cache/wal/btop.theme")"
 for key in hi_fg followed_bg cpu_box; do
     assert_contains "$btop_theme" "theme[$key]=\"#0000aa\"" "btop $key follows primary"
 done
-for entry in surface_container=#223344 surface_container_high=#334455 secondary_container=#445566 on_secondary_container=#ddeeff error=#ff9988 on_error=#331100; do
+for entry in surface_container=#223344 secondary_container=#445566 on_secondary_container=#ddeeff error=#ff9988; do
     assert_contains "$waybar_css" "@define-color ${entry%=*} ${entry#*=};" "Waybar follows cached ${entry%=*}"
 done
 assert_contains "$btop_theme" 'theme[selected_bg]="#445566"' "btop selection uses secondary_container"

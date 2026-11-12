@@ -3,8 +3,8 @@
 # Render the matugen palette as GTK CSS color definitions.
 #
 # waybar/style.css and swaync/style.css both import the file written here.
-# Render the ANSI slots and semantic accent, surface, selection and error
-# roles, with defaults on a fresh checkout where matugen has never run.
+# Render only the names their stylesheets read (test-theming.sh checks the
+# set), with defaults on a fresh checkout where matugen has never run.
 #
 # Waybar restyles itself when this file changes (reload_style_on_change in
 # waybar/config.jsonc); no reload is sent, because a full one rebuilds the bar
@@ -35,14 +35,9 @@ tmp=$(mktemp "$out.XXXXXX") || exit 1
 {
     echo "@define-color foreground ${wal[7]};"
     echo "@define-color background ${wal[0]};"
-    echo "@define-color cursor ${wal[7]};"
-    echo
-    for i in "${!wal[@]}"; do
-        echo "@define-color color$i ${wal[$i]};"
-    done
+    echo "@define-color color8 ${wal[8]};"
     echo "@define-color accent $(wal_role primary);"
-    echo "@define-color on_accent $(wal_role on_primary);"
-    for name in surface_container surface_container_high secondary_container on_secondary_container error on_error; do
+    for name in surface_container secondary_container on_secondary_container error; do
         echo "@define-color $name $(wal_role "$name");"
     done
 } > "$tmp"
