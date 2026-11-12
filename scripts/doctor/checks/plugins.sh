@@ -51,19 +51,10 @@ _plg_qt_style_present() {
     [ -n "$(find "$dir" -maxdepth 1 -iname "*$2*.so" -print -quit 2>/dev/null)" ]
 }
 
-# _plg_style <file> -> the style= value in [Appearance], or nothing.
-_plg_style() {
-    awk '
-        /^[[:space:]]*\[/ { main = ($0 ~ /^[[:space:]]*\[Appearance\][[:space:]]*$/); next }
-        main && /^[[:space:]]*style[[:space:]]*=/ {
-            sub(/^[^=]*=[[:space:]]*/, ""); sub(/[[:space:]\r]+$/, ""); print; exit
-        }
-    ' "$1"
-}
-
 check_plugins() {
     group "Typelibs and plugins"
-    local ns file live style major before=$((DOCTOR_WARNINGS + DOCTOR_NOTICES))
+    local ns file live style major before
+    before=$(doctor_findings)
 
     while IFS= read -r ns; do
         _plg_typelib_present "$ns" && continue
@@ -81,14 +72,12 @@ check_plugins() {
         major="${major%%ct/*}"
         live="$DOCTOR_ROOT/${file#defaults/}"
         [ -f "$live" ] || live="$DOCTOR_ROOT/$file"
-        style="$(_plg_style "$live")"
+        style="$(doctor_ini "$live" Appearance style)"
         [ -n "$style" ] || continue
         _plg_qt_style_present "$major" "$style" && continue
         warn "Qt $major has no '$style' style plugin, which ${live#"$DOCTOR_ROOT"/} selects, so Qt $major apps fall back to Fusion" \
             "sudo pacman -Fy, then pacman -Fx 'qt$([ "$major" = 5 ] || echo "$major")/plugins/styles/.*$style.*\\.so' names the package to install"
     done < <(git -C "$DOCTOR_ROOT" ls-files -z -- 'defaults/' 2>/dev/null)
 
-    if [ $((DOCTOR_WARNINGS + DOCTOR_NOTICES)) -eq "$before" ]; then
-        ok "Every imported typelib and selected Qt style plugin is installed"
-    fi
+    ok_if_clean "$before" "Every imported typelib and selected Qt style plugin is installed"
 }

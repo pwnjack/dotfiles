@@ -38,7 +38,7 @@ _thm_cursor() {
     [ "$depth" -lt 5 ] || return 1
     for dir; do
         [ -f "$dir/$name/index.theme" ] || continue
-        inherits="$(_thm_ini "$dir/$name/index.theme" 'Icon Theme' Inherits)"
+        inherits="$(doctor_ini "$dir/$name/index.theme" 'Icon Theme' Inherits)"
         IFS=',;' read -ra parents <<< "$inherits"
         for parent in "${parents[@]}"; do
             parent="${parent#"${parent%%[![:space:]]*}"}"
@@ -118,20 +118,6 @@ _thm_gsettings() {
     printf '%s' "${value%\'}"
 }
 
-# _thm_ini <file> <section> <key> -> the key's value in that section, or nothing.
-_thm_ini() {
-    awk -v want="$2" -v key="$3" '
-        /^[[:space:]]*\[/ { s = $0; gsub(/^[[:space:]]*\[|\][[:space:]]*$/, "", s); in_s = (s == want); next }
-        in_s {
-            line = $0; sub(/^[[:space:]]+/, "", line)
-            k = line; sub(/[[:space:]]*=.*$/, "", k)
-            if (k == key && line ~ /=/) {
-                sub(/^[^=]*=[[:space:]]*/, "", line); sub(/[[:space:]\r]+$/, "", line); print line; exit
-            }
-        }
-    ' "$1"
-}
-
 # _thm_first_line <file> -> the first line, trimmed, or nothing.
 _thm_first_line() {
     local value=""
@@ -158,7 +144,8 @@ _thm_add() {
 
 check_themes() {
     group "Themes"
-    local file live name src kind key before=$((DOCTOR_WARNINGS + DOCTOR_NOTICES))
+    local file live name src kind key before
+    before=$(doctor_findings)
     local -a keys=()
     local -A sources=()
 
@@ -173,12 +160,12 @@ check_themes() {
         src="${live#"$DOCTOR_ROOT"/}"
         case "$file" in
             defaults/gtk-[0-9].0/settings.ini)
-                _thm_add gtk "$(_thm_ini "$live" Settings gtk-theme-name)" "$src"
-                _thm_add icon "$(_thm_ini "$live" Settings gtk-icon-theme-name)" "$src"
-                _thm_add cursor "$(_thm_ini "$live" Settings gtk-cursor-theme-name)" "$src"
+                _thm_add gtk "$(doctor_ini "$live" Settings gtk-theme-name)" "$src"
+                _thm_add icon "$(doctor_ini "$live" Settings gtk-icon-theme-name)" "$src"
+                _thm_add cursor "$(doctor_ini "$live" Settings gtk-cursor-theme-name)" "$src"
                 ;;
             defaults/qt[0-9]ct/qt[0-9]ct.conf)
-                _thm_add icon "$(_thm_ini "$live" Appearance icon_theme)" "$src"
+                _thm_add icon "$(doctor_ini "$live" Appearance icon_theme)" "$src"
                 ;;
             defaults/options/cursortheme)
                 # Empty is not "no preference": apptype.lua falls back to the default.
@@ -191,7 +178,7 @@ check_themes() {
 
     live="$DOCTOR_ROOT/Kvantum/kvantum.kvconfig"
     if [ -f "$live" ]; then
-        name="$(_thm_ini "$live" General theme)"
+        name="$(doctor_ini "$live" General theme)"
         case "${name,,}" in
             default) ;;
             *) _thm_add kvantum "$name" "Kvantum/kvantum.kvconfig" ;;
@@ -217,7 +204,5 @@ check_themes() {
         esac
     done
 
-    if [ $((DOCTOR_WARNINGS + DOCTOR_NOTICES)) -eq "$before" ]; then
-        ok "Every selected GTK, icon, cursor and Kvantum theme is installed"
-    fi
+    ok_if_clean "$before" "Every selected GTK, icon, cursor and Kvantum theme is installed"
 }

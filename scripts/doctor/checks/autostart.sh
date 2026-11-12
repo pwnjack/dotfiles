@@ -20,27 +20,13 @@
 DOCTOR_AUTOSTART_DIR="${DOCTOR_AUTOSTART_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/autostart}"
 DOCTOR_AUTOSTART_SYSTEM="${DOCTOR_AUTOSTART_SYSTEM:-/etc/xdg/autostart}"
 
-# _as_key <file> <key> [last] -> the value in [Desktop Entry]; first
-# occurrence, or the last one when a third argument is given.
-_as_key() {
-    awk -v key="$2" -v last="${3:-}" '
-        /^[[:space:]]*\[/ { main = ($0 ~ /^[[:space:]]*\[Desktop Entry\][[:space:]]*$/); next }
-        main && $0 ~ "^[[:space:]]*" key "[[:space:]]*=" {
-            sub(/^[^=]*=[[:space:]]*/, ""); sub(/[[:space:]\r]+$/, "")
-            value = $0; found = 1
-            if (last == "") exit
-        }
-        END { if (found) print value }
-    ' "$1"
-}
-
 # _as_have_cmd <binary> — host probe, its own function so tests can stub it.
 # type -P finds files only, so a shell builtin never stands in for a program.
 _as_have_cmd() { type -P -- "$1" >/dev/null 2>&1; }
 
 # _as_hidden <file> — Hidden, as systemd reads it: last definition, boolean.
 _as_hidden() {
-    case "$(_as_key "$1" Hidden last)" in
+    case "$(doctor_ini "$1" 'Desktop Entry' Hidden last)" in
         [1yYtT]|[yY][eE][sS]|[tT][rR][uU][eE]|[oO][nN]) return 0 ;;
     esac
     return 1
@@ -49,7 +35,7 @@ _as_hidden() {
 # _as_exec_word <file> -> the first word of Exec (either quote style honoured).
 _as_exec_word() {
     local value
-    value="$(_as_key "$1" Exec)"
+    value="$(doctor_ini "$1" 'Desktop Entry' Exec)"
     case "$value" in
         \"*) value="${value#\"}"; printf '%s\n' "${value%%\"*}" ;;
         \'*) value="${value#\'}"; printf '%s\n' "${value%%\'*}" ;;
@@ -70,7 +56,8 @@ _as_minimal() {
 
 check_autostart() {
     group "Autostart"
-    local file name tryexec word missing before=$((DOCTOR_WARNINGS + DOCTOR_NOTICES))
+    local file name tryexec word missing before
+    before=$(doctor_findings)
     if [ -d "$DOCTOR_AUTOSTART_DIR" ]; then
         while IFS= read -r -d '' file; do
             name="${file##*/}"
@@ -85,10 +72,10 @@ check_autostart() {
                 fi
                 continue
             fi
-            [ "$(_as_key "$file" Type)" = "Application" ] || continue
+            [ "$(doctor_ini "$file" 'Desktop Entry' Type)" = "Application" ] || continue
             word="$(_as_exec_word "$file")"
             [ -n "$word" ] || continue
-            tryexec="$(_as_key "$file" TryExec)"
+            tryexec="$(doctor_ini "$file" 'Desktop Entry' TryExec)"
             missing=""
             if [ -n "$tryexec" ] && ! _as_have_cmd "$tryexec"; then missing="$tryexec"; fi
             if ! _as_have_cmd "$word"; then missing="${missing:+$missing and }$word"; fi
@@ -97,5 +84,5 @@ check_autostart() {
             fi
         done < <(find "$DOCTOR_AUTOSTART_DIR" -maxdepth 1 \( -type f -o -type l \) -name '*.desktop' ! -name '.*' -print0 | sort -z)
     fi
-    if [ $((DOCTOR_WARNINGS + DOCTOR_NOTICES)) -eq "$before" ]; then ok "Every per-user autostart entry resolves"; fi
+    ok_if_clean "$before" "Every per-user autostart entry resolves"
 }

@@ -54,14 +54,6 @@ _def_xte_path() {
 }
 _def_desktops() { printf '%s' "${XDG_CURRENT_DESKTOP:-}" | tr '[:upper:]:' '[:lower:] '; }
 
-# _def_key <file> <key> -> the first value of <key> in [Desktop Entry]
-_def_key() {
-    awk -v key="$2" '
-        /^[[:space:]]*\[/ { main = ($0 ~ /^[[:space:]]*\[Desktop Entry\][[:space:]]*$/); next }
-        main && $0 ~ "^" key "[[:space:]]*=" { sub(/^[^=]*=[[:space:]]*/, ""); sub(/[[:space:]\r]+$/, ""); print; exit }
-    ' "$1"
-}
-
 # _def_word <command line> -> its first word, either quote style honoured
 _def_word() {
     case "$1" in
@@ -111,8 +103,8 @@ _def_entry() {
 # _def_entry_missing <file> -> what the entry runs that is not installed
 _def_entry_missing() {
     local tryexec word missing=""
-    tryexec="$(_def_key "$1" TryExec)"
-    word="$(_def_word "$(_def_key "$1" Exec)")"
+    tryexec="$(doctor_ini "$1" 'Desktop Entry' TryExec)"
+    word="$(_def_word "$(doctor_ini "$1" 'Desktop Entry' Exec)")"
     if [ -n "$tryexec" ] && ! _def_have "$tryexec"; then missing="$tryexec"; fi
     if [ -n "$word" ] && [ "$word" != "$tryexec" ] && ! _def_have "$word"; then
         missing="${missing:+$missing and }$word"
@@ -156,7 +148,7 @@ _def_check_terminal() {
         return 0
     fi
     term="$(_def_word "$(_def_option terminal)")"
-    word="$(_def_word "$(_def_key "$entry" Exec)")"
+    word="$(_def_word "$(doctor_ini "$entry" 'Desktop Entry' Exec)")"
     [ -n "$term" ] && [ -n "$word" ] || return 0
     [ "$(_def_resolve "$word")" != "$(_def_resolve "$term")" ] || return 0
     # terminal.sh writes the generic list, but a desktop-specific one is read
@@ -181,7 +173,7 @@ _def_check_mime() {
     while IFS= read -r id; do
         file="$(_def_entry "$id")" || continue
         # Hidden=true means deleted: lookups skip the entry, nothing launches it.
-        [ "$(_def_key "$file" Hidden)" = true ] && continue
+        [ "$(doctor_ini "$file" 'Desktop Entry' Hidden)" = true ] && continue
         missing="$(_def_entry_missing "$file")"
         [ -n "$missing" ] || continue
         hint="pick another app on the settings panel's Default Apps page"
@@ -196,9 +188,10 @@ _def_check_mime() {
 
 check_defaults() {
     group "Default applications"
-    local before=$((DOCTOR_WARNINGS + DOCTOR_NOTICES))
+    local before
+    before=$(doctor_findings)
     _def_check_env
     _def_check_terminal
     _def_check_mime
-    if [ $((DOCTOR_WARNINGS + DOCTOR_NOTICES)) -eq "$before" ]; then ok "Every default application resolves to an installed program"; fi
+    ok_if_clean "$before" "Every default application resolves to an installed program"
 }

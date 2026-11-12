@@ -200,16 +200,13 @@ _bin_check_capture() {
 check_binaries() {
     group "Binaries"
 
-    local before_e="$DOCTOR_ERRORS" before_w="$DOCTOR_WARNINGS" before_n="$DOCTOR_NOTICES"
+    local before
+    before=$(doctor_findings)
     _BIN_SEEN=""
 
     _bin_scan_lua "hypr/config/software/keybinds.lua"
     _bin_scan_lua "hypr/config/setup/autostart.lua"
     _bin_check_capture
 
-    if [ "$DOCTOR_ERRORS" = "$before_e" ] \
-        && [ "$DOCTOR_WARNINGS" = "$before_w" ] \
-        && [ "$DOCTOR_NOTICES" = "$before_n" ]; then
-        ok "every referenced binary is installed and the capture helper has its capability"
-    fi
+    ok_if_clean "$before" "every referenced binary is installed and the capture helper has its capability"
 }

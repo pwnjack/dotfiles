@@ -140,7 +140,8 @@ _wsm_field() {
 check_workspaces() {
     group "Native Waybar modules"
 
-    local before_e="$DOCTOR_ERRORS" before_w="$DOCTOR_WARNINGS"
+    local before
+    before=$(doctor_findings)
     local module lib build_hint detail rc
     build_hint="run $(doctor_q "$DOCTOR_ROOT/scripts/waybar/build-workspaces.sh")"
 
@@ -184,7 +185,5 @@ check_workspaces() {
         esac
     done < <(_wsm_placed)
 
-    if [ "$DOCTOR_ERRORS" = "$before_e" ] && [ "$DOCTOR_WARNINGS" = "$before_w" ]; then
-        ok "every placed native module is built and current"
-    fi
+    ok_if_clean "$before" "every placed native module is built and current"
 }

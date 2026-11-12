@@ -247,9 +247,8 @@ _ref_check_palette_cache() {
 check_references() {
     group "Config references"
 
-    local before_errors="$DOCTOR_ERRORS"
-    local before_warnings="$DOCTOR_WARNINGS"
-    local before_notices="$DOCTOR_NOTICES"
+    local before
+    before=$(doctor_findings)
 
     _ref_check_sources
     _ref_check_requires
@@ -261,9 +260,5 @@ check_references() {
     # Every finding names its own file, so there is nothing to summarise when
     # there are findings — and routing a summary through note would inflate the
     # notices tally with a line that is not a finding.
-    if [ "$DOCTOR_ERRORS" -eq "$before_errors" ] &&
-       [ "$DOCTOR_WARNINGS" -eq "$before_warnings" ] &&
-       [ "$DOCTOR_NOTICES" -eq "$before_notices" ]; then
-        ok "all config references resolve"
-    fi
+    ok_if_clean "$before" "all config references resolve"
 }

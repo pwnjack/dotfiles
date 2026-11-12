@@ -213,7 +213,8 @@ _svc_has_tracked_config() {
 check_services() {
     group "Services"
 
-    local before_e="$DOCTOR_ERRORS" before_w="$DOCTOR_WARNINGS" before_n="$DOCTOR_NOTICES"
+    local before
+    before=$(doctor_findings)
     local daemon pkg owner candidate
 
     # --- 1. autostart daemons actually running -----------------------------
@@ -256,9 +257,5 @@ check_services() {
         fi
     fi
 
-    if [ "$DOCTOR_ERRORS" = "$before_e" ] \
-        && [ "$DOCTOR_WARNINGS" = "$before_w" ] \
-        && [ "$DOCTOR_NOTICES" = "$before_n" ]; then
-        ok "every autostart daemon is running, no respawn.sh unit has failed, install.sh packages are present, and no D-Bus role is contested"
-    fi
+    ok_if_clean "$before" "every autostart daemon is running, no respawn.sh unit has failed, install.sh packages are present, and no D-Bus role is contested"
 }

@@ -164,9 +164,8 @@ check_waybar() {
     group "Waybar"
 
     local config="$DOCTOR_ROOT/waybar/config.jsonc"
-    local before_errors="$DOCTOR_ERRORS"
-    local before_warnings="$DOCTOR_WARNINGS"
-    local before_notices="$DOCTOR_NOTICES"
+    local before
+    before=$(doctor_findings)
     local placed configured name cmd
 
     if [ ! -f "$config" ]; then
@@ -220,9 +219,5 @@ check_waybar() {
     done < <(_way_commands "$config")
 
     # ok is the all-clear and nothing else — see the note in references.sh.
-    if [ "$DOCTOR_ERRORS" -eq "$before_errors" ] &&
-       [ "$DOCTOR_WARNINGS" -eq "$before_warnings" ] &&
-       [ "$DOCTOR_NOTICES" -eq "$before_notices" ]; then
-        ok "every waybar module is configured and every handler resolves"
-    fi
+    ok_if_clean "$before" "every waybar module is configured and every handler resolves"
 }

@@ -36,6 +36,30 @@ note "tidy thing" >/dev/null 2>&1
 note "another" >/dev/null 2>&1
 assert_eq "$DOCTOR_NOTICES" "2" "note counter accumulates"
 
+# --- ok_if_clean: the all-clear only when the check recorded nothing ---
+doctor_reset
+lib_before=$(doctor_findings)
+assert_contains "$(ok_if_clean "$lib_before" "all clear")" "all clear" "ok_if_clean prints ok when nothing was found"
+note "a notice" >/dev/null 2>&1
+assert_eq "$(ok_if_clean "$lib_before" "all clear")" "" "ok_if_clean is silent after a notice"
+doctor_reset
+lib_before=$(doctor_findings)
+err "an error" >/dev/null 2>&1
+assert_eq "$(ok_if_clean "$lib_before" "all clear")" "" "ok_if_clean is silent after an error"
+
+# --- doctor_ini: one key of one section ---
+lib_ini="$(mktemp)"
+printf '%s\n' 'Name=outside' '[Desktop Entry]' '  Name = Inside  ' 'NameX=no' 'Hidden=false' 'Hidden=true' \
+    '[Other]' 'Name=other' > "$lib_ini"
+printf '[Settings]\r\ngtk-theme-name=Crlf\r\n' >> "$lib_ini"
+assert_eq "$(doctor_ini "$lib_ini" 'Desktop Entry' Name)" "Inside" "doctor_ini reads the section's key, trimmed"
+assert_eq "$(doctor_ini "$lib_ini" Other Name)" "other" "doctor_ini keeps sections apart"
+assert_eq "$(doctor_ini "$lib_ini" 'Desktop Entry' Hidden)" "false" "doctor_ini takes the first definition"
+assert_eq "$(doctor_ini "$lib_ini" 'Desktop Entry' Hidden last)" "true" "doctor_ini takes the last with a fourth argument"
+assert_eq "$(doctor_ini "$lib_ini" 'Desktop Entry' Exec)" "" "doctor_ini prints nothing for an absent key"
+assert_eq "$(doctor_ini "$lib_ini" Settings gtk-theme-name)" "Crlf" "doctor_ini strips CRLF"
+rm -f -- "$lib_ini"
+
 doctor_reset
 ok "fine" >/dev/null 2>&1
 assert_eq "$DOCTOR_ERRORS$DOCTOR_WARNINGS$DOCTOR_NOTICES" "000" "ok does not touch counters"

@@ -63,7 +63,8 @@ _hctl_check_file() {
 check_hyprctl() {
     group "Hyprctl Lua compatibility"
 
-    local before_e="$DOCTOR_ERRORS" before_w="$DOCTOR_WARNINGS" before_n="$DOCTOR_NOTICES"
+    local before
+    before=$(doctor_findings)
     local file
 
     if ! _hctl_uses_lua_provider; then
@@ -84,9 +85,5 @@ check_hyprctl() {
         _hctl_check_file "$file"
     done < <(git -C "$DOCTOR_ROOT" ls-files -z 2>/dev/null)
 
-    if [ "$DOCTOR_ERRORS" = "$before_e" ] \
-        && [ "$DOCTOR_WARNINGS" = "$before_w" ] \
-        && [ "$DOCTOR_NOTICES" = "$before_n" ]; then
-        ok "tracked runtime calls use the Lua-compatible hyprctl API"
-    fi
+    ok_if_clean "$before" "tracked runtime calls use the Lua-compatible hyprctl API"
 }

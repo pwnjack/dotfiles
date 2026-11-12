@@ -135,9 +135,8 @@ check_sddm() {
 
     group "SDDM"
 
-    local before_errors="$DOCTOR_ERRORS"
-    local before_warnings="$DOCTOR_WARNINGS"
-    local before_notices="$DOCTOR_NOTICES"
+    local before
+    before=$(doctor_findings)
     local setup_script="$DOCTOR_ROOT/sddm/setup-sudo.sh"
     local root_source="$DOCTOR_ROOT/sddm/update_sddm_root.sh"
     local update_script="$DOCTOR_ROOT/sddm/update_sddm.sh"
@@ -253,9 +252,5 @@ check_sddm() {
         fi
     fi
 
-    if [ "$DOCTOR_ERRORS" -eq "$before_errors" ] &&
-       [ "$DOCTOR_WARNINGS" -eq "$before_warnings" ] &&
-       [ "$DOCTOR_NOTICES" -eq "$before_notices" ]; then
-        ok "SDDM wallpaper sync is healthy"
-    fi
+    ok_if_clean "$before" "SDDM wallpaper sync is healthy"
 }

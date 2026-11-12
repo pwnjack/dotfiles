@@ -10,8 +10,9 @@
 #   The test harness greps check modules for this pattern and fails on it.
 #
 #   These names are reserved by this library — check modules must not redefine
-#   them: group ok err warn note summary doctor_reset doctor_q
-#   doctor_assignment doctor_sudo_grant doctor_require_repo _finding
+#   them: group ok ok_if_clean err warn note summary doctor_reset doctor_q
+#   doctor_findings doctor_assignment doctor_sudo_grant doctor_require_repo
+#   doctor_ini _finding
 #
 #   Any path interpolated into a fix hint must go through doctor_q, or the hint
 #   stops being copy-pasteable the moment a path contains a space.
@@ -48,6 +49,18 @@ group() {
 
 ok() {
     printf '  %b✓%b %s\n' "$DOCTOR_GREEN" "$DOCTOR_NC" "$1"
+}
+
+# doctor_findings — how many findings have been recorded so far. A check takes
+# it at its start and hands it to ok_if_clean at its end.
+doctor_findings() {
+    printf '%s\n' $((DOCTOR_ERRORS + DOCTOR_WARNINGS + DOCTOR_NOTICES))
+}
+
+# ok_if_clean <findings at start> <message> — the all-clear, printed only when
+# the check recorded nothing at all since then.
+ok_if_clean() {
+    if [ "$(doctor_findings)" -eq "$1" ]; then ok "$2"; fi
 }
 
 # _finding <colored-tag> <message> [fix-hint]
@@ -119,6 +132,26 @@ doctor_assignment() {
         }
         END { if (count == 1) print value }
     ' "$1" 2>/dev/null
+}
+
+# doctor_ini <file> <section> <key> [last] — the key's value in [section] of an
+# INI-style file (desktop entries, GTK, Qt and Kvantum settings), trimmed; the
+# first definition, or the last when a fourth argument is given (systemd reads
+# Hidden that way). Nothing when the key is absent.
+doctor_ini() {
+    awk -v want="$2" -v key="$3" -v last="${4:-}" '
+        /^[[:space:]]*\[/ { s = $0; gsub(/^[[:space:]]*\[|\][[:space:]]*$/, "", s); in_s = (s == want); next }
+        in_s {
+            line = $0; sub(/^[[:space:]]+/, "", line)
+            k = line; sub(/[[:space:]]*=.*$/, "", k)
+            if (k == key && line ~ /=/) {
+                sub(/^[^=]*=[[:space:]]*/, "", line); sub(/[[:space:]\r]+$/, "", line)
+                value = line; found = 1
+                if (last == "") exit
+            }
+        }
+        END { if (found) print value }
+    ' "$1"
 }
 
 # Guards the assumption every check makes: that DOCTOR_ROOT is a git work tree,

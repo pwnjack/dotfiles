@@ -36,7 +36,8 @@ _st_have_node() { command -v node >/dev/null 2>&1; }
 
 check_state() {
     group "Machine state"
-    local before=$((DOCTOR_ERRORS + DOCTOR_WARNINGS)) path line hint temp
+    local path line hint temp before
+    before=$(doctor_findings)
     hint="bash $(doctor_q "$DOCTOR_ROOT/scripts/state/overlay.sh") sync"
     while IFS= read -r -d '' path; do
         if _st_default_ignored "$path"; then
@@ -66,5 +67,5 @@ check_state() {
     if [ -n "${XDG_STATE_HOME:-}" ] && [ "$XDG_STATE_HOME" != "$HOME/.local/state" ]; then
         warn "XDG_STATE_HOME is $XDG_STATE_HOME, but hypridle.conf sources ~/.local/state/hypr/hypridle.conf" "unset XDG_STATE_HOME, or link the two directories"
     fi
-    if [ $((DOCTOR_ERRORS + DOCTOR_WARNINGS)) -eq "$before" ]; then ok "Machine state renders are in place"; fi
+    ok_if_clean "$before" "Machine state renders are in place"
 }

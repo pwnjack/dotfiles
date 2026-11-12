@@ -109,9 +109,8 @@ _hw_present_outputs() {
 check_hardware() {
     group "Hardware"
 
-    local before_errors="$DOCTOR_ERRORS"
-    local before_warnings="$DOCTOR_WARNINGS"
-    local before_notices="$DOCTOR_NOTICES"
+    local before
+    before=$(doctor_findings)
     local present record mode file token
 
     present="$(_hw_present_outputs)"
@@ -148,9 +147,5 @@ check_hardware() {
     # ok is the all-clear and nothing else — gated on every severity, as
     # waybar.sh is, so a note added inside the scan cannot silently print a
     # green tick beside it.
-    if [ "$DOCTOR_ERRORS" -eq "$before_errors" ] &&
-       [ "$DOCTOR_WARNINGS" -eq "$before_warnings" ] &&
-       [ "$DOCTOR_NOTICES" -eq "$before_notices" ]; then
-        ok "no tracked config names a disconnected output"
-    fi
+    ok_if_clean "$before" "no tracked config names a disconnected output"
 }
