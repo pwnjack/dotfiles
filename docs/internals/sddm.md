@@ -10,4 +10,4 @@ decode-as-user, temporary-file and atomic-rename flow is in
 
 - The helper holds one lock (`/run/lock/sddm-wallpaper.lock`) from wallpaper discovery to publication, so two helpers started by the watcher cannot publish out of order.
 - The resolved theme and `Backgrounds` directories must be root-owned and not writable by group or others, so an unprivileged user cannot substitute either side of the rename (the README states only the root-owned half).
-- The doctor's `check_sddm` mirrors the helper's rules (the `[Theme]` `Current` grammar and this ownership and mode test), using the effective `sudo -l` grant; a change to one lands in the other and in `scripts/doctor/test/test-sddm.sh`, or the doctor reports healthy while every sync fails.
+- The doctor's `check_sddm` mirrors the helper's rules (the `[Theme]` `Current` grammar and this ownership and mode test), using the effective `sudo -l` grant; a change to one lands in the other and in `scripts/doctor/test/test-sddm.sh` (the doctor) and `sddm/test-sddm.sh` (the scripts), or the doctor reports healthy while every sync fails.
