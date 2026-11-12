@@ -1,30 +1,11 @@
 # Spotify (SpotX and Spicetify)
 
-`scripts/spotify/launch.sh` is what starts Spotify: `setup.sh` (run by
+`scripts/spotify/launch.sh` is what starts Spotify; `setup.sh` (run by
 `install.sh`, skipped without spotify-launcher) points a per-user copy of
-`spotify-launcher.desktop` at it. spotify-launcher swaps in a fresh client
-directory on every update, so the marker `.spotx-patched` beside its binary is
-gone exactly when the patch is (not in `Apps/`, which Spicetify deletes and
-rebuilds whole); without it the wrapper runs `spicetify restore`
-(only if the client is unpacked), the latest SpotX-Bash (`-f` forces a rerun;
-no `-p`, so the free tier), then `spicetify backup apply`. The marker means "SpotX applied" and is written before
-Spicetify runs: Spicetify's apply drops SpotX's stock `xpui.bak`, after which
-SpotX refuses the client, so a Spicetify failure gets its own toast instead of a
-retry. SpotX exits 0 on a client newer than it supports; the wrapper compares the
-logged versions and warns. Failure starts Spotify unpatched with a toast; the running-Spotify
-check happens under the lock, and a running client is never patched. The lock
-outlives the wrapper's exec until `pgrep` sees the client (at most 5 s), so a
-launch queued behind it cannot miss the starting client. SpotX
-`pkill`s `[sS]potify` by name, so the wrapper's file name must not contain it.
-See `docs/spotify.md`.
+`spotify-launcher.desktop` at it. Flow, marker, failure handling, prefs stamp
+and traps: [spotify.md](../spotify.md#how-it-works).
 
-Spicetify reads its backup version from `app.last-launched-version` in
-Spotify's prefs, rather than asking the client. After an update patched before
-its first launch, prefs still names the previous version, so later colour
-refreshes would reject the backup as mismatched. Immediately before
-`spicetify backup apply`, the wrapper stamps the existing prefs key with the
-installed version from `${XDG_DATA_HOME:-~/.local/share}/spotify-launcher/state.json`,
-without the package epoch. It reads `prefs_path` from Spicetify's config and
-replaces the file atomically while holding the patch lock, with Spotify stopped.
-Missing state, an invalid version, or missing prefs or version key is silently
-left alone; it never creates prefs or adds the key.
+- The `.spotx-patched` marker means "SpotX applied" and is written before Spicetify runs, so a Spicetify failure gets its own toast instead of a retry. [How it works](../spotify.md#how-it-works).
+- SpotX exits 0 on a client newer than it supports; the wrapper compares the logged versions and warns. [How it works](../spotify.md#how-it-works).
+- The running-Spotify check happens under the lock, and a running client is never patched. The lock outlives the wrapper's exec until `pgrep` sees the client (at most 5 s), so a launch queued behind it cannot miss the starting client.
+- SpotX `pkill`s `[sS]potify` by name, so the wrapper's file name must not contain it. [Traps](../spotify.md#traps).

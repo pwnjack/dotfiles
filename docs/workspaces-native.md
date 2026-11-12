@@ -3,7 +3,11 @@
 The workspace dots on the bar are a compiled Waybar CFFI module,
 `waybar/workspaces/` (C, GTK3/cairo). It replaced ten CSS-animated custom
 modules whose animation could not be made pixel-exact (GTK rounds each
-animating `min-width`, so neighbours wobbled by 1 px). It is the only compiled
+animating `min-width`, so neighbours wobbled by 1 px, and separate processes
+landed their updates up to tens of ms apart). The native module draws every dot
+on one canvas from one animation clock: the leaving pill contracts while the
+arriving dot stretches, both amounts from the same clock, so the row's width is
+exactly constant. It is the only compiled
 component in the repo, and that has a cost — this page is what that cost is
 and how to remove it.
 

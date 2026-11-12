@@ -232,59 +232,34 @@ Verified on DP-1 (ROG PG279Q, 2560×1440) with Hyprland 0.56.2:
   `HYPRLAND_INSTANCE_SIGNATURE`, which the guard inherits when a request has
   none. `systemctl stop` of an unloaded unit says `Unit … not loaded.`
 
-## Probes behind the Network, Date & Region and Startup pages
+## Design decisions behind the Network, Date & Region and Startup pages
 
-Probed 2026-09-28 and 2026-09-29 on the author's machine, before those pages
-were built.
-
-### Baseline
-Full read (every row plus monitors), five runs: 275, 275, 278, 281, 288 ms. Median **278 ms**.
-
-### D-Bus cold start
-`gdbus` `Get NTP` + `ListTimezones` (598 zones, 10.9 kB) after 40 s idle: cold **62 ms**, warm **14 ms**.
-Both figures include two `gdbus` process starts, so the in-process cost is lower.
-
-### nmcli monitor and scans
-`nmcli monitor` prints `NetworkManager is running` once at start, then **nothing** for a
-completed `nmcli device wifi rescan` (8 s watched). The list refresh after a scan therefore
-comes from the panel's follow-up read (`scanSettle`). The banner line causes one extra
-debounced read when the page opens, which is harmless.
-
-### Quickshell stdin
-A `Process` with `stdinEnabled: true` that calls `write()` in `onStarted` delivers the line:
-the probe printed `got:{"op":"read"}`.
-
-### Waybar include
-Waybar 0.15 expands `~` in `include` (`Found config file: /home/you/.local/state/...`) and
-merges key by key: with `"format": "MAIN"` in the main file, the trace says
-`Option format is already set; ignoring value "PROBE ..."`, while the include's `interval`
-was taken. A main `clock` object without `format` therefore takes the include's format.
-Decision: **include at `~/.local/state/waybar/clock.jsonc`**. The on-screen check followed on
-2026-09-29 (see Measurements).
-
-### Proton VPN
-Probed 2026-09-29. `nmcli connection down` on the Proton profile deactivated the tunnel, and
-the Proton app then **deleted** both the WireGuard profile and the `pvpn-killswitch-ipv6`
-dummy, so there is nothing for `nmcli connection up` to bring back. Traffic kept flowing over
-the real IP (the kill switch is not in permanent mode). The app showed a clean "Disconnected",
-and reconnecting from the app created a new profile named after the new server.
-Decision: **`PROTON_MODE = "app"`** (`network.mjs`): the panel shows the state and opens the
-Proton app, and never switches Proton's profile itself.
-
-### Polkit dialog versus the overlay
-Probed 2026-09-29: with a panel-shaped Overlay surface up (keyboard focus None), an
-interactive `SetTimezone` opened hyprpolkitagent's dialog (Waybar's title read
-"Authentication Required") but the dialog was completely hidden behind the overlay and could not
-be clicked. Decision: **`authHidesPanel: true`** (`shell.qml`): the panel hides while a prompt
-is open. A dismissed dialog returns `org.freedesktop.DBus.Error.AccessDenied: Permission denied`, which
-`authError.mjs` maps to "Authentication was cancelled; nothing changed." (checked: the time zone
-stayed Europe/Rome). Rechecked 2026-10-31 after the switch to mate-polkit: the panel hid, the
-dialog was reachable and themed, and Cancel left the zone unchanged with the same message.
-
-### Per-user locale
-The systemd user manager already has `LANG=en_US.UTF-8` and `LC_TIME=it_IT.UTF-8`, and
-`/etc/profile.d/locale.sh` reads `~/.config/locale.conf` only when `LANG` is unset.
-Decision: **formats use SetLocale** (system-wide, polkit).
+- **Refresh after a Wi-Fi scan.** `nmcli monitor` prints nothing for a
+  completed `nmcli device wifi rescan`, so the list refresh comes from the
+  panel's follow-up read (`scanSettle`). Its start-up banner line causes one
+  extra debounced read when the page opens, which is harmless.
+- **Quickshell stdin.** A `Process` with `stdinEnabled: true` that calls
+  `write()` in `onStarted` delivers the line, which is how panel writes reach
+  `panel-request.sh -`.
+- **Waybar include.** Waybar 0.15 expands `~` in `include` and merges key by
+  key, so a main `clock` object without `format` takes the include's format.
+  The clock override is therefore an include at
+  `~/.local/state/waybar/clock.jsonc`.
+- **Proton VPN.** `nmcli connection down` on the Proton profile makes the
+  Proton app delete both the WireGuard profile and the `pvpn-killswitch-ipv6`
+  dummy, so nothing remains for `nmcli connection up` to restore. Hence
+  `PROTON_MODE = "app"` (`network.mjs`): the panel shows the state and opens
+  the Proton app, and never switches Proton's profile itself.
+- **Polkit dialog versus the overlay.** An interactive `SetTimezone` opens the
+  polkit agent's dialog behind the panel's Overlay surface, unreachable, so
+  `authHidesPanel: true` (`shell.qml`) hides the panel while a prompt is open.
+  A dismissed dialog returns `org.freedesktop.DBus.Error.AccessDenied`, which
+  `authError.mjs` maps to "Authentication was cancelled; nothing changed."
+- **Per-user locale.** The systemd user manager already carries `LANG` and
+  `LC_TIME`, and `/etc/profile.d/locale.sh` reads `~/.config/locale.conf` only
+  when `LANG` is unset, so formats use `SetLocale` (system-wide, polkit).
+- **Reads are cheap.** A `gdbus` `Get NTP` plus `ListTimezones` (598 zones,
+  10.9 kB) takes about 62 ms cold and 14 ms warm, including two process starts.
 
 ## Network
 
@@ -519,66 +494,34 @@ to the same escaped string are indistinguishable in the network list. This is
 an accepted limitation, not a bug: the panel only ever compares and connects
 by display SSID.
 
-## Measurements
+## Performance
 
-Measured September 19, 2026 with Quickshell 0.3.1 / Qt 6.11.2 on the author's machine,
-2560×1440 at scale 1. Original baseline before the session-snapshot refinement,
-six consecutive fresh process launches (OS caches warm):
+Measured on the author's machine (2560×1440 at scale 1, Quickshell 0.3.1 /
+Qt 6.11.2): first frame 221 to 291 ms after the launcher timestamp, initial
+values ready by 348 to 418 ms, about 105 to 107 MiB PSS while open (the AGS
+panel it replaced held about 137 MiB), and no process at all once closed.
 
-| Measurement | Observed |
-| --- | --- |
-| Launcher timestamp to first frame swap | 221–291 ms |
-| Launcher timestamp to initial 14 values ready | 348–418 ms |
-| Open Quickshell process PSS, last three runs | 105–107 MiB |
-| Panel process after closing | Absent (verified via IPC and `/proc`) |
-| The panel it replaced (a resident AGS + GJS process, since removed), PSS | About 137 MiB |
-
-A full backend read of every row (`panel-request.sh` with all ids) took about
-70 ms with 56 rows and about 280 ms with 89 on September 28, 2026; most of the
-increase is the nine File Types rows forking `xdg-mime`. The frame is drawn
-before values arrive, so this delays values, not the panel. With the Sound
-rows and the richer display read it measured 286 ms median (279–292 ms,
-five runs) against 282 ms before, inside the +10 ms budget. With the panel
-closed there is no `pactl subscribe`, no `settings-display-*` unit and no
-panel process. On the Sound page, audio playback on an awake sink plus three
-notifications caused no live read; each default-device change caused one.
-The nine File types rows (Default Apps) fork `xdg-mime` on every full read and
-are most of the open cost.
-
-A full read on September 29, 2026 measured **302 ms cold** after 40
-seconds idle. Five immediate warm runs were 291, 298, 296, 300 and 291 ms,
-for a **296 ms median**. Each run used:
+A full backend read of every row (`panel-request.sh` with all ids) takes about
+300 ms with the current rows, most of it the nine File types rows forking
+`xdg-mime`. An empty read takes about 44 ms; the Network page adds about 4 ms
+and the Startup page about 25 ms. The frame is drawn before values arrive, so
+the read delays values, not the panel. With the panel closed there is no
+`pactl subscribe`, no `settings-display-*` unit, no `nmcli monitor` and no
+panel process. On the Sound page, playback on an awake sink plus notifications
+cause no live read; each default-device change causes one. A read can be timed
+with:
 
 ```bash
 req=$(jq -c '{op:"read",ids:[.rows[].id],monitors:true}' quickshell/settings-panel/catalog.json)
 bash scripts/settings/panel-request.sh "$req"
 ```
 
-After the Network, Date & Region and Startup pages were added (September 29, 2026), measured
-with `live-smoke.sh` and the loop above:
-
-| Measurement | Observed |
-| --- | --- |
-| Full read, five runs (median) | 292, 293, 299, 301, 307 ms (**299 ms**) against the 278 ms probe baseline; two more sets 295 and 299 ms |
-| Full read at `ee1ab1d` (before those pages, same session) | 296, 295, 292, 288, 296 and 301, 298, 288, 291, 293 ms (median about 294 ms), so the three pages add about 5 ms; the +21 ms against the baseline is machine drift, not code |
-| Empty read (`ids: []`) median | 44 ms |
-| Network read median | 48 ms (+4, budget 30) |
-| Startup read median | 69 ms (+25, budget 40) |
-| `nmcli monitor` RSS on the Network page | 10.9 MB (about 10.7 MB in a second run), one process |
-| Off the Network page / closed | `nmcli monitor`: 0; `pgrep -af 'nmcli monitor\|settings-panel/shell.qml'`: no process |
-
-Live checks, September 29, 2026, with screenshots: the Network
-page shows the Wi-Fi list, Wired and VPN with "Open Proton VPN"; the Waybar clock shows
-`12:08` in 24 h, `12:08 PM` after `region.clock=12h`, and `options/clock` was set back to
-`24h`; the Startup and Date & Region pages render (nothing was toggled or changed).
-Hyprlock's 12/24 h check ran on 2026-09-29: with `options/clock` at 24h the lock screen showed 15:56, and at 12h the hour label showed 03 at 15:59. The option was set back to 24h afterwards.
-
 The timestamp starts after the launcher's lock, IPC probe and palette load, so
 these are not full keypress-to-display measurements. A frame swap is a render
 milestone, not a physical screen latency measurement. PSS apportions shared
 pages; these values exclude GPU memory and are not a guarantee of an identical
-drop in total system usage. Short-lived GJS reads can add memory while loading.
-The saving at idle comes from exiting, not from keeping a Qt runtime hidden.
+drop in total system usage. The saving at idle comes from exiting, not from
+keeping a Qt runtime hidden.
 
 ## Verification
 
@@ -606,7 +549,7 @@ read helpers, interaction locking, display staging, the pending banner, and ever
 Apply/Keep/Revert ordering and failure path against a mocked systemd guard. The desktop smoke
 check reads every catalogue setting without changing them, captures
 `/tmp/settings-panel-live.png`, measures opening, and verifies process exit.
-Qt's linter reports four warnings on 2026-10-16 (PanelWindow is not creatable
+Qt's linter reports four warnings (PanelWindow is not creatable
 outside Quickshell, an `actionsMenu` id shadowing a property, and two property
 lookups on types it has no metadata for); live loading succeeds.
 

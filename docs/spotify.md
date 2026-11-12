@@ -53,8 +53,11 @@ On every start the wrapper:
      version from spotify-launcher's `state.json`, because Spicetify takes its
      backup version from that key and an update leaves the previous version in
      it until the first launch (a mismatch makes later colour refreshes reject
-     the backup). Only an existing key is rewritten; missing state or prefs
-     are left alone;
+     the backup). The version is written without the package epoch, into the
+     `prefs_path` named in Spicetify's config, by an atomic replace under the
+     patch lock with Spotify stopped. Only an existing key is rewritten;
+     missing state, an invalid version, or missing prefs or key are left alone,
+     and the wrapper never creates prefs or adds the key;
    - `spicetify backup apply`, which backs up the patched client (discarding
      its backup of the previous version) and applies the theme on top.
 

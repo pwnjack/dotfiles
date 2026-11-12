@@ -1,44 +1,14 @@
 # Capture bar, recording and locking
 
-`quickshell/capture/shell.qml` is the on-demand screenshot/text/recording strip
-started by `scripts/hyprland/capture-bar.sh` (lock, IPC toggle, exits on close;
-`record` while recording stops instead). Its modes are `screenshot`, `text` and
-`record`, in that tab order; Tab and Shift+Tab (`Tab` and `Backtab` in the
-model) cycle them with wrap-round. `text` is region-only: its target buttons
-and Annotate hide but keep their width, and it runs
-`screenshot.sh region --text`, which pipes hyprshot's `--raw` capture to `scripts/capture/read-text.sh` (zbarimg,
-then tesseract; the only place that decodes). The bar launcher accepts `text`
-as a mode too. IPC target `capture`: `ping`,
-`toggle <mode>`, `open <mode>`, `close`, `status`, and `run` (a scripted-check
-seam: presses the action button, acts only while the strip is open). It writes
-only `options/capture-*`, synchronously (`blockWrites`) so the started script
-reads what the strip shows. Those files are gitignored per-machine state; a
-missing one is the default. The capture starts detached with stdio closed after
-Hyprland reports the `capture-bar` layer closed (400 ms fallback); the layer
-rules are blur + `no_anim`, so the strip is never in the shot.
-`scripts/capture/record.sh` is the only driver of gpu-screen-recorder; it
-identifies processes by pid plus `/proc` start time (`since` in
-`$XDG_RUNTIME_DIR/capture/recording.json`), serialises stops with a flock, and
-drives Waybar `custom/recording` (`interval: once`, signal 11, which it sends on
-each change and once a second while recording, so an idle bar runs nothing).
-`screenshot.sh` stays the only screenshot command. Both post the shared saved
-toast (`scripts/capture/toast.sh`, Open / Show in folder; the same file holds
-`open_toast`, the detached Open-only toast `read-text.sh` uses for a copied link); Show in folder goes
-through D-Bus `org.freedesktop.FileManager1`, which several installed file
-managers claim, so `scripts/settings/file-manager.sh` (install.sh, and the
-panel's File manager row) copies the configured one's service file into
-`~/.local/share/dbus-1/services/`. `scripts/hyprland/lock.sh` is
-the only lock path (Super+L, power menu, hypridle `lock_cmd` and its idle
-listener, which alone passes `--grace 5`; the one exception is
-`scripts/hyprland/startup.sh`, which runs hyprlock directly on autologin, when
-nothing records) and locks FIRST:
-it starts hyprlock at once and hands `record.sh stop` to a detached process,
-because logind's `InhibitDelayMaxSec` is 5 s and a slow save must never delay
-the lock; a clip may end with about a second of the lock screen. hypridle sets
-`inhibit_sleep = 3` because its auto mode keys on the string "hyprlock" in
-`lock_cmd`, which lock.sh's path lacks. The guard fails closed (`flock -w 1`;
-only a running same-user hyprlock skips locking). `model.mjs` is the pure
-model. See `docs/capture.md`.
+Contract (full behaviour, options, lock rules and troubleshooting: [capture.md](../capture.md)):
+
+- `quickshell/capture/shell.qml` is the strip, started by `scripts/hyprland/capture-bar.sh`; `model.mjs` is the pure model. Modes are `screenshot`, `text`, `record`, cycled by `Tab` and `Backtab` in the model; the bar launcher accepts `text` as a mode too. [The strip](../capture.md#the-strip).
+- `scripts/capture/record.sh` is the only driver of gpu-screen-recorder; `scripts/hyprland/screenshot.sh` is the only screenshot command; `scripts/hyprland/lock.sh` is the only lock path, and it locks first. [Pieces](../capture.md#pieces), [Recording](../capture.md#recording), [Lock and suspend](../capture.md#lock-and-suspend).
+- `scripts/capture/read-text.sh` is the only place that decodes (zbarimg, then tesseract). [Copying text or a QR code](../capture.md#copying-text-or-a-qr-code).
+- The strip writes only `options/capture-*`, synchronously (`blockWrites`). [Options](../capture.md#options).
+- `scripts/capture/toast.sh` holds the shared saved toast and `open_toast`, the detached Open-only toast `read-text.sh` uses for a copied link. [Recording](../capture.md#recording).
+
+## Test timing overrides
 
 Recording subprocess tests can override `CAPTURE_START_WAIT` (0.5 s),
 `CAPTURE_TICK_WAIT` and `CAPTURE_COUNTDOWN_WAIT` (1 s each), and

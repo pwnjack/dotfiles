@@ -1,6 +1,6 @@
 # Wallpaper carousel
 
-Built September 19, 2026 with Quickshell 0.3.1 and Qt 6.11.2. Wallpapers flow
+Written against Quickshell 0.3.1 and Qt 6.11.2. Wallpapers flow
 through Waypaper, awww and matugen, exactly as they do without the carousel.
 
 ## Controls
@@ -39,7 +39,8 @@ but no upstream code was copied because reuse permission was not established.
 - `scripts/hyprland/wallpaper-carousel.sh` locks startup/toggle requests and
   addresses only this configuration's Quickshell IPC. Quickshell's
   `--no-duplicate` is an additional safeguard. The process starts on demand and
-  exits when the carousel closes, so it consumes no RAM between uses.
+  exits when the carousel closes, so it consumes no RAM between uses. No login
+  autostart is configured.
 - `scripts/hyprland/carousel-state.sh` reads `waypaper/config.ini` on every open,
   including folders, recursion, hidden files, GIF filtering, and name/date sort.
   It queries awww for the visible image, falling back to Waypaper's saved choice.
@@ -75,34 +76,13 @@ qs -p ~/.config/quickshell/wallpaper-carousel/shell.qml log -t 50
 
 ## Verification
 
-Before close was changed to exit the process, the available 2560×1440, 144 Hz
-display at scale 1, with 132 wallpapers produced these measurements:
+Warm opens were only slightly faster than cold ones (579 ms against 911 ms
+to the selected preview on a 2560×1440 display with 132 wallpapers), which
+was not worth holding hundreds of MiB (about 270 to 360 MiB resident) while
+idle, so closing exits the process and leaves no carousel RSS.
 
-| Measurement | Observed |
-| --- | --- |
-| Fresh process to selected preview ready | 911 ms |
-| Subsequent open to selected preview ready | 579 ms |
-| Fifty rapid navigation steps and final preview | 965 ms |
-| Resident memory after initial close | 272,852 KiB (about 267 MiB) |
-| Resident memory after rapid navigation | 320,968 KiB (about 313 MiB) |
-| Peak resident memory in that run | 364,764 KiB (about 356 MiB) |
-
-These are single historical observations, not cross-machine guarantees. The
-modest warm-open improvement was not worth retaining hundreds of MiB while
-idle, so closing now exits the process and leaves no carousel RSS.
-
-A physical Super+Ctrl+W keypress opens the carousel, and the random-wallpaper
-shortcut keeps its direct behaviour. Synthetic `wtype` modifier injection does
-not trigger the global shortcut, so that check needs a real keypress.
-
-Live checks established: current-image centring; keyboard navigation; search
-with no results; Escape; unchanged saved configuration after cancellation; six
-concurrent toggles remaining serialised and ending with no process; Enter applying a
-different wallpaper; duplicate Enter ignored; awww,
-the saved login choice, and current-wallpaper state agreeing; and successful
-theme generation. The original wallpaper was restored afterward. The final
-doctor run reported zero errors and zero warnings, including healthy SDDM sync
-and desktop services. Hyprland reported `[""]` configuration errors (healthy).
+Synthetic `wtype` modifier injection does not trigger the global Super+Ctrl+W
+shortcut, so that check needs a real keypress.
 
 Offscreen tests exercise the actual QML view's mouse selection, wheel input over
 cards and background, horizontal/high-resolution wheels, keyboard/search/
