@@ -118,15 +118,6 @@ _thm_gsettings() {
     printf '%s' "${value%\'}"
 }
 
-# _thm_first_line <file> -> the first line, trimmed, or nothing.
-_thm_first_line() {
-    local value=""
-    IFS= read -r value < "$1" || true
-    value="${value%$'\r'}"
-    value="${value#"${value%%[![:space:]]*}"}"
-    printf '%s' "${value%"${value##*[![:space:]]}"}"
-}
-
 # _thm_add <kind> <name> <source> -- records a selected theme that is not
 # installed, one entry per kind and name however many files select it. Fills
 # the caller's keys and sources.
@@ -169,8 +160,8 @@ check_themes() {
                 ;;
             defaults/options/cursortheme)
                 # Empty is not "no preference": apptype.lua falls back to the default.
-                name="$(_thm_first_line "$live")"
-                [ -n "$name" ] || { name="$(_thm_first_line "$DOCTOR_ROOT/$file")"; src="$file"; }
+                name="$(option "$live")"
+                [ -n "$name" ] || { name="$(option "$DOCTOR_ROOT/$file")"; src="$file"; }
                 _thm_add cursor "$name" "$src"
                 ;;
         esac

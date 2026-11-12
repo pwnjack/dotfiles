@@ -64,7 +64,8 @@ check_ssh() {
     local envlua="$DOCTOR_ROOT/hypr/config/setup/envvars.lua"
     local setup="$DOCTOR_ROOT/scripts/ssh/setup.sh"
     local fragment="$DOCTOR_ROOT/ssh/config"
-    local sock name unit include config first="" fix mode target found=0 nosock=0 session
+    local sock name unit include config first="" fix mode target found=0 nosock=0 session before
+    before=$(doctor_findings)
 
     [ -f "$envlua" ] || return 0
     name=$(_ssh_socket_name "$envlua")
@@ -144,6 +145,6 @@ check_ssh() {
         fi
     fi
 
-    [ "$found" -eq 0 ] && ok "the SSH agent is wired: passphrase once per login"
+    ok_if_clean "$before" "the SSH agent is wired: passphrase once per login"
     return 0
 }

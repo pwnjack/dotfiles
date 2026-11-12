@@ -49,7 +49,8 @@ check_updates() {
 
     local setup="$DOCTOR_ROOT/updates/setup-sudo.sh"
     local tracked="$DOCTOR_ROOT/updates/system-update-root.sh"
-    local fix sudoers helper listing state found=0
+    local fix sudoers helper listing state before
+    before=$(doctor_findings)
 
     # A tree without the feature has nothing to check, unless a root helper is
     # still installed: that one stays NOPASSWD-reachable with no source to
@@ -88,24 +89,19 @@ check_updates() {
 
     if [ -L "$helper" ]; then
         err "installed update helper must not be a symlink: $helper" "$fix"
-        found=1
     elif [ ! -e "$helper" ]; then
         warn "installed update helper is missing: $helper" "$fix"
-        found=1
     elif [ "$state" != "root:root 755" ]; then
         err "installed update helper has unsafe ownership or mode (${state:-unknown}; expected root:root 755)" "$fix"
-        found=1
     elif ! cmp -s "$tracked" "$helper"; then
         warn "installed update helper differs from the tracked source" \
             "review $(doctor_q "$tracked"), then run: $fix"
-        found=1
     fi
 
     if ! _upd_has_grant "$listing" "$helper"; then
         warn "$helper is not in the effective passwordless sudo permissions (expected via $sudoers)" "$fix"
-        found=1
     fi
 
-    [ "$found" -eq 0 ] && ok "one-click updates are set up"
+    ok_if_clean "$before" "one-click updates are set up"
     return 0
 }

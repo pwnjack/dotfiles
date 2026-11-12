@@ -51,8 +51,8 @@ be combined. Packages: `zbar`, `tesseract`, `tesseract-data-eng` and
 
 The tabs run Screenshot, Text, Record. Tab steps forward and Shift+Tab back,
 both wrapping round. The Text tab always takes a region, so its target buttons
-are hidden (their space stays, so nothing moves) and Left and Right do nothing;
-its controls are the delay and Freeze, and Annotate does not apply.
+and Annotate are hidden (their space stays, so nothing moves) and Left and Right
+do nothing; its controls are the delay and Freeze.
 
 IPC target `capture`: `ping`, `toggle <mode>`, `open <mode>`, `close`,
 `status`, and `run`, a seam for scripted checks that presses the action button

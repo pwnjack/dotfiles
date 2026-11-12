@@ -247,7 +247,8 @@ Verified on DP-1 (ROG PG279Q, 2560×1440) with Hyprland 0.56.2:
   `~/.local/state/waybar/clock.jsonc`.
 - **Proton VPN.** `nmcli connection down` on the Proton profile makes the
   Proton app delete both the WireGuard profile and the `pvpn-killswitch-ipv6`
-  dummy, so nothing remains for `nmcli connection up` to restore. Hence
+  dummy, so nothing remains for `nmcli connection up` to restore, and traffic
+  keeps flowing over the real IP unless the kill switch is in permanent mode. Hence
   `PROTON_MODE = "app"` (`network.mjs`): the panel shows the state and opens
   the Proton app, and never switches Proton's profile itself.
 - **Polkit dialog versus the overlay.** An interactive `SetTimezone` opens the
@@ -497,12 +498,13 @@ by display SSID.
 ## Performance
 
 Measured on the author's machine (2560×1440 at scale 1, Quickshell 0.3.1 /
-Qt 6.11.2): first frame 221 to 291 ms after the launcher timestamp, initial
-values ready by 348 to 418 ms, about 105 to 107 MiB PSS while open (the AGS
+Qt 6.11.2), as a baseline taken before the session snapshot: first frame 221 to
+291 ms after the launcher timestamp, the first 14 values ready by 348 to 418 ms,
+about 105 to 107 MiB PSS while open (the AGS
 panel it replaced held about 137 MiB), and no process at all once closed.
 
 A full backend read of every row (`panel-request.sh` with all ids) takes about
-300 ms with the current rows, most of it the nine File types rows forking
+300 ms with the 89 rows it had when measured, most of it the nine File types rows forking
 `xdg-mime`. An empty read takes about 44 ms; the Network page adds about 4 ms
 and the Startup page about 25 ms. The frame is drawn before values arrive, so
 the read delays values, not the panel. With the panel closed there is no
@@ -520,7 +522,8 @@ The timestamp starts after the launcher's lock, IPC probe and palette load, so
 these are not full keypress-to-display measurements. A frame swap is a render
 milestone, not a physical screen latency measurement. PSS apportions shared
 pages; these values exclude GPU memory and are not a guarantee of an identical
-drop in total system usage. The saving at idle comes from exiting, not from
+drop in total system usage. Short-lived GJS reads can add memory while loading.
+The saving at idle comes from exiting, not from
 keeping a Qt runtime hidden.
 
 ## Verification

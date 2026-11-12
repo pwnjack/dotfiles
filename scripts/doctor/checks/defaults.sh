@@ -74,13 +74,12 @@ _def_value_word() {
 
 # _def_option <key> -> the options/ value apptype.lua gives apps.<key>
 _def_option() {
-    local line name fallback value=""
+    local line name fallback
     line="$(grep -E "^[[:space:]]*$1[[:space:]]*=[[:space:]]*read_option\(" "$DOCTOR_ROOT/hypr/config/apptype.lua" 2>/dev/null | head -n 1)"
     [ -n "$line" ] || return 1
     name="$(printf '%s' "$line" | sed -E 's/.*read_option\("([^"]*)".*/\1/')"
     fallback="$(printf '%s' "$line" | sed -nE 's/.*read_option\("[^"]*",[[:space:]]*"([^"]*)"\).*/\1/p')"
-    { read -r value < "$DOCTOR_ROOT/options/$name"; } 2>/dev/null
-    printf '%s\n' "${value:-$fallback}"
+    printf '%s\n' "$(option "$DOCTOR_ROOT/options/$name" "$fallback")"
 }
 
 # _def_entry <desktop id> -> the path of the entry that answers to it. An ID's

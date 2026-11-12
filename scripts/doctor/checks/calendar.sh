@@ -33,7 +33,8 @@ _cal_now() { date +%s; }
 check_calendar() {
     local timer="$DOCTOR_ROOT/scripts/calendar/calendar-sync.timer"
     local installer="$DOCTOR_ROOT/install.sh"
-    local unit tools tool status state message last found=0
+    local unit tools tool status state message last before
+    before=$(doctor_findings)
     [ -f "$timer" ] || return 0
     [ -n "$(_cal_account)" ] || return 0
     unit=$(basename "$timer")
@@ -43,24 +44,20 @@ check_calendar() {
     if [ -z "$tools" ]; then
         warn "cannot derive the calendar tools from install.sh" \
             "git -C $(doctor_q "$DOCTOR_ROOT") diff -- $(doctor_q "$installer")"
-        found=1
     fi
     for tool in $tools; do
         if ! _cal_have "$tool"; then
             warn "$tool is not installed" "sudo pacman -S --needed $tools"
-            found=1
         fi
     done
     if ! _cal_timer_enabled "$unit"; then
         warn "$unit is not enabled — the bar and the card only update when the card opens" \
             "bash $(doctor_q "$DOCTOR_ROOT/scripts/calendar/setup.sh")"
-        found=1
     fi
     status=$(_cal_status)
     if [ -z "${status//[[:space:]]/}" ]; then
         warn "no sync status yet — the calendar has not synced since login" \
             "bash $(doctor_q "$DOCTOR_ROOT/scripts/calendar/sync.sh")"
-        found=1
     else
         # Validate the object once: a non-object, a non-string state or message,
         # or a lastSuccess that is neither null nor a whole number in a sane range
@@ -82,15 +79,12 @@ check_calendar() {
         fi
         if ! [[ $last =~ ^[0-9]+$ ]]; then
             warn "status.json is not valid" "bash $(doctor_q "$DOCTOR_ROOT/scripts/calendar/sync.sh")"
-            found=1
         elif [ "$state" = failed ]; then
             warn "last sync failed: $message" "bash $(doctor_q "$DOCTOR_ROOT/scripts/calendar/sync.sh")"
-            found=1
         elif [ "$last" -le 0 ] || [ $(( $(_cal_now) - last )) -gt 3600 ]; then
             warn "no successful sync in the last hour" "bash $(doctor_q "$DOCTOR_ROOT/scripts/calendar/sync.sh")"
-            found=1
         fi
     fi
-    [ "$found" -eq 1 ] || ok "iCloud calendar syncing"
+    ok_if_clean "$before" "iCloud calendar syncing"
     return 0
 }

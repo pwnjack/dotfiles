@@ -10,7 +10,8 @@
 #   The test harness greps check modules for this pattern and fails on it.
 #
 #   These names are reserved by this library — check modules must not redefine
-#   them: group ok ok_if_clean err warn note summary doctor_reset doctor_q
+#   them (option comes from scripts/lib/options.sh): group ok ok_if_clean
+#   err warn note summary option doctor_reset doctor_q
 #   doctor_findings doctor_assignment doctor_sudo_grant doctor_require_repo
 #   doctor_ini _finding
 #
@@ -25,6 +26,11 @@
 # Root of the dotfiles tree under test. Overridable so the test suite can point
 # the checks at a throwaway fixture repo instead of the live system.
 DOCTOR_ROOT="${DOCTOR_ROOT:-$HOME/.config}"
+
+# The checks read options/ files with the repo's one reader. Sourced from this
+# checkout, not DOCTOR_ROOT, which tests point at fixtures.
+# shellcheck source=scripts/lib/options.sh
+. "${BASH_SOURCE[0]%/*}/../lib/options.sh"
 
 DOCTOR_RED='\033[0;31m'
 DOCTOR_GREEN='\033[0;32m'
