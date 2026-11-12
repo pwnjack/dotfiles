@@ -1,6 +1,6 @@
 # Machine state (settings overlay)
 
-Settings that a machine changes (options, GTK and Qt settings, default applications, the notification centre's config, the night-light schedule) are not tracked files. The repo tracks the defaults; each machine's differences live outside it, so changing a setting never dirties git and a pull never overwrites one.
+Settings that a machine changes (options, GTK and Qt settings, default applications, the notification centre's config, the night-light schedule, btop's `btop.conf`, which btop rewrites on exit) are not tracked files. The repo tracks the defaults; each machine's differences live outside it, so changing a setting never dirties git and a pull never overwrites one.
 
 ## Layout
 

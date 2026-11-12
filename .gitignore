@@ -102,6 +102,7 @@ gtk-4.0/settings.ini
 qt5ct/qt5ct.conf
 qt6ct/qt6ct.conf
 swaync/config.json
+btop/btop.conf
 # its write-then-rename file, left behind only by a crash
 *.overlay-tmp
 
