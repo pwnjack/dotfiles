@@ -85,11 +85,7 @@
   border: 1px solid transparent;
 }
 
-.floating-notifications.background .notification-row .notification-background .close-button:hover {
-  background-color: @selected;
-  color: @on_secondary_container;
-}
-
+.floating-notifications.background .notification-row .notification-background .close-button:hover,
 .floating-notifications.background .notification-row .notification-background .close-button:active {
   background-color: @selected;
   color: @on_secondary_container;

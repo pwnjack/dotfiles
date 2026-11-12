@@ -79,11 +79,7 @@
   padding: 4px;
 }
 
-.control-center .notification-row .notification-background .close-button:hover {
-  background-color: @selected;
-  color: @on_secondary_container;
-}
-
+.control-center .notification-row .notification-background .close-button:hover,
 .control-center .notification-row .notification-background .close-button:active {
   background-color: @selected;
   color: @on_secondary_container;
