@@ -9,9 +9,12 @@
 
 sleep 0.5
 
+# shellcheck source=scripts/lib/options.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/options.sh"
+
 # 0. Random wallpaper on startup (options/randomwallpaper = enabled)
 #    waypaper --random also runs its post_command (wall.sh), so palette colours follow
-if grep -qx enabled "$HOME/.config/options/randomwallpaper" 2>/dev/null \
+if [ "$(option "$HOME/.config/options/randomwallpaper")" = enabled ] \
     && command -v waypaper >/dev/null 2>&1; then
     waypaper --random && exit 0
 fi

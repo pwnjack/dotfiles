@@ -8,9 +8,12 @@
 # runs, and the keybinds cheatsheet, which labels `$terminal` with the terminal
 # you actually use. One copy means a new variable source is taught once.
 #
-# Sourced, never executed. It defines a function and nothing else, so sourcing
+# Sourced, never executed. It defines functions and nothing else, so sourcing
 # it twice in one shell is harmless.
 #
+
+# shellcheck source=scripts/lib/options.sh
+. "${BASH_SOURCE[0]%/*}/options.sh"
 
 # hypr_var_origin <name> -> `options` or `apptype`.
 #
@@ -41,9 +44,7 @@ hypr_resolve_var() {
 
     case "$(hypr_var_origin "$name")" in
         options)
-            if [ -f "$root/options/$name" ]; then
-                value="$(head -n1 "$root/options/$name")"
-            fi
+            value=$(option "$root/options/$name")
             ;;
         *)
             if [ -f "$root/hypr/config/apptype.lua" ]; then

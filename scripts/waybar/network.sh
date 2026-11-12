@@ -46,8 +46,9 @@ NET_QUIET=$NET_LINGER
 # mode. NET_MODE overrides the file for the tests.
 BAR_OPTIONS="${BAR_OPTIONS:-$HOME/.config/options}"
 if [ -z "${NET_MODE+set}" ]; then
-    NET_MODE=''
-    read -r NET_MODE 2>/dev/null < "$BAR_OPTIONS/bar-network"
+    # shellcheck source=scripts/lib/options.sh
+    . "$(dirname "${BASH_SOURCE[0]}")/../lib/options.sh"
+    NET_MODE=$(option "$BAR_OPTIONS/bar-network")
 fi
 # Ticks between re-sends of an unchanged line. A closed stdout is only noticed
 # on a write, so an idle bar re-sends once a minute to find out.

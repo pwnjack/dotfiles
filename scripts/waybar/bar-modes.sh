@@ -29,20 +29,16 @@ options=${BAR_OPTIONS:-$HOME/.config/options}
 include=${BAR_INCLUDE:-$HOME/.local/state/waybar/bar.jsonc}
 css=${BAR_CSS:-$HOME/.local/state/waybar/bar.css}
 
-# opt <name> — first line of options/<name>, empty when missing
-opt() {
-    local v=''
-    read -r v 2>/dev/null < "$options/$1" || true
-    printf '%s' "$v"
-}
+# shellcheck source=scripts/lib/options.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/options.sh"
 
-position=$(opt bar-position)
+position=$(option "$options/bar-position")
 [[ $position == bottom ]] || position=top
-style=$(opt bar-style)
+style=$(option "$options/bar-style")
 [[ $style == docked ]] || style=floating
-border=$(opt bar-border)
+border=$(option "$options/bar-border")
 [[ $border == disabled ]] || border=enabled
-opacity=$(opt bar-opacity)
+opacity=$(option "$options/bar-opacity")
 # Matched as text, never compared as a number first: bash arithmetic wraps a
 # long enough digit string round to 0 or a negative, which would pass a <= 100
 # test and render a transparent or invalid background.
@@ -56,7 +52,7 @@ if ((opacity == 100)); then
 else
     printf -v alpha '0.%02d' "$opacity"
 fi
-output=$(opt bar-output)
+output=$(option "$options/bar-output")
 [[ $output =~ ^[A-Za-z0-9._-]+$ ]] || output=''
 
 if [[ $style == docked ]]; then
@@ -80,7 +76,7 @@ fi
 disk_tooltip='Disk {percentage_used}%\n\nUsed: {used} / {total}\nFree: {free}'
 entries=()
 for module in cpu memory disk; do
-    case $(opt "bar-$module") in
+    case $(option "$options/bar-$module") in
         high) keys='"format-normal": ""' ;;
         hidden) keys='"format-normal": "", "format-warning": "", "format-critical": ""' ;;
         *) keys='' ;;

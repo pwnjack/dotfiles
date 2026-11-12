@@ -28,13 +28,15 @@ default_font="Adwaita Sans"
 
 command -v eww >/dev/null 2>&1 || exit 0
 
+# shellcheck source=scripts/lib/options.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/options.sh"
+
 # A missing live option falls back to its tracked default: at the first login
 # the overlay sync renders options/ in the background, possibly after this runs.
-option() {
-    local value="" file="$config_dir/options/$1"
+clock_option() {
+    local file="$config_dir/options/$1"
     [ -e "$file" ] || file="$config_dir/defaults/options/$1"
-    [ -r "$file" ] && read -r value < "$file"
-    printf '%s' "$value"
+    option "$file"
 }
 
 # Fd 9 is the lock below; the daemon must not inherit it, or it would hold
@@ -61,7 +63,7 @@ start_daemon() {
 # characters falls back to the default.
 render_font() {
     local font
-    font=$(option desktop-clock-font)
+    font=$(clock_option desktop-clock-font)
     if [ -z "$font" ] || [[ "$font" == *[^[:alnum:]\ ._+-]* ]]; then
         [ -z "$font" ] || echo "desktop-clock: ignoring unsafe font name, using $default_font" >&2
         font=$default_font
@@ -87,7 +89,7 @@ ensure_colors() {
 }
 
 time_format() {
-    if [ "$(option clock)" = 12h ]; then printf '%%I:%%M %%p'; else printf '%%H:%%M'; fi
+    if [ "$(clock_option clock)" = 12h ]; then printf '%%I:%%M %%p'; else printf '%%H:%%M'; fi
 }
 
 # eww names a monitor by its model, not its connector, so options/mainmonitor
@@ -96,7 +98,7 @@ time_format() {
 # and an empty preference all leave the clock on monitor 0.
 monitor_model() {
     local preferred json model count
-    preferred=$(option mainmonitor)
+    preferred=$(clock_option mainmonitor)
     [ -n "$preferred" ] || return 0
     command -v hyprctl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1 || return 0
     json=$(hyprctl monitors -j 2>/dev/null) || return 0
@@ -148,7 +150,7 @@ reload_style() {
 }
 
 cmd_apply() {
-    if [ "$(option desktop-clock)" != enabled ]; then
+    if [ "$(clock_option desktop-clock)" != enabled ]; then
         close_clock
         return
     fi
@@ -164,7 +166,7 @@ cmd_apply() {
 }
 
 cmd_start() {
-    [ "$(option desktop-clock)" = enabled ] || return 0
+    [ "$(clock_option desktop-clock)" = enabled ] || return 0
     daemon_up && clock_open && return 0
     cmd_apply
 }

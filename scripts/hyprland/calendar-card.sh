@@ -16,6 +16,7 @@ qs_theme CALENDAR
 locale=${LC_ALL:-${LC_TIME:-${LANG:-en_US.UTF-8}}}
 export CALENDAR_ENTRY="$entry" CALENDAR_LOCALE="${locale%%.*}"
 export CALENDAR_BAR_POSITION CALENDAR_CLOCK
-CALENDAR_BAR_POSITION=$(qs_option bar-position top)
-CALENDAR_CLOCK=$(qs_option clock 24h)
+# shellcheck disable=SC2154  # config_dir is set by qs-launch.sh
+CALENDAR_BAR_POSITION=$(option "$config_dir/options/bar-position" top)
+CALENDAR_CLOCK=$(option "$config_dir/options/clock" 24h)
 qs_start

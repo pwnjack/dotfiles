@@ -9,8 +9,9 @@ real="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/apply-font.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 # A copy inside the fixture tree, so config_dir resolves to the fixture.
-mkdir -p "$tmp/.config/scripts/fonts"
+mkdir -p "$tmp/.config/scripts/fonts" "$tmp/.config/scripts/lib"
 cp "$real" "$tmp/.config/scripts/fonts/apply-font.sh"
+cp "${real%/*}/../lib/options.sh" "$tmp/.config/scripts/lib/"
 script="$tmp/.config/scripts/fonts/apply-font.sh"
 mkdir -p "$tmp/.config/options" "$tmp/.config/rofi/options" "$tmp/.config/gtk-3.0" "$tmp/bin"
 echo "Main Font" > "$tmp/.config/options/font"

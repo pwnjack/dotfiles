@@ -4,7 +4,9 @@
 # Runs the configured AUR helper update command, then flatpak (if present)
 #
 
-AURH=$(cat "$HOME/.config/options/aurhelper" 2>/dev/null)
+# shellcheck source=scripts/lib/options.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/options.sh"
+AURH=$(option "$HOME/.config/options/aurhelper")
 
 if [ -z "$AURH" ]; then
     echo "AUR Helper not found"

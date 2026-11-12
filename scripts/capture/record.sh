@@ -43,6 +43,8 @@ set -uo pipefail
 
 config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
 options_dir="${CAPTURE_OPTIONS:-$config_dir/options}"
+# shellcheck source=scripts/lib/options.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/options.sh"
 state_dir="${CAPTURE_STATE_DIR:-${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/capture}"
 videos="${CAPTURE_VIDEOS:-$HOME/Videos/Recordings}"
 recorder="${CAPTURE_RECORDER:-gpu-screen-recorder}"
@@ -66,13 +68,6 @@ glyph_timer=$'\U000F051B' glyph_rec=$'\U000F044A'
 usage() {
     echo 'usage: record.sh start [screen|window|region [WxH+X+Y]] | stop | cancel | toggle [target] | status [--json]' >&2
     exit 2
-}
-
-# option <name> <default> -> the first line of options/<name>, or the default.
-option() {
-    local value=""
-    { read -r value < "$options_dir/$1"; } 2>/dev/null
-    printf '%s' "${value:-$2}"
 }
 
 signal_bar() { pkill -x -RTMIN+11 waybar 2>/dev/null || true; }
@@ -317,7 +312,7 @@ start() {
     local target=${1-} region=${2-} monitor delay file base n audio="" rec_pid rec_since
     local -a args
     if [ -z "$target" ]; then
-        target=$(option capture-rec-target screen)
+        target=$(option "$options_dir/capture-rec-target" screen)
         case $target in screen|window|region) ;; *) target=screen ;; esac
     fi
     case $target in screen|window|region) ;; *) usage ;; esac
@@ -369,14 +364,14 @@ start() {
             args=(-w "$region") ;;
     esac
 
-    delay=$(option capture-delay 0)
+    delay=$(option "$options_dir/capture-delay" 0)
     [[ $delay =~ ^[0-9]+$ ]] && delay=$((10#$delay)) || delay=0
     cancelled=0
     (( delay > 0 )) && countdown "$delay"
 
     args+=(-c mp4 -k h264 -ac aac -f 60 -q very_high -cursor yes)
-    [ "$(option capture-audio false)" = true ] && audio=default_output
-    [ "$(option capture-mic false)" = true ] && audio+="${audio:+|}default_input"
+    [ "$(option "$options_dir/capture-audio" false)" = true ] && audio=default_output
+    [ "$(option "$options_dir/capture-mic" false)" = true ] && audio+="${audio:+|}default_input"
     [ -n "$audio" ] && args+=(-a "$audio")
     if ! mkdir -p "$videos" 2>/dev/null; then
         # After a countdown the state still says so; clear it, or the bar freezes.

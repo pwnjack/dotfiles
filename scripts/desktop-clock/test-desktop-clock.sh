@@ -21,6 +21,7 @@ mkdir -p "$home" "$cfg/options" "$cfg/scripts" "$cache" "$bin" "$state"
 cp -r "$ROOT/eww" "$cfg/eww"
 cp -r "$ROOT/scripts/desktop-clock" "$cfg/scripts/desktop-clock"
 cp -r "$ROOT/scripts/theming" "$cfg/scripts/theming"
+mkdir -p "$cfg/scripts/lib" && cp "$ROOT/scripts/lib/options.sh" "$cfg/scripts/lib/"
 
 # The stub's "daemon" and "window" are two files under $state. STUB_FAIL_SCREEN
 # makes `open --screen` fail, as eww does for a monitor it does not know.

@@ -17,10 +17,12 @@
 #
 
 config_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+# shellcheck source=scripts/lib/options.sh
+. "$config_dir/scripts/lib/options.sh"
 
 read_font() {
     local value
-    value=$(head -n1 "$config_dir/options/$1" 2>/dev/null)
+    value=$(option "$config_dir/options/$1")
     value=${value#\"}
     printf '%s' "${value%\"}"
 }

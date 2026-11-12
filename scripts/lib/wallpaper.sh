@@ -12,12 +12,15 @@
 # must never source a file the user can edit.
 #
 
+# shellcheck source=scripts/lib/options.sh
+. "${BASH_SOURCE[0]%/*}/options.sh"
+
 # wallpaper_main_monitor -> the preferred connector, or nothing.
 #
 # Every function here returns 0 when there is simply nothing to report, so a
 # caller running under `set -e` does not abort on an empty answer.
 wallpaper_main_monitor() {
-    head -n1 "${XDG_CONFIG_HOME:-$HOME/.config}/options/mainmonitor" 2>/dev/null || true
+    option "${XDG_CONFIG_HOME:-$HOME/.config}/options/mainmonitor"
 }
 
 # wallpaper_record <image> — publish <image> as the current wallpaper: the

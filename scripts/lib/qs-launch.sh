@@ -15,6 +15,8 @@ config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
 cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/${0##*/}"
 cache_dir=${cache_dir%.sh}
 qs_app=Quickshell
+# shellcheck source=scripts/lib/options.sh
+. "${BASH_SOURCE[0]%/*}/options.sh"
 
 # Neither a missing notify-send nor a closed stderr may stop it exiting 1.
 qs_fail() {
@@ -34,9 +36,6 @@ qs_launch() {
 }
 
 qs_ipc() { qs -p "$qs_entry" ipc call "$qs_target" "$@" 9>&-; }
-
-# qs_option <name> <default>: the first line of options/<name>, or the default.
-qs_option() { head -n1 "$config_dir/options/$1" 2>/dev/null || printf '%s\n' "$2"; }
 
 # qs_theme <PREFIX> [role...]: exports <PREFIX>_BACKGROUND, _FOREGROUND,
 # _ACCENT, _ON_ACCENT, one <PREFIX>_<ROLE> per extra role, and <PREFIX>_FONT.
@@ -62,7 +61,7 @@ qs_theme() {
         export "${prefix}_BACKGROUND=${wal[0]}" "${prefix}_FOREGROUND=$foreground" \
             "${prefix}_ACCENT=$accent" "${prefix}_ON_ACCENT=$on_accent" "${extra[@]}"
     fi
-    font=$(qs_option font '')
+    font=$(option "$config_dir/options/font")
     export "${prefix}_FONT=$font"
 }
 

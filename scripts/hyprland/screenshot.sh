@@ -69,7 +69,9 @@ if [ "$mode" = screen ]; then
 else
     args=(-m "$mode")
 fi
-[ "$mode" != screen ] && grep -qx true "${XDG_CONFIG_HOME:-$HOME/.config}/options/capture-freeze" 2>/dev/null && args+=(-z)
+# shellcheck source=scripts/lib/options.sh
+. "${BASH_SOURCE[0]%/*}/../lib/options.sh"
+[ "$mode" != screen ] && [ "$(option "${XDG_CONFIG_HOME:-$HOME/.config}/options/capture-freeze")" = true ] && args+=(-z)
 
 (( delay > 0 )) && sleep "$delay"
 

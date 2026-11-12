@@ -11,8 +11,9 @@ trap 'rm -rf "$tmp"' EXIT
 # config dir from its own location exactly as it does in ~/.config.
 make_tree() {
     local root=$1
-    mkdir -p "$root/scripts/state" "$root/defaults/options" "$root/defaults/gtk-3.0" "$root/defaults/swaync" "$root/options"
+    mkdir -p "$root/scripts/state" "$root/scripts/lib" "$root/defaults/options" "$root/defaults/gtk-3.0" "$root/defaults/swaync" "$root/options"
     cp "$src"/overlay.mjs "$src"/overlay-cli.mjs "$src"/overlay.sh "$src"/derived.sh "$root/scripts/state/"
+    cp "$src"/../lib/options.sh "$root/scripts/lib/"
     printf 'zen\n' > "$root/defaults/options/browser"
     printf 'nvim\n' > "$root/defaults/options/editor"
     printf '[Settings]\ngtk-theme-name=Kripton\n' > "$root/defaults/gtk-3.0/settings.ini"
@@ -192,8 +193,9 @@ ln -s ../../.cache/current_wallpaper "$hk/options/wallpaper"
 g add -A; g commit -qm old
 old=$(g rev-parse HEAD)
 g rm -q --cached options/browser options/editor
-mkdir -p "$hk/scripts/state" "$hk/defaults"
+mkdir -p "$hk/scripts/state" "$hk/scripts/lib" "$hk/defaults"
 cp "$src"/overlay.mjs "$src"/overlay-cli.mjs "$src"/overlay.sh "$src"/derived.sh "$hk/scripts/state/"
+cp "$src"/../lib/options.sh "$hk/scripts/lib/"
 mkdir -p "$hk/defaults/options"
 printf 'zen\n' > "$hk/defaults/options/browser"
 printf 'nvim\n' > "$hk/defaults/options/editor"

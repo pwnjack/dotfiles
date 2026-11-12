@@ -7,6 +7,8 @@ cal_state=${CALENDAR_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/calendar}
 cal_data=${CALENDAR_DATA:-$HOME/.local/share/calendars/icloud}
 cal_options=${CALENDAR_OPTIONS:-$HOME/.config/options}
 cal_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=scripts/lib/options.sh
+. "$cal_dir/../lib/options.sh"
 
 # cal_secret <field> — username or password from the keyring; empty when absent.
 cal_secret() { secret-tool lookup service calendar-icloud field "$1" 2>/dev/null || true; }
@@ -27,11 +29,7 @@ cal_skipped() {
 
 # cal_show_declined — true when the Calendar page's "Show declined invitations"
 # switch is on (options/calendar-declined says "enabled"). Off by default.
-cal_show_declined() {
-    local value=''
-    read -r value 2>/dev/null < "$cal_options/calendar-declined" || true
-    [[ $value == enabled ]]
-}
+cal_show_declined() { [[ $(option "$cal_options/calendar-declined") == enabled ]]; }
 
 # cal_excluded — every name khal must leave out: hidden, then skipped.
 cal_excluded() { cal_hidden; cal_skipped; }

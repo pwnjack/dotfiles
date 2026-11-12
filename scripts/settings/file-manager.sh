@@ -22,10 +22,10 @@ config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
 name=org.freedesktop.FileManager1
 target="${XDG_DATA_HOME:-$HOME/.local/share}/dbus-1/services/$name.service"
 
-fm=""
-{ read -r fm < "$config_dir/options/filemanager"; } 2>/dev/null
+# shellcheck source=scripts/lib/options.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/options.sh"
+fm=$(option "$config_dir/options/filemanager" strata)
 read -r fm _ <<< "$fm"   # the binary is the first word; the option may carry arguments
-fm="${fm:-strata}"
 
 IFS=: read -ra data_dirs <<< "${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 

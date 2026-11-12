@@ -33,20 +33,15 @@ stage=''
 trap 'rm -rf -- "$scratch" "$stage"' EXIT
 trap 'echo "generate-palette: palette generation failed" >&2; exit 1' ERR
 
+# shellcheck source=scripts/lib/options.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/options.sh"
 read_option() {
     local name=$1 default=$2 pattern=$3 value
-    local file="$config/options/$name"
-    if [ ! -f "$file" ]; then
-        printf '%s' "$default"
-        return
-    fi
-    value=$(cat -- "$file")
-    value="${value#"${value%%[![:space:]]*}"}"
-    value="${value%"${value##*[![:space:]]}"}"
+    value=$(option "$config/options/$name" "$default")
     if [[ "$value" =~ $pattern ]]; then
         printf '%s' "$value"
     else
-        printf 'generate-palette: invalid %s; using %s\n' "$file" "$default" >&2
+        printf 'generate-palette: invalid %s; using %s\n' "$config/options/$name" "$default" >&2
         printf '%s' "$default"
     fi
 }

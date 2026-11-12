@@ -21,7 +21,8 @@ esac
 
 # The option may carry arguments (scripts/settings/terminal.sh); the binary is
 # its first word.
-{ read -r term _ < "$HOME/.config/options/terminal"; } 2>/dev/null
-term=${term:-ghostty}
+# shellcheck source=scripts/lib/options.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/options.sh"
+read -r term _ <<< "$(option "$HOME/.config/options/terminal" ghostty)"
 # shellcheck disable=SC2016  # "$@" must expand in the INNER bash
 exec "$term" -e bash -c '"$@"; pkill -x -RTMIN+9 waybar' bash "${cmd[@]}"

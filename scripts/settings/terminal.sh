@@ -24,10 +24,10 @@ config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
 target="$config_dir/xdg-terminals.list"
 marker="# Written by scripts/settings/terminal.sh from options/terminal; edits are replaced."
 
-term=""
-{ read -r term < "$config_dir/options/terminal"; } 2>/dev/null
+# shellcheck source=scripts/lib/options.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/options.sh"
+term=$(option "$config_dir/options/terminal" ghostty)
 read -r term _ <<< "$term"   # the binary is the first word; the option may carry arguments
-term="${term:-ghostty}"
 
 # key <file> <key> -> the first value of <key> in [Desktop Entry]
 key() {

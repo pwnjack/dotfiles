@@ -22,8 +22,9 @@
 # The Bar page's mode (options/bar-gpu): always, high, or hidden. Read before
 # nvidia-smi so a hidden module costs one file read, not a driver probe.
 BAR_OPTIONS="${BAR_OPTIONS:-$HOME/.config/options}"
-mode=''
-read -r mode 2>/dev/null < "$BAR_OPTIONS/bar-gpu"
+# shellcheck source=scripts/lib/options.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../../scripts/lib/options.sh"
+mode=$(option "$BAR_OPTIONS/bar-gpu")
 [ "$mode" = hidden ] && exit 0
 
 command -v nvidia-smi >/dev/null 2>&1 || exit 0

@@ -49,7 +49,7 @@ mkdir -p "$TMP/docs" "$TMP/scripts/docs" "$TMP/scripts/keybinds" "$TMP/scripts/l
     "$TMP/hypr/config/software"
 cp "$GENERATOR" "$TMP/scripts/docs/"
 cp "$CHEATSHEET" "$TMP/scripts/keybinds/"
-cp "$ROOT/scripts/lib/hypr-vars.sh" "$TMP/scripts/lib/"
+cp "$ROOT/scripts/lib/hypr-vars.sh" "$ROOT/scripts/lib/options.sh" "$TMP/scripts/lib/"
 cp "$CONF" "$TMP/hypr/config/software/"
 cp "$ROOT/hypr/config/apptype.lua" "$TMP/hypr/config/"
 cp "$DOC" "$TMP/docs/keybindings.md"

@@ -11,8 +11,9 @@ status=0
 
 # Hyprlock's monitor (hypr/config/hardware/primary.conf links here); empty
 # means every monitor, as options/mainmonitor documents.
-monitor=""
-read -r monitor 2>/dev/null < "$config_dir/options/mainmonitor" || true
+# shellcheck source=scripts/lib/options.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/options.sh"
+monitor=$(option "$config_dir/options/mainmonitor")
 mkdir -p "$HOME/.local/state/hypr" || status=1
 primary="$HOME/.local/state/hypr/primary.conf"
 line="\$monitor =${monitor:+ $monitor}"

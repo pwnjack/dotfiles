@@ -12,8 +12,9 @@ trap 'rm -rf "$TMP"' EXIT
 # screenshot.sh runs from a copy of the tree, so its read-text.sh is the
 # stand-in below: it logs what the capture pipes to it, and reads nothing real.
 SHOT="$TMP/tree/hyprland/screenshot.sh"
-mkdir -p "$TMP/tree/hyprland" "$TMP/tree/capture"
+mkdir -p "$TMP/tree/hyprland" "$TMP/tree/capture" "$TMP/tree/lib"
 cp "$TEST_DIR/screenshot.sh" "$SHOT"
+ln -s "$TEST_DIR/../lib/options.sh" "$TMP/tree/lib/options.sh"
 ln -s "$TEST_DIR/../capture/toast.sh" "$TMP/tree/capture/toast.sh"
 cat > "$TMP/tree/capture/read-text.sh" <<'EOF'
 #!/bin/bash

@@ -78,6 +78,8 @@ KERNEL="${UPDATES_KERNEL:-$(uname -r)}"
 MODULES="${UPDATES_MODULES_DIR:-/usr/lib/modules}"
 DB="${UPDATES_DB:-${TMPDIR:-/tmp}/checkup-db-${UID}}"
 AURHELPER_FILE="${UPDATES_AURHELPER:-$HOME/.config/options/aurhelper}"
+# shellcheck source=scripts/lib/options.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/options.sh"
 CACHE="${UPDATES_CACHE_DIR:-$(pacman-conf CacheDir 2>/dev/null | head -n1)}"
 CACHE="${CACHE%/}"
 LOCK="$DB.lock"
@@ -110,7 +112,7 @@ owners=""
 
 aur_cmd="${UPDATES_AUR_CMD-}"
 if [ -z "${UPDATES_AUR_CMD+set}" ]; then
-    aur_cmd=$(awk 'NR==1 {print $1}' "$AURHELPER_FILE" 2>/dev/null)
+    read -r aur_cmd _ <<< "$(option "$AURHELPER_FILE")"
 fi
 aur=""
 if [ -n "$aur_cmd" ] && command -v "$aur_cmd" >/dev/null 2>&1; then

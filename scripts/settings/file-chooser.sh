@@ -16,10 +16,10 @@ name=org.freedesktop.impl.portal.desktop.strata
 portal="$data_dir/xdg-desktop-portal/portals/strata.portal"
 service="$data_dir/dbus-1/services/$name.service"
 
-fm=""
-{ read -r fm < "$config_dir/options/filemanager"; } 2>/dev/null
+# shellcheck source=scripts/lib/options.sh
+. "${BASH_SOURCE[0]%/*}/../lib/options.sh"   # no dirname: the tests run this on a PATH of stubs
+fm=$(option "$config_dir/options/filemanager" strata)
 read -r fm _ <<< "$fm"   # the binary is the first word; ignore option arguments
-fm="${fm:-strata}"
 
 binary=""
 binary=$(command -v strata 2>/dev/null) || binary=""

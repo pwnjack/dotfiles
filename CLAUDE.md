@@ -69,7 +69,7 @@ Lives in its own repository, `~/Developer/agent-harness` (github.com/pwnjack/age
 
 ### Scripts (`scripts/`)
 
-Bash; check for command existence before running; read preferences from `options/`. One concern per directory (`docs/internals/scripts.md`).
+Bash; check for command existence before running; read preferences from `options/` through `scripts/lib/options.sh`. One concern per directory (`docs/internals/scripts.md`).
 
 ### API keys
 

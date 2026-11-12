@@ -34,8 +34,9 @@ ICON=$'\U000f06b0'   # Nerd Font, Material Design: update (󰚰)
 # The Bar page's mode (options/bar-updates): pending, or hidden. Hidden
 # returns before the planner, whose checkupdates syncs a DB over the network.
 BAR_OPTIONS="${BAR_OPTIONS:-$HOME/.config/options}"
-mode=''
-read -r mode 2>/dev/null < "$BAR_OPTIONS/bar-updates"
+# shellcheck source=scripts/lib/options.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/options.sh"
+mode=$(option "$BAR_OPTIONS/bar-updates")
 [ "$mode" = hidden ] && exit 0
 
 # The update card's run state (scripts/updates/updates-run.sh writes it).

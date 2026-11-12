@@ -14,9 +14,10 @@ runtime=${CALENDAR_RUNTIME_DIR:-${XDG_RUNTIME_DIR:-/tmp}/calendar}
 options=${CALENDAR_OPTIONS:-$HOME/.config/options}
 icon=$'\U000F00ED'
 empty() { echo '{"text":"","class":"empty"}'; exit 0; }
+# shellcheck source=scripts/lib/options.sh
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/options.sh"
 
-mode=soon
-read -r mode 2>/dev/null < "$options/bar-agenda" || true
+mode=$(option "$options/bar-agenda" soon)
 case $mode in soon|today|next) ;; hidden) empty ;; *) mode=soon ;; esac
 [[ -r $runtime/agenda.json ]] || empty
 
@@ -43,7 +44,7 @@ IFS=$'\x1f' read -r kind start end all_day title calendar location < <(jq -r \
 # Pango markup: the bar text and the tooltip are both parsed as markup.
 esc() { local t=${1//&/"&amp;"}; t=${t//</"&lt;"}; printf '%s' "${t//>/"&gt;"}"; }
 fmt='%H:%M'
-[[ $(cat "$options/clock" 2>/dev/null) == 12h ]] && fmt='%I:%M %p'
+[[ $(option "$options/clock") == 12h ]] && fmt='%I:%M %p'
 short=$title
 (( ${#short} > 24 )) && short="${short:0:23}…"
 short=$(esc "$short")
