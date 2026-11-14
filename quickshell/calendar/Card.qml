@@ -78,8 +78,10 @@ FocusScope {
         events: card.peekEvents
         heading: card.peekHeading
         readonly property point at: card.peekAnchor ? card.peekAnchor.mapToItem(card, 0, card.peekAnchor.height) : Qt.point(0, 0)
-        // Below the row, or above it when the bottom of the card is too near (a bar at the bottom).
-        readonly property bool above: card.peekAnchor !== null && at.y + card.px(4) + height > card.height
+        objectName: "peekTip"
+        // Below the row, or above it when the window ends first (a bar at the bottom). The window, not
+        // the card: a short card under a top bar has room below it, and none above.
+        readonly property bool above: card.peekAnchor !== null && at.y + card.px(4) + height > card.parent.height - card.y
         x: Math.max(0, Math.min(card.width - width, at.x))
         y: above ? at.y - card.peekAnchor.height - height - card.px(4) : at.y + card.px(4)
     }

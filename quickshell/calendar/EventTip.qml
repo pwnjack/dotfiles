@@ -39,6 +39,7 @@ Rectangle {
                 Text { text: tip.span(modelData); color: tip.card.c.accent; font.family: tip.card.c.monoFont; font.pixelSize: tip.card.px(12.5) }
                 Text { visible: text !== ""; text: [modelData.calendar, modelData.location].filter(s => s).join(" · ")
                     color: tip.card.dim; font.family: tip.card.c.monoFont; font.pixelSize: tip.card.px(12); elide: Text.ElideRight
+                    maximumLineCount: 1   // a two-line location (place, address): elide needs one line
                     Layout.maximumWidth: tip.card.px(220) }
             }
         }

@@ -593,6 +593,38 @@ Item {
             controller.agenda = [];
             controller.state = Model.transition(Model.CLOSED, "clock");
         }
+        // A preview taller than the card below its row still opens below while the window has room
+        // (it was flipped above and off the top of the screen); above only when the window ends first.
+        function test_preview_opens_where_the_window_has_room() {
+            const events = [];
+            for (let i = 0; i < 14; i++) events.push({ title: "E" + i, calendar: "Home", color: "", location: "", allDay: true, startEpoch: 1, endEpoch: 2 });
+            const row = find("monthName");
+            card.showTip(row, events);
+            const tip = find("peekTip");
+            waitForRendering(card);
+            const bottom = row.mapToItem(card, 0, row.height).y;
+            verify(bottom + tip.height > card.height, "precondition: the tip must overflow the card below its row");
+            verify(!tip.above, "flipped above with " + (host.height - card.y - bottom) + " px of window below");
+            verify(tip.y >= bottom, "the tip covers its row");
+            card.y = host.height - card.height;          // the card against the window's bottom edge
+            verify(tip.above, "opened below past the window's bottom");
+            card.y = 0;
+        }
+        // An Apple Maps location is two lines (place, then address): Qt elides only a single line,
+        // so the tip shows the first and never paints past its own edge.
+        function test_a_two_line_location_stays_inside_the_preview() {
+            card.showTip(find("monthName"), [{ title: "Visit", calendar: "Personale", color: "", allDay: true, startEpoch: 1, endEpoch: 2,
+                location: "Ematologia - Dipartimento di medicina translazionale e di precisione\nVia Benevento 6, 00161 Roma, Italia" }]);
+            const tip = find("peekTip");
+            waitForRendering(card);
+            const texts = [];
+            (function walk(item) { for (const c of item.children) { if (c.text !== undefined && c.visible) texts.push(c); walk(c); } })(tip);
+            verify(texts.length >= 3);
+            for (const t of texts) {
+                const right = t.mapToItem(tip, 0, 0).x + t.paintedWidth;
+                verify(right <= tip.width, "'" + t.text.slice(0, 20) + "' paints to x=" + right + " in a " + tip.width + " px tip");
+            }
+        }
         function test_hover_peek_for_a_day_outside_the_agenda_asks_the_controller() {
             card.peekDay(find("monthName"), "2026-12-01");
             compare(controller.peekFor, "2026-12-01");
