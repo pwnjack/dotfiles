@@ -55,6 +55,7 @@ Item {
         function showYear() { state = Object.assign({}, state, { year: true }); }
         property int lastShift: 0; property int lastMonth: -1
         property string peekFor: ""; property var peekEvents: []
+        readonly property string calSh: "/cal.sh"
         function pickMonth(m) { lastMonth = m; }
         function shiftMonth(d) { lastShift = d; Controller.shiftMonth(controller, d); }
         function shiftYear(d) { lastShift = d; Controller.shiftYear(controller, d); }
@@ -904,6 +905,59 @@ Item {
             // What readerDone stores when the requested month arrives.
             const b = Object.assign({}, controller.busy); b["2026-11"] = [5]; controller.busy = b;
             verify(findChild(find("startPicker"), "dot-2026-11-5").visible, "no busy dot for the requested month");
+        }
+        // The shell's readers, through the same controller.js functions: one cal.sh at
+        // a time, only the newest request queued, each reply stored under the key it echoes.
+        function test_a_reader_runs_one_request_and_queues_only_the_newest() {
+            const r = { verb: "month", running: false, queued: "", command: [] };
+            Controller.startReader(controller, r, "2026-10");
+            verify(r.running);
+            compare(r.command.slice(4), ["/cal.sh", "2026-10", "month"]);
+            Controller.startReader(controller, r, "2026-11");
+            Controller.startReader(controller, r, "2026-12");
+            compare(r.queued, "2026-12", "the newest request waits");
+            compare(r.command[5], "2026-10", "a running read was replaced");
+            r.running = false;
+            Controller.startReader(controller, r, r.queued);     // the shell's onRunningChanged
+            compare(r.command[5], "2026-12");
+            compare(r.queued, "");
+        }
+        function test_month_and_year_replies_land_under_their_echoed_key() {
+            Controller.readerDone(controller, "month", '2026-10\n{"busy":[3,5]}');
+            compare(controller.busy["2026-10"], [3, 5], "stored under the key it echoes");
+            Controller.readerDone(controller, "month", '2026-09\n{"ok":false,"error":"x"}');
+            compare(controller.busy["2026-09"], [], "a failed read is an empty month");
+            compare(controller.busy["2026-10"], [3, 5], "another month survives");
+            Controller.readerDone(controller, "year", '2026\n{"counts":[1,2,3,4,5,6,7,8,9,10,11,12]}');
+            compare(controller.counts["2026"].length, 12);
+            Controller.readerDone(controller, "year", '2025\n{"counts":[1,2]}');
+            compare(controller.counts["2025"], [], "a short year is empty");
+            Controller.readerDone(controller, "month", "no newline");
+            compare(Object.keys(controller.busy).length, 2, "a reply without its key line is ignored");
+        }
+        function test_day_replies_only_for_a_day_a_view_shows() {
+            const ev = '[{"title":"A"}]';
+            Controller.readerDone(controller, "day", "2026-10-14\n" + ev);
+            compare(controller.dayFor, "", "a day no view shows was stored");
+            controller.state = Object.assign({}, controller.state, { day: "2026-10-14" });
+            Controller.readerDone(controller, "day", "2026-10-15\n" + ev);
+            compare(controller.dayFor, "", "a superseded day was stored");
+            Controller.readerDone(controller, "day", "2026-10-14\n" + ev);
+            compare(controller.dayFor, "2026-10-14");
+            compare(controller.dayEvents[0].title, "A");
+            controller.state = Model.openSheet(controller.state);
+            controller.draft = Model.newDraft(1000, controller.defaults(), "2026-10-20");
+            Controller.readerDone(controller, "day", "2026-10-20\nnot json");
+            compare(controller.dayFor, "2026-10-20", "the sheet's start day is a shown day");
+            compare(controller.dayEvents, [], "an unreadable day is empty");
+        }
+        function test_only_the_newest_peek_is_kept() {
+            controller.peekFor = "2026-12-01";
+            Controller.readerDone(controller, "peek", '2026-11-30\n[{"title":"Old"}]');
+            compare(controller.peekEvents, []);
+            Controller.readerDone(controller, "peek", '2026-12-01\n[{"title":"New"}]');
+            compare(controller.peekEvents[0].title, "New");
+            compare(controller.dayFor, "", "a peek never becomes the selected day");
         }
         // A new draft replaces the fields of the last one, even while the sheet is already showing.
         function test_a_new_draft_replaces_the_fields_of_the_last_one() {

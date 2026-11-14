@@ -51,10 +51,6 @@ ShellRoot {
     property int viewYear: new Date().getFullYear()
     property int viewMonth: new Date().getMonth()
 
-    // The helpers print {"ok":false,"error":…} on failure; anything that is not
-    // the expected array reads as empty rather than throwing.
-    function asArray(value) { return Array.isArray(value) ? value : []; }
-
     function act(action) {
         const before = state;
         const next = Model.transition(state, action);
@@ -157,30 +153,11 @@ ShellRoot {
             calendar: writable.some(c => c.name === wanted) ? wanted : (writable.length ? writable[0].name : ""),
         };
     }
-    function readAgenda() { try { agenda = asArray(JSON.parse(agendaFile.text())); } catch (e) { agenda = []; } }
+    function readAgenda() { try { agenda = Controller.asArray(JSON.parse(agendaFile.text())); } catch (e) { agenda = []; } }
     function readStatus() { try { status = JSON.parse(statusFile.text()); } catch (e) { status = null; } }
-    // A reader runs one cal.sh verb at a time. The request's key is echoed on the
-    // first output line, so a result is stored under the key it was asked for,
-    // whatever was requested while it ran; the newest request runs when it ends.
-    function startReader(reader, key) {
-        if (reader.running) { reader.queued = key; return; }
-        reader.queued = "";
-        reader.command = ["bash", "-c", 'printf "%s\\n" "$2"; "$1" "$3" "$2"', "bash", calSh, key, reader.verb];
-        reader.running = true;
-    }
-    function readerDone(verb, text) {
-        const cut = text.indexOf("\n");
-        if (cut < 0) return;
-        const key = text.slice(0, cut), body = text.slice(cut + 1);
-        if (verb === "month") { const b = Object.assign({}, busy); b[key] = parseBusy(body); busy = b; }
-        else if (verb === "year") { const c = Object.assign({}, counts); c[key] = parseCounts(body); counts = c; }
-        else if (verb === "peek") { if (key === peekFor) peekEvents = asArray(parseJson(body)); }   // only the newest hover's day is kept
-        else if (key === state.day || (state.sheet && draft && key === draft.startDay)) { dayEvents = asArray(parseJson(body)); dayFor = key; }   // a day neither view shows is dropped
-    }
-    // The helpers print {"ok":false,"error":…} on failure: any other shape reads as empty.
-    function parseJson(body) { try { return JSON.parse(body); } catch (e) { return null; } }
-    function parseBusy(body) { const r = parseJson(body); return r && Array.isArray(r.busy) ? r.busy : []; }
-    function parseCounts(body) { const r = parseJson(body); return r && Array.isArray(r.counts) && r.counts.length === 12 ? r.counts : []; }
+    // The month, year, day, picker and peek readers: controller.js decides.
+    function startReader(reader, key) { Controller.startReader(root, reader, key); }
+    function readerDone(verb, text) { Controller.readerDone(root, verb, text); }
     function loadMonth() {
         startReader(monthReader, viewYear + "-" + String(viewMonth + 1).padStart(2, "0"));
     }

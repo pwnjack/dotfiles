@@ -144,3 +144,30 @@ function shiftYear(c, delta) {
     invalidate(c);
     c.loadYear();
 }
+
+// The helpers print {"ok":false,"error":…} on failure: any other shape reads as
+// empty rather than throwing.
+function asArray(value) { return Array.isArray(value) ? value : []; }
+function parseJson(body) { try { return JSON.parse(body); } catch (e) { return null; } }
+function parseBusy(body) { const r = parseJson(body); return r && Array.isArray(r.busy) ? r.busy : []; }
+function parseCounts(body) { const r = parseJson(body); return r && Array.isArray(r.counts) && r.counts.length === 12 ? r.counts : []; }
+
+// A reader (shell.qml's Process with verb and queued) runs one cal.sh verb at a
+// time. The request's key is echoed on the first output line, so a result is
+// stored under the key it was asked for, whatever was requested while it ran;
+// the newest request runs when it ends.
+function startReader(c, reader, key) {
+    if (reader.running) { reader.queued = key; return; }
+    reader.queued = "";
+    reader.command = ["bash", "-c", 'printf "%s\\n" "$2"; "$1" "$3" "$2"', "bash", c.calSh, key, reader.verb];
+    reader.running = true;
+}
+function readerDone(c, verb, text) {
+    const cut = text.indexOf("\n");
+    if (cut < 0) return;
+    const key = text.slice(0, cut), body = text.slice(cut + 1);
+    if (verb === "month") { const b = Object.assign({}, c.busy); b[key] = parseBusy(body); c.busy = b; }
+    else if (verb === "year") { const n = Object.assign({}, c.counts); n[key] = parseCounts(body); c.counts = n; }
+    else if (verb === "peek") { if (key === c.peekFor) c.peekEvents = asArray(parseJson(body)); }   // only the newest hover's day is kept
+    else if (key === c.state.day || (c.state.sheet && c.draft && key === c.draft.startDay)) { c.dayEvents = asArray(parseJson(body)); c.dayFor = key; }   // a day neither view shows is dropped
+}
