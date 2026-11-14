@@ -33,9 +33,14 @@ mkdir -p "$bin_fixture/hypr/config/software" \
 # be implausible as real binaries.
 echo "bash" > "$bin_fixture/options/terminal"
 echo "absent-browser-qq" > "$bin_fixture/options/browser"
+echo "  Bibata  " > "$bin_fixture/options/cursortheme"
 
 cat > "$bin_fixture/hypr/config/apptype.lua" <<'BIN_EOF'
 return {
+    terminal = read_option("terminal", "absent-fallback-qq"),
+    browser = read_option("browser", "absent-fallback-qq"),
+    editor = read_option("editor", "cat"), -- no options/editor: the fallback
+    cursorTheme = read_option("cursortheme", "absent-fallback-qq"),
     fileManager = "ls",
     calculator = "cat",
     polkitAgent = "absent-polkit-qq",
@@ -82,6 +87,10 @@ assert_eq "$(_bin_resolve_var fileManager)" "ls" "\$fileManager resolves from ap
 assert_eq "$(_bin_resolve_var calculator)" "cat" "\$calculator resolves from apptype.lua"
 assert_eq "$(_bin_resolve_var polkitAgent)" "absent-polkit-qq" "\$polkitAgent resolves from apptype.lua"
 assert_eq "$(_bin_resolve_var undefinedVariable)" "" "unknown variable resolves to empty"
+assert_eq "$(_bin_resolve_var editor)" "cat" "\$editor falls back as apptype.lua does without its option"
+assert_eq "$(_bin_resolve_var cursorTheme)" "Bibata" "an option file named unlike its key resolves, trimmed"
+assert_eq "$(hypr_var_option cursorTheme "$bin_fixture")" "cursortheme" "hypr_var_option names the file apptype.lua reads"
+assert_eq "$(hypr_var_option fileManager "$bin_fixture" || echo none)" "none" "a literal is not option-backed"
 
 # --- findings -----------------------------------------------------------
 bin_out_file="$DOCTOR_TEST_TMP/bin-out"
@@ -147,6 +156,7 @@ mkdir -p "$bin_clean_fixture/hypr/config/software" \
          "$bin_clean_fixture/hypr/config/setup" \
          "$bin_clean_fixture/options"
 echo "bash" > "$bin_clean_fixture/options/terminal"
+printf 'return {\n    terminal = read_option("terminal", "foot"),\n}\n' > "$bin_clean_fixture/hypr/config/apptype.lua"
 printf 'hl.bind("SUPER + RETURN", hl.dsp.exec_cmd(apps.terminal))\nhl.bind("SUPER + S", hl.dsp.exec_cmd("cat"))\n' \
     > "$bin_clean_fixture/hypr/config/software/keybinds.lua"
 printf 'hl.exec_cmd("env")\n' > "$bin_clean_fixture/hypr/config/setup/autostart.lua"

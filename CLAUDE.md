@@ -93,7 +93,7 @@ Bash; check for command existence before running; read preferences from `options
 - Every window and workspace bind carries `Super`. On arrows: `Super` focuses, `+ Shift` moves, `+ Alt` resizes, `+ Ctrl` switches workspace. Keep new nav binds on it.
 - `.gitignore` is a whitelist: tracking a new config means adding its `!/<entry>` line. Never track what a program writes itself (app state, lock files, caches).
 - `scripts/keybinds/keybinds-sheet.sh` is the one parser of `keybinds.lua`; never hand-write rows. Each one-line `hl.bind(...)` carries a trailing `--` label; `tst_Overlay` fails if the overlay would elide it, so shorten the label.
-- `docs/keybindings.md` is **generated** by `scripts/docs/generate-keybindings.sh`: never hand-edit it, and regenerate after touching `keybinds.lua`. `scripts/lib/hypr-vars.sh` owns which variables stay unresolved; do not restate that list.
+- `docs/keybindings.md` is **generated** by `scripts/docs/generate-keybindings.sh`: never hand-edit it, and regenerate after touching `keybinds.lua`. `scripts/lib/hypr-vars.sh` derives which variables stay unresolved from `apptype.lua`; never write that list by hand.
 - Doctor checks derive every target from tracked files; never hand-write a list of paths, binaries or packages.
 - Check modules never run loops in a pipeline (`cmd | while read`): use `while read ...; do ... done < <(cmd)`. The harness fails the suite on it.
 - Use `git ls-files -z` with `while IFS= read -r -d ''`, never plain `git ls-files`.

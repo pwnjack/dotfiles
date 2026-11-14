@@ -126,15 +126,15 @@ _mods_display() {
 # their terminal is exactly right; docs/keybindings.md is committed and read by
 # everyone, where "ghostty" would freeze one machine's preference into the repo
 # as though it were fixed. Naming the file instead is true on every checkout,
-# and it is what the reader has to edit anyway. Variables from apptype.lua are
-# tracked config and identical on every checkout, so those still resolve.
+# and it is what the reader has to edit anyway. A literal in apptype.lua is
+# tracked config and identical on every checkout, so that still resolves.
 _expand_vars() {
-    local text="$1" out="" name value rest
+    local text="$1" out="" name value rest file
     while [[ "$text" =~ ^([^$]*)\$([A-Za-z_][A-Za-z0-9_]*)(.*)$ ]]; do
         name="${BASH_REMATCH[2]}"
         rest="${BASH_REMATCH[3]}"
-        if [ "$mode" = "--markdown" ] && [ "$(hypr_var_origin "$name")" = "options" ]; then
-            value="\`options/$name\`"
+        if [ "$mode" = "--markdown" ] && file="$(hypr_var_option "$name" "$root")"; then
+            value="\`options/$file\`"
         else
             value="$(hypr_resolve_var "$name" "$root")"
         fi

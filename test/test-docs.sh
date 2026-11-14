@@ -149,11 +149,10 @@ while IFS= read -r name; do
         frozen+=("$name: the document names '$value' instead of options/$name")
     fi
 done < <(
-    # apptype.lua's read_option() calls, kept to the names hypr_var_origin owns.
-    sed -n 's/^[[:space:]]*\([a-z]*\)[[:space:]]*=[[:space:]]*read_option("\1".*/\1/p' \
-        "$ROOT/hypr/config/apptype.lua" |
+    # The options/ file behind every $variable a keybind label names.
+    grep -oE '\$[A-Za-z_][A-Za-z0-9_]*' "$ROOT/hypr/config/software/keybinds.lua" | sort -u |
         while IFS= read -r candidate; do
-            [ "$(hypr_var_origin "$candidate")" = options ] && printf '%s\n' "$candidate"
+            hypr_var_option "${candidate#\$}" "$ROOT" && printf '\n'
         done
 )
 

@@ -3,10 +3,11 @@
 # Resolution of application names referenced by the Lua configuration.
 #
 # Anything that reads a config line afterwards has to resolve the application
-# table the same way. Two things do:
-# the doctor's binary check, which needs to know the command a keybind really
-# runs, and the keybinds cheatsheet, which labels `$terminal` with the terminal
-# you actually use. One copy means a new variable source is taught once.
+# table the same way. Three things do: the doctor's binary and default-app
+# checks, which need the command a keybind or an export really runs, and the
+# keybinds cheatsheet, which labels `$terminal` with the terminal you use.
+# Every answer is parsed from hypr/config/apptype.lua, so a new entry there is
+# picked up with no list to update here.
 #
 # Sourced, never executed. It defines functions and nothing else, so sourcing
 # it twice in one shell is harmless.
@@ -15,47 +16,36 @@
 # shellcheck source=scripts/lib/options.sh
 . "${BASH_SOURCE[0]%/*}/options.sh"
 
-# hypr_var_origin <name> -> `options` or `apptype`.
-#
-# Which of the two sources below defines the variable. Split out so the list of
-# options-backed names exists once: hypr_resolve_var needs it to know where to
-# read, and the cheatsheet's markdown mode needs it to know which values are a
-# per-user preference rather than a repo constant. A second copy of this list
-# would be a second source of truth.
-hypr_var_origin() {
-    case "$1" in
-        terminal|browser|editor|codeeditor|filemanager) printf 'options' ;;
-        *)                                              printf 'apptype' ;;
-    esac
+# _hypr_apptype_line <name> <root> -> apptype.lua's `name = …` line, or 1.
+_hypr_apptype_line() {
+    local line
+    line=$(grep -E "^[[:space:]]*$1[[:space:]]*=" "$2/hypr/config/apptype.lua" 2>/dev/null | head -n 1)
+    [ -n "$line" ] && printf '%s' "$line"
+}
+
+# hypr_var_option <name> <root> -> the options/ file apptype.lua reads for
+# `name` (cursorTheme -> cursortheme), or 1 when `name` is not option-backed.
+hypr_var_option() {
+    local line
+    line=$(_hypr_apptype_line "$1" "$2") || return 1
+    [[ $line =~ read_option\(\"([^\"]+)\" ]] || return 1
+    printf '%s' "${BASH_REMATCH[1]}"
 }
 
 # hypr_resolve_var <name> <root> -> value on stdout, empty when undefined.
 #
-# `name` is the bare variable name, without the leading `$`. Two sources, in
-# the order the config itself establishes them:
+# `name` is the bare variable name, without the leading `$`, as apptype.lua
+# spells it:
 #
-#   terminal, browser, editor,  apptype.lua reads options/<name> at parse
-#   codeeditor, filemanager     time, so the option file is the value.
-#   everything else             hypr/config/apptype.lua, `name = "value"`.
-#
-# Comments are stripped at the first `#`, which is Hyprland's own rule.
+#   name = read_option("file", "fallback")   options/file, else the fallback,
+#                                            exactly as the Lua reads it
+#   name = "value"                           the literal
 hypr_resolve_var() {
-    local name="$1" root="$2" value=""
-
-    case "$(hypr_var_origin "$name")" in
-        options)
-            value=$(option "$root/options/$name")
-            ;;
-        *)
-            if [ -f "$root/hypr/config/apptype.lua" ]; then
-                value="$(sed -n "s/^[[:space:]]*${name}[[:space:]]*=[[:space:]]*\"\([^\"]*\)\".*/\1/p" \
-                    "$root/hypr/config/apptype.lua" | head -n1)"
-            fi
-            ;;
-    esac
-
-    # Trim surrounding whitespace.
-    value="${value#"${value%%[![:space:]]*}"}"
-    value="${value%"${value##*[![:space:]]}"}"
-    printf '%s' "$value"
+    local line
+    line=$(_hypr_apptype_line "$1" "$2") || return 0
+    if [[ $line =~ read_option\(\"([^\"]+)\"(,[[:space:]]*\"([^\"]*)\")? ]]; then
+        option "$2/options/${BASH_REMATCH[1]}" "${BASH_REMATCH[3]}"
+    elif [[ $line =~ =[[:space:]]*\"([^\"]*)\" ]]; then
+        printf '%s' "${BASH_REMATCH[1]}"
+    fi
 }

@@ -20,6 +20,9 @@
 # Whether the options themselves name installed programs is check_binaries'
 # job, through the keybinds that launch them.
 
+# shellcheck source=../../lib/hypr-vars.sh
+source "${BASH_SOURCE[0]%/*}/../../lib/hypr-vars.sh"
+
 # Desktop entry directories in lookup order (the user's first), and the config
 # directory xdg-terminal-exec reads its lists from.
 DOCTOR_APPS_DIRS="${DOCTOR_APPS_DIRS:-${XDG_DATA_HOME:-$HOME/.local/share}/applications:$(printf '%s' "${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" | sed 's#\(:\|$\)#/applications\1#g')}"
@@ -72,14 +75,11 @@ _def_value_word() {
     _def_word "$value"
 }
 
-# _def_option <key> -> the options/ value apptype.lua gives apps.<key>
+# _def_option <key> -> the options/ value apptype.lua gives apps.<key>, or 1
+# when that entry is not option-backed.
 _def_option() {
-    local line name fallback
-    line="$(grep -E "^[[:space:]]*$1[[:space:]]*=[[:space:]]*read_option\(" "$DOCTOR_ROOT/hypr/config/apptype.lua" 2>/dev/null | head -n 1)"
-    [ -n "$line" ] || return 1
-    name="$(printf '%s' "$line" | sed -E 's/.*read_option\("([^"]*)".*/\1/')"
-    fallback="$(printf '%s' "$line" | sed -nE 's/.*read_option\("[^"]*",[[:space:]]*"([^"]*)"\).*/\1/p')"
-    printf '%s\n' "$(option "$DOCTOR_ROOT/options/$name" "$fallback")"
+    hypr_var_option "$1" "$DOCTOR_ROOT" >/dev/null || return 1
+    hypr_resolve_var "$1" "$DOCTOR_ROOT"
 }
 
 # _def_entry <desktop id> -> the path of the entry that answers to it. An ID's
