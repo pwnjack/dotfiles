@@ -25,7 +25,6 @@ return function(apps)
     hl.bind("SUPER + Q", hl.dsp.window.close()) -- Close window
     hl.bind("SUPER + W", hl.dsp.window.close()) -- Close window
     hl.bind("SUPER + SHIFT + Q", hl.dsp.exit()) -- Exit Hyprland
-    hl.bind("ALT + F4", hl.dsp.window.close()) -- Close window
     hl.bind("SUPER + V", hl.dsp.window.float()) -- Toggle floating
     hl.bind("SUPER + F", hl.dsp.window.fullscreen()) -- Toggle fullscreen
     hl.bind("SUPER + SHIFT + F", hl.dsp.window.fullscreen({ mode = "maximized" })) -- Fullscreen without gaps

@@ -44,7 +44,6 @@ on every checkout.
 |-----|--------|
 | `Super + Q/W` | Close window |
 | `Super + Shift + Q` | Exit Hyprland |
-| `Alt + F4` | Close window |
 | `Super + V` | Toggle floating |
 | `Super + F` | Toggle fullscreen |
 | `Super + Shift + F` | Fullscreen without gaps |
