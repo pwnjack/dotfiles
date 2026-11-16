@@ -385,6 +385,8 @@ assert.equal(model.glide(0.9996, 1, 0.016), 1)
     assert.equal(model.tooltip({ state: 'blocked', icon: 'U', reason: 'pacman cannot resolve this upgrade; a & b' }),
         ['U  <b>Updates need a terminal</b>', '', '  pacman cannot resolve this upgrade; a &amp; b', '',
          dim('Click: details')].join('\n'))
+    assert.match(model.tooltip({ state: 'blocked', icon: 'U', reason: "pacman cannot resolve this upgrade: installing a: b" }),
+        /\n  pacman cannot resolve this upgrade\n\n/, 'the conflict detail stays on the card')
 }
 
 // Opening view: a held lock is a run; an unseen finished run shows its result

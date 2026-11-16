@@ -172,9 +172,10 @@ card showed; the bar keeps an unseen restart or attention class until
   updates" and `paru -Qua` is unreliable. The plan accepts checkupdates only as
   0 or 2 and ignores the AUR helper's and Flatpak's status. The plan itself
   exits 1 when the check failed (the bar hides) and 3 when `pacman -Sup`
-  cannot resolve the upgrade (the bar shows its glyph with "Updates need a
-  terminal" and pacman's first `::` conflict line); the card shows either as
-  an error. Both run the planner, so they
+  cannot resolve the upgrade. The card shows exit 1 as an error; exit 3 it
+  titles "Updates need a terminal", as the bar's tooltip does, with pacman's
+  first `::` conflict line and the pacman terminal path (the tooltip keeps
+  only the short reason). Both run the planner, so they
   share the private `CHECKUPDATES_DB` through the planner's `flock`, and
   `pacman -Sup --dbpath <that dir> --print-format '%n %s %l'` works without
   root.

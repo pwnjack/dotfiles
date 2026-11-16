@@ -348,7 +348,8 @@ export function glide(shown, targetValue, dtSeconds) {
 //   snap     state.json (running may be null; restart and attention)
 //   pct      the bar's percentage (running)
 //   checked  "HH:MM" of the check, formatted by the caller (pending)
-//   reason   the planner's stderr line (blocked)
+//   reason   the planner's stderr line (blocked); the tooltip keeps what precedes
+//            its first ": ", so pacman's conflict detail stays on the card
 // No destructuring defaults and no spread: QML's V4 engine imports this file.
 const RESTART_GLYPH = String.fromCodePoint(0xf0709)
 
@@ -397,7 +398,7 @@ export function tooltip(input) {
         break
     }
     case 'blocked':
-        lines = [heading(icon, 'Updates need a terminal'), '', `  ${escapeHtml(input.reason || '')}`, '', dim('Click: details')]
+        lines = [heading(icon, 'Updates need a terminal'), '', `  ${escapeHtml((input.reason || '').split(': ')[0])}`, '', dim('Click: details')]
         break
     default:
         lines = [heading(icon, plural(planCount(plan), 'update')), ''].concat(planRows(plan))
