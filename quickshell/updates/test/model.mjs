@@ -243,6 +243,12 @@ assert.deepEqual(model.summary(null), { title: 'Checking for updates…', subtit
     assert.equal(model.summary({ repo: [], aur: [{ name: 'c' }], bytes: 0, kernel: false }).canUpdate, false)
     assert.equal(model.summary({ repo: [], aur: [], bytes: 0, kernel: false }).title, 'Up to date')
     assert.equal(model.summary(null, 'checkupdates failed').title, 'Could not check for updates')
+    assert.equal(model.summary(null, 'checkupdates failed').terminal, '', 'a failed check offers no terminal')
+    assert.deepEqual(model.summary(null, 'poppler conflict', true), {
+        title: 'Updates need a terminal', subtitle: 'poppler conflict',
+        count: 0, repo: 0, canUpdate: false, note: '', terminal: 'pacman', busy: false,
+    })
+    assert.equal(model.summary(plan, '', true).title, '3 updates', 'blocked means nothing without an error')
     assert.equal(model.summary(null, 'x').busy, false)
     assert.equal(model.summary({ repo: [], aur: [], bytes: 0, kernel: false }).busy, false)
     assert.equal(model.summary(plan).busy, false)

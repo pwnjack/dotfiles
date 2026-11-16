@@ -201,8 +201,10 @@ export function duration(seconds) {
 // ① Summary copy. `plan` is updates-plan.sh's JSON, null while it loads.
 // `terminal` names the terminal.sh path the card links to when Update cannot
 // cover everything: AUR (update.sh also runs Flatpak), or Flatpak on its own.
-export function summary(plan, error = '') {
+export function summary(plan, error = '', blocked = false) {
     const idle = (title, subtitle, busy = false) => ({ title, subtitle, count: 0, repo: 0, canUpdate: false, note: '', terminal: '', busy })
+    // blocked: the check worked but pacman cannot resolve the upgrade (planner exit 3).
+    if (error && blocked) return Object.assign(idle('Updates need a terminal', error), { terminal: 'pacman' })
     if (error) return idle('Could not check for updates', error)
     if (!plan) return idle('Checking for updates…', 'Syncing package databases', true)
     const repo = plan.repo.length, aur = plan.aur.length, flatpak = plan.flatpak || 0

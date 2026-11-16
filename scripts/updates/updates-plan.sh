@@ -97,8 +97,14 @@ esac
 
 sizes=""
 if [ -n "$repo" ]; then
-    plist=$(LC_ALL=C pacman -Sup --dbpath "$DB" --print-format '%n %s %l' 2>/dev/null) ||
-        { rm -f -- "$SAVED"; fail "pacman cannot resolve this upgrade; update in a terminal" 3; }
+    if ! plist=$(LC_ALL=C pacman -Sup --dbpath "$DB" --print-format '%n %s %l' 2>/dev/null); then
+        # On failure pacman's stdout names the conflict in `::` lines, e.g.
+        # "installing poppler (26.11.0-1) breaks dependency 'poppler=26.10.0' required by poppler-glib".
+        detail=$(sed -n 's/^:: //p' <<< "$plist" | head -n1)
+        rm -f -- "$SAVED"
+        [ -n "$detail" ] && fail "pacman cannot resolve this upgrade: $detail" 3
+        fail "pacman cannot resolve this upgrade; update in a terminal" 3
+    fi
     while read -r name size location; do
         [ -n "$name" ] || continue
         [[ "$size" =~ ^[0-9]+$ ]] || continue

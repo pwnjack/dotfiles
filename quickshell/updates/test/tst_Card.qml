@@ -23,6 +23,7 @@ Item {
             aur: [{ name: "spotblock-git", old: "1-1", new: "2-1" }], bytes: 115867648, kernel: false })
         property var plan: fullPlan
         property string planError: ""
+        property bool planBlocked: false
         property bool refreshing: false
         property double clock: 100000
         property var run: null
@@ -55,6 +56,7 @@ Item {
             controller.reboots = 0;
             controller.plan = controller.fullPlan;
             controller.planError = "";
+            controller.planBlocked = false;
             controller.refreshing = false;
             controller.lastTerminal = "";
             card.forceActiveFocus();
@@ -168,6 +170,18 @@ Item {
             mouseClick(link);
             compare(controller.lastTerminal, "flatpak");
             compare(controller.starts, 0);
+        }
+        // An unresolvable upgrade names itself and offers pacman in a terminal.
+        function test_blockedHasTerminalPath() {
+            controller.plan = null;
+            controller.planError = "pacman cannot resolve this upgrade: x";
+            controller.planBlocked = true;
+            compare(card.activeView.info.title, "Updates need a terminal");
+            verify(!card.activeView.canUpdate);
+            const link = findChild(card, "terminalLink");
+            tryVerify(() => link.visible, 1000);
+            mouseClick(link);
+            compare(controller.lastTerminal, "pacman");
         }
         function test_escapeCloses() {
             keyClick(Qt.Key_Escape);

@@ -173,7 +173,8 @@ card showed; the bar keeps an unseen restart or attention class until
   0 or 2 and ignores the AUR helper's and Flatpak's status. The plan itself
   exits 1 when the check failed (the bar hides) and 3 when `pacman -Sup`
   cannot resolve the upgrade (the bar shows its glyph with "Updates need a
-  terminal"); the card shows either as an error. Both run the planner, so they
+  terminal" and pacman's first `::` conflict line); the card shows either as
+  an error. Both run the planner, so they
   share the private `CHECKUPDATES_DB` through the planner's `flock`, and
   `pacman -Sup --dbpath <that dir> --print-format '%n %s %l'` works without
   root.

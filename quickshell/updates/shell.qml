@@ -35,6 +35,7 @@ ShellRoot {
     property string mode: "summary"     // summary | running | result
     property var plan: null
     property string planError: ""
+    property bool planBlocked: false   // planner exit 3: pacman cannot resolve the upgrade
     // A saved plan is shown and a new check runs behind it.
     property bool refreshing: false
     property double clock: Date.now() / 1000   // epoch s, for "Checked 4 min ago"
@@ -118,6 +119,7 @@ ShellRoot {
         run = null;
         plan = null;
         planError = "";
+        planBlocked = false;
         refreshing = false;
         clock = Date.now() / 1000;
         probeLock(held => root.decide(held));
@@ -246,6 +248,7 @@ ShellRoot {
             const reason = planErr.text.trim().split("\n").pop();
             if (exitCode !== 0) {
                 root.planError = reason || "The update check failed (exit " + exitCode + ").";
+                root.planBlocked = exitCode === 3;
                 return;
             }
             try {
@@ -281,6 +284,7 @@ ShellRoot {
                 opened: root.opened, mode: root.mode, expanded: root.expanded,
                 pending: root.plan ? root.plan.repo.length + root.plan.aur.length + (root.plan.flatpak || 0) : -1,
                 planError: root.planError,
+                planBlocked: root.planBlocked,
                 refreshing: root.refreshing,
                 checkedAt: root.plan && typeof root.plan.checkedAt === "number" ? root.plan.checkedAt : -1,
                 run: root.run ? { status: root.run.status, progress: root.run.progress, line: root.run.line } : null,

@@ -8,7 +8,7 @@ Column {
     id: view
     required property var card
     required property var controller
-    readonly property var info: Model.summary(controller.plan, controller.planError)
+    readonly property var info: Model.summary(controller.plan, controller.planError, controller.planBlocked)
     readonly property bool canUpdate: info.canUpdate
     readonly property int rowHeight: card.px(24)
     readonly property real listHeight: Math.min(list.count * rowHeight + 2, card.px(214))

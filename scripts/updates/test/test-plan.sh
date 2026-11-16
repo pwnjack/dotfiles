@@ -99,7 +99,16 @@ UPDATES_REPO_CMD=nosuchcheckupdates fails "checkupdates missing" "not installed"
 
 stub checkupdates 'echo "mesa 1-1 -> 2-1"; exit 0'
 stub pacman 'exit 1'
-fails "pacman -Sup failure" "pacman cannot resolve" 3
+fails "pacman -Sup failure" "pacman cannot resolve this upgrade; update in a terminal" 3
+
+# Measured: pacman prints the error on stderr and the `::` conflicts on stdout.
+stub pacman 'echo "error: failed to prepare transaction (could not satisfy dependencies)" >&2
+echo ":: installing poppler (2-1) breaks dependency '"'poppler=1'"' required by poppler-glib"
+echo ":: second conflict"; exit 1'
+fails "pacman -Sup conflict" "pacman cannot resolve this upgrade: installing poppler (2-1) breaks dependency 'poppler=1' required by poppler-glib" 3
+err=$(run 2>&1 >/dev/null)
+assert_eq "$err" "pacman cannot resolve this upgrade: installing poppler (2-1) breaks dependency 'poppler=1' required by poppler-glib" \
+    "only the first conflict, as one line"
 
 stub pacman 'case "$1" in
   -Sup) printf "%s\n" "mesa 100 https://m/mesa.pkg" "junk notanumber https://m/junk.pkg" ;;
