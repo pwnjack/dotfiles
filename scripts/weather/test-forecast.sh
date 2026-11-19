@@ -20,7 +20,7 @@ CACHE="$TMP/cache"
 SAVED="$CACHE/weather-popover/forecast.json"
 mkdir -p "$TMP/bin" "$CACHE"
 # What Open-Meteo sends: the fixture without the two keys the script adds.
-jq -c 'del(.location, .fetchedAt)' "$FIXTURE" > "$TMP/answer"
+jq -c 'del(.location, .place, .fetchedAt)' "$FIXTURE" > "$TMP/answer"
 
 # CURL_MODE picks the answer: ok, down (curl's own failure), nodays, garbage.
 cat > "$TMP/bin/curl" <<EOF
@@ -45,7 +45,7 @@ run() {
     echo $? > "$TMP/status"
 }
 
-BERLIN='{"text":"8.5°C","location":"52.52,13.41"}'
+BERLIN='{"text":"8.5°C","tooltip":"Berlin, Germany\nLight rain","location":"52.52,13.41"}'
 
 echo "forecast.sh"
 
@@ -57,6 +57,7 @@ out=$(run)
 assert_eq "$(run_status)" 0 "a fetch exits 0"
 assert_json_field "$out" .location "52.52,13.41" "the forecast names its location"
 assert_json_field "$out" ".fetchedAt >= $before" true "and when it was fetched"
+assert_json_field "$out" .place "Berlin, Germany" "and the bar's name for the place"
 assert_json_field "$out" '.daily.time | length' 7 "with Open-Meteo's seven days"
 assert_eq "$(cat "$SAVED")" "$out" "the saved copy is what was printed"
 call=$(tail -n 1 "$TMP/calls")
@@ -66,7 +67,8 @@ assert_contains "$call" "--max-time 10" "with a time limit"
 assert_not_contains "$call" "temperature_unit" "in Celsius while the bar reads Celsius"
 
 bar '{"text":"47.3°F","location":"52.52,13.41"}'
-run >/dev/null
+out=$(run)
+assert_json_field "$out" .place "" "a reading without a tooltip gives an empty place"
 assert_contains "$(tail -n 1 "$TMP/calls")" "&temperature_unit=fahrenheit" "in Fahrenheit when the bar reads Fahrenheit"
 
 # --- the saved copy -----------------------------------------------------------

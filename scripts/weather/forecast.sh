@@ -10,7 +10,8 @@
 # but the place it was for is still the best known.
 #
 # Exit status: 0 with the forecast on stdout, which is Open-Meteo's answer plus
-# "location" and "fetchedAt" (epoch seconds), saved as
+# "location", "place" (the first line of the bar's tooltip, its name for the
+# location) and "fetchedAt" (epoch seconds), saved as
 # $XDG_CACHE_HOME/weather-popover/forecast.json. Otherwise one reason line on
 # stderr, no JSON, exit 1, and the saved copy stays as it was.
 #
@@ -58,11 +59,12 @@ url+='&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_pr
 url+=$unit
 
 answer=$(curl -fsS --max-time 10 "$url" 2>/dev/null) || fail 'No connection to Open-Meteo.'
-forecast=$(jq -ce --arg location "$location" --argjson now "$(date +%s)" '
+place=$(jq -r '.tooltip | strings | split("\n")[0]' "$bar" 2>/dev/null) || place=''
+forecast=$(jq -ce --arg location "$location" --arg place "$place" --argjson now "$(date +%s)" '
     select((.current | type) == "object"
         and (.hourly.time | arrays | length) > 0
         and (.daily.time | arrays | length) > 0)
-    | .location = $location | .fetchedAt = $now' <<< "$answer" 2>/dev/null) \
+    | .location = $location | .place = $place | .fetchedAt = $now' <<< "$answer" 2>/dev/null) \
     || fail 'Open-Meteo sent no forecast.'
 
 # Replaced by rename, so the card never reads half a file. A cache that cannot
