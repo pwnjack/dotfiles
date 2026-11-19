@@ -300,7 +300,11 @@
    content (see RHYTHM: the 15px edges are 5px margin + 10px padding). It
    comes on at once and fades out, like a desktop menu bar. The tray and the
    workspace dots light their own items. A recording's red pill keeps its
-   colour. */
+   colour.
+
+   A custom module is matched through its parent: since Waybar 0.16 the
+   hover state is set on an unnamed box around the label that carries
+   #custom-<name>, and GTK does not pass that state down to the label. */
 
 #taskbar button,
 #clock,
@@ -327,23 +331,23 @@
 
 #taskbar button:hover,
 #clock:hover,
-#custom-agenda:hover,
-#custom-weather:hover,
-#custom-nightlight:hover,
-#custom-settings:hover,
+box:hover > #custom-agenda,
+box:hover > #custom-weather,
+box:hover > #custom-nightlight,
+box:hover > #custom-settings,
 #cpu:hover,
 #memory:hover,
-#custom-gpu:hover,
+box:hover > #custom-gpu,
 #disk:hover,
-#custom-updates:hover,
-#custom-network:hover,
-#custom-battery:hover,
+box:hover > #custom-updates,
+box:hover > #custom-network,
+box:hover > #custom-battery,
 #bluetooth:hover,
 #pulseaudio:hover,
-#custom-media:hover,
-#custom-recording.countdown:hover,
-#custom-sidebar:hover,
-#custom-power:hover {
+box:hover > #custom-media,
+box:hover > #custom-recording.countdown,
+box:hover > #custom-sidebar,
+box:hover > #custom-power {
     background: alpha(@foreground, 0.12);
     transition: none;
 }
