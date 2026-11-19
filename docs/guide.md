@@ -128,6 +128,14 @@ region, `Super + Alt + S` captures one straight into swappy, and the capture str
 land in `~/Pictures/Screenshots` with an `_annotated` suffix. swappy reports
 success by closing, which means you can save *or* copy one annotation, not both.
 
+The **weather** beside the clock shows the condition and temperature now; its
+tooltip adds wind, humidity, pressure and the sun times. Left-click opens the
+weather card: the next 21 hours in 3-hour steps and seven days, each with its
+low and high on one scale. The card opens on the last forecast and asks
+Open-Meteo for a new one only when that is older than 15 minutes. The place
+is the one the bar's `waybar-weather` service found; to set it by hand, put
+`<city>,<country>` in `~/.config/waybar-weather/cityname`.
+
 The **pending-updates module** sits right after the CPU, memory, GPU and disk
 readouts and appears only when repository, AUR or Flatpak updates exist — the
 module showing up is the notification. Left-click opens the update card, which
@@ -167,7 +175,7 @@ own special workspace; its API key comes from `~/.config/.env` (see below).
 ### Idle efficiency
 
 The settings panel, wallpaper carousel, keybindings overlay, capture bar,
-calendar card and update card are launched on demand and exit when closed, so none keeps a UI
+calendar card, update card and weather card are launched on demand and exit when closed, so none keeps a UI
 runtime resident. The desktop clock's eww daemon runs only while the clock is
 on, and the time costs no process per tick. The workspace dots are a native
 Waybar module that listens to Hyprland's event socket instead of polling.

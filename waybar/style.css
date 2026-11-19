@@ -295,7 +295,7 @@
 
 /* ── HOVER ───────────────────────────────────────────────────────────
    One pill for everything that answers a click, and nothing else: the
-   window title and the weather have no click, so they never light. Only the
+   window title has no click, so it never lights. Only the
    background changes, so nothing moves; every pill sits 10px around its
    content (see RHYTHM: the 15px edges are 5px margin + 10px padding). It
    comes on at once and fades out, like a desktop menu bar. The tray and the
@@ -305,6 +305,7 @@
 #taskbar button,
 #clock,
 #custom-agenda,
+#custom-weather,
 #custom-nightlight,
 #custom-settings,
 #cpu,
@@ -327,6 +328,7 @@
 #taskbar button:hover,
 #clock:hover,
 #custom-agenda:hover,
+#custom-weather:hover,
 #custom-nightlight:hover,
 #custom-settings:hover,
 #cpu:hover,

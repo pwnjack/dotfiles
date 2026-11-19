@@ -213,10 +213,12 @@
     "format": "{}",
     // Continuous: the wrapper keeps waybar-weather running and streams each
     // update, so there is no "interval". restart-interval only revives it.
+    // A click opens the weather card.
     "exec": "~/.config/waybar/waybar-weather-wrapper.sh",
     "return-type": "json",
     "restart-interval": 60,
     "tooltip": true,
+    "on-click": "~/.config/scripts/hyprland/weather-popover.sh",
   },
 
   // Resources
