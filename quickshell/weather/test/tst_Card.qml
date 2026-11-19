@@ -82,7 +82,7 @@ Item {
         function test_forecast() {
             compare(card.width, 372, "the update card's width, at 1:1");
             compare(part("title").text, "Light rain");
-            compare(part("place").text, "Berlin");
+            compare(part("place").text, "Berlin, Germany");
             compare(part("detail").text, "feels like 6°");
             compare(part("temp").text, "8°");
             compare(part("slots").count, 8);
@@ -174,13 +174,35 @@ Item {
             compare(part("days").itemAt(1).day.label, "ven");
             controller.locale = Qt.locale("en_US");
         }
-        // A long name is cut so that how it feels stays whole, inside the header.
+        // A name too long with its country is shown as the city alone, whole.
+        function test_countryGivesWay() {
+            const far = host.sample();
+            far.place = "Berlin, Federal Republic of Germany";
+            controller.forecast = far;
+            const place = part("place"), detail = part("detail");
+            compare(place.text, "Berlin");
+            verify(!place.truncated && !detail.truncated);
+            // The same line beside a two-digit temperature, as in the card's own font:
+            // 28 characters must still fit.
+            const near = host.sample();
+            near.place = "Rome, Italy";
+            near.current.temperature_2m = 15.4;
+            near.current.apparent_temperature = 16.2;
+            controller.forecast = near;
+            compare(part("temp").text, "15°");
+            compare(detail.text, "feels like 16°");
+            compare(place.text, "Rome, Italy");
+            verify(!place.truncated && !detail.truncated);
+        }
+        // A long city is cut so that how it feels stays whole, inside the header.
         function test_longPlace() {
             const far = host.sample();
             far.place = "Llanfairpwllgwyngyllgogerychwyrndrobwll, Wales";
             far.current.temperature_2m = -10.4;
             controller.forecast = far;
             const place = part("place"), detail = part("detail"), temp = part("temp");
+            // The row places its children a frame after their widths change.
+            wait(50);
             verify(place.truncated, "the name is cut");
             verify(!detail.truncated, "the feeling is whole");
             const end = detail.mapToItem(card, detail.width, 0).x, start = temp.mapToItem(card, 0, 0).x;

@@ -74,8 +74,11 @@ is: `The bar has no location yet.`, `No connection to Open-Meteo.` or
 - **The unit follows the bar.** `forecast.sh` asks for Fahrenheit only when
   the bar's cached text contains `°F`, and a saved copy in the other unit is
   not shown.
-- **Under the title the city alone is shown** (the part of `place` before the
-  first comma). A long name is cut; how it feels never is.
+- **Under the title the place gives way, never the feeling.** The bar's
+  "City, Country" is shown whole when it fits beside the temperature, the city
+  alone (the part before the first comma) when it does not, and a cut city as
+  the last resort. That line is 12 px, a pixel under the update card's, so
+  that an eleven-letter name still fits beside a two-digit temperature.
 - **Hour labels and sun times follow `options/clock`**; weekday names follow
   the session locale, as the calendar card's do.
 - **Glyphs are written as `\u{…}` escapes** in `model.mjs`, never typed.

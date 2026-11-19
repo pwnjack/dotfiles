@@ -22,7 +22,7 @@ const near = (actual, expected, label) => assert.ok(Math.abs(actual - expected) 
 {
     const v = view()
     assert.equal(v.title, 'Light rain')
-    assert.deepEqual([v.place, v.detail], ['Berlin', 'feels like 5°'])
+    assert.deepEqual([v.place, v.city, v.detail], ['Berlin, Germany', 'Berlin', 'feels like 5°'])
     assert.equal(v.glyph, RAIN)
     assert.equal(v.temp, '8°')
     assert.equal(v.note, 'Updated just now')
@@ -88,7 +88,7 @@ const near = (actual, expected, label) => assert.ok(Math.abs(actual - expected) 
     assert.equal(v.title, 'Mainly clear')
     assert.equal(v.glyph, NIGHT)
     assert.equal(v.temp, '3°')
-    assert.deepEqual([v.place, v.detail], ['Berlin', ''])
+    assert.deepEqual([v.place, v.detail], ['Berlin, Germany', ''])
     assert.deepEqual(column(v.hours, 'label'), ['Now', '00', '03', '06', '09', '12', '15', '18'])
     assert.equal(v.hours[0].temp, '3°')
     assert.equal(v.sun, 'Sunrise 07:36 · Sunset 16:06')
@@ -113,7 +113,7 @@ const near = (actual, expected, label) => assert.ok(Math.abs(actual - expected) 
 {
     const old = view({ now: NOW + 8 * DAY, phase: 'failed', reason: 'No connection to Open-Meteo.' })
     assert.equal(old.title, 'No forecast')
-    assert.deepEqual([old.place, old.detail], ['', 'No connection to Open-Meteo.'])
+    assert.deepEqual([old.place, old.city, old.detail], ['', '', 'No connection to Open-Meteo.'])
     assert.deepEqual([old.temp, old.hours, old.days, old.sun, old.note, old.warn], ['', [], [], '', '', false])
     assert.equal(old.glyph, CLOUD)
     // The last day ends at its own midnight, not when the list does.
@@ -152,11 +152,13 @@ const near = (actual, expected, label) => assert.ok(Math.abs(actual - expected) 
     const bare = JSON.parse(JSON.stringify(forecast)); delete bare.place
     assert.deepEqual([view({ forecast: bare }).place, view({ forecast: bare }).detail], ['', 'Feels like 5°'])
     assert.equal(view({ forecast: bare, now: NOW + DAY }).detail, '')
-    // The bar names a place "City, Country"; a place with no city keeps what it has.
-    const named = place => view({ forecast: Object.assign({}, forecast, { place }) }).place
-    assert.equal(named('San Pedro de Atacama, Chile'), 'San Pedro de Atacama')
-    assert.equal(named(', Italy'), 'Italy')
-    assert.equal(named('Berlin'), 'Berlin')
+    // The bar names a place "City, Country": the whole name, and the city for
+    // when the whole does not fit. A name with no city is its own city.
+    const named = place => { const v = view({ forecast: Object.assign({}, forecast, { place }) }); return [v.place, v.city] }
+    assert.deepEqual(named('San Pedro de Atacama, Chile'), ['San Pedro de Atacama, Chile', 'San Pedro de Atacama'])
+    assert.deepEqual(named(', Italy'), ['Italy', 'Italy'])
+    assert.deepEqual(named('Berlin'), ['Berlin', 'Berlin'])
+    assert.deepEqual(named('  Rome ,  Italy '), ['Rome ,  Italy', 'Rome'])
 }
 
 // Conditions: day and night glyphs, and a code this table does not know.

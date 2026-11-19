@@ -107,22 +107,29 @@ FocusScope {
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
                     }
-                    // The place gives way to what follows it: a long name is
-                    // cut, how it feels never is. A reason with no place
-                    // before it has the whole width and may take two lines.
+                    // The place gives way to what follows it: "City, Country"
+                    // when that fits, the city alone when it does not, and a
+                    // cut city last. How it feels is never cut. A reason with
+                    // no place before it has the whole width and two lines.
+                    // 12 px, a pixel under the update card's subtitle: at 13
+                    // an eleven-letter "City, Country" no longer fits beside a
+                    // two-digit temperature.
                     Row {
+                        id: under
+                        readonly property real room: Math.max(0, width - dot.implicitWidth - detail.implicitWidth)
                         width: parent.width
                         visible: place.text !== "" || detail.text !== ""
+                        TextMetrics { id: whole; font: place.font; text: card.info.place }
                         Text {
                             id: place
                             objectName: "place"
                             visible: text !== ""
-                            width: Math.min(implicitWidth, Math.max(0, parent.width - dot.implicitWidth - detail.implicitWidth))
-                            text: card.info.place
+                            width: Math.min(implicitWidth, under.room)
+                            text: whole.advanceWidth <= under.room ? card.info.place : card.info.city
                             elide: Text.ElideRight
                             color: card.dim
                             font.family: card.monoFont
-                            font.pixelSize: card.px(12.5)
+                            font.pixelSize: card.px(12)
                         }
                         Text {
                             id: dot
@@ -130,7 +137,7 @@ FocusScope {
                             text: " · "
                             color: card.dim
                             font.family: card.monoFont
-                            font.pixelSize: card.px(12.5)
+                            font.pixelSize: card.px(12)
                         }
                         Text {
                             id: detail
@@ -143,7 +150,7 @@ FocusScope {
                             elide: Text.ElideRight
                             color: card.dim
                             font.family: card.monoFont
-                            font.pixelSize: card.px(12.5)
+                            font.pixelSize: card.px(12)
                         }
                     }
                 }

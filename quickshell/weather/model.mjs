@@ -173,8 +173,9 @@ function contents(forecast, now, clock, am, pm, dayNames) {
     }
 }
 
-// Everything the card draws. Under the title, `place` may be cut short and
-// `detail` (how it feels, or why there is no forecast) never is. `phase` is "updating" while a request is under
+// Everything the card draws. Under the title, `place` gives way to `city`
+// and then to an ellipsis when there is no room, and `detail` (how it feels,
+// or why there is no forecast) is never cut. `phase` is "updating" while a request is under
 // way, "ready" after one answered and "failed" after one did not; `reason` is
 // forecast.sh's line for a failure. `dayNames` holds seven short names,
 // Sunday first; `am` and `pm` are the locale's markers.
@@ -186,22 +187,23 @@ export function view(input) {
         const waiting = phase === 'updating'
         return {
             title: waiting ? 'Weather' : 'No forecast',
-            place: '',
+            place: '', city: '',
             detail: waiting ? 'Loading the forecast…' : input.reason || 'The saved forecast is too old.',
             glyph: CLOUD, temp: '', hours: [], days: [], sun: '', note: '', warn: false,
         }
     }
-    // The bar's name for the place is "City, Country" and the card has room
-    // for the city. A name with no city before the comma is shown as it is.
-    const named = typeof forecast.place === 'string' ? forecast.place.replace(/^[,\s]+/, '') : ''
-    const place = named.split(',')[0].trim()
+    // The bar's name for the place is "City, Country". The card shows all of
+    // it when it fits and `city` alone when it does not. A name with no city
+    // before the comma is its own city.
+    const place = typeof forecast.place === 'string' ? forecast.place.replace(/^[,\s]+/, '').trim() : ''
+    const city = place.split(',')[0].trim()
     const feels = shown.feels ? 'feels like ' + shown.feels : ''
     const updated = isNumber(forecast.fetchedAt) ? 'updated ' + age(forecast.fetchedAt, now) : ''
     let note = updated.charAt(0).toUpperCase() + updated.slice(1)
     if (phase === 'updating') note = 'Updating…'
     else if (phase === 'failed') note = updated ? 'Offline · ' + updated : 'Offline'
     return {
-        title: shown.title, place: place, glyph: shown.glyph, temp: shown.temp,
+        title: shown.title, place: place, city: city, glyph: shown.glyph, temp: shown.temp,
         // After the place it reads on in lower case; alone it starts the line.
         detail: place ? feels : feels.charAt(0).toUpperCase() + feels.slice(1),
         hours: shown.hours, days: shown.days, sun: shown.sun,
