@@ -68,7 +68,7 @@ for (const name of ['routine', 'kernel', 'conflict', 'midfail', 'busy', 'sudo', 
     assert.equal(s.line, 'Arming ConditionNeedsUpdate')
 }
 
-// The status line: download text carries sizes and a smoothed rate. The
+// The status line carries sizes, the subtitle a smoothed rate. The
 // first sample at t=0 must count as a baseline.
 {
     let s = model.initialState(0)
@@ -77,7 +77,9 @@ for (const name of ['routine', 'kernel', 'conflict', 'midfail', 'busy', 'sudo', 
     s = model.foldLine(s, '@@bytes 0', 0)
     s = model.foldLine(s, '@@bytes 10485760', 1000)
     assert.equal(s.key, 'download')
-    assert.equal(s.line, 'Downloading · 10 MiB of 400 MiB · 10.0 MiB/s')
+    assert.equal(s.line, 'Downloading · 10 MiB of 400 MiB')
+    assert.equal(model.runningSubtitle({ ...model.snapshot(s), total: 32 }), '32 packages · 10.0 MiB/s')
+    assert.equal(model.runningSubtitle(model.snapshot(model.foldLine(s, ':: Processing package changes...', 2000))), '')
 }
 
 // Pre-transaction hook lines show their description without moving the bar.

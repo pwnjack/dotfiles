@@ -44,12 +44,15 @@ function enter(s, phase, key, line) {
 }
 
 function downloadLine(s) {
-    const rate = s.rate >= 0.05 * UNITS.MiB ? ` · ${(s.rate / UNITS.MiB).toFixed(1)} MiB/s` : ''
-    return s.totalBytes ? `Downloading · ${mib(s.bytes)} of ${mib(s.totalBytes)}${rate}` : `Downloading${rate}`
+    return s.totalBytes ? `Downloading · ${mib(s.bytes)} of ${mib(s.totalBytes)}` : 'Downloading'
+}
+// The rate sits in the card's subtitle: the status line elided it.
+function speed(s) {
+    return s.phase === 'download' && s.rate >= 0.05 * UNITS.MiB ? `${(s.rate / UNITS.MiB).toFixed(1)} MiB/s` : ''
 }
 
 // @@bytes: bytes added to the package cache so far, sampled every 0.5 s by
-// the helper. The rate is smoothed so the status line does not flicker.
+// the helper. The rate is smoothed so the subtitle does not flicker.
 function foldBytes(s, bytes, nowMs) {
     if (s.sampleAt >= 0 && nowMs > s.sampleAt) {
         const instant = Math.max(0, (bytes - s.sampleBytes) / ((nowMs - s.sampleAt) / 1000))
@@ -179,7 +182,7 @@ export function snapshot(s) {
         status: status(s), phase: s.phase, key: s.key, line: s.line,
         progress: Math.round(s.progress * 10000) / 10000,
         done: s.total ? Math.min(s.done, s.total) : s.done, total: s.total,
-        bytes: s.bytes, totalBytes: s.totalBytes,
+        bytes: s.bytes, totalBytes: s.totalBytes, speed: speed(s),
         error: s.error, detail: s.detail || (s.error ? s.fetchFail : ''), errorKind: errorKind(s),
         restart: s.restart, nothing: s.nothing,
         startedAt: s.startedAt, finishedAt: s.finishedAt,
@@ -260,7 +263,7 @@ export function openingMode(held, snap, ack) {
 
 // ② Running copy. `run` is a state.json snapshot, null until the runner reports.
 export function runningSubtitle(run) {
-    return run && run.total ? `${run.total} packages` : ''
+    return run ? [run.total && `${run.total} packages`, run.speed].filter(Boolean).join(' · ') : ''
 }
 export function runningLine(run) { return run ? run.line : 'Starting…' }
 export function runningKey(run) { return run ? run.key : 'start' }
