@@ -172,7 +172,8 @@ function contents(forecast, now, clock, am, pm, dayNames) {
     }
 }
 
-// Everything the card draws. `phase` is "updating" while a request is under
+// Everything the card draws. Under the title, `place` may be cut short and
+// `detail` (how it feels, or why there is no forecast) never is. `phase` is "updating" while a request is under
 // way, "ready" after one answered and "failed" after one did not; `reason` is
 // forecast.sh's line for a failure. `dayNames` holds seven short names,
 // Sunday first; `am` and `pm` are the locale's markers.
@@ -184,19 +185,24 @@ export function view(input) {
         const waiting = phase === 'updating'
         return {
             title: waiting ? 'Weather' : 'No forecast',
-            subtitle: waiting ? 'Loading the forecast…' : input.reason || 'The saved forecast is too old.',
+            place: '',
+            detail: waiting ? 'Loading the forecast…' : input.reason || 'The saved forecast is too old.',
             glyph: CLOUD, temp: '', hours: [], days: [], sun: '', note: '', warn: false,
         }
     }
-    const place = typeof forecast.place === 'string' ? forecast.place : ''
+    // The bar's name for the place is "City, Country" and the card has room
+    // for the city. A name with no city before the comma is shown as it is.
+    const named = typeof forecast.place === 'string' ? forecast.place.replace(/^[,\s]+/, '') : ''
+    const place = named.split(',')[0].trim()
     const feels = shown.feels ? 'feels like ' + shown.feels : ''
-    const subtitle = place && feels ? place + ' · ' + feels : place || feels.charAt(0).toUpperCase() + feels.slice(1)
     const updated = isNumber(forecast.fetchedAt) ? 'updated ' + age(forecast.fetchedAt, now) : ''
     let note = updated.charAt(0).toUpperCase() + updated.slice(1)
     if (phase === 'updating') note = 'Updating…'
     else if (phase === 'failed') note = updated ? 'Offline · ' + updated : 'Offline'
     return {
-        title: shown.title, subtitle: subtitle, glyph: shown.glyph, temp: shown.temp,
+        title: shown.title, place: place, glyph: shown.glyph, temp: shown.temp,
+        // After the place it reads on in lower case; alone it starts the line.
+        detail: place ? feels : feels.charAt(0).toUpperCase() + feels.slice(1),
         hours: shown.hours, days: shown.days, sun: shown.sun,
         note: note, warn: phase === 'failed',
     }
