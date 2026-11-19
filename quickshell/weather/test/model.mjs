@@ -59,6 +59,17 @@ const near = (actual, expected, label) => assert.ok(Math.abs(actual - expected) 
     assert.equal(view({ forecast: cold }).days[0].dot, 0)
 }
 
+// Rain that began after the hour's forecast was made: the first slot shows
+// what the header shows, and the later slots keep their own forecast.
+{
+    const wet = JSON.parse(JSON.stringify(forecast))
+    wet.hourly.weather_code[0] = 3
+    const v = view({ forecast: wet })
+    assert.equal(v.glyph, RAIN)
+    assert.equal(v.hours[0].glyph, RAIN)
+    assert.equal(v.hours[2].glyph, CLOUD)
+}
+
 // The three phases over a forecast.
 {
     assert.equal(view({ phase: 'updating' }).note, 'Updating…')

@@ -27,6 +27,10 @@
 # a line "@<latitude>,<longitude>". That line never reaches the bar: it is
 # moved into the reading's "location" key, which Waybar ignores and the
 # weather card's scripts/weather/forecast.sh reads from the cache below.
+# A user's own ~/.config/waybar-weather/config.* is left in charge instead:
+# the service reads either that or -config, never both, and overriding it
+# would change their units and templates. The card then has a location only
+# if their tooltip ends with the same line.
 #
 
 TEXT_MAP='{"☀":"󰖙","☁":"󰖐","⛅":"󰖕","🌤":"󰖕","⛈":"󰙾","🌩":"󰖓","🌫":"󰖑","🌦":"󰖗","🌧":"󰖖","🌨":"󰖘","🌑":"󰖔","🌒":"󰖔","🌓":"󰖔","🌔":"󰖔","🌕":"󰖔","🌖":"󰖔","🌗":"󰖔","🌘":"󰖔","🌙":"󰖔"}'
@@ -79,7 +83,9 @@ render() {
 
 # The service is the wrapper's child, and goes with it: waybar stops the
 # module on every reload, and an orphaned service would keep polling.
-exec {weather}< <(exec waybar-weather -config "${BASH_SOURCE[0]%/*}/weather.toml" 2>/dev/null)
+config=(-config "${BASH_SOURCE[0]%/*}/weather.toml")
+if compgen -G "${XDG_CONFIG_HOME:-$HOME/.config}/waybar-weather/config.*" >/dev/null; then config=(); fi
+exec {weather}< <(exec waybar-weather "${config[@]}" 2>/dev/null)
 service=$!
 tmp=''
 trap 'kill "$service" 2>/dev/null; rm -f "$tmp"' EXIT

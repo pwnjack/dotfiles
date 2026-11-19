@@ -5,8 +5,9 @@
 # Standalone, exit 1 on any failure. The wrapper runs as a subprocess, as
 # Waybar runs it, with a stub `waybar-weather` first on PATH that prints one
 # reading and exits; the wrapper then prints its "stopped" line and ends. A
-# stub `ip` answers the default-route probe, and the cache lives in a
-# temporary directory, so neither the network nor the user's reading is used.
+# stub `ip` answers the default-route probe, and the cache and config
+# directories are temporary, so neither the network nor the user's reading or
+# service configuration is used.
 #
 set -uo pipefail
 
@@ -36,7 +37,8 @@ chmod +x "$TMP/bin/ip" "$TMP/bin/waybar-weather"
 run() {
     printf '{"text":"☀️ 8.5°C","tooltip":"%s","class":["waybar-weather","clear"]}\n' "$1" > "$TMP/reading"
     rm -rf "$TMP/cache" && mkdir -p "$TMP/cache"
-    PATH="$TMP/bin:$PATH" XDG_CACHE_HOME="$TMP/cache" bash "$WRAPPER" 2>/dev/null | head -n 1
+    PATH="$TMP/bin:$PATH" XDG_CACHE_HOME="$TMP/cache" XDG_CONFIG_HOME="$TMP/config" \
+        bash "$WRAPPER" 2>/dev/null | head -n 1
 }
 
 TIP='Berlin, Germany\nSunny\nWind: 11.3 → 22.3 km/h (W)\n\n🌅 7:34 a.m. • 🌇 4:07 p.m.'
@@ -79,5 +81,11 @@ if [ -f "$config" ]; then pass "which exists"; else fail "which exists" "missing
 assert_eq "$(tail -n 1 "$WAYBAR_DIR/weather.toml")" \
     '@{{floatFormat .Latitude 2}},{{floatFormat .Longitude 2}}"""' \
     "its tooltip ends with the coordinate line"
+
+# A user's own service configuration is not overridden.
+mkdir -p "$TMP/config/waybar-weather"
+echo 'units = "imperial"' > "$TMP/config/waybar-weather/config.toml"
+run "$TIP" >/dev/null
+assert_eq "$(cat "$TMP/args")" "" "a user's own config leaves the service without -config"
 
 test_summary "waybar-weather-wrapper.sh"

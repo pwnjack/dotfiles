@@ -24,8 +24,9 @@ closes it, and opening it again is the retry.
 ## How it opens
 
 1. `forecast.sh --cached` prints the saved copy when it is for the bar's
-   current location. The window appears once that has answered, so the card
-   opens at its size.
+   current location and in the bar's unit. The window appears once that has
+   answered, so the card opens at its size. A second click before then quits
+   the process instead of opening it.
 2. A copy younger than `model.FRESH_SECONDS` (15 minutes, the service's own
    refresh interval) is the whole answer: no request is made.
 3. Otherwise the copy stays on screen with `Updating…` while `forecast.sh`
@@ -44,7 +45,21 @@ is: `The bar has no location yet.`, `No connection to Open-Meteo.` or
   is fixed where the bar's is: the service's own `cityname` or `geolocation`
   file in `~/.config/waybar-weather/`.
 - **`location` is checked before it goes into the URL** (`forecast.sh`). The
-  cache is a file any of the user's processes can write.
+  cache is a file any of the user's processes can write, so it must hold
+  exactly one JSON object and a coordinate pair of the expected shape.
+- **The bar's cache is read once per run.** Coordinates, place name and unit
+  come from the same reading, so a forecast is never saved under another
+  place's name.
+- **A forecast must be whole.** `forecast.sh` refuses an answer, and
+  `--cached` a saved copy, that lacks any series the model indexes or has one
+  shorter than its times. A partial answer therefore never replaces a good
+  copy. Saving itself is best effort: a cache that cannot be written does not
+  withhold a forecast already in hand.
+- **A user's own service config is left in charge.** The wrapper passes
+  `-config waybar/weather.toml` only when `~/.config/waybar-weather/` holds no
+  `config.*`; the service reads one or the other, never both. With their own
+  config, the card has a location only if their tooltip template ends with the
+  coordinate line from `weather.toml`.
 - **Times are the place's.** The request asks for `timeformat=unixtime`, and
   the model reads hours and days with the answer's `utc_offset_seconds`, not
   this machine's zone.
@@ -54,9 +69,13 @@ is: `The bar has no location yet.`, `No connection to Open-Meteo.` or
   hour old, and the forecast's own value for the hour after that. A copy with
   no day left counts as no forecast.
 - **The card's "now" is its own fetch**, not the bar's reading, so the two can
-  differ by a few tenths of a degree.
+  differ by a few tenths of a degree. The header and the first slot show the
+  same condition.
 - **The unit follows the bar.** `forecast.sh` asks for Fahrenheit only when
-  the bar's cached text contains `°F`.
+  the bar's cached text contains `°F`, and a saved copy in the other unit is
+  not shown.
+- **Under the title the city alone is shown** (the part of `place` before the
+  first comma). A long name is cut; how it feels never is.
 - **Hour labels and sun times follow `options/clock`**; weekday names follow
   the session locale, as the calendar card's do.
 - **Glyphs are written as `\u{…}` escapes** in `model.mjs`, never typed.

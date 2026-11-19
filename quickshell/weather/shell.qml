@@ -17,7 +17,8 @@ ShellRoot {
     readonly property color foreground: Quickshell.env("WEATHER_FOREGROUND") || "#cfddde"
     readonly property color accent: Quickshell.env("WEATHER_ACCENT") || "#6097a1"
     readonly property string monoFont: Quickshell.env("WEATHER_FONT") || "monospace"
-    readonly property real cursorX: Number(Quickshell.env("WEATHER_CURSOR_X") || "-1")
+    // Global, so negative on an output left of the origin; NaN when unknown.
+    readonly property real cursorX: Number(Quickshell.env("WEATHER_CURSOR_X") || "NaN")
     readonly property bool barAtBottom: Quickshell.env("WEATHER_BAR_POSITION") === "bottom"
     readonly property string clockMode: Quickshell.env("WEATHER_CLOCK") === "12h" ? "12h" : "24h"
     readonly property var locale: Qt.locale(Quickshell.env("WEATHER_LOCALE") || "en_US")
@@ -63,7 +64,9 @@ ShellRoot {
         saved.running = true;
     }
     function close() {
-        if (closing || !opened) return;
+        // Asked to close before the saved copy was read: nothing is on screen yet.
+        if (!opened && !closing) { Qt.quit(); return; }
+        if (closing) return;
         closing = true;
         opened = false;
         card.disappear();
@@ -125,7 +128,9 @@ ShellRoot {
     IpcHandler {
         target: "weather"
         function ping(): string { return "ready"; }
-        function toggle(): void { if (root.opened) root.close(); else root.open(); }
+        // Anything but a card that is fading out is closed by a second click,
+        // one still reading its saved copy included.
+        function toggle(): void { if (root.closing) root.open(); else root.close(); }
         function close(): void { root.close(); }
         function status(): string {
             return JSON.stringify({
@@ -158,7 +163,7 @@ ShellRoot {
             enabled: root.opened
             visible: root.opened || root.closing
             readonly property int edge: px(12)
-            readonly property real anchorX: root.cursorX >= 0 ? root.cursorX - (window.screen ? window.screen.x : 0) : window.width / 2
+            readonly property real anchorX: isFinite(root.cursorX) ? root.cursorX - (window.screen ? window.screen.x : 0) : window.width / 2
             x: Math.max(edge, Math.min(window.width - width - edge, anchorX - width / 2))
             y: root.barAtBottom ? window.height - height - px(8) : px(8)
 

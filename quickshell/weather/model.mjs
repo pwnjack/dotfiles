@@ -130,7 +130,8 @@ function contents(forecast, now, clock, am, pm, dayNames) {
         const i = hour + step * 3
         hours.push({
             label: step === 0 ? 'Now' : hourLabel(hourly.time[i]),
-            glyph: condition(hourly.weather_code[i], hourly.is_day[i] === 1).glyph,
+            // The first slot is "now": the header's own condition, not the hour's forecast.
+            glyph: step === 0 ? sky.glyph : condition(hourly.weather_code[i], hourly.is_day[i] === 1).glyph,
             temp: degrees(step === 0 && live ? temperature : hourly.temperature_2m[i]),
             now: step === 0,
         })
