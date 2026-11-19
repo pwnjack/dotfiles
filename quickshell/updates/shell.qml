@@ -21,7 +21,8 @@ ShellRoot {
     // the handler of <name>'s change signal.
     readonly property color accentInk: Quickshell.env("UPDATES_ON_ACCENT") || "#05090c"
     readonly property string monoFont: Quickshell.env("UPDATES_FONT") || "monospace"
-    readonly property real cursorX: Number(Quickshell.env("UPDATES_CURSOR_X") || "-1")
+    // Global, so negative on an output left of the origin; NaN when unknown.
+    readonly property real cursorX: Number(Quickshell.env("UPDATES_CURSOR_X") || "NaN")
     readonly property bool barAtBottom: Quickshell.env("UPDATES_BAR_POSITION") === "bottom"
     // The runner's test seam, honoured here too: the demo replay must not poke Waybar.
     readonly property bool signalBar: Quickshell.env("UPDATES_SIGNAL") !== "none"
@@ -314,7 +315,7 @@ ShellRoot {
             enabled: root.opened
             visible: root.opened || root.closing
             readonly property int edge: px(12)
-            readonly property real anchorX: root.cursorX >= 0 ? root.cursorX - (window.screen ? window.screen.x : 0) : window.width
+            readonly property real anchorX: isFinite(root.cursorX) ? root.cursorX - (window.screen ? window.screen.x : 0) : window.width
             x: Math.max(edge, Math.min(window.width - width - edge, anchorX - width / 2))
             y: root.barAtBottom ? window.height - height - px(8) : px(8)
 

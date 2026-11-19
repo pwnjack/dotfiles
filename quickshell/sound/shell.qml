@@ -22,7 +22,8 @@ ShellRoot {
     // the handler of <name>'s change signal.
     readonly property color accentInk: Quickshell.env("SOUND_ON_ACCENT") || "#05090c"
     readonly property string monoFont: Quickshell.env("SOUND_FONT") || "monospace"
-    readonly property real cursorX: Number(Quickshell.env("SOUND_CURSOR_X") || "-1")
+    // Global, so negative on an output left of the origin; NaN when unknown.
+    readonly property real cursorX: Number(Quickshell.env("SOUND_CURSOR_X") || "NaN")
     readonly property bool barAtBottom: Quickshell.env("SOUND_BAR_POSITION") === "bottom"
     // A popover belongs to the bar, so it keeps the bar's own pixel sizes.
     readonly property real uiScale: 1
@@ -338,7 +339,7 @@ ShellRoot {
             enabled: root.opened
             visible: root.opened || root.closing
             readonly property int edge: px(12)
-            readonly property real anchorX: root.cursorX >= 0 ? root.cursorX - (window.screen ? window.screen.x : 0) : window.width
+            readonly property real anchorX: isFinite(root.cursorX) ? root.cursorX - (window.screen ? window.screen.x : 0) : window.width
             x: Math.max(edge, Math.min(window.width - width - edge, anchorX - width / 2))
             y: root.barAtBottom ? window.height - height - px(8) : px(8)
             fromBottom: root.barAtBottom
