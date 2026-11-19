@@ -23,6 +23,11 @@
 # mismatched one, and a stray emoji makes the gap visible so it can be
 # added here.
 #
+# The service runs with weather.toml (beside this file), whose tooltip ends in
+# a line "@<latitude>,<longitude>". That line never reaches the bar: it is
+# moved into the reading's "location" key, which Waybar ignores and the
+# weather card's scripts/weather/forecast.sh reads from the cache below.
+#
 
 TEXT_MAP='{"☀":"󰖙","☁":"󰖐","⛅":"󰖕","🌤":"󰖕","⛈":"󰙾","🌩":"󰖓","🌫":"󰖑","🌦":"󰖗","🌧":"󰖖","🌨":"󰖘","🌑":"󰖔","🌒":"󰖔","🌓":"󰖔","🌔":"󰖔","🌕":"󰖔","🌖":"󰖔","🌗":"󰖔","🌘":"󰖔","🌙":"󰖔"}'
 TIP_MAP='{"🌅":"󰖜","🌇":"󰖛"}'
@@ -67,12 +72,14 @@ render() {
         def large: "<span size=\"large\" letter_spacing=\"4096\">" + . + "</span>";
         .text = (.text | strip_vs | swap($text_map; large))
         | if .tooltip then .tooltip = (.tooltip | strip_vs | swap($tip_map; .)) else . end
+        | ([.tooltip // "" | capture("\n@(?<at>-?[0-9]+[.][0-9]+,-?[0-9]+[.][0-9]+)\\z")][0].at) as $location
+        | if $location then .location = $location | .tooltip |= sub("\n@[^\n]*\\z"; "") else . end
     ' 2>/dev/null || jq -ce 'select(type == "object")' <<< "$1" 2>/dev/null
 }
 
 # The service is the wrapper's child, and goes with it: waybar stops the
 # module on every reload, and an orphaned service would keep polling.
-exec {weather}< <(exec waybar-weather 2>/dev/null)
+exec {weather}< <(exec waybar-weather -config "${BASH_SOURCE[0]%/*}/weather.toml" 2>/dev/null)
 service=$!
 tmp=''
 trap 'kill "$service" 2>/dev/null; rm -f "$tmp"' EXIT

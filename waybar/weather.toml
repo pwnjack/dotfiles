@@ -1,0 +1,17 @@
+# waybar-weather's configuration; waybar-weather-wrapper.sh passes it with
+# -config. Only the tooltip is set: the service's own default (copied from
+# 0.3.1) plus a last line holding the coordinates, which the wrapper moves out
+# of the tooltip and into the cache for the weather card
+# (docs/internals/weather-card.md). Two decimals are about 1 km, which is all
+# a forecast needs. `text` is not set, so the bar keeps the service's default.
+[templates]
+tooltip = """
+{{.Address.City}}, {{.Address.Country}}
+{{.Current.Condition}}
+{{loc "apparent"}}: {{hum .Current.ApparentTemperature}}{{.Current.Units.Temperature}}
+{{loc "humidity"}}: {{.Current.RelativeHumidity}}%
+{{loc "pressure"}}: {{hum .Current.PressureMSL}} {{.Current.Units.Pressure}}
+{{loc "wind"}}: {{hum .Current.WindSpeed}} → {{hum .Current.WindGusts}} {{.Current.Units.WindSpeed}} ({{windDir .Current.WindDirection}})
+
+🌅 {{localizedTime .SunriseTime}} • 🌇 {{localizedTime .SunsetTime}}
+@{{floatFormat .Latitude 2}},{{floatFormat .Longitude 2}}"""
