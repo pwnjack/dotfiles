@@ -65,7 +65,6 @@
     "format": "{icon}",
     "icon-size": 16,
     "tooltip-format": "{title}",
-    "sort-by-app-id": false,
     "on-click": "activate",
     "on-click-middle": "close",
     "all-outputs": true,
@@ -77,7 +76,6 @@
     // Read rarely, so it stays short and dim (style.css) beside the
     // workspaces rather than competing with them.
     "max-length": 40,
-    "separate-outputs": false,
     "rewrite": {
       // SYS/BASE PROGRAMS
       "": " Hyprland",
@@ -131,7 +129,7 @@
   // Event-driven from PipeWire, so an idle bar runs nothing. Monitor streams
   // (Cava, a recorder's desktop audio) are ignored by default. Our own
   // recordings capture through KMS, not PipeWire, so they show the red
-  // recording pill and never the screen-share icon. Waybar 0.15 has no
+  // recording pill and never the screen-share icon. Waybar has no
   // camera type.
   "privacy": {
     "icon-size": 16,
@@ -169,7 +167,6 @@
     // format, interval: rendered by scripts/waybar/clock-format.sh into the
     // clock.jsonc include; the main config must not set them.
     "on-click": "~/.config/scripts/hyprland/calendar-card.sh month",
-    "tooltip": true,
     "tooltip-format": "<tt><small>{calendar}</small></tt>",
     "calendar": {
       "mode": "month",
@@ -203,7 +200,6 @@
     "return-type": "json",
     "interval": 60,
     "signal": 12,
-    "tooltip": true,
     "on-click": "~/.config/scripts/hyprland/calendar-card.sh upcoming",
     "on-click-right": "setsid -f ~/.config/scripts/calendar/sync.sh >/dev/null 2>&1",
   },
@@ -217,7 +213,6 @@
     "exec": "~/.config/waybar/waybar-weather-wrapper.sh",
     "return-type": "json",
     "restart-interval": 60,
-    "tooltip": true,
     "on-click": "~/.config/scripts/hyprland/weather-popover.sh",
   },
 
@@ -244,7 +239,6 @@
     "states": { "normal": 0, "warning": 70, "critical": 90 },
     "format": "<span size='large' letter_spacing='4096'></span> {usage}%",
     "on-click": "resources",
-    "tooltip": true,
     "tooltip-format": "CPU {usage}% [{avg_frequency}GHz]\n\nCore0: {usage0}%  Core1: {usage1}%\nCore2: {usage2}%  Core3: {usage3}%\nCore4: {usage4}%  Core5: {usage5}%\nCore6: {usage6}%  Core7: {usage7}%",
   },
 
@@ -254,7 +248,6 @@
     "states": { "normal": 0, "warning": 70, "critical": 90 },
     "format": "<span size='large' letter_spacing='4096'></span> {}%",
     "on-click": "resources",
-    "tooltip": true,
     "tooltip-format": "Memory {percentage}% [{used}GB / {total}GB]\n\nSwap: {swapPercentage}% [{swapUsed}GB / {swapTotal}GB]",
   },
 
@@ -280,7 +273,6 @@
     "on-click": "resources",
     // tooltip-format comes from bar.jsonc: Waybar 0.16 keeps a disk box on
     // screen while its tooltip renders, so a hidden disk blanks it there.
-    "tooltip": true,
   },
 
   // Updates
@@ -329,7 +321,6 @@
 
   // Pulseaudio
   "pulseaudio": {
-    "scroll-step": 1,
     "format": "<span size='large'>{icon}</span>  {volume}%{format_source}",
     "format-bluetooth": "<span size='large'>{icon}</span>  {volume}% <span size='large'></span>{format_source}",
     "format-bluetooth-muted": "<span size='large'></span>  Muted <span size='large'></span>{format_source}",
@@ -385,7 +376,6 @@
   },
 
   "custom/sidebar": {
-    "tooltip": true,
     "tooltip-format": "Notifications",
     "format": "{icon}",
     "format-icons": {

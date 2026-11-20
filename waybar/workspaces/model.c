@@ -7,14 +7,9 @@
 #include <string.h>
 
 /* The range check happens on the 64-bit value, before any narrowing. */
-static int slot_of(gint64 id)
+int ws_slot(int64_t id)
 {
     return id >= 1 && id <= WS_COUNT ? (int)id : 0;
-}
-
-int ws_slot(long id)
-{
-    return slot_of(id);
 }
 
 void ws_state_init(WsState *s)
@@ -100,7 +95,7 @@ bool ws_parse_workspaces(const char *json, WsState *s)
             ok = false;
             break;
         }
-        int slot = slot_of(id);
+        int slot = ws_slot(id);
         if (!slot)
             continue;
         int_member(json_node_get_object(item), "windows", &windows);
@@ -119,7 +114,7 @@ bool ws_parse_active(const char *json, int *active)
     gint64 id;
     bool ok = root && JSON_NODE_HOLDS_OBJECT(root) && id_member(json_node_get_object(root), &id);
     if (ok)
-        *active = slot_of(id);
+        *active = ws_slot(id);
     if (root)
         json_node_unref(root);
     return ok;

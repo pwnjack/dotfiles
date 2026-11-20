@@ -8,28 +8,11 @@
 # the bus with a perfectly readable charge. System batteries use sysfs here;
 # peripherals use scripts/devices/devices.sh, including level-only batteries.
 #
-# SCOPE selects behaviour rather than filtering:
-#
-#   Device            a peripheral. Silent until it drops below LOW, so it
-#                     costs no permanent bar space. The module APPEARING is
-#                     the warning -- that is what keeps this stateless, with
-#                     nothing to remember and nothing to expire.
-#   System or absent  the machine's own battery. Always shown, at every level,
-#                     because a laptop battery is a status readout rather than
-#                     an alert.
-#
-# A powered-off peripheral keeps its sysfs node AND its last capacity reading
-# -- verified by switching the mouse off, which left CAPACITY=75 in place. The
-# only field that told the truth was POWER_SUPPLY_ONLINE, which flipped 1 -> 0.
-# The test is present-and-0 rather than "not 1": a laptop battery generally
-# carries no ONLINE attribute at all (it lives on the Mains adapter) and must
-# not be skipped by it.
-#
-# Charge state is honoured for system batteries only. This mouse reported
-# Discharging and then Unknown minutes apart while sitting still, so a
-# peripheral's STATUS is not evidence of anything. For a system battery it is
-# reliable, and charging suppresses the alert classes -- which is what the old
-# `#battery.critical:not(.charging)` rule encoded.
+# System batteries (SCOPE System or absent) are read from sysfs here and always
+# shown. SCOPE=Device nodes are skipped: peripherals come from
+# scripts/devices/devices.sh, which owns their sleep and alert rules. ONLINE
+# present-and-0 still skips a node (a laptop battery has no ONLINE). Charge
+# state suppresses the alert classes.
 #
 # BATTERY_SYSFS overrides the scan root; test-battery.sh points it at fixtures.
 # BATTERY_ALERT_FIXTURE=1 enables alerts for those fixtures; tests must stub
@@ -83,14 +66,14 @@ device_icon() {
 }
 
 # entry <icon> <value> — one rendered chunk of the bar text. The glyph is
-# promoted a fifth to match the bar scale (13px base); see waybar/style.css.
+# promoted a fifth to match the bar scale (14px base); see waybar/style.css.
 #
 # ONE space between glyph and value. This used to be two, on the argument that
 # a battery glyph carries ink to the right and needed the wider spacer to look
 # equal to its neighbours. Screenshotting the bar with this module forced
 # visible (BATTERY_SYSFS, which is what that seam is for) showed the opposite:
 # beside cpu/memory/gpu/disk the two-space entries read as visibly detached
-# from their numbers. Every glyph+value module on this bar now uses one space.
+# from their numbers.
 # The gap BETWEEN entries stays wider -- see the joiner below -- so two
 # batteries still read as two readouts rather than one run-on number.
 entry() {
@@ -157,14 +140,7 @@ devices=$(DEVICES_SUPPLY="$SYSFS" bash "$script_dir/../devices/devices.sh")
 if [ -z "${BATTERY_SYSFS+x}" ] || [ "${BATTERY_ALERT_FIXTURE:-0}" = 1 ]; then
     bash "$script_dir/../devices/battery-alert.sh" <<<"$devices" >/dev/null 2>&1 &
 fi
-# JSON lines keep null fields and vendor whitespace intact; tab-delimited read
-# collapses empty fields and would shift a level into the percent column.
-while IFS= read -r device; do
-    name=$(jq -r '.name' <<<"$device")
-    kind=$(jq -r '.kind' <<<"$device")
-    percent=$(jq -r '.percent // empty' <<<"$device")
-    level=$(jq -r '.level // empty' <<<"$device")
-    alert=$(jq -r '.alert' <<<"$device")
+while IFS=$'\x1f' read -r name kind percent level alert; do
     if [ -n "$percent" ]; then value="$percent%"; else value="${level^}"; fi
     case "$kind" in
         gamepad) icon=$ICON_GAMEPAD ;;
@@ -179,11 +155,11 @@ while IFS= read -r device; do
     if [ "$alert" = critical ] || [ "$device_alert" = none ]; then
         device_alert=$alert
     fi
-done < <(jq -c '.[] | select(.state == "connected")' <<<"$devices")
+done < <(jq -r '.[] | select(.state == "connected")
+    | [.name, .kind, (.percent // ""), (.level // ""), .alert]
+    | map(tostring | gsub("[\u001f\n]"; " ")) | join("\u001f")' <<<"$devices")
 
-declare -a parts=()
-[ "${#system_text[@]}" -gt 0 ] && parts+=("${system_text[@]}")
-[ "${#low_text[@]}" -gt 0 ] && parts+=("${low_text[@]}")
+parts=("${system_text[@]}" "${low_text[@]}")
 
 # Nothing worth saying: print nothing and let waybar hide the module, the same
 # idiom custom/media uses.
@@ -199,17 +175,8 @@ fi
 # Three spaces BETWEEN entries, against the one inside each — see entry().
 # The two gaps have to stay visibly different or "󰁹 64% 󰍽 18%" reads as one
 # run-on number; the separator must be the wider of the two, not equal to it.
-text=""
-for part in "${parts[@]}"; do
-    [ -n "$text" ] && text+="   "
-    text+="$part"
-done
-
-tooltip=""
-for tip in "${tips[@]}"; do
-    [ -n "$tooltip" ] && tooltip+=$'\n'
-    tooltip+="$tip"
-done
+printf -v text '%s   ' "${parts[@]}"; text=${text%   }
+printf -v tooltip '%s\n' "${tips[@]}"; tooltip=${tooltip%$'\n'}
 
 # `text` is ours: glyphs and digits, no vendor string, so its markup is safe.
 # `tooltip` carries model names, which are arbitrary vendor text -- "Corsair

@@ -41,8 +41,7 @@ typedef struct {
 static int slot_at_layout(const Module *m, const double shape[], const double presence[],
                           const double visible[], double px);
 
-static void targets(const Module *m, double shape[], double presence[], double fill[],
-                    double hover[])
+static void targets(const Module *m, double shape[], double presence[], double fill[])
 {
     for (int i = 0; i <= WS_COUNT; i++) {
         bool slot = i >= 1;
@@ -51,7 +50,6 @@ static void targets(const Module *m, double shape[], double presence[], double f
          * coalesced snapshot to say so. */
         presence[i] = slot && (ws_visible(&m->state, i) || i == m->state.active) ? 1 : 0;
         fill[i] = slot && m->state.windows[i] > 0 ? 1 : 0;
-        hover[i] = slot && i == m->hover_slot ? 1 : 0;
     }
 }
 
@@ -117,7 +115,7 @@ static void settle_hover(Module *m, const double s[], const double p[], double h
 static void animate(Module *m)
 {
     double s[WS_COUNT + 1], p[WS_COUNT + 1], f[WS_COUNT + 1], h[WS_COUNT + 1];
-    targets(m, s, p, f, h);
+    targets(m, s, p, f);
     settle_hover(m, s, p, h);
     group_retarget(&m->shape, s);
     group_retarget(&m->presence, p);
@@ -134,7 +132,7 @@ static void animate(Module *m)
 static void jump(Module *m)
 {
     double s[WS_COUNT + 1], p[WS_COUNT + 1], f[WS_COUNT + 1], h[WS_COUNT + 1];
-    targets(m, s, p, f, h);
+    targets(m, s, p, f);
     settle_hover(m, s, p, h);
     group_init(&m->shape, SHAPE_US, CURVE_STANDARD, s);
     group_init(&m->presence, SHAPE_US, CURVE_STANDARD, p);
@@ -330,8 +328,9 @@ static void on_disconnected(void *user)
     jump(m);
 }
 
-/* options/bar-workspaces, read as the old script did: first line,
- * surrounding whitespace trimmed; "numbers" or anything else (dots). */
+/* options/bar-workspaces, read as scripts/lib/options.sh's option() does:
+ * first line, surrounding whitespace trimmed; "numbers" or anything else
+ * (dots). */
 static gboolean numbers_mode(void)
 {
     const char *dir = g_getenv("BAR_OPTIONS");

@@ -8,15 +8,12 @@
 # Nerd Font installed to be edited safely.
 #
 # The glyph is wrapped in <span size='large'> to match the bar's scale: every
-# module sits at 13px and promotes its glyph by 20%. See waybar/style.css.
+# module sits at 14px and promotes its glyph by 20%. See waybar/style.css.
 #
 # Usage: gpu.sh [WARNING CRITICAL]. The alert thresholds come from
 # config.jsonc so they sit beside the cpu/memory/disk "states" -- waybar's
 # custom modules ignore "states", so this script sets the class itself, and
 # style.css colours .warning / .critical the same way for all four readouts.
-#
-# One nvidia-smi call, not five. The old version spawned the binary once per
-# field, five times every 5s interval.
 #
 
 # The Bar page's mode (options/bar-gpu): always, high, or hidden. Read before

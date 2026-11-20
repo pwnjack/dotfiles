@@ -16,10 +16,6 @@ static int n_events_conn;  /* event connections the fake server accepted */
 static int snap_at_conn;   /* n_snap when the latest one arrived */
 static gint big_reply; /* answer j/workspaces with more than HYPR_REPLY_MAX (atomic: read by the server thread) */
 
-#ifndef HYPR_RETRY_MS
-#define HYPR_RETRY_MS 50
-#endif
-
 /* The fake command server holds the reply to `gate_req` until gate_open. */
 static const char *gate_req;
 static gboolean gate_open, gate_hit;

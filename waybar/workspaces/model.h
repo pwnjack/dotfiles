@@ -2,6 +2,7 @@
  * which have windows, which is active. Pure; parsing uses json-glib. */
 #pragma once
 #include <stdbool.h>
+#include <stdint.h>
 
 #define WS_COUNT 10  /* slots 1..10; index 0 is unused */
 #define WS_ALWAYS 5  /* slots 1..5 are drawn whether or not they exist */
@@ -14,8 +15,9 @@ typedef struct {
 
 typedef enum { WS_EVENT_NONE, WS_EVENT_ACTIVE, WS_EVENT_REFRESH } WsEvent;
 
-/* 1..10 for a slot id, 0 for anything else (special workspaces are < 0). */
-int ws_slot(long id);
+/* 1..10 for a slot id, 0 for anything else (named and special workspaces
+ * have no number). */
+int ws_slot(int64_t id);
 void ws_state_init(WsState *s);
 bool ws_visible(const WsState *s, int slot);
 /* The visible slot one step from the active one in direction dir (-1 or +1),

@@ -57,13 +57,16 @@ static void unref(HyprClient *c)
 #endif
 }
 
-static char *socket_path(const char *name)
+static GSocketAddress *socket_address(const char *name)
 {
     const char *run = g_getenv("XDG_RUNTIME_DIR");
     const char *sig = g_getenv("HYPRLAND_INSTANCE_SIGNATURE");
     if (!run || !*run || !sig || !*sig)
         return NULL;
-    return g_build_filename(run, "hypr", sig, name, NULL);
+    char *path = g_build_filename(run, "hypr", sig, name, NULL);
+    GSocketAddress *addr = g_unix_socket_address_new(path);
+    g_free(path);
+    return addr;
 }
 
 /* ---- one request on the command socket -------------------------------- */
@@ -150,13 +153,11 @@ static void query(HyprClient *c, const char *request, QueryDone done, gpointer d
     q->request = g_strdup(request);
     q->done = done;
     q->data = data;
-    char *path = socket_path(".socket.sock");
-    if (!path) { /* report asynchronously: no callback runs in the caller's stack */
+    GSocketAddress *addr = socket_address(".socket.sock");
+    if (!addr) { /* report asynchronously: no callback runs in the caller's stack */
         g_idle_add(query_fail_idle, q);
         return;
     }
-    GSocketAddress *addr = g_unix_socket_address_new(path);
-    g_free(path);
     q->conn = g_socket_client_connect(c->queries, G_SOCKET_CONNECTABLE(addr), c->cancel, NULL);
     g_object_unref(addr);
     if (!q->conn ||
@@ -280,7 +281,7 @@ static void disconnected(HyprClient *c)
 
 static void events_read(HyprClient *c)
 {
-    g_input_stream_read_bytes_async(c->events_in, 4096, G_PRIORITY_DEFAULT, c->cancel,
+    g_input_stream_read_bytes_async(c->events_in, HYPR_READ_CHUNK, G_PRIORITY_DEFAULT, c->cancel,
                                     events_read_done, c);
 }
 
@@ -381,13 +382,11 @@ static gboolean no_socket_idle(gpointer user)
 
 static void events_connect(HyprClient *c)
 {
-    char *path = socket_path(".socket2.sock");
-    if (!path) { /* report asynchronously: no callback runs in the caller's stack */
+    GSocketAddress *addr = socket_address(".socket2.sock");
+    if (!addr) { /* report asynchronously: no callback runs in the caller's stack */
         g_idle_add(no_socket_idle, ref(c));
         return;
     }
-    GSocketAddress *addr = g_unix_socket_address_new(path);
-    g_free(path);
     g_socket_client_connect_async(c->sockets, G_SOCKET_CONNECTABLE(addr), c->cancel,
                                   events_connect_done, ref(c));
     g_object_unref(addr);

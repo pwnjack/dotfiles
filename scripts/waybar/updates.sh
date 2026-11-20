@@ -86,6 +86,12 @@ tip() {
     fi
 }
 
+# emit <text> <tooltip> <class> -- the module's JSON; an empty class is omitted.
+emit() {
+    jq -nc --arg text "$1" --arg tooltip "$2" --arg class "$3" \
+        '{text: $text, tooltip: $tooltip} + (if $class == "" then {} else {class: $class} end)'
+}
+
 # Nerd Font Material circle-slice-1..8, one per eighth of the run.
 SLICES=($'\U000f0a9e' $'\U000f0a9f' $'\U000f0aa0' $'\U000f0aa1'
         $'\U000f0aa2' $'\U000f0aa3' $'\U000f0aa4' $'\U000f0aa5')
@@ -100,14 +106,12 @@ if [ "$run_status" = running ]; then
     tooltip=$(tip "Updating · $pct%" "$(jq -nc --arg icon "$slice" --argjson pct "$pct" --argjson snap "$snap" \
         '{state: "running", icon: $icon, pct: $pct,
           snap: (if $snap != null and $snap.status == "running" then $snap else null end)}')")
-    jq -nc --arg text "<span size=\"large\">$slice</span> $pct%" --arg tooltip "$tooltip" \
-        '{text: $text, tooltip: $tooltip, class: "running"}'
+    emit "<span size=\"large\">$slice</span> $pct%" "$tooltip" running
     exit 0
 fi
 if [ "$run_status" = restart ] && ! $run_seen; then
     tooltip=$(tip "Restart to finish the update" "$(jq -nc --argjson snap "$snap" '{state: "restart", snap: $snap}')")
-    jq -nc --arg text "<span size=\"large\">$RESTART_ICON</span>" --arg tooltip "$tooltip" \
-        '{text: $text, tooltip: $tooltip, class: "restart"}'
+    emit "<span size=\"large\">$RESTART_ICON</span>" "$tooltip" restart
     exit 0
 fi
 class=""
@@ -124,8 +128,7 @@ reason=${reason##*$'\n'}
 if [ "$rc" -eq 3 ]; then
     tooltip=$(tip "Updates need a terminal" "$(jq -nc --arg icon "$ICON" --arg reason "$reason" \
         '{state: "blocked", icon: $icon, reason: $reason}')")
-    jq -nc --arg text "<span size=\"large\">$ICON</span>" --arg tooltip "$tooltip" \
-        '{text: $text, tooltip: $tooltip, class: "attention"}'
+    emit "<span size=\"large\">$ICON</span>" "$tooltip" attention
     exit 0
 fi
 
@@ -146,8 +149,7 @@ if [ "$total" -eq 0 ]; then
     if [ -n "$class" ]; then
         tooltip=$(tip "The last update needs attention" "$(jq -nc --arg icon "$ICON" --argjson snap "$snap" \
             '{state: "attention", icon: $icon, snap: $snap}')")
-        jq -nc --arg text "<span size=\"large\">$ICON</span>" --arg tooltip "$tooltip" \
-            '{text: $text, tooltip: $tooltip, class: "attention"}'
+        emit "<span size=\"large\">$ICON</span>" "$tooltip" attention
     fi
     exit 0
 fi
@@ -172,9 +174,6 @@ tooltip=$(tip "$fallback" "$input")
 # rather than tightening it, so copying it verbatim moved the count further
 # out. This glyph is a circular arrow with little ink on its right edge, where
 # the cpu/disk glyphs are dense square blocks, so an equal metric gap reads
-# wider here -- the same effect battery.sh documents in reverse when it takes
-# two spaces to look equal.
-text="<span size=\"large\">$ICON</span> $total"
-
-jq -nc --arg text "$text" --arg tooltip "$tooltip" --arg class "$class" \
-    '{text: $text, tooltip: $tooltip} + (if $class == "" then {} else {class: $class} end)'
+# wider here -- the same effect style.css's SCALE note documents for volume's
+# two spaces.
+emit "<span size=\"large\">$ICON</span> $total" "$tooltip" "$class"

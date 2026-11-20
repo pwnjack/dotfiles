@@ -119,7 +119,6 @@ trap cleanup EXIT
 if [ -n "$stale_reason" ]; then
     build="$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/workspaces-build.XXXXXX")"
     make -s -C "$src" BUILD="$build" WS_WERROR= "$build/workspaces.so"
-    mkdir -p "${lib%/*}"
     tmp_lib="$(mktemp "$lib.XXXXXX")"
     cp "$build/workspaces.so" "$tmp_lib"
     chmod 0755 "$tmp_lib" # mktemp creates 0600

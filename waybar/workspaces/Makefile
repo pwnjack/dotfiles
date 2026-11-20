@@ -19,7 +19,6 @@ endif
 
 .DEFAULT_GOAL := test
 
-CC ?= cc
 PKGS := gtk+-3.0 json-glib-1.0
 # CFLAGS is the overridable optimisation/debug part; the module's required
 # flags live in private variables so a command-line CFLAGS cannot drop them.
@@ -41,8 +40,8 @@ $(BUILD):
 $(BUILD)/workspaces.so: $(LIB_SRC) $(HEADERS) | $(BUILD)
 	$(CC) $(WS_CFLAGS) $(WS_WERROR) $(CFLAGS) -fvisibility=hidden -shared -o $@ $(LIB_SRC) $(WS_LDLIBS) $(LDLIBS)
 
-# Each test links the library sources it needs; hypr's retry is shortened so
-# the reconnect test runs in milliseconds.
+# Each test links every library source but module.c; hypr's retry is
+# shortened so the reconnect test runs in milliseconds.
 $(BUILD)/test_%: test/test_%.c test/check.h $(LIB_SRC) $(HEADERS) | $(BUILD)
 	$(CC) $(WS_CFLAGS) $(WS_WERROR) $(CFLAGS) -DHYPR_RETRY_MS=50 -DHYPR_TEST -I. -o $@ $< $(filter-out module.c,$(LIB_SRC)) $(WS_LDLIBS) $(LDLIBS) -ldl
 

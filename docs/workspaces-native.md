@@ -42,8 +42,8 @@ git revert -m 1 workspaces-native   # one commit that undoes the whole merge
 ```
 
 If later commits touched the same files (`waybar/style.css`,
-`waybar/config.jsonc`, `install.sh`, `CLAUDE.md` are the likely ones), the
-revert stops on conflicts. Resolve each one by keeping the later change and
+`waybar/config.jsonc`, `install.sh`, `CLAUDE.md`, `scripts/hooks/post-merge`
+are the likely ones), the revert stops on conflicts. Resolve each one by keeping the later change and
 restoring the CSS-era workspace parts; `git diff workspaces-css
 workspaces-native -- <file>` shows exactly what the merge changed in that file.
 
@@ -55,7 +55,8 @@ rm -f ~/.local/lib/waybar/workspaces.so ~/.local/lib/waybar/workspaces.so.sha256
 killall waybar; ~/.config/scripts/waybar/waybar.sh
 ```
 
-The revert also removes the git hook (it was part of the merge), the doctor
+Keep `scripts/hooks/post-merge` (it also re-renders the machine-state overlay;
+without the build script it skips the build). The revert removes the doctor
 check and the five build packages from `install.sh`'s list; the packages
 themselves stay installed until removed with pacman.
 

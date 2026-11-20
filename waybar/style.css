@@ -9,10 +9,10 @@
                       a glyph take 17px from CSS directly instead.
      gap-glyph ~11px   cpu, memory, gpu, disk, weather -- one space plus
                        letter_spacing='4096' (4pt) on the glyph span
-              ~14px   volume, battery -- two spaces. Their glyphs carry
-                       ink out to the right (speaker waves, battery tip),
+              ~14px   volume -- two spaces. Its glyph carries
+                       ink out to the right (speaker waves),
                        so the same width reads tighter; the wider spacer
-                       is what makes all of them look equal.
+                       is what makes it look equal.
      gap-in    20px   between modules inside a group   (10px + 10px)
      gap-out   30px   between groups                   (15px + 15px)
      edge      16px   outermost module to the bar border
@@ -172,7 +172,6 @@
 #calendar #clock,
 #calendar #custom-agenda {
     margin: 0px;
-    border-radius: 9px;
 }
 #calendar #custom-agenda {
     border-left: 1px solid alpha(@foreground, 0.18);
@@ -287,8 +286,6 @@
 /* Hover: the bar's shared pill (HOVER below). */
 
 #taskbar.empty {
-    background: transparent;
-    border: 0;
     padding: 0;
     margin: 0px 5px 0px 0px;
 }
@@ -373,16 +370,12 @@ tooltip label {
    The glyph already carries the state (󰖙 sun / 󰖔 moon), so the two
    -override classes are styled identically to their plain form: whether
    the schedule or a manual toggle set the temperature is a distinction
-   for the tooltip, not one worth a coloured plate in the bar. */
+   for the tooltip, not one worth a coloured plate in the bar. Warm and
+   warm-override need no rule: full is the module's default colour. */
 
 #custom-nightlight.neutral,
 #custom-nightlight.neutral-override {
     color: @color8;
-}
-
-#custom-nightlight.warm,
-#custom-nightlight.warm-override {
-    color: @foreground;
 }
 
 /* ── NETWORK ─────────────────────────────────────────────────────────
@@ -464,7 +457,6 @@ tooltip label {
    horizontal margin so its edge sits 30px from the neighbour's ink. */
 #custom-recording.recording,
 #custom-recording.stopping {
-    padding: 0px 10px;
     margin: 4px 15px;
     background: @alert_red;
     color: #05090c;
