@@ -194,10 +194,14 @@ _ref_check_requires() {
 # _ref_check_literals — literal ~/.config paths anywhere in the tracked tree.
 _ref_check_literals() {
     local file path rel full
+    local -A seen=()
 
-    # One "file NUL match" line per distinct reference; -I skips binary files,
-    # and git grep never reads a symlink's target or a deleted file.
+    # One "file NUL match" line per match; -I skips binary files, and git grep
+    # never reads a symlink's target or a deleted file. The flags undo a user's
+    # grep.lineNumber and grep.column, which would add fields.
     while IFS= read -r -d '' file && IFS= read -r path; do
+        [ -z "${seen["$file/$path"]+x}" ] || continue
+        seen["$file/$path"]=1
         rel="$(_ref_under_root "$path")" || continue
         _ref_unresolvable "$rel" && continue
 
@@ -206,7 +210,7 @@ _ref_check_literals() {
 
         warn "$file references ~/.config/$rel, which does not exist" \
              "restore $(doctor_q "$full"), or drop the reference from $(doctor_q "$DOCTOR_ROOT/$file")"
-    done < <(git -C "$DOCTOR_ROOT" grep -IozE "$DOCTOR_REF_PATTERN" -- . ':!docs/' ':!scripts/doctor/' ':!*.md' 2>/dev/null | LC_ALL=C sort -u)
+    done < <(git -C "$DOCTOR_ROOT" grep --no-line-number --no-column -IozE "$DOCTOR_REF_PATTERN" -- . ':!docs/' ':!scripts/doctor/' ':!*.md' 2>/dev/null)
 }
 
 # _ref_check_palette_cache — the generator's slots and roles, and the generated

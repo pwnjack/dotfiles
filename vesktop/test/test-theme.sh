@@ -49,6 +49,14 @@ check "a second run renders the same theme"
 [ "$(stat -c %Y "$config/vesktop/themes/pywal.theme.css")" -eq "$(date -d '2000-01-01' +%s)" ]
 check "an unchanged palette leaves the symlink alone"
 
+# A template that cannot be read through (a directory passes -r) fails the
+# render: the published theme stays, and nothing temporary is left beside it.
+rm "$config/vesktop/pywal.theme.css.in"
+mkdir "$config/vesktop/pywal.theme.css.in"
+run 2>/dev/null
+[ $? -ne 0 ] && [ "$(cat "$out")" = "$first" ] && [ "$(find "$cache/wal" -name 'vesktop.theme.css.*')" = "" ]
+check "a failed render keeps the published theme"
+
 # The tracked symlink must name the file the script writes.
 [ "$(basename "$(readlink "$repo/vesktop/themes/pywal.theme.css")")" = vesktop.theme.css ]
 check "the tracked symlink points at the rendered file"

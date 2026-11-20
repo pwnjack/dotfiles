@@ -34,7 +34,11 @@ role_load
 
 mkdir -p "$cache_dir"
 
-if wal_render "$template" /dev/stdout | wal_write "$rendered"; then
+# Rendered whole before it is published: a failed render keeps the old theme.
+staged=$(mktemp "$rendered.XXXXXX") || exit 1
+trap 'rm -f -- "$staged"' EXIT
+wal_render "$template" "$staged" || exit 1
+if wal_write "$rendered" < "$staged"; then
     if [ -L "$link" ]; then
         touch -h "$link"
     fi

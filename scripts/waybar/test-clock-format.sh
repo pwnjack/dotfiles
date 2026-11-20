@@ -29,12 +29,15 @@ printf '#!/bin/bash\nexit "${PGREP_STATUS:-0}"\n' > "$tmp/bin/pgrep"
 printf '#!/bin/bash\nexit 0\n' > "$tmp/bin/busctl"
 chmod +x "$tmp/bin/pkill" "$tmp/bin/pgrep" "$tmp/bin/busctl"
 PATH="$tmp/bin:$PATH" CLOCK_OPTION="$tmp/clock" CLOCK_INCLUDE="$tmp/out/clock.jsonc" bash "$script" --no-reload
+check 'a render with --no-reload succeeds'
 [[ ! -e $tmp/pkill.log ]]
 check '--no-reload does not signal Waybar'
 PATH="$tmp/bin:$PATH" CLOCK_OPTION="$tmp/clock" CLOCK_INCLUDE="$tmp/out/clock.jsonc" bash "$script"
+check 'a render beside a running bar succeeds'
 assert_eq "$(<"$tmp/pkill.log")" '-USR2 -x waybar' 'a render signals Waybar once'
 rm -f "$tmp/pkill.log"
 PGREP_STATUS=1 PATH="$tmp/bin:$PATH" CLOCK_OPTION="$tmp/clock" CLOCK_INCLUDE="$tmp/out/clock.jsonc" bash "$script"
+check 'a render beside a stopped bar succeeds'
 [[ ! -e $tmp/pkill.log ]]
 check 'a stopped bar is neither started nor signalled'
 

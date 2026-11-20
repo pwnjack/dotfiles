@@ -19,6 +19,8 @@ endif
 
 .DEFAULT_GOAL := test
 
+# make -rR has no built-in CC.
+CC ?= cc
 PKGS := gtk+-3.0 json-glib-1.0
 # CFLAGS is the overridable optimisation/debug part; the module's required
 # flags live in private variables so a command-line CFLAGS cannot drop them.

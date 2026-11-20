@@ -60,7 +60,7 @@ check_plugins() {
         _plg_typelib_present "$ns" && continue
         warn "No typelib for gi://$ns, which tracked JavaScript imports" \
             "sudo pacman -Fy, then pacman -Fx 'girepository-1.0/$ns-[0-9.]+\\.typelib' names the package to install"
-    done < <(git -C "$DOCTOR_ROOT" grep -IhoE 'gi://[A-Za-z][A-Za-z0-9]*' -- . ':!docs/' ':!scripts/doctor/' 2>/dev/null |
+    done < <(git -C "$DOCTOR_ROOT" grep --no-line-number --no-column -IhoE 'gi://[A-Za-z][A-Za-z0-9]*' -- . ':!docs/' ':!scripts/doctor/' 2>/dev/null |
         sed 's|^gi://||' | sort -u)
 
     while IFS= read -r -d '' file; do

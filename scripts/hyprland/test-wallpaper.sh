@@ -64,10 +64,12 @@ exit "${FAIL_APPLY:-0}"
     assert not (cache / 'wal/roles').exists()
     assert 'apply' not in events.read_text()
     assert 'Could not generate colors from first.jpg' in (base / 'notices').read_text()
+    assert len((base / 'notices').read_text().splitlines()) == 1, 'a failure posts its one notification'
     print('ok: generation failure does not publish state, reload, or announce success')
     (base / 'notices').write_text('')
     assert run(FAIL_APPLY='1').returncode == 1
     assert 'some components failed' in (base / 'notices').read_text()
+    assert len((base / 'notices').read_text().splitlines()) == 1, 'a partial failure posts its one notification'
     print('ok: partial component failure reaches the caller and notification')
     # A failed replacement preserves the published pair and wallpaper state.
     before = {name: (cache / 'wal' / name).read_bytes()

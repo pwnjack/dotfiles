@@ -148,7 +148,12 @@ mkdir -p "$ref_cache_empty"
 
 DOCTOR_ROOT="$ref_fixture"
 DOCTOR_CACHE="$ref_cache_empty"
+# A user's grep.lineNumber or grep.column adds fields to git grep's output.
+GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=grep.lineNumber GIT_CONFIG_VALUE_0=true \
+    GIT_CONFIG_KEY_1=grep.column GIT_CONFIG_VALUE_1=true run_check check_references
+ref_numbered=$CHECK_OUT
 run_check check_references
+assert_eq "$ref_numbered" "$CHECK_OUT" "the scan ignores the user's git grep line and column settings"
 
 # --- source chains ----------------------------------------------------------
 assert_contains "$CHECK_OUT" "hypr/hyprland.conf sources config/missing.conf" \

@@ -22,7 +22,7 @@
 #
 
 # shellcheck source=./medialib.sh
-. "${BASH_SOURCE[0]%/*}/medialib.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/medialib.sh"
 
 MAXLEN=38
 DEFAULT_ICON=$'\U000f075a'

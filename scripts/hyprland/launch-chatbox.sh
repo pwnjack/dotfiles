@@ -20,14 +20,20 @@
 
 class="aichat.sidebar"
 
-for c in hyprctl jq aichat ghostty; do
-    command -v "$c" >/dev/null 2>&1 || { notify-send "AI sidebar" "$c is not installed" 2>/dev/null; exit 1; }
-done
+need() {
+    local c
+    for c; do
+        command -v "$c" >/dev/null 2>&1 || { notify-send "AI sidebar" "$c is not installed" 2>/dev/null; exit 1; }
+    done
+}
 
+# Without jq the query below fails and every press would open another sidebar.
+need hyprctl jq
 if hyprctl clients -j | jq -e --arg class "$class" 'any(.[]; .class == $class)' >/dev/null; then
     hyprctl dispatch 'hl.dsp.workspace.toggle_special("aichat")'
     exit 0
 fi
+need aichat ghostty
 
 if [ -f "$HOME/.config/.env" ]; then
     set -a

@@ -139,7 +139,7 @@ wal_write() {
     if cat > "$tmp"; then
         if cmp -s -- "$tmp" "$1"; then
             status=1
-        elif chmod 644 -- "$tmp" && mv -f -- "$tmp" "$1"; then
+        elif chmod 644 -- "$tmp" && mv -fT -- "$tmp" "$1"; then
             return 0
         fi
     fi

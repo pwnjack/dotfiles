@@ -9,7 +9,7 @@
 #
 
 # shellcheck source=./medialib.sh
-. "${BASH_SOURCE[0]%/*}/medialib.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/medialib.sh"
 
 [ $# -gt 0 ] || { echo "usage: ${0##*/} play-pause|next|previous|..." >&2; exit 2; }
 

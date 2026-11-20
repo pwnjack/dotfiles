@@ -156,3 +156,4 @@ sddm/theme/
 *.o
 *.so
 __pycache__/
+.superpowers/

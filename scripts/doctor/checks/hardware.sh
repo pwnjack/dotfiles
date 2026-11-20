@@ -121,14 +121,18 @@ check_hardware() {
         return 0
     fi
 
-    # One "file NUL token" line per distinct name; -z because git C-quotes a
-    # path holding a non-ASCII or quote character, and git grep never reads a
-    # symlink's target (see the header).
+    # One "file NUL token" line per match; -z because git C-quotes a path
+    # holding a non-ASCII or quote character, and git grep never reads a
+    # symlink's target (see the header). The flags undo a user's
+    # grep.lineNumber and grep.column, which would add fields.
+    local -A seen=()
     while IFS= read -r -d '' file && IFS= read -r token; do
+        [ -z "${seen["$file/$token"]+x}" ] || continue
+        seen["$file/$token"]=1
         printf '%s\n' "$present" | grep -qxF -- "$token" && continue
         warn "$file names $token, which is not an output on this machine" \
              "point $(doctor_q "$DOCTOR_ROOT/$file") at an output this machine has, or remove the name"
-    done < <(git -C "$DOCTOR_ROOT" grep -IozE "$DOCTOR_DRM_CONNECTOR_RE" -- . ':!*.md' ':!docs/' ':!scripts/doctor/' ':!test/*' ':!*/test/*' 2>/dev/null | LC_ALL=C sort -u)
+    done < <(git -C "$DOCTOR_ROOT" grep --no-line-number --no-column -IozE "$DOCTOR_DRM_CONNECTOR_RE" -- . ':!*.md' ':!docs/' ':!scripts/doctor/' ':!test/*' ':!*/test/*' 2>/dev/null)
 
     ok_if_clean "$before" "no tracked config names a disconnected output"
 }

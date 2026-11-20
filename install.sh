@@ -220,6 +220,7 @@ if [ "$DOTFILES_DIR" != "$CONFIG_DIR" ]; then
     source "$DOTFILES_DIR/scripts/lib/deploy.sh"
     deploy_dotfiles "$DOTFILES_DIR" "$CONFIG_DIR" "$BACKUP_DIR" "$DRY_RUN" "$NO_BACKUP"
     success "Tracked dotfiles deployed"
+    [ "$NO_BACKUP" = true ] || info "Backup saved to: $BACKUP_DIR"
 else
     info "Repo already lives at $CONFIG_DIR - no deployment needed"
 fi

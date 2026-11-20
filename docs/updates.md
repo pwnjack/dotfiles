@@ -119,7 +119,8 @@ The runner adds `@@helper-exit <n>`, `@@phase flatpak`, `@@flatpak-exit <n>`,
 
 `state.json` is `model.snapshot()`: `status` (`running`, `done`, `restart`,
 `failed`, `attention`), `key`, `line`, `progress` (0–1), `done`, `total`,
-`speed` (the download rate shown while downloading, else `''`), `error`,
+`speed` (the last download rate while the run is in its download phase, which
+a run that ended there keeps; else `''`), `error`,
 `detail`, `errorKind` (`''` while running or on success, `pacman`,
 `transaction`, `busy`, `sudo`, `flatpak`, `unknown`), `restart` (the kernel to
 boot), `startedAt`, `finishedAt`. `fold.mjs` replaces the file by rename and signals

@@ -138,9 +138,12 @@ overlay_label_check() {
     fi
 }
 overlay_label_check
-skipped=$(QML_TESTRUNNER=/nonexistent overlay_label_check)
-assert_contains "$skipped" "skip: keybinds overlay QML tests" "a missing qmltestrunner prints its skip line"
-assert_not_contains "$skipped" "  ok " "a skipped label check is not reported as a pass"
+# Without node the run above has already skipped, at the model tests.
+if command -v node >/dev/null 2>&1; then
+    skipped=$(QML_TESTRUNNER=/nonexistent overlay_label_check)
+    assert_contains "$skipped" "skip: keybinds overlay QML tests" "a missing qmltestrunner prints its skip line"
+    assert_not_contains "$skipped" "  ok " "a skipped label check is not reported as a pass"
+fi
 
 # --- per-user values are not frozen into the document ------------------------
 #
