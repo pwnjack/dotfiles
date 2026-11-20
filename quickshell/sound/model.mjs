@@ -171,14 +171,7 @@ export function routeTargets(c, opts) {
         for (let i = 0; i < lists[k].length; i++) {
             const node = lists[k][i]
             if (node.id !== opts.defaultId && hidden.indexOf(node.name) >= 0) continue
-            targets.push({
-                key: node.name,
-                name: node.name,
-                serial: node.props['object.serial'],
-                label: labelFor(node, names),
-                virtual: k === 1,
-                tag: channelTag(node.channels),
-            })
+            targets.push({ name: node.name, label: labelFor(node, names), virtual: k === 1 })
         }
     }
     return targets
@@ -242,7 +235,6 @@ export function appList(c, opts) {
             muted: node.muted,
             route: {
                 label: sink ? labelFor(sink, names) : 'Default',
-                pinned: !!pin,
                 target: sink ? sink.name : '',
             },
             tag,

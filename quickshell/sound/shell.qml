@@ -2,8 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
-import Quickshell.Hyprland
 import Quickshell.Services.Pipewire
 import "model.mjs" as Model
 
@@ -88,20 +86,19 @@ ShellRoot {
         if (closing) {
             opened = true;
             closing = false;
-            popover.appear();
+            window.appear();
             return;
         }
-        const focused = Hyprland.focusedMonitor;
-        window.screen = Quickshell.screens.find(s => focused && s.name === focused.name) || Quickshell.screens[0];
+        window.pickScreen();
         opened = true;
         devicesReader.running = true;
-        popover.appear();
+        window.appear();
     }
     function close() {
         if (closing) return;
         closing = true;
         opened = false;
-        popover.disappear();
+        window.disappear();
     }
     Component.onCompleted: open()
 
@@ -318,33 +315,11 @@ ShellRoot {
         }
     }
 
-    PanelWindow {
+    BarPopover {
         id: window
-        visible: root.opened || root.closing
-        color: "transparent"
-        anchors { top: true; bottom: true; left: true; right: true }
-        // Normal: respect Waybar's exclusive zone, so the window starts just
-        // below (or above) the bar and the popover sits a gap away from it.
-        exclusionMode: ExclusionMode.Normal
-        WlrLayershell.namespace: "sound-popover"
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-
-        MouseArea { anchors.fill: parent; onClicked: root.close() }
-
-        Popover {
-            id: popover
-            controller: root
-            focus: true
-            enabled: root.opened
-            visible: root.opened || root.closing
-            readonly property int edge: px(12)
-            readonly property real anchorX: isFinite(root.cursorX) ? root.cursorX - (window.screen ? window.screen.x : 0) : window.width
-            x: Math.max(edge, Math.min(window.width - width - edge, anchorX - width / 2))
-            y: root.barAtBottom ? window.height - height - px(8) : px(8)
-            fromBottom: root.barAtBottom
-            originX: anchorX - x
-            onDismissed: if (root.closing) Qt.quit()
-        }
+        controller: root
+        namespace: "sound-popover"
+        onLeaving: if (popover.openMenu) popover.openMenu.close()
+        Popover { id: popover; controller: root; focus: true }
     }
 }

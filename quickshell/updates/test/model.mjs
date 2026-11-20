@@ -27,12 +27,12 @@ for (const name of ['routine', 'kernel', 'conflict', 'midfail', 'busy', 'sudo', 
 
 // Routine run: done, full bar, counts from the Packages header.
 {
-    const { snap } = fold('routine')
+    const { state, snap } = fold('routine')
     assert.equal(snap.status, 'done')
     assert.equal(snap.progress, 1)
     assert.equal(snap.total, 3)
     assert.equal(snap.done, 3)
-    assert.equal(snap.totalBytes, 115867648)
+    assert.equal(state.totalBytes, 115867648)
     assert.equal(snap.errorKind, '')
 }
 
@@ -40,13 +40,13 @@ for (const name of ['routine', 'kernel', 'conflict', 'midfail', 'busy', 'sudo', 
 // flavours replaced, DKMS and initramfs hooks; machine-id zeroed): it must
 // fold to a full bar and name the running flavour's new kernel.
 {
-    const { snap } = fold('captured')
+    const { state, snap } = fold('captured')
     assert.equal(snap.status, 'restart')
     assert.equal(snap.restart, '7.2.9-1-cachyos')
     assert.equal(snap.progress, 1)
     assert.equal(snap.total, 6)
     assert.equal(snap.done, 6)
-    assert.ok(snap.totalBytes > 400 * 1024 ** 2, `captured: download size ${snap.totalBytes}`)
+    assert.ok(state.totalBytes > 400 * 1024 ** 2, `captured: download size ${state.totalBytes}`)
 }
 
 // Phase weights at the boundaries the card relies on.
@@ -199,7 +199,6 @@ assert.equal(fold('flatpak').snap.status, 'attention')
 assert.equal(fold('flatpak').snap.errorKind, 'flatpak')
 assert.equal(model.result(fold('flatpak').snap).terminal, 'flatpak')
 assert.equal(fold('nothing').snap.status, 'done')
-assert.equal(fold('nothing').snap.nothing, true)
 assert.equal(model.result(fold('nothing').snap).subtitle, 'Nothing needed updating')
 
 // A stream that ends without the helper's exit is not left running once the fold closes it.
@@ -234,12 +233,12 @@ assert.equal(model.result(fold('nothing').snap).subtitle, 'Nothing needed updati
     assert.equal(model.checkedLine(null, 10600, true), '', 'the first check has the header spinner only')
     assert.equal(model.checkedLine({ ...plan, checkedAt: undefined }, 10600), '')
 }
-assert.deepEqual(model.summary(null), { title: 'Checking for updates…', subtitle: 'Syncing package databases', count: 0, repo: 0, canUpdate: false, note: '', terminal: '', busy: true })
+assert.deepEqual(model.summary(null), { title: 'Checking for updates…', subtitle: 'Syncing package databases', repo: 0, canUpdate: false, note: '', terminal: '', busy: true })
 {
     const plan = { repo: [{ name: 'a' }, { name: 'b' }], aur: [{ name: 'c' }], bytes: 434110464, kernel: true }
     assert.deepEqual(model.summary(plan), {
         title: '3 updates', subtitle: '414 MiB to download · restart needed after',
-        count: 3, repo: 2, canUpdate: true, note: '1 of them from the AUR', terminal: 'aur', busy: false,
+        repo: 2, canUpdate: true, note: '1 of them from the AUR', terminal: 'aur', busy: false,
     })
     assert.equal(model.summary({ ...plan, bytes: 0 }).subtitle, 'Already downloaded · restart needed after')
     assert.equal(model.summary({ repo: [], aur: [{ name: 'c' }], bytes: 0, kernel: false }).canUpdate, false)
@@ -248,7 +247,7 @@ assert.deepEqual(model.summary(null), { title: 'Checking for updates…', subtit
     assert.equal(model.summary(null, 'checkupdates failed').terminal, '', 'a failed check offers no terminal')
     assert.deepEqual(model.summary(null, 'poppler conflict', true), {
         title: 'Updates need a terminal', subtitle: 'poppler conflict',
-        count: 0, repo: 0, canUpdate: false, note: '', terminal: 'pacman', busy: false,
+        repo: 0, canUpdate: false, note: '', terminal: 'pacman', busy: false,
     })
     assert.equal(model.summary(plan, '', true).title, '3 updates', 'blocked means nothing without an error')
     assert.equal(model.summary(null, 'x').busy, false)
@@ -289,7 +288,6 @@ assert.equal(model.glide(0.9996, 1, 0.016), 1)
 // Summary counts Flatpak; only repo packages make the card's Update possible.
 {
     const plan = { repo: [{ name: 'a' }], aur: [], bytes: 0, kernel: false, flatpak: 2 }
-    assert.equal(model.summary(plan).count, 3)
     assert.equal(model.summary(plan).title, '3 updates')
     assert.equal(model.summary(plan).canUpdate, true)
     assert.equal(model.summary(Object.assign({}, plan, { repo: [] })).canUpdate, false)

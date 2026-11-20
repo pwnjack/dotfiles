@@ -65,6 +65,16 @@ qs_theme() {
     export "${prefix}_FONT=$font"
 }
 
+# qs_anchor <PREFIX>: exports <PREFIX>_CURSOR_X and <PREFIX>_BAR_POSITION for
+# a bar popover. Waybar does not say where on the module the click landed; the
+# cursor does. The x is empty when it cannot be read: any number, negative ones
+# too, is a position. Under set -e a failing $(...) inside export does not end
+# the launcher: export's own status wins.
+qs_anchor() {
+    export "$1_CURSOR_X=$(hyprctl cursorpos -j 2>/dev/null | jq -r '.x // empty' 2>/dev/null || true)" \
+        "$1_BAR_POSITION=$(option "$config_dir/options/bar-position" top)"
+}
+
 qs_start() {
     local attempt
     qs -p "$qs_entry" --no-duplicate --daemonize >"$cache_dir/session.log" 2>&1 9>&- \

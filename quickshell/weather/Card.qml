@@ -111,7 +111,7 @@ FocusScope {
                     // when that fits, the city alone when it does not, and a
                     // cut city last. How it feels is never cut. A reason with
                     // no place before it has the whole width and two lines.
-                    // 12 px, a pixel under the update card's subtitle: at 13
+                    // 12 px, half a pixel under the update card's subtitle: at 13
                     // an eleven-letter "City, Country" no longer fits beside a
                     // two-digit temperature.
                     Row {

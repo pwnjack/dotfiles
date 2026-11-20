@@ -2,8 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
-import Quickshell.Hyprland
 import "model.mjs" as Model
 
 // The update card for Waybar's custom/updates. Started by
@@ -110,11 +108,10 @@ ShellRoot {
         if (closing) {
             opened = true;
             closing = false;
-            card.appear();
+            window.appear();
             return;
         }
-        const focused = Hyprland.focusedMonitor;
-        window.screen = Quickshell.screens.find(s => focused && s.name === focused.name) || Quickshell.screens[0];
+        window.pickScreen();
         expanded = false;
         requestedAt = 0;
         run = null;
@@ -142,13 +139,15 @@ ShellRoot {
             savedPlan.running = true;
         }
         opened = true;
-        card.appear();
+        window.appear();
     }
     function close() {
+        // Asked to close before the lock probe answered: nothing is on screen yet.
+        if (!opened && !closing) { Qt.quit(); return; }
         if (closing) return;
         closing = true;
         opened = false;
-        card.disappear();
+        window.disappear();
     }
     function start() {
         if (mode !== "summary" || !plan || !plan.repo.length) return;
@@ -200,16 +199,13 @@ ShellRoot {
     // (updates-plan.sh --cached). Fresh, it is the whole answer; older, it
     // stays on screen while the planner checks again; none, the planner runs
     // as if nothing was saved.
-    Process {
+    Collect {
         id: savedPlan
-        property int exitCode: -1
-        property bool outDone: false
         command: [root.configDir + "/scripts/updates/updates-plan.sh", "--cached"]
-        function finish() {
-            if (exitCode < 0 || !outDone) return;
+        onDone: (code, out) => {
             let saved = null;
             try {
-                saved = exitCode === 0 ? JSON.parse(savedOut.text) : null;
+                saved = code === 0 ? JSON.parse(out) : null;
                 if (saved && (!Array.isArray(saved.repo) || !Array.isArray(saved.aur))) saved = null;
             } catch (error) {
                 saved = null;
@@ -222,8 +218,6 @@ ShellRoot {
             root.refreshing = !!saved;
             planner.running = true;
         }
-        stdout: StdioCollector { id: savedOut; onStreamFinished: { savedPlan.outDone = true; savedPlan.finish(); } }
-        onExited: code => { savedPlan.exitCode = code; savedPlan.finish(); }
     }
     Timer {
         interval: 15000
@@ -233,36 +227,29 @@ ShellRoot {
     }
 
     // updates-plan.sh prints JSON and exits 0, or prints one reason line on
-    // stderr and exits non-zero. Both streams and the exit must be in before deciding.
-    Process {
+    // stderr and exits non-zero.
+    Collect {
         id: planner
-        property int exitCode: -1
-        property bool outDone: false
-        property bool errDone: false
         command: [root.configDir + "/scripts/updates/updates-plan.sh"]
-        function finish() {
-            if (exitCode < 0 || !outDone || !errDone) return;
+        onDone: (code, out, err) => {
             root.refreshing = false;
             root.clock = Date.now() / 1000;
             // An Update pressed during a re-check made this answer moot.
             if (root.mode !== "summary") return;
-            const reason = planErr.text.trim().split("\n").pop();
-            if (exitCode !== 0) {
-                root.planError = reason || "The update check failed (exit " + exitCode + ").";
-                root.planBlocked = exitCode === 3;
+            const reason = err.trim().split("\n").pop();
+            if (code !== 0) {
+                root.planError = reason || "The update check failed (exit " + code + ").";
+                root.planBlocked = code === 3;
                 return;
             }
             try {
-                const plan = JSON.parse(planOut.text);
+                const plan = JSON.parse(out);
                 if (!Array.isArray(plan.repo) || !Array.isArray(plan.aur)) throw new Error("no repo/aur arrays");
                 root.plan = plan;
             } catch (error) {
                 root.planError = "The update check returned no plan.";
             }
         }
-        stdout: StdioCollector { id: planOut; onStreamFinished: { planner.outDone = true; planner.finish(); } }
-        stderr: StdioCollector { id: planErr; onStreamFinished: { planner.errDone = true; planner.finish(); } }
-        onExited: code => { planner.exitCode = code; planner.finish(); }
     }
     // Detached with no tie to this process: run.log has the whole stream, and
     // nothing the runner prints may go to the pipes of a card that has exited.
@@ -278,7 +265,9 @@ ShellRoot {
     IpcHandler {
         target: "updates"
         function ping(): string { return "ready"; }
-        function toggle(): void { if (root.opened) root.close(); else root.open(); }
+        // Anything but a card that is fading out is closed by a second click,
+        // one still probing the lock included.
+        function toggle(): void { if (root.closing) root.open(); else root.close(); }
         function close(): void { root.close(); }
         function status(): string {
             return JSON.stringify({
@@ -294,66 +283,14 @@ ShellRoot {
         }
     }
 
-    PanelWindow {
+    BarPopover {
         id: window
-        visible: root.opened || root.closing
-        color: "transparent"
-        anchors { top: true; bottom: true; left: true; right: true }
-        // Normal: respect Waybar's exclusive zone, so the window starts just
-        // below (or above) the bar and the card sits a gap away from it.
-        exclusionMode: ExclusionMode.Normal
-        WlrLayershell.namespace: "updates-popover"
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-
-        MouseArea { anchors.fill: parent; onClicked: root.close() }
-
-        Card {
-            id: card
-            controller: root
-            focus: true
-            enabled: root.opened
-            visible: root.opened || root.closing
-            readonly property int edge: px(12)
-            readonly property real anchorX: isFinite(root.cursorX) ? root.cursorX - (window.screen ? window.screen.x : 0) : window.width
-            x: Math.max(edge, Math.min(window.width - width - edge, anchorX - width / 2))
-            y: root.barAtBottom ? window.height - height - px(8) : px(8)
-
-            // The mockup's entrance: fade over 180 ms while scaling from 97%
-            // and dropping 8 px over 220 ms, from the clicked point of the bar.
-            property real fade: 0
-            property real lift: 0
-            opacity: fade
-            transform: [
-                Scale {
-                    origin.x: Math.max(0, Math.min(card.width, card.anchorX - card.x))
-                    origin.y: root.barAtBottom ? card.height : 0
-                    xScale: 0.97 + 0.03 * card.lift
-                    yScale: 0.97 + 0.03 * card.lift
-                },
-                Translate { y: (root.barAtBottom ? 1 : -1) * card.px(8) * (1 - card.lift) }
-            ]
-            function appear() {
-                leave.stop();
-                armKeys();
-                enter.start();
-                focusPrimary();
-            }
-            function disappear() {
-                enter.stop();
-                leave.start();
-            }
-            ParallelAnimation {
-                id: enter
-                NumberAnimation { target: card; property: "fade"; to: 1; duration: 180; easing.type: Easing.OutCubic }
-                NumberAnimation { target: card; property: "lift"; to: 1; duration: 220; easing.type: Easing.OutCubic }
-            }
-            ParallelAnimation {
-                id: leave
-                NumberAnimation { target: card; property: "fade"; to: 0; duration: 140; easing.type: Easing.InCubic }
-                NumberAnimation { target: card; property: "lift"; to: 0; duration: 140; easing.type: Easing.InCubic }
-                onFinished: if (root.closing) Qt.quit()
-            }
+        controller: root
+        namespace: "updates-popover"
+        onAppeared: {
+            card.armKeys();
+            card.focusPrimary();
         }
+        Card { id: card; controller: root; focus: true }
     }
 }

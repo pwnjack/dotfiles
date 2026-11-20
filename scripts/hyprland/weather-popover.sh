@@ -8,12 +8,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/qs-launch.sh"
 qs_launch weather weather Weather 'the weather card'
 if qs_ipc toggle >/dev/null 2>&1; then exit 0; fi
 qs_theme WEATHER
+qs_anchor WEATHER
 locale=${LC_ALL:-${LC_TIME:-${LANG:-en_US.UTF-8}}}
-export WEATHER_CURSOR_X WEATHER_BAR_POSITION WEATHER_CLOCK WEATHER_LOCALE="${locale%%.*}"
-# Waybar does not say where on the module the click landed; the cursor does.
-# Empty when it cannot be read: any number, negative ones too, is a position.
-WEATHER_CURSOR_X=$(hyprctl cursorpos -j 2>/dev/null | jq -r '.x // empty' 2>/dev/null || true)
+export WEATHER_CLOCK WEATHER_LOCALE="${locale%%.*}"
 # shellcheck disable=SC2154  # config_dir is set by qs-launch.sh
-WEATHER_BAR_POSITION=$(option "$config_dir/options/bar-position" top)
 WEATHER_CLOCK=$(option "$config_dir/options/clock" 24h)
 qs_start

@@ -64,7 +64,7 @@ newest_modules() {
 # snapshot_fallback — a terminal state.json written without the model, for when
 # every fold failed. Same fields as model.snapshot().
 snapshot_fallback() {
-    printf '{"status":"attention","phase":"sync","key":"sync","line":"","progress":0,"done":0,"total":0,"bytes":0,"totalBytes":0,"error":"The update ran, but its progress was not recorded","detail":"See run.log","errorKind":"unknown","restart":"","nothing":false,"startedAt":%s,"finishedAt":%s}\n' \
+    printf '{"status":"attention","key":"sync","line":"","progress":0,"done":0,"total":0,"speed":"","error":"The update ran, but its progress was not recorded","detail":"See run.log","errorKind":"unknown","restart":"","startedAt":%s,"finishedAt":%s}\n' \
         "$started" "$(date +%s)" > "$state_dir/state.json.fallback" \
         && mv -f "$state_dir/state.json.fallback" "$state_dir/state.json"
 }

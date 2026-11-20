@@ -42,7 +42,7 @@ FocusScope {
     readonly property var appsByKey: byKey(controller.apps)
     // What a row draws in the moment between its stream ending and its removal.
     readonly property var noApp: ({ key: "", serial: 0, name: "", icon: "", initials: "", volume: 0, muted: false,
-        route: { label: "", pinned: false, target: "" }, tag: "", pending: false })
+        route: { label: "", target: "" }, tag: "", pending: false })
     readonly property var noDevice: ({ key: "", name: "", label: "", volume: 0, muted: false, battery: null,
         current: false, virtual: false })
 
@@ -90,46 +90,6 @@ FocusScope {
 
     width: px(340)
     height: frame.height
-
-    // The update card's entrance: fade over 180 ms while scaling from 97 % and
-    // dropping 8 px over 220 ms, from the clicked point of the bar; the leave
-    // reverses it in 140 ms and then emits dismissed().
-    property bool fromBottom: false
-    property real originX: width / 2
-    signal dismissed()
-    property real fade: 0
-    property real lift: 0
-    opacity: fade
-    transform: [
-        Scale {
-            origin.x: Math.max(0, Math.min(popover.width, popover.originX))
-            origin.y: popover.fromBottom ? popover.height : 0
-            xScale: 0.97 + 0.03 * popover.lift
-            yScale: 0.97 + 0.03 * popover.lift
-        },
-        Translate { y: (popover.fromBottom ? 1 : -1) * popover.px(8) * (1 - popover.lift) }
-    ]
-    function appear() {
-        leave.stop();
-        enter.start();
-        forceActiveFocus();
-    }
-    function disappear() {
-        if (openMenu) openMenu.close();
-        enter.stop();
-        leave.start();
-    }
-    ParallelAnimation {
-        id: enter
-        NumberAnimation { target: popover; property: "fade"; to: 1; duration: 180; easing.type: Easing.OutCubic }
-        NumberAnimation { target: popover; property: "lift"; to: 1; duration: 220; easing.type: Easing.OutCubic }
-    }
-    ParallelAnimation {
-        id: leave
-        NumberAnimation { target: popover; property: "fade"; to: 0; duration: 140; easing.type: Easing.InCubic }
-        NumberAnimation { target: popover; property: "lift"; to: 0; duration: 140; easing.type: Easing.InCubic }
-        onFinished: popover.dismissed()
-    }
 
     component IconButton: Rectangle {
         id: button

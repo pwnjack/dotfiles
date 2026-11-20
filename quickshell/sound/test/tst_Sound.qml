@@ -63,16 +63,13 @@ Item {
     // An AppView is keyed by its stream's object.serial.
     function app(serial, name, volume) {
         return { key: String(serial), serial: serial, name: name, icon: "", initials: name.slice(0, 2).toUpperCase(),
-            volume: volume, muted: false, route: { label: "Default", pinned: false, target: "" }, tag: "", pending: false };
+            volume: volume, muted: false, route: { label: "Default", target: "" }, tag: "", pending: false };
     }
     function targets() {
         return [
-            { key: "alsa_output.usb-Logitech_G533", name: "alsa_output.usb-Logitech_G533", serial: 61,
-                label: "G533 Wireless Headset Dongle", virtual: false, tag: "" },
-            { key: "alsa_output.pci-speakers", name: "alsa_output.pci-speakers", serial: 62,
-                label: "Speakers", virtual: false, tag: "" },
-            { key: "effect_input.virtual_surround", name: "effect_input.virtual_surround", serial: 63,
-                label: "Surround 7.1", virtual: true, tag: "7.1" },
+            { name: "alsa_output.usb-Logitech_G533", label: "G533 Wireless Headset Dongle", virtual: false },
+            { name: "alsa_output.pci-speakers", label: "Speakers", virtual: false },
+            { name: "effect_input.virtual_surround", label: "Surround 7.1", virtual: true },
         ];
     }
 
@@ -89,9 +86,6 @@ Item {
         function renderFrame(item) { item.Window.window.update(); verify(waitForRendering(item)); }
         when: windowShown
 
-        function initTestCase() {
-            popover.appear();
-        }
         function init() {
             failOnWarning(/.?/);
             controller.ready = true;
@@ -211,7 +205,7 @@ Item {
 
         function test_route_menu_keeps_hidden_pin() {
             const pinned = app(81, "Firefox", 1);
-            pinned.route = { label: "ROG PG279Q", pinned: true, target: "alsa_output.pci-hdmi" };
+            pinned.route = { label: "ROG PG279Q", target: "alsa_output.pci-hdmi" };
             controller.apps = [pinned, app(92, "World of Warcraft", 0.85)];
             const menu = openRouteMenu("81");
             const entries = findChild(menu.contentItem, "menuEntries");

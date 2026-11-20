@@ -137,8 +137,7 @@ const opts = { defaultId: byName(BUILTIN).id, hidden: [], names: {}, battery: {}
 {
     const t = routeTargets(c, opts)
     assert.deepEqual(t.map(x => x.name), c.outputs.map(n => n.name).concat([SURROUND]))
-    assert.deepEqual(t[t.length - 1], { key: SURROUND, name: SURROUND, serial: 36, label: 'Surround 7.1', virtual: true, tag: '7.1' })
-    assert.equal(t.find(x => x.name === HDMI).serial, 236)
+    assert.deepEqual(t[t.length - 1], { name: SURROUND, label: 'Surround 7.1', virtual: true })
     const th = routeTargets(c, Object.assign({}, opts, { hidden: [HDMI, G533] }))
     assert.deepEqual(th.map(x => x.name), [BUILTIN, SURROUND])
     assert.ok(!routeTargets(c, Object.assign({}, opts, { hidden: [SURROUND] })).some(x => x.name === SURROUND))
@@ -158,24 +157,24 @@ const opts = { defaultId: byName(BUILTIN).id, hidden: [], names: {}, battery: {}
     assert.equal(mpv.key, '550') // the serial: object ids are reused
     assert.equal(mpv.serial, 550)
     assert.equal(mpv.initials, 'M')
-    assert.deepEqual(mpv.route, { label: 'Default', pinned: false, target: '' })
+    assert.deepEqual(mpv.route, { label: 'Default', target: '' })
     assert.equal(mpv.pending, false)
     assert.equal(mpv.tag, '')
     assert.equal(mpv.volume, 1)
     assert.equal(mpv.muted, false)
 
-    // Pinned to the built-in sink while it is the default: its label, pinned.
+    // Pinned to the built-in sink while it is the default: its label and target.
     const pinnedDefault = appList(c, Object.assign({}, aopts, { pins: { 163: '79' } }))
-    assert.deepEqual(pinnedDefault[0].route, { label: 'Built-in Audio', pinned: true, target: BUILTIN })
+    assert.deepEqual(pinnedDefault[0].route, { label: 'Built-in Audio', target: BUILTIN })
     // Pinned by serial (HDMI's serial is not its id), and by node name.
-    assert.deepEqual(appList(c, Object.assign({}, aopts, { pins: { 163: '236' } }))[0].route, { label: 'ROG PG279Q', pinned: true, target: HDMI })
-    assert.deepEqual(appList(c, Object.assign({}, aopts, { pins: { 163: G533 } }))[0].route, { label: 'G533 Wireless Headset Dongle', pinned: true, target: G533 })
+    assert.deepEqual(appList(c, Object.assign({}, aopts, { pins: { 163: '236' } }))[0].route, { label: 'ROG PG279Q', target: HDMI })
+    assert.deepEqual(appList(c, Object.assign({}, aopts, { pins: { 163: G533 } }))[0].route, { label: 'G533 Wireless Headset Dongle', target: G533 })
     // A custom name shows on the route too.
     assert.equal(appList(c, Object.assign({}, aopts, { pins: { 163: '236' }, names: { [HDMI]: 'Monitor' } }))[0].route.label, 'Monitor')
-    // Pinned to a serial no sink has: Default, not pinned.
-    assert.deepEqual(appList(c, Object.assign({}, aopts, { pins: { 163: '9999' } }))[0].route, { label: 'Default', pinned: false, target: '' })
+    // Pinned to a serial no sink has: Default.
+    assert.deepEqual(appList(c, Object.assign({}, aopts, { pins: { 163: '9999' } }))[0].route, { label: 'Default', target: '' })
     // A pin on another stream does not touch this one.
-    assert.equal(appList(c, Object.assign({}, aopts, { pins: { 107: '236' } }))[0].route.pinned, false)
+    assert.equal(appList(c, Object.assign({}, aopts, { pins: { 107: '236' } }))[0].route.target, '')
     // A pin can name a virtual sink even though it is not shown as a device.
     assert.equal(appList(c, Object.assign({}, aopts, { pins: { 163: '36' } }))[0].route.label, 'Surround 7.1')
     // A hidden target still resolves for an existing pin.
@@ -187,14 +186,11 @@ const opts = { defaultId: byName(BUILTIN).id, hidden: [], names: {}, battery: {}
     assert.equal(pend[0].route.label, 'G533 Wireless Headset Dongle')
     assert.equal(pend[1].pending, false)
     assert.equal(appList(c, Object.assign({}, aopts, { pending: { 550: 'default' } }))[0].route.label, 'Default')
-    // Pinned and pending at once: pinned comes from the pin, the label from the pending target.
+    // Pinned and pending at once: the route is the pending target.
     const pinnedAndPending = appList(c, Object.assign({}, aopts, { pins: { 163: '236' }, pending: { 550: G533 } }))[0]
     assert.equal(pinnedAndPending.pending, true)
-    assert.equal(pinnedAndPending.route.pinned, true)
     assert.equal(pinnedAndPending.route.label, 'G533 Wireless Headset Dongle')
     assert.equal(pinnedAndPending.route.target, G533)
-    // A pin that resolves to no sink stays unpinned even with a pending entry.
-    assert.equal(appList(c, Object.assign({}, aopts, { pins: { 163: '9999' }, pending: { 550: G533 } }))[0].route.pinned, false)
 
     // Tag: a stream linked into the surround sink reads 7.1.
     const mpvIn = Object.assign(copy(byName('mpv')), { linkTargets: [36, 36] })

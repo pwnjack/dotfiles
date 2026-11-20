@@ -6,15 +6,7 @@ set -euo pipefail
 # shellcheck source=scripts/lib/qs-launch.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/qs-launch.sh"
 qs_launch sound sound Sound 'the sound popover'
-for binary in hyprctl jq; do
-    command -v "$binary" >/dev/null 2>&1 || qs_fail "$binary is required for the sound popover."
-done
 if qs_ipc toggle >/dev/null 2>&1; then exit 0; fi
 qs_theme SOUND
-export SOUND_CURSOR_X SOUND_BAR_POSITION
-# Waybar does not say where on the module the click landed; the cursor does.
-# Empty when it cannot be read: any number, negative ones too, is a position.
-SOUND_CURSOR_X=$(hyprctl cursorpos -j 2>/dev/null | jq -r '.x // empty' 2>/dev/null || true)
-# shellcheck disable=SC2154  # config_dir is set by qs-launch.sh
-SOUND_BAR_POSITION=$(option "$config_dir/options/bar-position" top)
+qs_anchor SOUND
 qs_start

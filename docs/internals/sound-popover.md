@@ -37,9 +37,9 @@ or null); `outputs` and `inputs` (`{ shown, hidden }`); `apps`; `targets`;
 `openAdvanced` and `close`.
 
 - **`pinsKnown`** is false until the first line of `pins --watch` arrives and
-  again once the watch exits. While it is false no route item is checked and
-  the status line says routes cannot be read, so the popover never claims
-  "Default" for a route it cannot see.
+  again once the watch exits. While it is false no route item is checked, so
+  the popover never claims "Default" for a route it cannot see; once the watch
+  has exited, the status line also says routes cannot be read.
 - **`status`** is the route error, else the pins failure, and the Apps tab
   shows it. The route error clears itself after four seconds; the pins failure
   stays until the popover is reopened, because the watch is not restarted.

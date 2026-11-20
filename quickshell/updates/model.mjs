@@ -20,14 +20,14 @@ const TEXT = {
     flatpak: 'Updating Flatpak apps',
 }
 // Exit status the root helper uses when another update holds its lock.
-export const BUSY_EXIT = 75
+const BUSY_EXIT = 75
 
 export function initialState(startedAt) {
     return {
         phase: 'sync', key: 'sync', line: TEXT.sync, progress: 0, started: false,
         bytes: 0, totalBytes: 0, rate: 0, sampleAt: -1, sampleBytes: 0,
         total: 0, done: 0, hookIndex: 0, hookTotal: 0,
-        transaction: false, nothing: false, busy: false, sudo: false,
+        transaction: false, busy: false, sudo: false,
         error: '', detail: '', awaitingDetail: false, fetchFail: '',
         helperExit: null, flatpakExit: null, restart: '', ended: false,
         startedAt, finishedAt: 0,
@@ -163,7 +163,6 @@ export function foldLine(prev, raw, nowMs = 0) {
             s.line = m[3]
         }
     }
-    else if (line.trim() === 'there is nothing to do') s.nothing = true
     // One failing mirror followed by a working one is not an error; real
     // download failure ends in "failed to commit transaction (failed to retrieve ...)".
     // It is kept as the fallback reason in case downloads truly fail.
@@ -179,12 +178,12 @@ export function foldLine(prev, raw, nowMs = 0) {
 // The JSON written to state.json and read by the card and the bar.
 export function snapshot(s) {
     return {
-        status: status(s), phase: s.phase, key: s.key, line: s.line,
+        status: status(s), key: s.key, line: s.line,
         progress: Math.round(s.progress * 10000) / 10000,
         done: s.total ? Math.min(s.done, s.total) : s.done, total: s.total,
-        bytes: s.bytes, totalBytes: s.totalBytes, speed: speed(s),
+        speed: speed(s),
         error: s.error, detail: s.detail || (s.error ? s.fetchFail : ''), errorKind: errorKind(s),
-        restart: s.restart, nothing: s.nothing,
+        restart: s.restart,
         startedAt: s.startedAt, finishedAt: s.finishedAt,
     }
 }
@@ -205,7 +204,7 @@ export function duration(seconds) {
 // `terminal` names the terminal.sh path the card links to when Update cannot
 // cover everything: AUR (update.sh also runs Flatpak), or Flatpak on its own.
 export function summary(plan, error = '', blocked = false) {
-    const idle = (title, subtitle, busy = false) => ({ title, subtitle, count: 0, repo: 0, canUpdate: false, note: '', terminal: '', busy })
+    const idle = (title, subtitle, busy = false) => ({ title, subtitle, repo: 0, canUpdate: false, note: '', terminal: '', busy })
     // blocked: the check worked but pacman cannot resolve the upgrade (planner exit 3).
     if (error && blocked) return Object.assign(idle('Updates need a terminal', error), { terminal: 'pacman' })
     if (error) return idle('Could not check for updates', error)
@@ -221,7 +220,7 @@ export function summary(plan, error = '', blocked = false) {
     return {
         title: `${count} update${count === 1 ? '' : 's'}`,
         subtitle: size + (plan.kernel ? ' · restart needed after' : ''),
-        count, repo, canUpdate: repo > 0, note, terminal, busy: false,
+        repo, canUpdate: repo > 0, note, terminal, busy: false,
     }
 }
 
