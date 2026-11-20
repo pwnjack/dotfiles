@@ -16,5 +16,5 @@ for (const view of views) {
         assert.ok(defined.has(method), `${view} calls controller.${method}() but shell.qml defines no such function`)
     }
 }
-assert.ok(calls > 0 && defined.has('soundRequest'), 'the scan found the views\' controller calls')
+assert.ok(calls > 0 && defined.has('submit'), 'the scan found the views\' controller calls')
 console.log('ok: every controller method a view calls exists in shell.qml')

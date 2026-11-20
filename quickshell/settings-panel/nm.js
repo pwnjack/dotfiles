@@ -197,9 +197,9 @@ function isVanished(error) {
     return Gio.DBusError.is_remote_error(error)
         && ["org.freedesktop.DBus.Error.UnknownObject", "org.freedesktop.DBus.Error.UnknownMethod"].includes(Gio.DBusError.get_remote_error(error))
 }
-// Both callers report "already gone" structurally (never throwing for it), so
-// neither one has to match nm.js's own wording to tell that apart from a real failure.
-async function deleteIfPresent(uuid) {
+// False when the profile is already gone, never a throw, so no caller has to
+// match nm.js's own wording to tell that apart from a real failure.
+export async function deleteIfPresent(uuid) {
     const connection = nm().get_connection_by_uuid(uuid)
     if (!connection) return false
     try { await connection.delete_async(null); return true }
@@ -207,9 +207,4 @@ async function deleteIfPresent(uuid) {
         if (isVanished(error)) return false
         throw error
     }
-}
-export async function removeConnections(uuids) {
-    const missing = []
-    for (const uuid of uuids) if (!(await deleteIfPresent(uuid))) missing.push(uuid)
-    return { missing }
 }

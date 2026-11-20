@@ -548,38 +548,36 @@ console.log("ok: deactivate reaches the client with the matching active connecti
 }
 console.log("ok: setWifiEnabled reaches the client's dbus property setter with every argument correct")
 
-// --- removeConnections -----------------------------------------------------
+// --- deleteIfPresent -------------------------------------------------------
 {
     client.connections = new Map()
-    const result = await nm.removeConnections(["u-absent"])
-    assertEqual(result.missing.length, 1, "an absent uuid must be reported missing")
-    assertEqual(result.missing[0], "u-absent")
+    assertEqual(await nm.deleteIfPresent("u-absent"), false, "an absent uuid must read as already gone")
+    client.connections = new Map([["u-here", fakeConnection("u-here")]])
+    assertEqual(await nm.deleteIfPresent("u-here"), true, "a deleted profile must read as removed")
 }
-console.log("ok: removeConnections reports a uuid that was never present as missing")
+console.log("ok: deleteIfPresent tells a deleted profile from one that was never present")
 
 {
     client.connections = new Map([["u-unknown-method", fakeConnection("u-unknown-method", {
         deleteImpl: async () => { throw GLib.Error.new_literal(Gio.DBusError, Gio.DBusError.UNKNOWN_METHOD, "no such method") },
     })]])
-    const result = await nm.removeConnections(["u-unknown-method"])
-    assertEqual(result.missing[0], "u-unknown-method", "an UNKNOWN_METHOD delete failure means the profile is already gone")
+    assertEqual(await nm.deleteIfPresent("u-unknown-method"), false, "an UNKNOWN_METHOD delete failure means the profile is already gone")
 }
-console.log("ok: removeConnections treats a delete_async UNKNOWN_METHOD error as already gone, not a failure")
+console.log("ok: deleteIfPresent treats a delete_async UNKNOWN_METHOD error as already gone, not a failure")
 
 {
     client.connections = new Map([["u-unknown-object", fakeConnection("u-unknown-object", {
         deleteImpl: async () => { throw Gio.DBusError.new_for_dbus_error("org.freedesktop.DBus.Error.UnknownObject", "no such object") },
     })]])
-    const result = await nm.removeConnections(["u-unknown-object"])
-    assertEqual(result.missing[0], "u-unknown-object", "an UNKNOWN_OBJECT delete failure means the profile is already gone")
+    assertEqual(await nm.deleteIfPresent("u-unknown-object"), false, "an UNKNOWN_OBJECT delete failure means the profile is already gone")
 }
-console.log("ok: removeConnections treats a delete_async UNKNOWN_OBJECT error as already gone, not a failure")
+console.log("ok: deleteIfPresent treats a delete_async UNKNOWN_OBJECT error as already gone, not a failure")
 
 {
     client.connections = new Map([["u-real-fail", fakeConnection("u-real-fail", { deleteImpl: async () => { throw new Error("disk full") } })]])
-    await assertRejects(nm.removeConnections(["u-real-fail"]), /disk full/)
+    await assertRejects(nm.deleteIfPresent("u-real-fail"), /disk full/)
 }
-console.log("ok: removeConnections throws an unrelated delete failure instead of reporting it as missing")
+console.log("ok: deleteIfPresent throws an unrelated delete failure instead of reporting it as gone")
 
 // --- nmSnapshot: access point and connection-state mapping -----------------
 {

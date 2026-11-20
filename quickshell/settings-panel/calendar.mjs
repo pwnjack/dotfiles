@@ -13,11 +13,6 @@ export function toggleHidden(text, name, shown) {
     if (!shown) names.push(name)
     return names.length ? names.join('\n') + '\n' : ''
 }
-// The Calendar page's reader may finish after the page was hidden; only a read started under
-// the current generation may be applied (the Devices page's rule).
-export function fresh(startedGeneration, currentGeneration, shown) {
-    return shown && startedGeneration === currentGeneration
-}
 // calendarStatus through panel-request.sh -> {calendar} or {error}. A lock timeout prints to
 // stderr only, and a backend failure replies {"ok":false,"error":...}; either way the
 // caller keeps the model it already has.

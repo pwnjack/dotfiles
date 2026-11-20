@@ -111,7 +111,7 @@ SettingsSection {
                     checked: line.device.shown
                     // The current device has to stay in the popover, so it cannot be hidden.
                     enabled: !line.modelData.inUse
-                    onToggled: page.controller.soundRequest({ op: "soundShow", name: line.device.name, shown: checked })
+                    onToggled: page.controller.submit({ op: "soundShow", name: line.device.name, shown: checked })
                 }
                 MouseArea {
                     id: tipArea
@@ -129,7 +129,7 @@ SettingsSection {
                     }
                 }
             }
-            function apply() { page.controller.soundRequest({ op: "soundName", name: device.name, label: name.text }); }
+            function apply() { page.controller.submit({ op: "soundName", name: device.name, label: name.text }); }
         }
     }
 }

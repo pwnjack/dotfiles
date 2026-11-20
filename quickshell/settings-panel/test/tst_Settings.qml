@@ -65,8 +65,6 @@ Item {
         function reset(id) { calls = calls.concat([{reset:id}]); }
         function action(id) { calls = calls.concat([{action:id}]); }
         function submit(request) { calls = calls.concat([request]); }
-        function calendarRequest(request) { calls = calls.concat([request]); }
-        function soundRequest(request) { calls = calls.concat([request]); }
         function retrySound() { calls = calls.concat([{retrySound: true}]); }
     }
     SettingsView { id: view; anchors.fill: parent; controller: controller }

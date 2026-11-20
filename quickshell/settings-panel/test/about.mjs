@@ -100,7 +100,7 @@ const callbackStart = shell.indexOf('        onExited: code => {',shell.indexOf(
 const callback = shell.slice(callbackStart + '        onExited: code => {'.length, shell.indexOf('\n        }\n    }', callbackStart))
 const root = {readReply:JSON.stringify({ok:true,values:{},about:{user:'alex',uptimeSeconds:60}}),
     about:{session:'Example on Wayland',cpu:{name:'Example'}},values:{},readerAboutFull:false,readerStartup:false,
-    category:'about',queue:[],closing:false,problem:'',startedAt:Date.now(),refresh:()=>context.refreshCalls++}
+    category:'about',queue:[],closing:false,problem:'',startedAt:Date.now(),refresh:()=>context.refreshCalls++,landGuarded(){}}
 vm.runInNewContext('(function () {'+callback+'})()', {root,console:{info(){}}})
 assert.equal(root.about.cpu.name,'Example','a summary preserves full fields')
 assert.equal(root.about.uptimeSeconds,60)

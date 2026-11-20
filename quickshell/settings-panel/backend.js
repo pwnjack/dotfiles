@@ -7,7 +7,7 @@ import * as persist from "./persist.js"
 import { pulseState, pulseValue, pulseEnumerators, setPulse } from "./pulse.js"
 import * as displays from "./displays.mjs"
 import * as about from "./about.mjs"
-import { nmSnapshot, setWifiEnabled, requestScan, activate, addAndActivate, deactivate, removeConnections } from "./nm.js"
+import { nmSnapshot, setWifiEnabled, requestScan, activate, addAndActivate, deactivate, deleteIfPresent } from "./nm.js"
 import * as network from "./network.mjs"
 import * as autostart from "./autostart.mjs"
 import { regionValue, regionEnumerators, setRegion } from "./region.js"
@@ -30,11 +30,7 @@ const displayStatePath = `${stateHome}/hypr/monitors.lua`
 const pendingPath = `${GLib.get_user_runtime_dir()}/settings-panel/display-pending.json`
 const guardUnit = "settings-display-revert"
 
-function read(path) {
-    const [ok, data] = Gio.File.new_for_path(path).load_contents(null)
-    if (!ok) throw new Error(`Cannot read ${path}`)
-    return new TextDecoder().decode(data)
-}
+function read(path) { return new TextDecoder().decode(readBytes(path)) }
 function readBytes(path) {
     const [ok, data] = Gio.File.new_for_path(path).load_contents(null)
     if (!ok) throw new Error(`Cannot read ${path}`)
@@ -342,7 +338,8 @@ function detached(args) {
 const delay = milliseconds => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, milliseconds, () => { resolve(); return GLib.SOURCE_REMOVE }))
 // Files the machine-state overlay renders are written live, then synced, which
 // records the change as this machine's override (scripts/state/overlay.sh).
-const overlaySources = new Set(["option", "cursor", "gtk", "mime", "swaync", "sunset"])
+// Night light syncs inside its own save transaction, before hyprsunset restarts.
+const overlaySources = new Set(["option", "cursor", "gtk", "mime", "swaync"])
 const syncOverlay = () => execAsync(["bash", configDir + "/scripts/state/overlay.sh", "sync"])
 async function restart(name) {
     if (!GLib.find_program_in_path(name)) throw new Error(`${name} is not installed`)
@@ -383,15 +380,19 @@ async function regeneratePalette(wallpaper) {
 // Other rows keep reporting a missing file, so a save never recreates a file it has not read.
 const unsetReadsDefault = row => row.source === "option" && (row.kind === "select" || row.kind === "toggle")
     && (row.default !== undefined || row.choices === "calendars")
-// The file did not exist: a rollback removes it again, so the row reads its default afterwards.
-async function saveNew(path, text, apply) {
-    write(path, text)
+// A failed apply restores the previous file and applies that; the error says whether it worked.
+async function applyOrRestore(apply, restore) {
     try { await apply() }
     catch (error) {
-        try { remove(path); await apply() }
+        try { restore(); await apply() }
         catch (rollback) { throw new Error(`${error.message}. Restoring the previous settings also failed: ${rollback.message}`) }
         throw new Error(`${error.message}. Previous settings restored.`)
     }
+}
+// The file did not exist: a rollback removes it again, so the row reads its default afterwards.
+async function saveNew(path, text, apply) {
+    write(path, text)
+    return applyOrRestore(apply, () => remove(path))
 }
 // Like saveAndApply, but an empty text removes the file; a failure restores the
 // previous bytes, or no file when there was none.
@@ -399,26 +400,16 @@ async function saveOrRemove(path, text, apply) {
     const before = exists(path) ? read(path) : null
     if (text === "") { if (before !== null) remove(path) }
     else write(path, text)
-    try { await apply() }
-    catch (error) {
-        try {
-            if (before === null) { if (exists(path)) remove(path) }
-            else write(path, before)
-            await apply()
-        } catch (rollback) { throw new Error(`${error.message}. Restoring the previous settings also failed: ${rollback.message}`) }
-        throw new Error(`${error.message}. Previous settings restored.`)
-    }
+    return applyOrRestore(apply, () => {
+        if (before === null) { if (exists(path)) remove(path) }
+        else write(path, before)
+    })
 }
 async function saveAndApply(path, text, apply, createMissing = false) {
     if (createMissing && !exists(path)) return saveNew(path, text, apply)
     const before = read(path)
     write(path, text)
-    try { await apply() }
-    catch (error) {
-        try { write(path, before); await apply() }
-        catch (rollback) { throw new Error(`${error.message}. Restoring the previous settings also failed: ${rollback.message}`) }
-        throw new Error(`${error.message}. Previous settings restored.`)
-    }
+    return applyOrRestore(apply, () => write(path, before))
 }
 
 // hyprctl getoption names the value field after the option's type. `set` only
@@ -895,13 +886,12 @@ function displayConfig(request, monitors) {
         throw new Error("This scale does not divide the mode evenly")
     return config
 }
-// True if this call disarmed the guard; false if it had already fired or was
-// never armed. Any other failure is real and is raised.
+// A guard that already fired or was never armed is not loaded, which is fine;
+// any other failure is real and is raised.
 async function stopGuard() {
-    try { await execAsync(["systemctl", "--user", "stop", `${guardUnit}.timer`]); return true }
+    try { await execAsync(["systemctl", "--user", "stop", `${guardUnit}.timer`]) }
     catch (error) {
-        if (/not loaded/.test(error.message)) return false
-        throw error
+        if (!/not loaded/.test(error.message)) throw error
     }
 }
 // Nothing reaches monitors.lua before Keep, so reloading is always a correct
@@ -1003,33 +993,14 @@ export async function dispatch(request) {
         if (plan.kind === "activate") await activate(plan.uuid)
         else {
             await addAndActivate(plan)
-            // Only once the new profile works are the old ones for this SSID removed,
-            // each best-effort: a removal failure must not read back as a failed connect.
-            // One of them being already gone (a race with something else removing it)
-            // is not a failure at all.
-            if (plan.replace.length) {
-                // removeConnections reports an already-gone uuid structurally
-                // (never throws for it), so any thrown error here is real.
-                let firstError = null
-                for (const uuid of plan.replace) {
-                    try { await removeConnections([uuid]) }
-                    catch (error) { firstError ??= error }
-                }
-                if (firstError) throw new Error(`Connected, but an old saved profile for this network could not be removed: ${firstError.message}`)
-            }
+            // Only once the new profile works are the old ones for this SSID removed:
+            // a removal failure must not read back as a failed connect.
+            await removeProfiles(plan.replace, "Connected, but an old saved profile for this network could not be removed")
         }
         return {}
     }
     if (request.op === "wifiForget") {
-        // Best effort, one at a time: an already-missing profile is removed as
-        // far as the user is concerned, and one real failure must not stop the
-        // rest of this SSID's saved profiles from being removed.
-        let firstError = null
-        for (const uuid of network.forgetPlan(requiredSnapshot(), request.ssid)) {
-            try { await removeConnections([uuid]) }
-            catch (error) { firstError ??= error }
-        }
-        if (firstError) throw new Error(`Some saved profiles for this network could not be removed: ${firstError.message}`)
+        await removeProfiles(network.forgetPlan(requiredSnapshot(), request.ssid), "Some saved profiles for this network could not be removed")
         return {}
     }
     if (request.op === "vpn") {
@@ -1124,6 +1095,16 @@ export async function dispatch(request) {
         return {}
     }
     throw new Error("Unknown operation")
+}
+// Best effort, one at a time: an already-gone profile counts as removed, and one
+// real failure must not stop the rest; the first one is reported.
+async function removeProfiles(uuids, prefix) {
+    let firstError = null
+    for (const uuid of uuids) {
+        try { await deleteIfPresent(uuid) }
+        catch (error) { firstError ??= error }
+    }
+    if (firstError) throw new Error(`${prefix}: ${firstError.message}`)
 }
 // The message cal.sh (or any helper that prints {"ok":false,"error"}) gave for a failed run.
 function helperFailure(error) {

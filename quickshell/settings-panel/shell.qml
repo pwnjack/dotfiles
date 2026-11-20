@@ -183,6 +183,15 @@ ShellRoot {
         pendingDisplay = null;
         submit({op: "displayRevert"});
     }
+    // A network or display reply never moves a control under the user's hand: a password
+    // mid-edit keeps its network snapshot (replacing it recreates the Wi-Fi list's
+    // delegates) and an open display dropdown keeps its card; each is replayed when it
+    // closes. A queued Keep/Revert is about to change pendingDisplay.
+    function landGuarded(result) {
+        if (result.network) { if (interacting !== "network.psk") network = result.network; else networkSkipped = true; }
+        if (result.monitors && interacting.startsWith("display:")) displaysSkipped = true;
+        else if (result.monitors) { monitors = result.monitors; mainMonitor = result.mainMonitor; if (!busy) pendingDisplay = result.displayPending; }
+    }
     function submit(request, auth) {
         if (closing) return;
         problem = "";
@@ -287,7 +296,7 @@ ShellRoot {
         stdout: StdioCollector { onStreamFinished: calendarReader.reply = text }
         stderr: StdioCollector { onStreamFinished: calendarReader.errorText = text }
         onExited: code => {
-            if (CalendarRead.fresh(generation, root.calendarGeneration, root.calendarShown)) {
+            if (DeviceRead.fresh(generation, root.calendarGeneration, root.calendarShown)) {
                 const result = CalendarRead.readReply(calendarReader.reply, calendarReader.errorText, code);
                 // A failed read keeps the model already shown; the banner says it is out of date.
                 // The banner is shared with write errors, so the helper decides who owns it.
@@ -329,7 +338,7 @@ ShellRoot {
         stdout: StdioCollector { onStreamFinished: soundReader.reply = text }
         stderr: StdioCollector { onStreamFinished: soundReader.errorText = text }
         onExited: code => {
-            if (CalendarRead.fresh(generation, root.soundGeneration, root.soundShown)) {
+            if (DeviceRead.fresh(generation, root.soundGeneration, root.soundShown)) {
                 // A failed read keeps the devices already shown; soundError says the list may be out of date.
                 let result = null;
                 try { result = JSON.parse(soundReader.reply); } catch (_) { /* No reply: the helper failed before answering. */ }
@@ -348,10 +357,6 @@ ShellRoot {
     function retrySound() { readSound(); }
     // Audio events come in bursts (a profile switch is several): one read after they settle.
     Timer { id: soundTimer; interval: 300; onTriggered: root.readSound() }
-    // Calendar writes take the same queue as every other change: the password goes on stdin, and a failure lands in `problem`.
-    function calendarRequest(request) { submit(request); }
-    // Sound writes (a device's name or visibility) take the same queue; a failure lands in `problem`.
-    function soundRequest(request) { submit(request); }
     Process {
         id: reader
         stdout: StdioCollector { onStreamFinished: root.readReply = text }
@@ -361,15 +366,9 @@ ShellRoot {
                 const result = JSON.parse(root.readReply);
                 if (!result.ok) throw new Error(result.error);
                 root.values = Object.assign({}, root.values, result.values);
-                // A password mid-edit keeps its own network snapshot: replacing it here
-                // would recreate the Wi-Fi list's delegates under the user's hands.
-                if (result.network) { if (root.interacting !== "network.psk") root.network = result.network; else root.networkSkipped = true; }
+                root.landGuarded(result);
                 if (result.startup) root.startup = result.startup;
                 if (result.about) root.about = root.readerAboutFull ? result.about : Object.assign({}, root.about || {}, result.about);
-                // An open display dropdown keeps its card (the read is replayed when it
-                // closes); a queued Keep/Revert is about to change pendingDisplay.
-                if (result.monitors && root.interacting.startsWith("display:")) root.displaysSkipped = true;
-                else if (result.monitors) { root.monitors = result.monitors; root.mainMonitor = result.mainMonitor; if (!root.busy) root.pendingDisplay = result.displayPending; }
                 root.readyMs = Date.now() - root.startedAt;
                 console.info("Settings ready in " + root.readyMs + " ms");
             } catch (error) { root.problem = root.readError.trim() || "Could not read settings: " + error; }
@@ -383,7 +382,7 @@ ShellRoot {
     Process {
         id: writer
         stdinEnabled: true
-        // The request travels on stdin, never argv: it may carry a Wi-Fi password.
+        // The request travels on stdin, never argv: it may carry a Wi-Fi or calendar password.
         onStarted: { writer.write(root.writeRequest + "\n"); root.writeRequest = ""; }
         stdout: StdioCollector { onStreamFinished: root.writeReply = text }
         stderr: StdioCollector { onStreamFinished: root.writeError = text }
@@ -462,11 +461,7 @@ ShellRoot {
                 // Never move a control under the user's hand.
                 delete values[root.interacting];
                 root.values = Object.assign({}, root.values, values);
-                if (result.network) { if (root.interacting !== "network.psk") root.network = result.network; else root.networkSkipped = true; }
-                // An open display dropdown keeps its card (the read is replayed when it
-                // closes); a queued Keep/Revert is about to change pendingDisplay.
-                if (result.monitors && root.interacting.startsWith("display:")) root.displaysSkipped = true;
-                else if (result.monitors) { root.monitors = result.monitors; root.mainMonitor = result.mainMonitor; if (!root.busy) root.pendingDisplay = result.displayPending; }
+                root.landGuarded(result);
             } catch (error) { console.warn("Live refresh failed: " + error); }
             if (Object.keys(root.liveDirty).length) liveTimer.restart();
             if (root.busy || root.closing) root.drain();

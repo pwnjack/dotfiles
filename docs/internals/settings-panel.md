@@ -19,5 +19,5 @@ A `theme-scheme`, `theme-contrast` or `theme-prefer` save or reset resolves `${X
 
 ## Traps
 
-- **Sound page error.** `soundError` is the Sound page's own, not the shared `problem` banner; `SoundView.qml` shows it with a Retry button (`retrySound`) and keeps the list already shown. The next good read clears it. The `audioEvents` parser feeds one 300 ms debounce, so there is no second `pactl subscribe`.
+- **Sound page error.** `soundError` is the Sound page's own, not the shared `problem` banner; `SoundView.qml` shows it with a Retry button (`retrySound`) and keeps the list already shown. The next good read clears it. The one `pactl subscribe` (`audioEvents`) feeds two 300 ms debounces while the page is shown, the tagged rows' live read and the Sound devices read, so there is no second subscription.
 - **Sound name fields.** `SoundView.qml` draws a copy of the `soundDevices` reply that it keeps while a name field has focus, because replacing a Repeater's array rebuilds its delegates and wipes typed text.

@@ -23,7 +23,8 @@ ColumnLayout {
     property double syncBaseline: -1
     readonly property double lastAttempt: model && model.status ? (model.status.lastAttempt || 0) : 0
     readonly property bool syncing: syncBaseline >= 0 && lastAttempt <= syncBaseline
-    onSyncingChanged: if (!syncing) syncBaseline = -1
+    // Cleared on the input, not on syncing, whose binding reads the baseline.
+    onLastAttemptChanged: if (syncBaseline >= 0 && lastAttempt > syncBaseline) syncBaseline = -1
     Timer { interval: 130000; running: page.syncing; onTriggered: page.syncBaseline = -1 }
     spacing: 22
 
@@ -92,7 +93,7 @@ ColumnLayout {
                         text: "Sign in"
                         enabled: appleId.text.trim() !== "" && password.text !== ""
                         onClicked: {
-                            page.controller.calendarRequest({ op: "calendarSignIn", appleId: appleId.text, password: password.text });
+                            page.controller.submit({ op: "calendarSignIn", appleId: appleId.text, password: password.text });
                             password.text = "";
                         }
                     }
@@ -143,7 +144,7 @@ ColumnLayout {
                 enabled: !page.syncing
                 onClicked: {
                     page.syncBaseline = page.lastAttempt;
-                    page.controller.calendarRequest({ op: "calendarSync" });
+                    page.controller.submit({ op: "calendarSync" });
                 }
             }
         }
@@ -178,7 +179,7 @@ ColumnLayout {
                 onClicked: {
                     if (!confirm) { confirm = true; return; }
                     confirm = false;
-                    page.controller.calendarRequest({ op: "calendarSignOut" });
+                    page.controller.submit({ op: "calendarSignOut" });
                 }
             }
         }
@@ -219,7 +220,7 @@ ColumnLayout {
                     objectName: "show-" + calRow.modelData.name
                     theme: page.theme
                     checked: calRow.modelData.shown
-                    onToggled: page.controller.calendarRequest({ op: "calendarShow", name: calRow.modelData.name, shown: checked })
+                    onToggled: page.controller.submit({ op: "calendarShow", name: calRow.modelData.name, shown: checked })
                 }
             }
         }

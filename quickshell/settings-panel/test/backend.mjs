@@ -160,16 +160,12 @@ const nmMock = {
     activate: async uuid => { nmCalls.push(['activate', uuid]) },
     addAndActivate: async plan => { nmCalls.push(['add', plan.ssid, plan.psk, plan.keyMgmt]); if (nmFailAdd) throw new Error(nmFailAdd) },
     deactivate: async uuid => { nmCalls.push(['deactivate', uuid]) },
-    removeConnections: async uuids => {
-        nmCalls.push(['remove', ...uuids])
-        // Mirrors nm.js's real contract: an already-gone uuid is reported
-        // structurally, never thrown.
-        const missing = []
-        for (const uuid of uuids) {
-            if (nmMissingRemove.has(uuid)) { missing.push(uuid); continue }
-            if (nmFailRemove.has(uuid)) throw new Error(`Cannot remove ${uuid}`)
-        }
-        return { missing }
+    // Mirrors nm.js's real contract: an already-gone uuid returns false, never throws.
+    deleteIfPresent: async uuid => {
+        nmCalls.push(['remove', uuid])
+        if (nmMissingRemove.has(uuid)) return false
+        if (nmFailRemove.has(uuid)) throw new Error(`Cannot remove ${uuid}`)
+        return true
     },
 }
 let dbusCalls = [], dbusDeny = false
@@ -377,7 +373,7 @@ registerHooks({resolve(specifier,context,next) {
     const names = {'gi://GLib':'GLib','gi://Gio':'Gio','gi://GioUnix':'GioUnix'}
     if (names[specifier]) return {url:'data:text/javascript,'+encodeURIComponent(`export default globalThis.settingsMocks.${names[specifier]}`),shortCircuit:true}
     if (specifier === './process.js') return {url:'data:text/javascript,export const execAsync = globalThis.settingsMocks.execAsync, execInput = (...a) => globalThis.settingsMocks.execInput(...a)',shortCircuit:true}
-    if (specifier === './nm.js') return {url:'data:text/javascript,'+encodeURIComponent('const m = () => globalThis.settingsMocks.nm; export const nmSnapshot = (...a) => m().nmSnapshot(...a), setWifiEnabled = (...a) => m().setWifiEnabled(...a), requestScan = (...a) => m().requestScan(...a), activate = (...a) => m().activate(...a), addAndActivate = (...a) => m().addAndActivate(...a), deactivate = (...a) => m().deactivate(...a), removeConnections = (...a) => m().removeConnections(...a)'),shortCircuit:true}
+    if (specifier === './nm.js') return {url:'data:text/javascript,'+encodeURIComponent('const m = () => globalThis.settingsMocks.nm; export const nmSnapshot = (...a) => m().nmSnapshot(...a), setWifiEnabled = (...a) => m().setWifiEnabled(...a), requestScan = (...a) => m().requestScan(...a), activate = (...a) => m().activate(...a), addAndActivate = (...a) => m().addAndActivate(...a), deactivate = (...a) => m().deactivate(...a), deleteIfPresent = (...a) => m().deleteIfPresent(...a)'),shortCircuit:true}
     if (specifier === './dbus.js') return {url:'data:text/javascript,'+encodeURIComponent('const m = () => globalThis.settingsMocks.dbus; export const callSystem = (...a) => m().callSystem(...a), getProperty = (...a) => m().getProperty(...a);'),shortCircuit:true}
     return next(specifier,context)
 }})
@@ -689,6 +685,7 @@ events=[]
 await dispatch({op:'set',id:'power.nightlight-start',value:1230})
 assert.equal(files.get(base+'/hypr/hyprsunset.conf'),oldSunset.replace('$night_time = 20:00','$night_time = 20:30'))
 const syncAt=events.findIndex(e=>e[0]==='bash'&&e[1]===base+'/scripts/state/overlay.sh'&&e[2]==='sync')
+assert.equal(events.filter(e=>e[0]==='bash'&&e[1]===base+'/scripts/state/overlay.sh'&&e[2]==='sync').length,1,'a night light edit syncs the overlay once')
 const killAt=events.findIndex(e=>e[0]==='pkill'&&e.includes('hyprsunset'))
 assert.ok(syncAt>=0&&killAt>syncAt,'the overlay is synced before hyprsunset restarts')
 await dispatch({op:'set',id:'power.nightlight-temp',value:3500})
@@ -1014,6 +1011,7 @@ const guard = events.find(e=>e[0]==='systemd-run')
 for (const flag of ['--user','--collect','--unit=settings-display-revert','--on-active=20','--setenv=HYPRLAND_INSTANCE_SIGNATURE=sig']) assert.ok(guard.includes(flag),flag)
 assert.deepEqual(guard.slice(-2),['hyprctl','reload'])
 assert.ok(events.indexOf(guard) < events.findIndex(e=>e[1]==='eval'))
+assert.ok(events.findIndex(e=>e[1]==='eval') < events.findIndex(e=>e[0]==='write' && e[1]===pendingPath),'the pending record follows a successful eval')
 assert.deepEqual(events.find(e=>e[1]==='eval'),['hyprctl','eval',line])
 assert.equal(applied.pending.output,'DP-1')
 assert.equal(files.has(statePath),false)
@@ -1122,18 +1120,9 @@ await dispatch(apply)
 assert.equal(events.find(e=>e[0]==='systemd-run').some(a=>String(a).startsWith('--setenv')),false)
 mockEnv.HYPRLAND_INSTANCE_SIGNATURE='sig'
 await dispatch({op:'displayRevert'})
-await assert.rejects(dispatch({op:'displayApply',output:'DP-1',automatic:true,disabled:true}),/not both/)
-assert.equal(guardArmed,false)
-console.log('ok: the guard inherits the session signature when none is set; contradictory requests are refused')
+console.log('ok: the guard inherits the session signature when none is set')
 // Second review round: only an evaluated, still-guarded change can be kept.
 events=[]
-await dispatch(apply)
-assert.ok(events.findIndex(e=>e[1]==='eval') < events.findIndex(e=>e[0]==='write' && e[1]===pendingPath),'the pending record follows a successful eval')
-await dispatch({op:'displayRevert'})
-failEval=true
-await assert.rejects(dispatch(apply),/bad monitor/)
-failEval=false
-assert.equal(files.has(pendingPath),false)
 expireOnEval=true
 await assert.rejects(dispatch(apply),/took too long/)
 expireOnEval=false
@@ -1147,6 +1136,7 @@ await dispatch({op:'displayApply',output:'DP-1',automatic:true}); await dispatch
 files.set(pendingPath,JSON.stringify({output:'DP-1',line:'stale',remove:false,deadline:0}))
 await assert.rejects(dispatch({op:'displayApply',output:'DP-1',automatic:true,disabled:true}),/not both/)
 assert.equal(files.has(pendingPath),true,'a contradictory request changes nothing, not even stale state')
+assert.equal(guardArmed,false)
 files.delete(pendingPath)
 failingPath=pendingPath
 events=[]

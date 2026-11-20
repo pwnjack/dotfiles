@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import vm from 'node:vm'
-import * as CalendarRead from '../calendar.mjs'
+import * as DeviceRead from '../deviceRead.mjs'
 
 // The Sound page's reader lives in shell.qml; its real code runs here against a stand-in
 // for the root object, as test/about.mjs does for the About reader.
@@ -22,7 +22,7 @@ const context = {
     sound: {defaultSink: 'old'}, soundError: '',
     soundReader: {running: false, generation: -1, reply: '', errorText: ''},
     soundTimer: {stop() {}, restart() {}},
-    CalendarRead, console: {warn() {}}, generation: -1, code: 0,
+    DeviceRead, console: {warn() {}}, generation: -1, code: 0,
 }
 context.root = context
 vm.createContext(context)

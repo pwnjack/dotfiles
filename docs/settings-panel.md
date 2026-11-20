@@ -105,10 +105,10 @@ and contrast. Error messages use matugen's error colour.
   hides its row.
 - `catalog.json` owns setting metadata, accepted ranges and dropdown choices.
   Each category's `icon` is a hex codepoint of a Material Design glyph in
-  Symbols Nerd Font (`ttf-nerd-fonts-symbols`), drawn in the nav rail and beside
-  the page title. It is text, so it follows the selection and palette colours —
-  the Papirus symbolic icons would not (see the night light notes). Look names
-  up in the font's cmap (`md-<name>`) rather than retyping glyphs.
+  Symbols Nerd Font (`ttf-nerd-fonts-symbols`), drawn in the nav rail. It is
+  text, so it follows the selection and palette colours — the Papirus symbolic
+  icons would not (see the night light notes). Look names up in the font's cmap
+  (`md-<name>`) rather than retyping glyphs.
 - `SettingsView.qml` and `SettingControl.qml` build only visible category/search
   rows. Reads and writes never run synchronously on the QML thread. The first
   rows appear with their real values; loading never inserts/removes a layout row.
@@ -171,11 +171,14 @@ and contrast. Error messages use matugen's error colour.
   `shell.qml` runs `pactl subscribe` only while an audio row is visible and
   counts only `sink`/`source`/`card`/`server` events (`sink-input` and
   `client` fire for every stream and notification); Displays listens to
-  `Hyprland.rawEvent` monitor and reload events. Reads are debounced
-  (300 ms), single-flight, limited to the tagged rows, dropped while a write
-  or full read runs, and never overwrite the control being dragged or
-  opened. Waking a suspended sink is a real `change on sink`, so the first
-  sound after silence costs one or two reads while the Sound page is shown.
+  `Hyprland.rawEvent` monitor and reload events. While the Sound page is
+  shown, the one subscription feeds two debounced reads: the tagged rows and
+  the Sound devices list. Each read path is debounced (300 ms) and
+  single-flight on its own and is dropped while a write runs; the tagged rows'
+  read is also limited to those rows, dropped while a full read runs, and never
+  overwrites the control being dragged or opened. Waking a suspended sink is a
+  real `change on sink`, so the first sound after silence costs one or two
+  reads while the Sound page is shown.
   The IPC call that switches page is `page`, not `show`: qs parses `show` as
   its own `ipc show` subcommand even inside `ipc call`.
 - `hyprctl getoption -j` names the value field after its type (`bool`, `int`,
@@ -249,8 +252,9 @@ Verified on DP-1 (ROG PG279Q, 2560×1440) with Hyprland 0.56.2:
   Proton app delete both the WireGuard profile and the `pvpn-killswitch-ipv6`
   dummy, so nothing remains for `nmcli connection up` to restore, and traffic
   keeps flowing over the real IP unless the kill switch is in permanent mode. Hence
-  `PROTON_MODE = "app"` (`network.mjs`): the panel shows the state and opens
-  the Proton app, and never switches Proton's profile itself.
+  every Proton profile belongs to the Proton app (`isProton` in `network.mjs`):
+  the panel shows the state and opens the app, and never switches Proton's
+  profile itself.
 - **Polkit dialog versus the overlay.** An interactive `SetTimezone` opens the
   polkit agent's dialog behind the panel's Overlay surface, unreachable, so
   `authHidesPanel: true` (`shell.qml`) hides the panel while a prompt is open.
@@ -259,8 +263,6 @@ Verified on DP-1 (ROG PG279Q, 2560×1440) with Hyprland 0.56.2:
 - **Per-user locale.** The systemd user manager already carries `LANG` and
   `LC_TIME`, and `/etc/profile.d/locale.sh` reads `~/.config/locale.conf` only
   when `LANG` is unset, so formats use `SetLocale` (system-wide, polkit).
-- **Reads are cheap.** A `gdbus` `Get NTP` plus `ListTimezones` (598 zones,
-  10.9 kB) takes about 62 ms cold and 14 ms warm, including two process starts.
 
 ## Network
 
@@ -281,7 +283,7 @@ Traps:
 - **The PSK only travels on stdin.** Panel writes reach `panel-request.sh -` as one JSON
   line on the helper's stdin, never in argv, so a password cannot show in `ps` or a log.
 - **A failed new connection is deleted.** A wrong password leaves no half-made profile.
-- **`PROTON_MODE = "app"`.** The Proton app deletes its WireGuard profile on disconnect
+- **Proton is the app's.** The Proton app deletes its WireGuard profile on disconnect
   and creates a new one per server, so the panel shows the state and opens the app; it
   never brings a Proton profile up or down.
 - **Nothing runs when closed:** no `nmcli monitor`, no timer, no panel process.
@@ -290,10 +292,13 @@ Traps:
 
 ## Date & Region
 
-Reads `timedatectl show` and `localectl status` (both daemons are socket-activated:
-about 100 ms cold). Writes time zone, NTP, language and formats through `timedated` and
-`localed` over D-Bus (`dbus.js`), authorised by polkit. Clock format is not system-wide:
-`options/clock` (`12h` or `24h`) is rendered by `scripts/waybar/clock-format.sh` into
+Reads the time zone from the `/etc/localtime` link, language and formats from
+`/etc/locale.conf`, and `NTP` and `NTPSynchronized` from `timedated` over D-Bus (Gio, in
+`dbus.js`). The time zone choices come from `timedated`'s `ListTimezones` and the locale
+choices from `localectl list-locales`. Writes time zone, NTP, language and formats
+through `timedated` and `localed` over D-Bus (`dbus.js`), authorised by polkit. Clock
+format is not system-wide: `options/clock` (`12h` or `24h`) is rendered by
+`scripts/waybar/clock-format.sh` into
 `~/.local/state/waybar/clock.jsonc`, which Waybar merges through `include`; hyprlock and
 the desktop clock (`docs/internals/desktop-clock.md`) read the option too.
 
@@ -347,7 +352,7 @@ module and the low-battery toast. `shell.qml` runs it when the page opens and ev
 only while `opened && !closing && category === "devices"` with no search query; nothing
 runs otherwise: hiding the page stops a read in flight and discards a late result
 (`deviceRead.mjs` `fresh`). `alert` (low/critical) comes from the script, not the page, and draws the
-value in the accent colour, bold. An asleep device shows its last reading; a USB input device
+value in the error colour, bold. An asleep device shows its last reading; a USB input device
 with no readable battery (a dongle or a wired keyboard) shows "Connected" and "No battery info".
 A USB headset's battery comes from `headsetcontrol` (optional; without it the headset has no
 battery row), and a headset switched off behind its dongle shows "Asleep".
@@ -386,7 +391,7 @@ switch per calendar (read-only ones are labelled), stored in `options/calendar-h
 The catalogue sections then add **Events** (`calendar-declined`, show declined invitations)
 and **New events** (`calendar-default`, `calendar-alert`, `calendar-duration`, used by the
 card's new-event sheet). `shell.qml` reads `calendarStatus` every 5 s only while the page
-is shown; a stale read is dropped (`calendar.mjs` `fresh`). A save of `bar-agenda` or any
+is shown; a stale read is dropped (`deviceRead.mjs` `fresh`). A save of `bar-agenda` or any
 `calendar-*` option runs `scripts/calendar/sync.sh --render`, and a failed render rolls
 the option back. The calendar itself is `docs/internals/calendar.md`.
 
@@ -510,8 +515,8 @@ and the Startup page about 25 ms. The frame is drawn before values arrive, so
 the read delays values, not the panel. With the panel closed there is no
 `pactl subscribe`, no `settings-display-*` unit, no `nmcli monitor` and no
 panel process. On the Sound page, playback on an awake sink plus notifications
-cause no live read; each default-device change causes one. A read can be timed
-with:
+cause no live read; each default-device change caused one when measured, before the
+Sound devices list had its own read. A read can be timed with:
 
 ```bash
 req=$(jq -c '{op:"read",ids:[.rows[].id],monitors:true}' quickshell/settings-panel/catalog.json)

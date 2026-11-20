@@ -129,21 +129,20 @@ assert.equal(progressOrder[0].activating, false)
 assert.equal(progressOrder[1].activating, true)
 console.log('ok: signal bars, name tiebreak, and connection progress order')
 
-assert.deepEqual(network.vpnConnections(snap, 'app').map(v => [v.name, v.state, v.control]),
+assert.deepEqual(network.vpnConnections(snap).map(v => [v.name, v.state, v.control]),
     [['ProtonVPN IT#113', 'activated', 'app'], ['Work', 'off', 'switch']])
-assert.equal(network.vpnConnections(snap, 'nm')[0].control, 'switch')
 const vpnOrder = network.vpnConnections({...snap, connections: [
     {uuid: 'u-off', id: 'Alpha', type: 'vpn', state: null},
     {uuid: 'u-starting', id: 'Zulu', type: 'vpn', state: 'activating'},
     {uuid: 'u-active', id: 'Middle', type: 'vpn', state: 'activated'},
 ]})
 assert.deepEqual(vpnOrder.map(v => v.name), ['Middle', 'Zulu', 'Alpha'])
-console.log('ok: VPN list has vpn/wireguard only, Proton controlled by mode')
+console.log('ok: VPN list has vpn/wireguard only, Proton controlled by its app')
 
-const view = network.networkView(snap, {protonApp: true, mode: 'app'})
+const view = network.networkView(snap, {protonApp: true})
 assert.equal(view.running, true)
 assert.equal(view.wifi.available, true)
-assert.equal(view.proton.active, true)
+assert.deepEqual(view.proton, {mode: 'app', active: true})
 assert.equal(view.wired[0].iface, 'eno1')
 assert.deepEqual(network.networkView({running: false}), {running: false})
 assert.equal(network.networkView({...snap, wifiDevices: []}).wifi.available, false)
@@ -200,6 +199,10 @@ for (const [request, message] of [
     [{ssid: 42}, /Invalid network name/],
 ]) assert.throws(() => network.connectPlan(snap, request), message)
 assert.throws(() => network.connectPlan({...snap, connections: [...snap.connections, {uuid: 'u-gone', id: 'Gone', type: '802-11-wireless', ssid: 'Gone', state: null}]}, {ssid: 'Gone'}), /no longer in range/)
+// The Connect button's check: "" for an acceptable password at either limit.
+assert.equal(network.passwordProblem('psk', 'x'.repeat(63)), '')
+assert.equal(network.passwordProblem('sae', 'é'.repeat(128)), '')
+assert.match(network.passwordProblem('sae', 'é'.repeat(129)), /too long/)
 console.log('ok: connect plans and every refusal')
 
 assert.deepEqual(network.forgetPlan(snap, 'Saved'), ['u-saved', 'u-saved2'])
@@ -207,13 +210,12 @@ assert.throws(() => network.forgetPlan(snap, 'Cafe'), /not saved/)
 assert.throws(() => network.forgetPlan(snap, '\n'), /Invalid network name/)
 console.log('ok: forget removes every saved profile for the SSID')
 
-assert.deepEqual(network.vpnPlan(snap, {uuid: 'u-work', active: true}, 'app'), {uuid: 'u-work', active: true})
-assert.throws(() => network.vpnPlan(snap, {uuid: 'u-proton', active: false}, 'app'), /Proton VPN app/)
-assert.deepEqual(network.vpnPlan(snap, {uuid: 'u-proton', active: false}, 'nm'), {uuid: 'u-proton', active: false})
-assert.throws(() => network.vpnPlan(snap, {uuid: 'u-wired', active: false}, 'nm'), /not a VPN/)
-assert.throws(() => network.vpnPlan(snap, {uuid: 'nope', active: true}, 'nm'), /no longer exists/)
-assert.throws(() => network.vpnPlan(snap, {active: true}, 'nm'), /no longer exists/)
-assert.throws(() => network.vpnPlan(snap, {uuid: 'u-work', active: 'yes'}, 'nm'), /on\/off/)
+assert.deepEqual(network.vpnPlan(snap, {uuid: 'u-work', active: true}), {uuid: 'u-work', active: true})
+assert.throws(() => network.vpnPlan(snap, {uuid: 'u-proton', active: false}), /Proton VPN app/)
+assert.throws(() => network.vpnPlan(snap, {uuid: 'u-wired', active: false}), /not a VPN/)
+assert.throws(() => network.vpnPlan(snap, {uuid: 'nope', active: true}), /no longer exists/)
+assert.throws(() => network.vpnPlan(snap, {active: true}), /no longer exists/)
+assert.throws(() => network.vpnPlan(snap, {uuid: 'u-work', active: 'yes'}), /on\/off/)
 assert.equal(network.failureMessage('NO_SECRETS'), 'Wrong password')
 assert.equal(network.failureMessage('LOGIN_FAILED'), 'Wrong password')
 assert.equal(network.failureMessage('CONNECT_TIMEOUT'), 'The network did not answer in time')

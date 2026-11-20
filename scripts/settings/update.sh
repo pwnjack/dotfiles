@@ -4,14 +4,16 @@
 # Runs the configured AUR helper update command, then flatpak (if present)
 #
 
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
+
 # shellcheck source=scripts/lib/options.sh
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/options.sh"
-AURH=$(option "$HOME/.config/options/aurhelper")
+AURH=$(option "$config_dir/options/aurhelper")
 
 if [ -z "$AURH" ]; then
     echo "AUR Helper not found"
     echo "This is likely because you skipped AUR installation, or set a custom AUR helper"
-    echo "Please add your AUR helpers update command to $HOME/.config/options/aurhelper"
+    echo "Please add your AUR helpers update command to $config_dir/options/aurhelper"
     echo
     read -p "Press ENTER to exit"
     exit 1

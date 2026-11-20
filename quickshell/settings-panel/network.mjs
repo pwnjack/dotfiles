@@ -2,11 +2,6 @@
 // only file that touches libnm; everything decidable lives here and is tested
 // under Node.
 
-// Decided by the Proton VPN probe in docs/settings-panel.md: "nm" lets the
-// panel switch Proton's WireGuard profile like any VPN, "app" hands it to the
-// Proton app because switching behind its back desyncs it.
-export const PROTON_MODE = "app"
-
 const WIFI = "802-11-wireless"
 const VPN_TYPES = new Set(["vpn", "wireguard"])
 // libnm NM80211ApFlags / NM80211ApSecurityFlags.
@@ -71,24 +66,26 @@ export function wifiNetworks(snap) {
     }).sort((a, b) => b.active - a.active || b.activating - a.activating || b.known - a.known || b.signal - a.signal || a.ssid.localeCompare(b.ssid))
 }
 
+// Proton's profiles belong to the Proton app: switching them behind its back desyncs
+// it (the Proton VPN probe in docs/settings-panel.md).
 export const isProton = connection => connection.id.startsWith("ProtonVPN ")
-export function vpnConnections(snap, mode = PROTON_MODE) {
+export function vpnConnections(snap) {
     return snap.connections.filter(c => VPN_TYPES.has(c.type)).map(c => ({
         uuid: c.uuid, name: c.id, state: c.state || "off", iface: c.iface, proton: isProton(c),
-        control: isProton(c) && mode === "app" ? "app" : "switch",
+        control: isProton(c) ? "app" : "switch",
     })).sort((a, b) => (b.state === "activated") - (a.state === "activated")
         || (b.state === "activating") - (a.state === "activating") || a.name.localeCompare(b.name))
 }
 
-export function networkView(snap, { protonApp = false, mode = PROTON_MODE } = {}) {
+export function networkView(snap, { protonApp = false } = {}) {
     if (!snap.running) return { running: false }
-    const vpn = vpnConnections(snap, mode)
+    const vpn = vpnConnections(snap)
     return {
         running: true,
         wifi: { enabled: snap.wifiEnabled, available: snap.wifiDevices.length > 0, networks: snap.wifiDevices.length ? wifiNetworks(snap) : [] },
         wired: snap.wired,
         vpn,
-        proton: protonApp ? { mode, active: vpn.some(v => v.proton && v.state === "activated") } : null,
+        proton: protonApp ? { mode: "app", active: vpn.some(v => v.proton && v.state === "activated") } : null,
     }
 }
 
@@ -109,15 +106,17 @@ function validSsid(ssid) {
     if (typeof ssid !== "string" || !ssid || /[\0\r\n]/.test(ssid) || [...ssid].length > 32) throw new Error("Invalid network name")
     return ssid
 }
-function validPsk(psk) {
+// Why a password does not suit the network's security, or "" when it does: WPA2 needs
+// 8–63 characters (or 64 hex digits), WPA3-SAE up to 256 bytes without line breaks.
+// NetworkView.qml enables Connect on "" and connectPlan refuses anything else.
+export function passwordProblem(security, psk) {
+    if (security === "sae") {
+        if (typeof psk !== "string" || !psk || /[\0\r\n]/.test(psk)) return "The password must not be empty or contain line breaks"
+        return utf8Length(psk) > 256 ? "The password is too long" : ""
+    }
     if (typeof psk !== "string" || !(/^[\x20-\x7e]{8,63}$/.test(psk) || /^[0-9a-fA-F]{64}$/.test(psk)))
-        throw new Error("The password must be 8–63 characters, or 64 hexadecimal digits")
-    return psk
-}
-function validSae(psk) {
-    if (typeof psk !== "string" || !psk || /[\0\r\n]/.test(psk)) throw new Error("The password must not be empty or contain line breaks")
-    if (utf8Length(psk) > 256) throw new Error("The password is too long")
-    return psk
+        return "The password must be 8–63 characters, or 64 hexadecimal digits"
+    return ""
 }
 export function connectPlan(snap, request) {
     const ssid = validSsid(request.ssid)
@@ -140,8 +139,9 @@ export function connectPlan(snap, request) {
         return { kind: "add", ssid, psk: null, keyMgmt: net.security === "owe" ? "owe" : null, replace: saved }
     }
     if (supplied === null) throw new Error("Enter the network password")
-    const psk = net.security === "sae" ? validSae(supplied) : validPsk(supplied)
-    return { kind: "add", ssid, psk, keyMgmt: net.security === "sae" ? "sae" : "wpa-psk", replace: saved }
+    const problem = passwordProblem(net.security, supplied)
+    if (problem) throw new Error(problem)
+    return { kind: "add", ssid, psk: supplied, keyMgmt: net.security === "sae" ? "sae" : "wpa-psk", replace: saved }
 }
 export function forgetPlan(snap, ssid) {
     const name = validSsid(ssid)
@@ -149,12 +149,12 @@ export function forgetPlan(snap, ssid) {
     if (!uuids.length) throw new Error("That network is not saved")
     return uuids
 }
-export function vpnPlan(snap, request, mode = PROTON_MODE) {
+export function vpnPlan(snap, request) {
     if (typeof request.active !== "boolean") throw new Error("Expected an on/off value")
     const connection = snap.connections.find(c => c.uuid === request.uuid)
     if (!connection) throw new Error("That connection no longer exists")
     if (!VPN_TYPES.has(connection.type)) throw new Error("That connection is not a VPN")
-    if (isProton(connection) && mode === "app") throw new Error("Use the Proton VPN app for this connection")
+    if (isProton(connection)) throw new Error("Use the Proton VPN app for this connection")
     return { uuid: connection.uuid, active: request.active }
 }
 
