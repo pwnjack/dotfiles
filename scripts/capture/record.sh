@@ -7,8 +7,6 @@
 # Usage:
 #   record.sh start [screen|window|region [WxH+X+Y]]
 #   record.sh stop               stop and save (also cancels a countdown)
-#   record.sh cancel             cancel a countdown; a running recording is left alone
-#   record.sh toggle [target]
 #   record.sh status [--json]    exit 0 while counting down or recording
 #
 # The target defaults to options/capture-rec-target. Delay, desktop audio and
@@ -66,13 +64,11 @@ readonly KMS_SERVER=gsr-kms-server
 glyph_timer=$'\U000F051B' glyph_rec=$'\U000F044A'
 
 usage() {
-    echo 'usage: record.sh start [screen|window|region [WxH+X+Y]] | stop | cancel | toggle [target] | status [--json]' >&2
+    echo 'usage: record.sh start [screen|window|region [WxH+X+Y]] | stop | status [--json]' >&2
     exit 2
 }
 
 signal_bar() { pkill -x -RTMIN+11 waybar 2>/dev/null || true; }
-# `--` keeps a body that starts with "-" (a first error line) a body.
-notify() { notify-send -a Capture -i "$1" -- "$2" "${3-}" 2>/dev/null || true; }
 
 # proc_stat <pid> -> sets proc_state and proc_since (field 22 of /proc/PID/stat).
 # Fields are counted from the text after the LAST ") ", so a comm containing
@@ -119,7 +115,6 @@ read_state() {
 write_state() {
     local out=${3//\\/\\\\}
     out=${out//\"/\\\"}
-    mkdir -p "$state_dir" || return 1
     printf '{"pid":%s,"since":%s,"started":%s,"output":"%s","phase":"%s"}\n' "$1" "$5" "$4" "$out" "$2" > "$state.tmp.$$" \
         && mv -f "$state.tmp.$$" "$state"
 }
@@ -179,7 +174,7 @@ ticker() {
         { read -r line < "$state"; } 2>/dev/null
         [[ $line == *"\"pid\":$1,"* ]] && rm -f "$state"
         out=${line#*\"output\":\"}; out=${out%%\"*}
-        notify dialog-error 'Recording stopped' "$(first_error)${out:+ Partial file kept: ${out##*/}.}"
+        toast dialog-error 'Recording stopped' "$(first_error)${out:+ Partial file kept: ${out##*/}.}"
     fi
     signal_bar
 }
@@ -205,20 +200,17 @@ status() {
         echo "$phase $seconds $output"
         return 0
     fi
+    local glyph=$glyph_rec text tip
     case $phase in
-        countdown)
-            printf '{"text":"<span size=\\\"large\\\" letter_spacing=\\\"4096\\\">%s</span> %d","tooltip":"Recording starts in %d s. Click to cancel.","class":"countdown","phase":"countdown","seconds":%d}\n' \
-                "$glyph_timer" "$seconds" "$seconds" "$seconds" ;;
-        stopping)
-            printf '{"text":"<span size=\\\"large\\\" letter_spacing=\\\"4096\\\">%s</span> saving","tooltip":"Saving the recording","class":"stopping","phase":"stopping","seconds":%d}\n' \
-                "$glyph_rec" "$seconds" ;;
-        *)
-            printf '{"text":"<span size=\\\"large\\\" letter_spacing=\\\"4096\\\">%s</span> %s","tooltip":"Recording. Click to stop and save.","class":"recording","phase":"recording","seconds":%d}\n' \
-                "$glyph_rec" "$(fmt "$seconds")" "$seconds" ;;
+        countdown) glyph=$glyph_timer text=$seconds tip="Recording starts in $seconds s. Click to cancel." ;;
+        stopping) text=saving tip='Saving the recording' ;;
+        *) phase=recording text=$(fmt "$seconds") tip='Recording. Click to stop and save.' ;;
     esac
+    printf '{"text":"<span size=\\\"large\\\" letter_spacing=\\\"4096\\\">%s</span> %s","tooltip":"%s","class":"%s","phase":"%s","seconds":%d}\n' \
+        "$glyph" "$text" "$tip" "$phase" "$phase" "$seconds"
 }
 
-# countdown <seconds> -- the amber Waybar countdown. record.sh cancel or stop
+# countdown <seconds> -- the amber Waybar countdown. record.sh stop
 # (a click on it) sends TERM, which ends this script with nothing recorded.
 # At the end the trap changes to "remember it" and stays until start has written
 # the recorder's state, so a TERM on the boundary is never lost.
@@ -272,7 +264,7 @@ stop_locked() {
         kill -KILL "$pid" 2>/dev/null
         rm -f "$state"
         signal_bar
-        notify dialog-error 'Recording not saved' "The recorder did not finish within ${stop_wait} s. Partial file kept: ${output##*/}. Log: $log"
+        toast dialog-error 'Recording not saved' "The recorder did not finish within ${stop_wait} s. Partial file kept: ${output##*/}. Log: $log"
         return 1
     fi
     rm -f "$state"
@@ -280,7 +272,7 @@ stop_locked() {
     if [ -s "$output" ]; then
         saved "$output"
     else
-        notify dialog-error 'Recording not saved' "$(first_error)"
+        toast dialog-error 'Recording not saved' "$(first_error)"
         return 1
     fi
 }
@@ -303,11 +295,6 @@ discard_recording() {
     signal_bar
 }
 
-cancel() {
-    read_state && [ "$phase" = countdown ] && kill -TERM "$pid" 2>/dev/null
-    return 0
-}
-
 start() {
     local target=${1-} region=${2-} monitor delay file base n audio="" rec_pid rec_since
     local -a args
@@ -327,11 +314,11 @@ start() {
         return
     fi
     if ! command -v "$recorder" >/dev/null 2>&1; then
-        notify dialog-error 'Recording unavailable' 'Install the gpu-screen-recorder package to record the screen.'
+        toast dialog-error 'Recording unavailable' 'Install the gpu-screen-recorder package to record the screen.'
         return 1
     fi
     if [ "$target" != screen ] && [ -z "$region" ] && ! command -v slurp >/dev/null 2>&1; then
-        notify dialog-error 'Recording unavailable' 'Install the slurp package to pick a region or a window.'
+        toast dialog-error 'Recording unavailable' 'Install the slurp package to pick a region or a window.'
         return 1
     fi
     mkdir -p "$state_dir" || return 1
@@ -347,7 +334,7 @@ start() {
         screen)
             monitor=$(focused_monitor)
             if [ -z "$monitor" ]; then
-                notify dialog-error 'Recording failed' 'Hyprland reported no focused monitor.'
+                toast dialog-error 'Recording failed' 'Hyprland reported no focused monitor.'
                 return 1
             fi
             args=(-w "$monitor") ;;
@@ -379,7 +366,7 @@ start() {
             rm -f "$state"
             signal_bar
         fi
-        notify dialog-error 'Recording failed' "Cannot create $videos."
+        toast dialog-error 'Recording failed' "Cannot create $videos."
         return 1
     fi
     printf -v base '%s/Recording_%(%Y-%m-%d_%H-%M-%S)T' "$videos" -1
@@ -427,7 +414,7 @@ start() {
         fi
         rm -f "$state"
         signal_bar
-        notify dialog-error 'Recording failed' "$(first_error)"
+        toast dialog-error 'Recording failed' "$(first_error)"
         trap - TERM
         return 1
     fi
@@ -444,8 +431,6 @@ start() {
 case "${1-}" in
     start) shift; start "$@" ;;
     stop) stop ;;
-    cancel) cancel ;;
-    toggle) shift; if read_state; then stop; else start "$@"; fi ;;
     status) status "${2-}" ;;
     *) usage ;;
 esac

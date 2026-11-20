@@ -1,8 +1,11 @@
 #!/bin/bash
 #
-# Sourced by record.sh, screenshot.sh and read-text.sh: the toasts they post
-# that outlive the script.
-#
+# Sourced by record.sh, screenshot.sh and read-text.sh: the toasts they post.
+
+# toast <icon> <title> [body] -- a plain toast; `--` keeps a body that starts
+# with "-" (a first error line) a body.
+toast() { notify-send -a Capture -i "$1" -- "$2" "${3-}" 2>/dev/null || true; }
+
 # saved_toast <icon> <title> <body> <file> -- a detached toast with Open and
 # Show in folder, so the caller returns at once. notify-send --wait blocks
 # until the toast is gone and prints the chosen action. Callers holding locks

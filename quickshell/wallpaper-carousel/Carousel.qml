@@ -65,9 +65,7 @@ FocusScope {
         spacing: 12
         ActionButton {
             text: "Search"
-            ink: view.controller.foreground
-            plate: view.controller.background
-            accent: view.controller.accent
+            theme: view.controller
             onClicked: {
                 view.controller.searchVisible = !view.controller.searchVisible;
                 if (view.controller.searchVisible)
@@ -76,9 +74,7 @@ FocusScope {
         }
         ActionButton {
             text: "Close"
-            ink: view.controller.foreground
-            plate: view.controller.background
-            accent: view.controller.accent
+            theme: view.controller
             onClicked: view.controller.close()
         }
     }
@@ -230,18 +226,14 @@ FocusScope {
         ActionButton {
             text: "←"
             Accessible.name: "Previous wallpaper"
-            ink: view.controller.foreground
-            plate: view.controller.background
-            accent: view.controller.accent
+            theme: view.controller
             enabled: !view.controller.submitting && view.controller.entries.length > 0
             onClicked: view.controller.navigate(-1)
         }
         ActionButton {
             text: "→"
             Accessible.name: "Next wallpaper"
-            ink: view.controller.foreground
-            plate: view.controller.background
-            accent: view.controller.accent
+            theme: view.controller
             enabled: !view.controller.submitting && view.controller.entries.length > 0
             onClicked: view.controller.navigate(1)
         }
@@ -263,9 +255,7 @@ FocusScope {
         anchors.bottomMargin: 28
         objectName: "applyWallpaper"
         text: view.controller.submitting ? "Applying…" : "Apply wallpaper   ↵"
-        ink: view.controller.foreground
-        plate: view.controller.background
-        accent: view.controller.accent
+        theme: view.controller
         enabled: !view.controller.loading && !view.controller.submitting && !!view.currentCard?.ready
         onClicked: view.controller.confirm()
     }

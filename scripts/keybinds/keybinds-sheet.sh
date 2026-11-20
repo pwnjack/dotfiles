@@ -119,7 +119,7 @@ _mods_display() {
 }
 
 # _expand_vars <text> -> text with every $var replaced by its resolved value.
-# This is what lets `# Terminal ($terminal)` read "Terminal (ghostty)".
+# This is what lets `-- Terminal ($terminal)` read "Terminal (ghostty)".
 #
 # Markdown mode deliberately does NOT resolve the options-backed variables.
 # The overlay is read by the person whose options/ it just read, so naming

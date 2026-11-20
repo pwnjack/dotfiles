@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import "model.mjs" as Model
 
 // The capture strip (docs/capture.md): a segmented mode pill centred above
@@ -155,23 +154,7 @@ FocusScope {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: strip.controller.setMode(tab.modelData.mode)
                     }
-                    ToolTip {
-                        popupType: Popup.Item
-                        visible: tabMouse.containsMouse
-                        delay: 600
-                        text: tab.modelData.label + " (Tab)"
-                        contentItem: Text {
-                            text: tab.modelData.label + " (Tab)"
-                            color: strip.foreground
-                            font.family: strip.monoFont
-                            font.pixelSize: strip.px(12)
-                        }
-                        background: Rectangle {
-                            color: strip.background
-                            radius: strip.px(6)
-                            border.color: strip.hairline
-                        }
-                    }
+                    StripTip { strip: strip; visible: tabMouse.containsMouse; text: tab.modelData.label + " (Tab)" }
                 }
             }
         }
@@ -232,6 +215,13 @@ FocusScope {
                 }
             }
             Separator {}
+            StripButton {
+                strip: strip; objectName: "delay"; glyph: 0xF051B
+                label: Model.delayLabel(strip.current.delay); on: strip.current.delay > 0
+                tip: strip.mode === "record" ? "Count down in the bar before recording. Click: Off, 3, 5, 10 s"
+                    : "Wait before capturing. Click: Off, 3, 5, 10 s"
+                onClicked: strip.controller.cycleDelay()
+            }
             Item {
                 width: Math.max(shotOptions.implicitWidth, recOptions.implicitWidth)
                 height: strip.px(62)
@@ -241,12 +231,6 @@ FocusScope {
                     // Annotate is a screenshot's alone.
                     visible: strip.mode !== "record"
                     spacing: strip.px(4)
-                    StripButton {
-                        strip: strip; objectName: "shot-delay"; glyph: 0xF051B
-                        label: Model.delayLabel(strip.current.delay); on: strip.current.delay > 0
-                        tip: "Wait before capturing. Click: Off, 3, 5, 10 s"
-                        onClicked: strip.controller.cycleDelay()
-                    }
                     StripButton {
                         strip: strip; objectName: "screenshot-freeze"; glyph: 0xF0717
                         label: "Freeze"; on: strip.current.freeze
@@ -272,12 +256,6 @@ FocusScope {
                     id: recOptions
                     visible: strip.mode === "record"
                     spacing: strip.px(4)
-                    StripButton {
-                        strip: strip; objectName: "rec-delay"; glyph: 0xF051B
-                        label: Model.delayLabel(strip.current.delay); on: strip.current.delay > 0
-                        tip: "Count down in the bar before recording. Click: Off, 3, 5, 10 s"
-                        onClicked: strip.controller.cycleDelay()
-                    }
                     StripButton {
                         strip: strip; objectName: "record-audio"; glyph: 0xF057E
                         label: "Audio"; on: strip.current.audio
@@ -338,28 +316,14 @@ FocusScope {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: strip.controller.run()
                 }
-                ToolTip {
+                StripTip {
                     id: actionTip
                     objectName: "action-tip"
-                    popupType: Popup.Item
+                    strip: strip
                     visible: actionMouse.containsMouse
-                    delay: 600
-                    readonly property string tip: strip.mode === "screenshot" ? "Take the screenshot (Return)"
+                    text: strip.mode === "screenshot" ? "Take the screenshot (Return)"
                         : strip.mode === "text" ? "Drag a region to copy its text or QR code (Return)"
                         : actionButton.red ? "Stop and save (Return)" : "Start recording (Return)"
-                    text: tip
-                    contentItem: Text {
-                        // contentItem is reparented to the popup: name the tip, not parent.
-                        text: actionTip.text
-                        color: strip.foreground
-                        font.family: strip.monoFont
-                        font.pixelSize: strip.px(12)
-                    }
-                    background: Rectangle {
-                        color: strip.background
-                        radius: strip.px(6)
-                        border.color: strip.hairline
-                    }
                 }
             }
             StripButton {

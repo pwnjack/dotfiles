@@ -37,12 +37,6 @@ preview() {
     printf '%s' "${line//>/&gt;}"
 }
 
-# toast <icon> <title> [body]; `--` keeps a body that starts with "-" a body.
-toast() {
-    have notify-send || return 0
-    notify-send -a Capture -i "$1" -- "$2" "${3-}"
-}
-
 dir=${XDG_RUNTIME_DIR:-}
 [ -d "$dir" ] && [ -w "$dir" ] || dir=
 file=$(mktemp --suffix=.png --tmpdir"${dir:+=$dir}" read-text.XXXXXX) || exit 1

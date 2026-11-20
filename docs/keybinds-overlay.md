@@ -27,9 +27,9 @@ columns, and exits on close.
   and count scale with it.
 - Labels are the trailing `--` comments in `keybinds.lua`. How much room a
   label gets depends on its keycaps, so there is no character budget: instead
-  `tst_Overlay` renders the real sheet, in the `options/font` keycap font, at
-  1366×768, 1920×1080, 2560×1440 and portrait 1080×1920, and fails if any
-  label is elided. `test/test-docs.sh` runs that one test on every commit,
+  `tst_Overlay` renders the real sheet, in the tracked default keycap font
+  (`defaults/options/font`), at 1366×768, 1920×1080, 2560×1440 and portrait
+  1080×1920, and fails if any label is elided. `test/test-docs.sh` runs that one test on every commit,
   since a label changes in `keybinds.lua`, not here. Shorten the comment
   rather than the type.
 

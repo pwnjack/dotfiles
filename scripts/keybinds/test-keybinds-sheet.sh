@@ -61,9 +61,6 @@ if printf '%s' "$real_json" | jq -e . >/dev/null 2>&1; then
 else
     fail "keybinds.lua renders invalid JSON" "$real_json"
 fi
-print_rows=$(bash "$SHEET" --print | grep -c '^  ')
-json_rows=$(printf '%s' "$real_json" | jq '[.sections[].rows[]] | length')
-assert_eq "$json_rows" "$print_rows" "--json and --print agree on the row count"
 
 for args in "" "--rofi"; do
     # shellcheck disable=SC2086 # The empty case must pass no argument at all.

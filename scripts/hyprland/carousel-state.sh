@@ -3,21 +3,14 @@
 set -euo pipefail
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 command -v python3 >/dev/null || { echo 'python3 is required' >&2; exit 1; }
-# shellcheck source=scripts/theming/palette.sh
-source "$script_dir/../theming/palette.sh"
 # shellcheck source=scripts/lib/wallpaper.sh
 source "$script_dir/../lib/wallpaper.sh"
-wal=()
-wal_load
-# shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
-declare -A role=()
-role_load
 # awww is the visible state; the palette symlink can still be catching up.
 shown=""
 if query=$(timeout 2 awww query 2>/dev/null); then
     shown=$(wallpaper_from_query "$query")
 fi
-python3 - "${wal[0]}" "$(wal_readable_on "${wal[0]}")" "$(wal_role primary)" "$shown" <<'PY'
+python3 - "$shown" <<'PY'
 import configparser
 import json
 import os
@@ -27,8 +20,7 @@ import sys
 
 config = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config'))
 cache = Path(os.environ.get('XDG_CACHE_HOME', Path.home() / '.cache'))
-data = dict(entries=[], current='', folders=[], error='', background=sys.argv[1],
-            foreground=sys.argv[2], accent=sys.argv[3], reducedMotion=False)
+data = dict(entries=[], current='', error='', reducedMotion=False)
 try:
     ini = configparser.ConfigParser(interpolation=None)
     with (config / 'waypaper/config.ini').open() as stream:
@@ -37,7 +29,6 @@ try:
     if settings.getboolean('use_xdg_state', fallback=False):
         raise ValueError('Separate Waypaper state is not supported. Use Waypaper directly.')
     folders = [Path(p).expanduser().absolute() for p in settings.get('folder', '').splitlines() if p.strip()]
-    data['folders'] = [str(p) for p in folders]
     recursive = settings.getboolean('subfolders', fallback=False) or settings.getboolean('all_subfolders', fallback=False)
     hidden = settings.getboolean('show_hidden', fallback=False)
     extensions = {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.avif', '.jxl', '.heif'}
@@ -70,10 +61,10 @@ try:
     data['error'] = '; '.join(errors)
     saved = settings.get('wallpaper', '')
     data['current'] = str(Path(saved).expanduser()) if saved else ''
-    # sys.argv[4]: what awww shows now (scripts/lib/wallpaper.sh), empty when
+    # sys.argv[1]: what awww shows now (scripts/lib/wallpaper.sh), empty when
     # awww could not be queried.
-    if sys.argv[4]:
-        data['current'] = sys.argv[4]
+    if sys.argv[1]:
+        data['current'] = sys.argv[1]
     elif not data['current'] and (cache / 'current_wallpaper').exists():
         data['current'] = str((cache / 'current_wallpaper').resolve())
     try:

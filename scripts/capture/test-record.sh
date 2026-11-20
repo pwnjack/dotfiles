@@ -245,12 +245,12 @@ wait_ticker
 assert_eq "$(grep -c 'Recording saved' "$FAKE_LOG/notify")" 1 "two concurrent stops give exactly one saved toast"
 assert_eq "$(cat "$TMP/stop1.err" "$TMP/stop2.err")" "" "concurrent stops write no errors"
 
-# A double tap: toggle while start is still checking that the recorder lives.
+# A double tap: a second start while the first is still checking that the recorder lives.
 reset
 rec start screen & starter=$!
 wait_grep "$CAPTURE_STATE_DIR/recording.json" '"phase":"recording"'
 wait_grep "$FAKE_LOG/gsr.argv" '-w TEST-1'
-rec toggle
+rec start
 wait "$starter"; rc=$?
 assert_eq "$rc" 0 "the first start exits 0 after a double tap"
 wait_grep "$FAKE_LOG/notify" "Recording saved"
@@ -281,7 +281,7 @@ wait_phase() {
     done
     return 1
 }
-for ender in cancel stop toggle; do
+for ender in stop start; do
     reset
     opt capture-delay 2
     rec start screen & starter=$!
@@ -302,7 +302,7 @@ json=$(rec status --json)
 assert_contains "$json" '"class":"countdown"' "countdown class for Waybar"
 assert_contains "$json" $'\U000F051B' "countdown shows the timer glyph"
 before=$(wc -l < "$FAKE_LOG/pkill")
-rec cancel; wait "$starter"
+rec stop; wait "$starter"
 [ "$(wc -l < "$FAKE_LOG/pkill")" -gt "$before" ] && pass "cancelling a countdown signals Waybar" || fail "cancel signals Waybar"
 
 # A zero-padded delay is decimal: '08' counts down, it is not an octal error.
@@ -310,7 +310,7 @@ reset
 opt capture-delay 08
 rec start screen & starter=$!
 if wait_phase countdown; then pass "a zero-padded delay (08) counts down"; else fail "a zero-padded delay (08) counts down"; fi
-rec cancel; wait "$starter"
+rec stop; wait "$starter"
 
 reset
 opt capture-delay 1

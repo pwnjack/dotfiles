@@ -3,9 +3,7 @@ import QtQuick.Controls
 
 Button {
     id: control
-    property color ink: "#ffffff"
-    property color plate: "#20252b"
-    property color accent: "#8dafb4"
+    required property var theme
     implicitHeight: 46
     implicitWidth: Math.max(46, contentItem.implicitWidth + 32)
     hoverEnabled: true
@@ -16,16 +14,16 @@ Button {
         font.family: "sans-serif"
         font.pixelSize: 14
         font.weight: Font.Medium
-        color: control.ink
+        color: control.theme.foreground
         opacity: control.enabled ? 1 : 0.4
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
     }
     background: Rectangle {
         radius: 23
-        color: control.plate
+        color: control.theme.background
         opacity: control.down ? 0.65 : control.hovered ? 1 : 0.85
         border.width: control.activeFocus ? 2 : 1
-        border.color: control.activeFocus ? control.accent : Qt.alpha(control.ink, 0.2)
+        border.color: control.activeFocus ? control.theme.accent : Qt.alpha(control.theme.foreground, 0.2)
     }
 }

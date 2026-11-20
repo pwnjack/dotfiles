@@ -86,7 +86,7 @@ Item {
             verify(!findChild(strip, "screenshot-freeze").visible);
             controller.setMode("text");
             wait(20);
-            verify(findChild(strip, "shot-delay").visible);
+            verify(findChild(strip, "delay").visible);
             verify(findChild(strip, "screenshot-freeze").visible);
             verify(!findChild(strip, "target-region").visible, "Text has no target selector");
             verify(!findChild(strip, "screenshot-annotate").visible);
@@ -95,8 +95,8 @@ Item {
         function test_noElidedLabel() {
             // The tab labels are left out: they have no width constraint, so they cannot elide by construction.
             const names = ["target-screen", "target-window", "target-region",
-                "shot-delay", "screenshot-freeze", "screenshot-annotate",
-                "rec-delay", "record-audio", "record-mic", "action"];
+                "delay", "screenshot-freeze", "screenshot-annotate",
+                "record-audio", "record-mic", "action"];
             for (const name of names) verify(!labelOf(name).truncated, name + " is elided");
             controller.setMode("text");
             wait(20);
@@ -124,9 +124,9 @@ Item {
             compare(controller.runs, 0);
         }
         function test_delayCycles() {
-            mouseClick(findChild(strip, "shot-delay"));
+            mouseClick(findChild(strip, "delay"));
             compare(controller.state.delay, 3);
-            compare(labelOf("shot-delay").text, "3s");
+            compare(labelOf("delay").text, "3s");
         }
         function test_keys() {
             keyClick(Qt.Key_Tab);
@@ -169,9 +169,9 @@ Item {
             keyClick(Qt.Key_Left);
             keyClick(Qt.Key_Right);
             compare(controller.state.shotTarget, "region", "arrows do nothing on Text");
-            mouseClick(findChild(strip, "shot-delay"));
+            mouseClick(findChild(strip, "delay"));
             compare(controller.state.delay, 3);
-            compare(labelOf("shot-delay").text, "3s");
+            compare(labelOf("delay").text, "3s");
             mouseClick(findChild(strip, "screenshot-freeze"));
             compare(controller.state.freeze, true);
             compare(controller.runs, 0);

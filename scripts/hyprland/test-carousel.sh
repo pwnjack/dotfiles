@@ -16,8 +16,9 @@ root = Path(sys.argv[1])
 with tempfile.TemporaryDirectory() as tmp:
     base = Path(tmp)
     config, cache, bins, images = (base / name for name in ('config', 'cache', 'bin', 'images'))
-    for folder in (config / 'waypaper', config / 'options', config / 'scripts/hyprland', cache, bins, images):
+    for folder in (config / 'waypaper', config / 'options', config / 'scripts/hyprland', config / 'scripts/theming', cache, bins, images):
         folder.mkdir(parents=True, exist_ok=True)
+    (config / 'scripts/theming/palette.sh').symlink_to(root / 'scripts/theming/palette.sh')
     special = images / '雪 100 "quote" \'single\' $(touch INJECTED) `id` #1.jpg'
     special.touch()
     second = images / 'second.png'
@@ -143,6 +144,7 @@ exit "${THEME_FAIL:-0}"
     executable(bins / 'qs', '''
 if [[ $* == *--daemonize* ]]; then
     echo launch >> "$FIXTURE/launches"
+    echo "$CAROUSEL_BACKGROUND" >> "$FIXTURE/backgrounds"
     sleep 0.1
     touch "$FIXTURE/ready"
 elif [[ $* == *'ipc call carousel ping'* ]]; then
@@ -163,6 +165,7 @@ fi
     assert len((base / 'launches').read_text().splitlines()) == 4
     assert len((base / 'toggles').read_text().splitlines()) == 4
     assert not (base / 'ready').exists()
+    assert all(line.startswith('#') for line in (base / 'backgrounds').read_text().splitlines()), 'palette reaches qs'
     assert run('wallpaper-carousel.sh', 'start').returncode == 2
     print('ok: simultaneous toggles serialize into four launches and four process exits')
 PY

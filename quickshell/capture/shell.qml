@@ -154,10 +154,6 @@ ShellRoot {
             else if (root.opened) root.setMode(mode);
             else root.open(mode);
         }
-        function open(mode: string): void {
-            if (root.opened) root.setMode(mode);
-            else root.open(mode);
-        }
         function close(): void { root.close(); }
         // For scripted checks (no pointer): presses the action button, and only acts while the strip is open.
         function run(): void { root.run(); }

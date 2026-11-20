@@ -16,17 +16,16 @@ ShellRoot {
     property string problem: ""
     property var snapshot: ({
             entries: [],
-            current: "",
-            folders: []
+            current: ""
         })
     property var entries: []
     property int selectedIndex: 0
     property string query: ""
     property bool searchVisible: false
     property bool reducedMotion: false
-    property color background: "#05090c"
-    property color foreground: "#cfddde"
-    property color accent: "#6097a1"
+    readonly property color background: Quickshell.env("CAROUSEL_BACKGROUND") || "#05090c"
+    readonly property color foreground: Quickshell.env("CAROUSEL_FOREGROUND") || "#cfddde"
+    readonly property color accent: Quickshell.env("CAROUSEL_ACCENT") || "#6097a1"
     readonly property var selected: entries[selectedIndex] || null
     property double openedAt: 0
 
@@ -106,9 +105,6 @@ ShellRoot {
                 try {
                     const data = JSON.parse(text);
                     root.snapshot = data;
-                    root.background = data.background;
-                    root.foreground = data.foreground;
-                    root.accent = data.accent;
                     root.reducedMotion = data.reducedMotion;
                     root.filter();
                     root.selectedIndex = Math.max(0, root.entries.findIndex(e => e.path === data.current));

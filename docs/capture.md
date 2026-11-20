@@ -54,7 +54,7 @@ both wrapping round. The Text tab always takes a region, so its target buttons
 and Annotate are hidden (their space stays, so nothing moves) and Left and Right
 do nothing; its controls are the delay and Freeze.
 
-IPC target `capture`: `ping`, `toggle <mode>`, `open <mode>`, `close`,
+IPC target `capture`: `ping`, `toggle <mode>`, `close`,
 `status`, and `run`, a seam for scripted checks that presses the action button
 and acts only while the strip is open. Option writes are synchronous
 (`blockWrites`), so the script the strip starts reads exactly what it shows.

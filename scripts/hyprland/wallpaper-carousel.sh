@@ -9,4 +9,5 @@ fi
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/qs-launch.sh"
 qs_launch wallpaper-carousel carousel Wallpaper 'the wallpaper carousel'
 if qs_ipc toggle >/dev/null 2>&1; then exit 0; fi
+qs_theme CAROUSEL
 qs_start

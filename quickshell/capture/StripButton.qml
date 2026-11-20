@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 
 // One strip control from the mockup: a Nerd Font glyph over a short label.
 // `on` paints the selected target or an enabled toggle. A click only emits
@@ -60,21 +59,5 @@ Rectangle {
         cursorShape: Qt.PointingHandCursor
         onClicked: button.clicked()
     }
-    ToolTip {
-        popupType: Popup.Item
-        visible: mouse.containsMouse && button.tip !== ""
-        delay: 600
-        text: button.tip
-        contentItem: Text {
-            text: button.tip
-            color: button.strip.foreground
-            font.family: button.strip.monoFont
-            font.pixelSize: button.strip.px(12)
-        }
-        background: Rectangle {
-            color: button.strip.background
-            radius: button.strip.px(6)
-            border.color: button.strip.hairline
-        }
-    }
+    StripTip { strip: button.strip; visible: mouse.containsMouse && button.tip !== ""; text: button.tip }
 }

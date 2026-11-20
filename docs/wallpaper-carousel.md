@@ -44,8 +44,9 @@ but no upstream code was copied because reuse permission was not established.
 - `scripts/hyprland/carousel-state.sh` reads `waypaper/config.ini` on every open,
   including folders, recursion, hidden files, GIF filtering, and name/date sort.
   It queries awww for the visible image, falling back to Waypaper's saved choice.
-  It reads accents/text through `scripts/theming/palette.sh` and respects the
-  live `animations:enabled` setting, including Hyprland's boolean JSON field.
+  It respects the live `animations:enabled` setting, including Hyprland's
+  boolean JSON field. The palette reaches QML at launch through
+  `qs_theme CAROUSEL`, as for the other on-demand surfaces.
 - QML calls `carousel-apply.sh` with an argument array. The helper checks the file
   and holds a separate nonblocking submission lock. It runs
   `waypaper --backend awww --monitor All --no-post-command --wallpaper PATH`,
