@@ -42,8 +42,7 @@ ep_broken="$(make_fixture)"
 mkdir -p "$ep_broken/hypr"
 ln -s "./nowhere-at-all" "$ep_broken/broken-link"
 printf 'source = config/missing.conf\n' > "$ep_broken/hypr/hyprland.conf"
-git -C "$ep_broken" add -A
-git -C "$ep_broken" commit -qm "fixture"
+commit_fixture "$ep_broken"
 
 ep_out="$(DOCTOR_ROOT="$ep_broken" DOCTOR_CACHE="$ep_broken/no-cache" bash "$ep_bin" 2>&1)" \
     && ep_rc=0 || ep_rc=$?
@@ -72,8 +71,7 @@ printf 'return {}\n' > "$ep_clean/wal/colors-hyprland.lua"
 printf '#0e1416\n' > "$ep_clean/wal/colors"
 printf 'surface=#0e1416\n' > "$ep_clean/wal/roles"
 printf 'placeholder\n' > "$ep_clean/README.md"
-git -C "$ep_clean" add -A
-git -C "$ep_clean" commit -qm "fixture"
+commit_fixture "$ep_clean"
 
 ep_clean_out="$(DOCTOR_ROOT="$ep_clean" DOCTOR_CACHE="$ep_clean" bash "$ep_bin" 2>&1)" \
     && ep_rc=0 || ep_rc=$?

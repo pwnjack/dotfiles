@@ -64,7 +64,7 @@ check_ssh() {
     local envlua="$DOCTOR_ROOT/hypr/config/setup/envvars.lua"
     local setup="$DOCTOR_ROOT/scripts/ssh/setup.sh"
     local fragment="$DOCTOR_ROOT/ssh/config"
-    local sock name unit include config first="" fix mode target found=0 nosock=0 session before
+    local sock name unit include config first="" fix mode target nosock=0 session before
     before=$(doctor_findings)
 
     [ -f "$envlua" ] || return 0
@@ -88,19 +88,15 @@ check_ssh() {
         :  # no runtime dir means no user bus: neither unit nor socket can be judged
     elif ! _ssh_unit_present "$unit"; then
         warn "$unit is not installed (it ships with openssh)"
-        found=1
     elif ! _ssh_unit_enabled "$unit"; then
         warn "$unit is not enabled — ssh asks for the passphrase on every use" "$fix"
-        found=1
     elif ! _ssh_socket_live "$sock"; then
         warn "nothing is listening at $sock" "systemctl --user restart $(doctor_q "$unit")"
-        found=1
     fi
 
     config="$(_ssh_home)/.ssh/config"
     if [ -f "$config" ] && [ ! -r "$config" ]; then
         warn "$config is not readable" "chmod u+r $(doctor_q "$config")"
-        found=1
     else
         if [ -f "$config" ]; then IFS= read -r first 2>/dev/null < "$config" || true; fi
         first=${first%"${first##*[![:space:]]}"}
@@ -112,13 +108,10 @@ check_ssh() {
             [ -n "$target" ] || target=$(readlink -- "$config")
             warn "$config is a symlink whose target does not start with: $include" \
                 "add that line at the top of $(doctor_q "$target")"
-            found=1
         elif [ ! -e "$config" ]; then
             warn "$config does not exist" "$fix"
-            found=1
         else
             warn "$config does not start with: $include" "$fix"
-            found=1
         fi
     fi
 
@@ -127,21 +120,17 @@ check_ssh() {
         if [[ $mode =~ ^[0-7]+$ ]] && [ $((8#$mode & 8#022)) -ne 0 ]; then
             warn "$fragment is group/world writable — ssh refuses to include it" \
                 "chmod go-w $(doctor_q "$fragment")"
-            found=1
         fi
     fi
 
     if [ "$nosock" -eq 1 ]; then
         note "no user session bus in this shell — cannot check the agent unit or socket"
-        found=1
-    elif [ "$found" -eq 0 ]; then
+    elif [ "$(doctor_findings)" -eq "$before" ]; then
         session=$(_ssh_session_sock)
         if [ -z "$session" ]; then
             note "this shell has no SSH_AUTH_SOCK yet — log out and back in"
-            found=1
         elif [ "$session" != "$sock" ]; then
             note "this shell uses another agent at $session (forwarded, gpg-agent or gcr?)"
-            found=1
         fi
     fi
 

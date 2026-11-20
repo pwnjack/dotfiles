@@ -3,9 +3,7 @@
 # Assertions shared by the standalone test suites. Sourced, never executed.
 #
 # Each suite sources this, calls the assertions, and ends with
-# `test_summary [name]`, whose status is the suite's exit status. The doctor's
-# harness (scripts/doctor/test/run-tests.sh) keeps its own: its modules are
-# sourced into one shell and share its counters and reserved names.
+# `test_summary [name]`, whose status is the suite's exit status.
 #
 # test/test-assert.sh exercises this file on every commit, since suites under
 # other directories only run when their own directory changes.

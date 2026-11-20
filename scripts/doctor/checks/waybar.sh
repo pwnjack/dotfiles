@@ -177,7 +177,6 @@ check_waybar() {
     placed="$(_way_placed "$config")"
     configured="$(_way_configured "$config")"
 
-    # Process substitution, not a pipeline — see the contract note in lib.sh.
     while IFS= read -r name; do
         [ -n "$name" ] || continue
         printf '%s\n' "$configured" | grep -qxF -- "$name" && continue
@@ -218,6 +217,5 @@ check_waybar() {
              "install the package providing $cmd, or change the handler in $(doctor_q "$config")"
     done < <(_way_commands "$config")
 
-    # ok is the all-clear and nothing else — see the note in references.sh.
     ok_if_clean "$before" "every waybar module is configured and every handler resolves"
 }

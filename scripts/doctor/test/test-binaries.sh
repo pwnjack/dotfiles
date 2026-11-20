@@ -16,14 +16,6 @@ source "$DOCTOR_DIR/checks/binaries.sh"
 # directly, which is what SC2034 would otherwise flag.
 export DOCTOR_ROOT
 
-# bin_line <file> <substring> -> the matching line, or empty
-# Severity must be asserted on the finding's own line: asserting "WARN"
-# against the whole report would pass even with every classification
-# inverted, a real defect found reviewing the references module.
-bin_line() {
-    grep -F -- "$2" "$1" 2>/dev/null | head -n1
-}
-
 bin_fixture="$(make_fixture)"
 mkdir -p "$bin_fixture/hypr/config/software" \
          "$bin_fixture/hypr/config/setup" \
@@ -75,8 +67,7 @@ hl.exec_cmd("$HOME/.config/scripts/hyprland/respawn.sh /usr/lib/absent-wrapped-h
 hl.exec_cmd("/bin/sh -c true")
 BIN_EOF
 
-git -C "$bin_fixture" add -A
-git -C "$bin_fixture" commit -qm "fixture"
+commit_fixture "$bin_fixture"
 
 DOCTOR_ROOT="$bin_fixture"
 
@@ -93,63 +84,60 @@ assert_eq "$(hypr_var_option cursorTheme "$bin_fixture")" "cursortheme" "hypr_va
 assert_eq "$(hypr_var_option fileManager "$bin_fixture" || echo none)" "none" "a literal is not option-backed"
 
 # --- findings -----------------------------------------------------------
-bin_out_file="$DOCTOR_TEST_TMP/bin-out"
-doctor_reset
-check_binaries > "$bin_out_file" 2>&1
-bin_out="$(cat "$bin_out_file")"
+run_check check_binaries
 
-assert_contains "$(bin_line "$bin_out_file" "absent-browser-qq")" "WARN" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "absent-browser-qq")" "WARN" \
     "missing \$browser binary is WARN"
-assert_contains "$(bin_line "$bin_out_file" "absent-bin-qq")" "WARN" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "absent-bin-qq")" "WARN" \
     "missing literal keybind binary is WARN"
-assert_contains "$(bin_line "$bin_out_file" "absent-daemon-qq")" "WARN" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "absent-daemon-qq")" "WARN" \
     "missing autostart binary is WARN"
-assert_contains "$(bin_line "$bin_out_file" "absent-wrapped-qq")" "WARN" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "absent-wrapped-qq")" "WARN" \
     "missing binary under respawn.sh is WARN"
-assert_contains "$(bin_line "$bin_out_file" "absent-polkit-qq")" "WARN" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "absent-polkit-qq")" "WARN" \
     "missing \$polkitAgent binary is WARN"
-assert_contains "$(bin_line "$bin_out_file" "/usr/lib/absent-helper-qq/agent")" "WARN" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "/usr/lib/absent-helper-qq/agent")" "WARN" \
     "missing absolute-path command is WARN"
-assert_contains "$(bin_line "$bin_out_file" "/usr/lib/absent-helper-qq/agent")" "not an executable file" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "/usr/lib/absent-helper-qq/agent")" "not an executable file" \
     "it is reported as a missing file, not a package"
-assert_contains "$(bin_line "$bin_out_file" "absent-wrapped-helper-qq")" "WARN" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "absent-wrapped-helper-qq")" "WARN" \
     "missing absolute-path command under respawn.sh is WARN"
-assert_not_contains "$bin_out" "/bin/sh" "an executable absolute path is fine"
-assert_contains "$(bin_line "$bin_out_file" "undefinedVariable")" "WARN" \
+assert_not_contains "$CHECK_OUT" "/bin/sh" "an executable absolute path is fine"
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "undefinedVariable")" "WARN" \
     "unresolvable variable is WARN"
-assert_contains "$(bin_line "$bin_out_file" "absent-pipe-qq")" "WARN" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "absent-pipe-qq")" "WARN" \
     "missing binary in a pipeline segment is WARN"
 
 assert_eq "$DOCTOR_ERRORS" "0" "nothing in this module is ERROR severity"
 assert_eq "$DOCTOR_NOTICES" "0" "nothing in this module is INFO severity"
 
 # --- what must NOT be reported ------------------------------------------
-assert_not_contains "$bin_out" "scripts/thing.sh" \
+assert_not_contains "$CHECK_OUT" "scripts/thing.sh" \
     "tilde path targets are left to the reference check"
-assert_not_contains "$bin_out" "scripts/other.sh" \
+assert_not_contains "$CHECK_OUT" "scripts/other.sh" \
     "\$HOME path targets are left to the reference check"
-assert_not_contains "$bin_out" "killactive" "non-exec binds are not parsed as commands"
-assert_not_contains "$bin_out" "fullscreen" "dispatcher-only binds are not parsed as commands"
-assert_not_contains "$bin_out" "Mod" "modifier variables are never treated as binaries"
-assert_not_contains "$bin_out" "'bash'" "installed \$terminal produces no finding"
-assert_not_contains "$bin_out" "'cat'" "installed literal binary produces no finding"
-assert_not_contains "$bin_out" "'env'" "binary shared by keybinds and autostart produces no finding"
-assert_not_contains "$bin_out" "respawn.sh" "respawn.sh's own path is left to the reference check"
-assert_not_contains "$bin_out" "'--flag'" "a wrapped binary's arguments are not checked as binaries"
+assert_not_contains "$CHECK_OUT" "killactive" "non-exec binds are not parsed as commands"
+assert_not_contains "$CHECK_OUT" "fullscreen" "dispatcher-only binds are not parsed as commands"
+assert_not_contains "$CHECK_OUT" "Mod" "modifier variables are never treated as binaries"
+assert_not_contains "$CHECK_OUT" "'bash'" "installed \$terminal produces no finding"
+assert_not_contains "$CHECK_OUT" "'cat'" "installed literal binary produces no finding"
+assert_not_contains "$CHECK_OUT" "'env'" "binary shared by keybinds and autostart produces no finding"
+assert_not_contains "$CHECK_OUT" "respawn.sh" "respawn.sh's own path is left to the reference check"
+assert_not_contains "$CHECK_OUT" "'--flag'" "a wrapped binary's arguments are not checked as binaries"
 
 # --- dedupe -------------------------------------------------------------
 # Count finding lines only: the name also appears in that finding's fix hint.
-assert_eq "$(grep -cF "'absent-bin-qq', which is not installed" "$bin_out_file")" "1" \
+assert_eq "$(grep -cF "'absent-bin-qq', which is not installed" "$DOCTOR_TEST_TMP/check.out")" "1" \
     "a binary bound twice is reported once"
 
 # --- fix hints ----------------------------------------------------------
-assert_contains "$bin_out" "pacman -S absent-bin-qq" \
+assert_contains "$CHECK_OUT" "pacman -S absent-bin-qq" \
     "missing binary hint names the package to install"
-assert_contains "$bin_out" "hypr/config/apptype.lua" \
+assert_contains "$CHECK_OUT" "hypr/config/apptype.lua" \
     "unresolvable variable hint points at where to define it"
 
 # --- ok is the all-clear and nothing else -------------------------------
-assert_not_contains "$bin_out" "✓" "no green tick while findings exist"
+assert_not_contains "$CHECK_OUT" "✓" "no green tick while findings exist"
 
 bin_clean_fixture="$(make_fixture)"
 mkdir -p "$bin_clean_fixture/hypr/config/software" \
@@ -160,16 +148,12 @@ printf 'return {\n    terminal = read_option("terminal", "foot"),\n}\n' > "$bin_
 printf 'hl.bind("SUPER + RETURN", hl.dsp.exec_cmd(apps.terminal))\nhl.bind("SUPER + S", hl.dsp.exec_cmd("cat"))\n' \
     > "$bin_clean_fixture/hypr/config/software/keybinds.lua"
 printf 'hl.exec_cmd("env")\n' > "$bin_clean_fixture/hypr/config/setup/autostart.lua"
-git -C "$bin_clean_fixture" add -A
-git -C "$bin_clean_fixture" commit -qm "fixture"
+commit_fixture "$bin_clean_fixture"
 
 DOCTOR_ROOT="$bin_clean_fixture"
-bin_clean_file="$DOCTOR_TEST_TMP/bin-clean"
-doctor_reset
-check_binaries > "$bin_clean_file" 2>&1
-bin_clean_out="$(cat "$bin_clean_file")"
+run_check check_binaries
 
-assert_contains "$bin_clean_out" "✓" "green tick when every binary resolves"
+assert_contains "$CHECK_OUT" "✓" "green tick when every binary resolves"
 assert_eq "$DOCTOR_WARNINGS" "0" "clean tree produces no warnings"
 
 # --- installed package that ships no PATH executable --------------------
@@ -179,17 +163,15 @@ assert_eq "$DOCTOR_WARNINGS" "0" "clean tree produces no warnings"
 _bin_package_installed() { [ "$1" = "absent-bin-qq" ]; }
 
 DOCTOR_ROOT="$bin_fixture"
-bin_pkg_file="$DOCTOR_TEST_TMP/bin-pkg"
-doctor_reset
-check_binaries > "$bin_pkg_file" 2>&1
+run_check check_binaries
 
-assert_contains "$(bin_line "$bin_pkg_file" "absent-bin-qq")" "ships no executable on PATH" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "absent-bin-qq")" "ships no executable on PATH" \
     "installed package with no PATH binary gets the accurate diagnosis"
-assert_contains "$(bin_line "$bin_pkg_file" "absent-bin-qq")" "silently does nothing" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "absent-bin-qq")" "silently does nothing" \
     "diagnosis states the consequence, not just the symptom"
-assert_contains "$(bin_line "$bin_pkg_file" "absent-daemon-qq")" "not installed" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "absent-daemon-qq")" "not installed" \
     "genuinely absent package still gets the install diagnosis"
-assert_not_contains "$(bin_line "$bin_pkg_file" "absent-bin-qq")" "pacman -S" \
+assert_not_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "absent-bin-qq")" "pacman -S" \
     "no install hint for something already installed"
 
 # Restore the real lookup for anything sourced after this file.
@@ -200,9 +182,7 @@ source "$DOCTOR_DIR/checks/binaries.sh"
 bin_empty_fixture="$(make_fixture)"
 git -C "$bin_empty_fixture" commit -q --allow-empty -m "empty"
 DOCTOR_ROOT="$bin_empty_fixture"
-bin_empty_file="$DOCTOR_TEST_TMP/bin-empty"
-doctor_reset
-check_binaries > "$bin_empty_file" 2>&1
+run_check check_binaries
 assert_eq "$DOCTOR_ERRORS$DOCTOR_WARNINGS" "00" \
     "absent keybinds/autostart files produce no findings"
 
@@ -217,28 +197,24 @@ echo 'readonly KMS_SERVER=gsr-kms-server' > "$bin_fixture/scripts/capture/record
 _bin_kms_path() { [ "$1" = gsr-kms-server ] && echo /usr/bin/gsr-kms-server; }
 
 _bin_capability() { echo "/usr/bin/gsr-kms-server cap_net_raw=ep"; }
-doctor_reset
-check_binaries > "$bin_out_file" 2>&1
-assert_contains "$(bin_line "$bin_out_file" "cap_sys_admin")" "WARN" \
+run_check check_binaries
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "cap_sys_admin")" "WARN" \
     "helper without cap_sys_admin is WARN"
-assert_contains "$(bin_line "$bin_out_file" "setcap")" "/usr/bin/gsr-kms-server" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "setcap")" "/usr/bin/gsr-kms-server" \
     "the hint names the helper's path"
 
 _bin_capability() { echo "/usr/bin/gsr-kms-server cap_sys_admin=ep"; }
-doctor_reset
-check_binaries > "$bin_out_file" 2>&1
-assert_eq "$(bin_line "$bin_out_file" "cap_sys_admin")" "" "helper with cap_sys_admin: no finding"
+run_check check_binaries
+assert_eq "$(finding_line "$DOCTOR_TEST_TMP/check.out" "cap_sys_admin")" "" "helper with cap_sys_admin: no finding"
 
 _bin_capability() { return 1; }   # getcap absent
-doctor_reset
-check_binaries > "$bin_out_file" 2>&1
-assert_eq "$(bin_line "$bin_out_file" "cap_sys_admin")" "" "no getcap: no finding"
+run_check check_binaries
+assert_eq "$(finding_line "$DOCTOR_TEST_TMP/check.out" "cap_sys_admin")" "" "no getcap: no finding"
 
 _bin_kms_path() { :; }             # recorder not installed
 _bin_capability() { echo ""; }
-doctor_reset
-check_binaries > "$bin_out_file" 2>&1
-assert_eq "$(bin_line "$bin_out_file" "cap_sys_admin")" "" "helper not installed: no finding"
+run_check check_binaries
+assert_eq "$(finding_line "$DOCTOR_TEST_TMP/check.out" "cap_sys_admin")" "" "helper not installed: no finding"
 
 # Restore the real probes for anything sourced after this file.
 eval "$bin_real_kms_path"

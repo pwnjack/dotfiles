@@ -16,14 +16,6 @@ source "$DOCTOR_DIR/checks/services.sh"
 # directly, which is what SC2034 would otherwise flag.
 export DOCTOR_ROOT DOCTOR_DBUS_SERVICES
 
-# svc_line <file> <substring> -> the matching line, or empty
-# Severity must be asserted on the finding's own line: asserting "WARN"
-# against the whole report would pass even with every classification
-# inverted, the same defect test-binaries.sh guards against.
-svc_line() {
-    grep -F -- "$2" "$1" 2>/dev/null | head -n1
-}
-
 # --- fixture: autostart with bare binaries, path entries, and a variable ---
 svc_fixture="$(make_fixture)"
 mkdir -p "$svc_fixture/hypr/config/setup" "$svc_fixture/mako" "$svc_fixture/swaync"
@@ -52,8 +44,7 @@ AUR_PACKAGES=(
 )
 SVC_EOF
 
-git -C "$svc_fixture" add -A
-git -C "$svc_fixture" commit -qm "fixture"
+commit_fixture "$svc_fixture"
 
 # --- _svc_autostart_daemons: bare binaries only, deduped ------------------
 DOCTOR_ROOT="$svc_fixture"
@@ -89,52 +80,48 @@ _svc_unit_failed() { case "$1" in svc-wrapped-qq.service|svc-down-qq.service) re
 # notification daemons this particular host happens to have installed.
 _svc_role_providers() { printf 'swaync\nmako\n'; }
 
-svc_out_file="$DOCTOR_TEST_TMP/services-out"
-doctor_reset
-check_services > "$svc_out_file" 2>&1
-svc_out="$(cat "$svc_out_file")"
+run_check check_services
 
-assert_contains "$(svc_line "$svc_out_file" "svc-down-qq")" "WARN" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "svc-down-qq")" "WARN" \
     "a declared daemon that is not running is WARN"
-assert_not_contains "$svc_out" "svc-running-qq' is declared" \
+assert_not_contains "$CHECK_OUT" "svc-running-qq' is declared" \
     "a running daemon produces no finding"
 
-assert_contains "$(svc_line "$svc_out_file" "svc-absent-pkg-qq")" "INFO" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "svc-absent-pkg-qq")" "INFO" \
     "a package listed in install.sh but not installed is INFO"
-assert_not_contains "$svc_out" "svc-present-pkg-qq' but it is not installed" \
+assert_not_contains "$CHECK_OUT" "svc-present-pkg-qq' but it is not installed" \
     "an installed package produces no drift finding"
-assert_not_contains "$svc_out" "svc-aur-present-qq' but it is not installed" \
+assert_not_contains "$CHECK_OUT" "svc-aur-present-qq' but it is not installed" \
     "an installed AUR package produces no drift finding"
 
-assert_contains "$(svc_line "$svc_out_file" "org.freedesktop.Notifications")" "INFO" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "org.freedesktop.Notifications")" "INFO" \
     "the D-Bus owner is reported at INFO"
-assert_contains "$svc_out" "while 'swaync' holds the name" "the report names the actual owner"
+assert_contains "$CHECK_OUT" "while 'swaync' holds the name" "the report names the actual owner"
 
-assert_contains "$(svc_line "$svc_out_file" "'mako' is installed")" "INFO" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "'mako' is installed")" "INFO" \
     "mako installed + tracked config + not the bus owner is INFO"
-assert_not_contains "$svc_out" "'swaync' is installed with a tracked config" \
+assert_not_contains "$CHECK_OUT" "'swaync' is installed with a tracked config" \
     "the bus owner itself is never reported as orphaned"
 
-assert_contains "$(svc_line "$svc_out_file" "'svc-wrapped-qq' runs under respawn.sh")" "WARN" \
+assert_contains "$(finding_line "$DOCTOR_TEST_TMP/check.out" "'svc-wrapped-qq' runs under respawn.sh")" "WARN" \
     "a failed unit of a respawn.sh daemon is WARN"
-assert_eq "$(grep -cF "'svc-wrapped-qq' runs under respawn.sh" "$svc_out_file")" "1" \
+assert_eq "$(grep -cF "'svc-wrapped-qq' runs under respawn.sh" "$DOCTOR_TEST_TMP/check.out")" "1" \
     "a failed wrapped unit warns once"
-assert_not_contains "$svc_out" "'svc-wrapped-ok-qq' runs under respawn.sh" \
+assert_not_contains "$CHECK_OUT" "'svc-wrapped-ok-qq' runs under respawn.sh" \
     "a wrapped daemon whose unit is not failed is silent"
-assert_not_contains "$svc_out" "'svc-down-qq' runs under respawn.sh" \
+assert_not_contains "$CHECK_OUT" "'svc-down-qq' runs under respawn.sh" \
     "a bare autostart daemon is not probed for a failed unit"
-assert_contains "$svc_out" "svc-wrapped-qq.service" "the hint names the unit"
+assert_contains "$CHECK_OUT" "svc-wrapped-qq.service" "the hint names the unit"
 
 assert_eq "$DOCTOR_ERRORS" "0" "nothing in this module is ERROR severity"
-assert_not_contains "$svc_out" "✓" "no green tick while findings exist"
+assert_not_contains "$CHECK_OUT" "✓" "no green tick while findings exist"
 
 # --- clean fixture: everything running, installed, and unambiguous -------
 svc_clean="$(make_fixture)"
 mkdir -p "$svc_clean/hypr/config/setup"
 printf 'hl.exec_cmd("svc-running-qq")\n' > "$svc_clean/hypr/config/setup/autostart.lua"
 printf 'PACKAGES=(\n    "svc-present-pkg-qq"\n)\n' > "$svc_clean/install.sh"
-git -C "$svc_clean" add -A
-git -C "$svc_clean" commit -qm "fixture"
+commit_fixture "$svc_clean"
 
 DOCTOR_ROOT="$svc_clean"
 _svc_is_running() { [ "$1" = "svc-running-qq" ]; }
@@ -143,21 +130,21 @@ _svc_bus_owner() { printf 'swaync'; }
 _svc_role_providers() { return 0; }
 _svc_unit_failed() { return 1; }
 
-svc_clean_file="$DOCTOR_TEST_TMP/services-clean"
-doctor_reset
-check_services > "$svc_clean_file" 2>&1
-svc_clean_out="$(cat "$svc_clean_file")"
+run_check check_services
 
-assert_contains "$svc_clean_out" "✓" "green tick when nothing is wrong"
+assert_contains "$CHECK_OUT" "✓" "green tick when nothing is wrong"
 assert_eq "$DOCTOR_WARNINGS$DOCTOR_NOTICES" "00" "clean tree produces no findings at all"
 
 # --- graceful degradation: pacman and busctl both unavailable ------------
+# The real probes from here on, so their own pacman and busctl guards are tested.
+# shellcheck source=/dev/null
+source "$DOCTOR_DIR/checks/services.sh"
 DOCTOR_ROOT="$svc_fixture"
-_svc_is_running() { [ "$1" = "svc-running-qq" ]; }
 
 svc_degraded_file="$DOCTOR_TEST_TMP/services-degraded"
 doctor_reset
 (
+    _svc_is_running() { [ "$1" = "svc-running-qq" ]; }
     # A PATH with no pacman/busctl on it, but still holding every other
     # coreutil the module and the harness need (sed, awk, grep, sort, git...).
     svc_shim_dir="$DOCTOR_TEST_TMP/svc-shim"
@@ -172,7 +159,7 @@ doctor_reset
 )
 svc_degraded_out="$(cat "$svc_degraded_file")"
 
-assert_contains "$(svc_line "$svc_degraded_file" "svc-down-qq")" "WARN" \
+assert_contains "$(finding_line "$svc_degraded_file" "svc-down-qq")" "WARN" \
     "daemon-running check still works without pacman/busctl on PATH"
 assert_not_contains "$svc_degraded_out" "install.sh lists" \
     "package drift check produces nothing when pacman is unavailable, not a false finding per package"
@@ -181,10 +168,6 @@ assert_not_contains "$svc_degraded_out" "org.freedesktop.Notifications" \
 assert_not_contains "$svc_degraded_out" "is installed with a tracked config" \
     "orphan-config check produces nothing when its dependencies are unavailable"
 assert_eq "$DOCTOR_ERRORS" "0" "an unavailable pacman/busctl is degraded, not an error"
-
-# Restore the real probes for anything sourced after this file.
-# shellcheck source=/dev/null
-source "$DOCTOR_DIR/checks/services.sh"
 
 # --- role providers are derived from D-Bus activation files ---------------
 # The scanning half is tested against a fixture directory; the pacman lookup
@@ -219,8 +202,6 @@ DOCTOR_DBUS_SERVICES="/usr/share/dbus-1/services"
 svc_empty_fixture="$(make_fixture)"
 git -C "$svc_empty_fixture" commit -q --allow-empty -m "empty"
 DOCTOR_ROOT="$svc_empty_fixture"
-svc_empty_file="$DOCTOR_TEST_TMP/services-empty"
-doctor_reset
-check_services > "$svc_empty_file" 2>&1
+run_check check_services
 assert_eq "$DOCTOR_ERRORS$DOCTOR_WARNINGS" "00" \
     "absent autostart.lua/install.sh produce no findings"

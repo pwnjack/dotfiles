@@ -13,16 +13,12 @@
 # word of Exec to resolve. X-GNOME-Autostart-enabled is ignored by systemd, so
 # it is ignored here.
 #
-# These files are untracked (.gitignore: autostart/**), so this check reads
-# live state rather than git. Severity is WARN: a missing tray applet never
-# breaks the session.
+# These files are untracked (the .gitignore whitelist does not list
+# autostart/), so this check reads live state rather than git. Severity is
+# WARN: a missing tray applet never breaks the session.
 
 DOCTOR_AUTOSTART_DIR="${DOCTOR_AUTOSTART_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/autostart}"
 DOCTOR_AUTOSTART_SYSTEM="${DOCTOR_AUTOSTART_SYSTEM:-/etc/xdg/autostart}"
-
-# _as_have_cmd <binary> — host probe, its own function so tests can stub it.
-# type -P finds files only, so a shell builtin never stands in for a program.
-_as_have_cmd() { type -P -- "$1" >/dev/null 2>&1; }
 
 # _as_hidden <file> — Hidden, as systemd reads it: last definition, boolean.
 _as_hidden() {
@@ -30,17 +26,6 @@ _as_hidden() {
         [1yYtT]|[yY][eE][sS]|[tT][rR][uU][eE]|[oO][nN]) return 0 ;;
     esac
     return 1
-}
-
-# _as_exec_word <file> -> the first word of Exec (either quote style honoured).
-_as_exec_word() {
-    local value
-    value="$(doctor_ini "$1" 'Desktop Entry' Exec)"
-    case "$value" in
-        \"*) value="${value#\"}"; printf '%s\n' "${value%%\"*}" ;;
-        \'*) value="${value#\'}"; printf '%s\n' "${value%%\'*}" ;;
-        *) printf '%s\n' "${value%%[[:space:]]*}" ;;
-    esac
 }
 
 # _as_minimal <file> — exactly the four-line override the panel writes.
@@ -56,7 +41,7 @@ _as_minimal() {
 
 check_autostart() {
     group "Autostart"
-    local file name tryexec word missing before
+    local file name word missing before
     before=$(doctor_findings)
     if [ -d "$DOCTOR_AUTOSTART_DIR" ]; then
         while IFS= read -r -d '' file; do
@@ -73,12 +58,9 @@ check_autostart() {
                 continue
             fi
             [ "$(doctor_ini "$file" 'Desktop Entry' Type)" = "Application" ] || continue
-            word="$(_as_exec_word "$file")"
+            word="$(doctor_exec_word "$(doctor_ini "$file" 'Desktop Entry' Exec)")"
             [ -n "$word" ] || continue
-            tryexec="$(doctor_ini "$file" 'Desktop Entry' TryExec)"
-            missing=""
-            if [ -n "$tryexec" ] && ! _as_have_cmd "$tryexec"; then missing="$tryexec"; fi
-            if ! _as_have_cmd "$word"; then missing="${missing:+$missing and }$word"; fi
+            missing="$(doctor_entry_missing "$file")"
             if [ -n "$missing" ]; then
                 warn "$name starts $missing, which is not installed, so it never runs" "install the program, or rm $(doctor_q "$file")"
             fi

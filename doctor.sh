@@ -48,8 +48,8 @@ esac
 # shellcheck source=scripts/doctor/lib.sh
 source "$DOCTOR_SELF_DIR/scripts/doctor/lib.sh"
 
-# Source order is run order: hyprctl relies on waybar's placement reader, and
-# workspaces on both.
+# Run (and report) order. Every module is sourced before any runs, so
+# cross-module helpers (_way_placed) need no particular order.
 DOCTOR_MODULES=(symlinks references binaries services sddm updates waybar workspaces hyprctl hardware autostart ssh calendar defaults state plugins themes)
 for _doctor_module in "${DOCTOR_MODULES[@]}"; do
     # shellcheck source=/dev/null

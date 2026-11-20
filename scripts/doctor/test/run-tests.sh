@@ -6,7 +6,7 @@
 # Test files are SOURCED, not executed, so they all share one shell: call
 # doctor_reset before each block and prefix any helper variables with the
 # module name to avoid clobbering another file's state. Sourcing is deliberate
-# — running each file in a subshell would put TESTS_PASSED in a subshell, the
+# — running each file in a subshell would put PASSED in a subshell, the
 # exact bug lib.sh warns about.
 #
 set -uo pipefail
@@ -22,48 +22,9 @@ export DOCTOR_DIR REPO_DIR
 DOCTOR_ROOT="$TEST_DIR/nonexistent-default"
 export DOCTOR_ROOT
 
-TESTS_PASSED=0
-TESTS_FAILED=0
+# shellcheck source=scripts/lib/assert.sh
+. "$REPO_DIR/scripts/lib/assert.sh"
 FILES_RUN=0
-
-# assert_contains <haystack> <needle> <label>
-assert_contains() {
-    if printf '%s' "$1" | grep -qF -- "$2"; then
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        echo "  ok   $3"
-    else
-        TESTS_FAILED=$((TESTS_FAILED + 1))
-        echo "  FAIL $3"
-        echo "       expected to contain: $2"
-        echo "       actual output:"
-        printf '%s\n' "$1" | sed 's/^/         /'
-    fi
-}
-
-# assert_not_contains <haystack> <needle> <label>
-assert_not_contains() {
-    if printf '%s' "$1" | grep -qF -- "$2"; then
-        TESTS_FAILED=$((TESTS_FAILED + 1))
-        echo "  FAIL $3"
-        echo "       expected NOT to contain: $2"
-    else
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        echo "  ok   $3"
-    fi
-}
-
-# assert_eq <actual> <expected> <label>
-assert_eq() {
-    if [ "$1" = "$2" ]; then
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        echo "  ok   $3"
-    else
-        TESTS_FAILED=$((TESTS_FAILED + 1))
-        echo "  FAIL $3"
-        echo "       expected: $2"
-        echo "       actual:   $1"
-    fi
-}
 
 # All fixtures live under one PID-scoped prefix so cleanup can find them by
 # glob. An array registry cannot work here: callers use dir="$(make_fixture)",
@@ -87,6 +48,9 @@ make_fixture() {
     printf '%s' "$dir"
 }
 
+# commit_fixture <dir> — commit everything in a fixture repo.
+commit_fixture() { git -C "$1" add -A && git -C "$1" commit -qm fixture; }
+
 # Scratch space for test files that need to capture a check's output WITHOUT a
 # command substitution: `out="$(check_x)"` runs the check in a subshell, so its
 # severity counters are lost and a second run is needed to observe them. Two
@@ -99,6 +63,15 @@ DOCTOR_TEST_TMP="$(mktemp -d "$FIXTURE_PREFIX.scratch.XXXXXXXX")" || {
     exit 1
 }
 export DOCTOR_TEST_TMP
+
+# run_check <check_fn> — run once in this shell, so the counters survive; the
+# output lands in $CHECK_OUT and $DOCTOR_TEST_TMP/check.out.
+# shellcheck disable=SC2034  # read by the sourced test files
+run_check() { doctor_reset; "$1" > "$DOCTOR_TEST_TMP/check.out" 2>&1; CHECK_OUT="$(<"$DOCTOR_TEST_TMP/check.out")"; }
+
+# finding_line <file> <substring> -> the first matching line, or empty. Assert
+# severity on the finding's own line, never against the whole report.
+finding_line() { grep -F -- "$2" "$1" 2>/dev/null | head -n1; }
 
 cleanup_fixtures() {
     local f
@@ -116,7 +89,7 @@ cleanup_fixtures() {
 RUN_COMPLETE=0
 report() {
     echo
-    echo "$FILES_RUN files, $((TESTS_PASSED + TESTS_FAILED)) assertions, $TESTS_FAILED failures"
+    echo "$FILES_RUN files, $((PASSED + FAILED)) assertions, $FAILED failures"
     if [ "$RUN_COMPLETE" -ne 1 ]; then
         echo "ABORTED after $FILES_RUN of $FILES_TOTAL files — tally above is incomplete"
         exit 1
@@ -134,11 +107,9 @@ done
 # module may run a loop in a pipeline.
 echo "▸ contract"
 if grep -rnE '\|[[:space:]]*while[[:space:]]' "$DOCTOR_DIR"/checks/*.sh 2>/dev/null; then
-    TESTS_FAILED=$((TESTS_FAILED + 1))
-    echo "  FAIL pipeline-into-while above: findings would be lost in a subshell"
+    fail "pipeline-into-while above: findings would be lost in a subshell"
 else
-    TESTS_PASSED=$((TESTS_PASSED + 1))
-    echo "  ok   no pipeline-into-while in check modules"
+    pass "no pipeline-into-while in check modules"
 fi
 
 for test_file in "$TEST_DIR"/test-*.sh; do
@@ -155,5 +126,5 @@ for test_file in "$TEST_DIR"/test-*.sh; do
 done
 RUN_COMPLETE=1
 
-[ "$TESTS_FAILED" -eq 0 ] || exit 1
+[ "$FAILED" -eq 0 ] || exit 1
 exit 0

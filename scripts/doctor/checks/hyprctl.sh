@@ -38,9 +38,6 @@ _hctl_check_file() {
     local array_keyword_re="['\"]hyprctl['\"][[:space:]]*,[[:space:]]*['\"]keyword['\"]"
     local array_dispatch_re="['\"]hyprctl['\"][[:space:]]*,[[:space:]]*['\"]dispatch['\"][[:space:]]*,[[:space:]]*['\"][A-Za-z_][A-Za-z0-9_-]*['\"]"
 
-    [ -f "$full" ] || return 0
-    [ -L "$full" ] && return 0
-    LC_ALL=C grep -Iq hyprctl "$full" 2>/dev/null || return 0
     quoted_full="$(doctor_q "$full")"
 
     while IFS= read -r line || [ -n "$line" ]; do
@@ -75,15 +72,12 @@ check_hyprctl() {
     if _hctl_uses_native_waybar_workspaces; then
         local waybar_config="$DOCTOR_ROOT/waybar/config.jsonc"
         warn "waybar places hyprland/workspaces, whose clicks use a dispatcher removed by the Lua config provider" \
-            "replace it with ext/workspaces in $(doctor_q "$waybar_config")"
+            "replace it with cffi/workspaces (built by $(doctor_q "$DOCTOR_ROOT/scripts/waybar/build-workspaces.sh")) in $(doctor_q "$waybar_config")"
     fi
 
     while IFS= read -r -d '' file; do
-        case "$file" in
-            docs/*|scripts/doctor/*|*.md) continue ;;
-        esac
         _hctl_check_file "$file"
-    done < <(git -C "$DOCTOR_ROOT" ls-files -z 2>/dev/null)
+    done < <(git -C "$DOCTOR_ROOT" grep -Ilz hyprctl -- . ':!docs/' ':!scripts/doctor/' ':!*.md' 2>/dev/null)
 
     ok_if_clean "$before" "tracked runtime calls use the Lua-compatible hyprctl API"
 }

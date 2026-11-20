@@ -116,13 +116,6 @@ _ref_unresolvable() {
     return 1
 }
 
-# _ref_extract_paths <file>
-# Every distinct literal ~/.config reference in a file. -I skips binary files,
-# which would otherwise contribute a "Binary file ... matches" line.
-_ref_extract_paths() {
-    grep -IoE "$DOCTOR_REF_PATTERN" "$1" 2>/dev/null | sort -u
-}
-
 # _ref_source_targets <file>
 # The right-hand side of every `source =` line, with any inline comment and
 # trailing whitespace removed.
@@ -145,7 +138,6 @@ _ref_require_targets() {
 _ref_check_sources() {
     local conf base target rel full
 
-    # Process substitution, not a pipeline — see the contract note in lib.sh.
     while IFS= read -r -d '' conf; do
         case "$conf" in
             docs/*|scripts/doctor/*|*.md) continue ;;
@@ -203,31 +195,25 @@ _ref_check_requires() {
 _ref_check_literals() {
     local file path rel full
 
-    while IFS= read -r -d '' file; do
-        case "$file" in
-            docs/*|scripts/doctor/*|*.md) continue ;;
-        esac
-        [ -f "$DOCTOR_ROOT/$file" ] || continue
-        [ -L "$DOCTOR_ROOT/$file" ] && continue
+    # One "file NUL match" line per distinct reference; -I skips binary files,
+    # and git grep never reads a symlink's target or a deleted file.
+    while IFS= read -r -d '' file && IFS= read -r path; do
+        rel="$(_ref_under_root "$path")" || continue
+        _ref_unresolvable "$rel" && continue
 
-        while IFS= read -r path; do
-            rel="$(_ref_under_root "$path")" || continue
-            _ref_unresolvable "$rel" && continue
+        full="$DOCTOR_ROOT/$rel"
+        [ -e "$full" ] && continue
 
-            full="$DOCTOR_ROOT/$rel"
-            [ -e "$full" ] && continue
-
-            warn "$file references ~/.config/$rel, which does not exist" \
-                 "restore $(doctor_q "$full"), or drop the reference from $(doctor_q "$DOCTOR_ROOT/$file")"
-        done < <(_ref_extract_paths "$DOCTOR_ROOT/$file")
-    done < <(git -C "$DOCTOR_ROOT" ls-files -z 2>/dev/null)
+        warn "$file references ~/.config/$rel, which does not exist" \
+             "restore $(doctor_q "$full"), or drop the reference from $(doctor_q "$DOCTOR_ROOT/$file")"
+    done < <(git -C "$DOCTOR_ROOT" grep -IozE "$DOCTOR_REF_PATTERN" -- . ':!docs/' ':!scripts/doctor/' ':!*.md' 2>/dev/null | LC_ALL=C sort -u)
 }
 
 # _ref_check_palette_cache — the generator's slots and roles, and the generated
 # outputs Hyprland's colors.lua and Hyprlock's colors.conf resolve to. Name
 # missing inputs directly as well as the symlinks that consume their outputs.
 _ref_check_palette_cache() {
-    local palette severity missing=0
+    local palette severity
     for palette in "$DOCTOR_CACHE/wal/colors" \
                    "$DOCTOR_CACHE/wal/roles" \
                    "$DOCTOR_CACHE/wal/colors-hyprland.conf" \
@@ -239,9 +225,7 @@ _ref_check_palette_cache() {
         esac
         "$severity" "palette cache missing: $palette" \
             "change the wallpaper (Super+Ctrl+W), or run $(doctor_q "$DOCTOR_ROOT/scripts/theming/generate-palette.sh") $(doctor_q /path/to/wallpaper.jpg) && $(doctor_q "$DOCTOR_ROOT/scripts/theming/apply-wal.sh")"
-        missing=1
     done
-    return "$missing"
 }
 
 check_references() {
@@ -255,10 +239,5 @@ check_references() {
     _ref_check_literals
     _ref_check_palette_cache
 
-    # ok is the all-clear and nothing else. Gating it on the error count alone
-    # would print a green tick over a warning the reader is meant to act on.
-    # Every finding names its own file, so there is nothing to summarise when
-    # there are findings — and routing a summary through note would inflate the
-    # notices tally with a line that is not a finding.
     ok_if_clean "$before" "all config references resolve"
 }

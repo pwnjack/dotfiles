@@ -4,7 +4,7 @@
 # machine does not have.
 #
 # Nothing is enumerated here. The valid set comes from the kernel, the
-# occurrences come from `git ls-files -s`. A config file added tomorrow is
+# occurrences come from `git grep`. A config file added tomorrow is
 # covered the moment it is committed.
 #
 # WHY /sys/class/drm RATHER THAN hyprctl. The doctor must be runnable from a
@@ -38,8 +38,8 @@
 #   would hand the user a hint telling them to edit a tracked symlink, which is
 #   the opposite of this repo's cache-symlink invariant: generated state lives
 #   in ~/.cache and is corrected by regenerating it, never by hand. Reporting a
-#   file the user cannot correct misdirects rather than helps. The mode comes
-#   from `git ls-files -s`, the same source of truth symlinks.sh derives from.
+#   file the user cannot correct misdirects rather than helps. git grep never
+#   reads a symlink's target.
 #
 # Accepted limitations:
 #
@@ -111,7 +111,7 @@ check_hardware() {
 
     local before
     before=$(doctor_findings)
-    local present record mode file token
+    local present file token
 
     present="$(_hw_present_outputs)"
 
@@ -121,31 +121,14 @@ check_hardware() {
         return 0
     fi
 
-    # Process substitution, not a pipeline — see the contract note in lib.sh.
-    # -z and -d '' because git C-quotes any path holding a non-ASCII or quote
-    # character, and the quoted form names no file on disk.
-    while IFS= read -r -d '' record; do
-        mode="${record%% *}"
-        # Generated content behind a tracked symlink — see the header.
-        [ "$mode" = "120000" ] && continue
-        # Everything past the first tab is the path, verbatim.
-        file="${record#*$'\t'}"
+    # One "file NUL token" line per distinct name; -z because git C-quotes a
+    # path holding a non-ASCII or quote character, and git grep never reads a
+    # symlink's target (see the header).
+    while IFS= read -r -d '' file && IFS= read -r token; do
+        printf '%s\n' "$present" | grep -qxF -- "$token" && continue
+        warn "$file names $token, which is not an output on this machine" \
+             "point $(doctor_q "$DOCTOR_ROOT/$file") at an output this machine has, or remove the name"
+    done < <(git -C "$DOCTOR_ROOT" grep -IozE "$DOCTOR_DRM_CONNECTOR_RE" -- . ':!*.md' ':!docs/' ':!scripts/doctor/' ':!test/*' ':!*/test/*' 2>/dev/null | LC_ALL=C sort -u)
 
-        case "$file" in
-            *.md|docs/*|scripts/doctor/*|test/*|*/test/*) continue ;;
-        esac
-        [ -f "$DOCTOR_ROOT/$file" ] || continue
-
-        while IFS= read -r token; do
-            [ -n "$token" ] || continue
-            printf '%s\n' "$present" | grep -qxF -- "$token" && continue
-            warn "$file names $token, which is not an output on this machine" \
-                 "point $(doctor_q "$DOCTOR_ROOT/$file") at an output this machine has, or remove the name"
-        done < <(grep -ohIE "$DOCTOR_DRM_CONNECTOR_RE" "$DOCTOR_ROOT/$file" 2>/dev/null | sort -u)
-    done < <(git -C "$DOCTOR_ROOT" ls-files -sz 2>/dev/null)
-
-    # ok is the all-clear and nothing else — gated on every severity, as
-    # waybar.sh is, so a note added inside the scan cannot silently print a
-    # green tick beside it.
     ok_if_clean "$before" "no tracked config names a disconnected output"
 }

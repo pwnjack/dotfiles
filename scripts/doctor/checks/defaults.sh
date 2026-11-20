@@ -29,7 +29,6 @@ DOCTOR_APPS_DIRS="${DOCTOR_APPS_DIRS:-${XDG_DATA_HOME:-$HOME/.local/share}/appli
 DOCTOR_XTE_CONFIG="${DOCTOR_XTE_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}}"
 
 # Host probes, each its own function so tests can stub them.
-_def_have() { type -P -- "$1" >/dev/null 2>&1; }
 _def_path() { type -P -- "$1" 2>/dev/null; }
 _def_resolve() { local p; p="$(_def_path "$1")" && readlink -f -- "$p"; }
 _def_env() { printenv "$1"; }
@@ -57,22 +56,13 @@ _def_xte_path() {
 }
 _def_desktops() { printf '%s' "${XDG_CURRENT_DESKTOP:-}" | tr '[:upper:]:' '[:lower:] '; }
 
-# _def_word <command line> -> its first word, either quote style honoured
-_def_word() {
-    case "$1" in
-        \"*) local v="${1#\"}"; printf '%s\n' "${v%%\"*}" ;;
-        \'*) local v="${1#\'}"; printf '%s\n' "${v%%\'*}" ;;
-        *) local v="${1#"${1%%[![:space:]]*}"}"; printf '%s\n' "${v%%[[:space:]]*}" ;;
-    esac
-}
-
 # _def_value_word <name> <value> -> the program a variable's value runs: past
 # leading VAR=x assignments, and the first of $BROWSER's colon-separated list.
 _def_value_word() {
     local value="$2" assignment='^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*=("[^"]*"|'"'[^']*'"'|[^[:space:]]*)([[:space:]]+(.*))?$'
     [ "$1" = BROWSER ] && value="${value%%:*}"
     while [[ "$value" =~ $assignment ]]; do value="${BASH_REMATCH[3]}"; done
-    _def_word "$value"
+    doctor_exec_word "$value"
 }
 
 # _def_option <key> -> the options/ value apptype.lua gives apps.<key>, or 1
@@ -99,18 +89,6 @@ _def_entry() {
     return 1
 }
 
-# _def_entry_missing <file> -> what the entry runs that is not installed
-_def_entry_missing() {
-    local tryexec word missing=""
-    tryexec="$(doctor_ini "$1" 'Desktop Entry' TryExec)"
-    word="$(_def_word "$(doctor_ini "$1" 'Desktop Entry' Exec)")"
-    if [ -n "$tryexec" ] && ! _def_have "$tryexec"; then missing="$tryexec"; fi
-    if [ -n "$word" ] && [ "$word" != "$tryexec" ] && ! _def_have "$word"; then
-        missing="${missing:+$missing and }$word"
-    fi
-    printf '%s' "$missing"
-}
-
 _def_check_env() {
     local envvars="$DOCTOR_ROOT/hypr/config/setup/envvars.lua" name key want where value word
     [ -f "$envvars" ] || return 0
@@ -121,7 +99,7 @@ _def_check_env() {
             [ -n "$value" ] || continue
             word="$(_def_value_word "$name" "$value")"
             [ -n "$word" ] || continue
-            if ! _def_have "$word"; then
+            if ! doctor_have "$word"; then
                 # The options/ value itself: check_binaries reports that one.
                 [ "$value" = "$want" ] && continue
                 if [ "$where" = shell ]; then
@@ -137,7 +115,7 @@ _def_check_env() {
 }
 
 _def_check_terminal() {
-    _def_have xdg-terminal-exec || return 0
+    doctor_have xdg-terminal-exec || return 0
     local path entry word term
     path="$(_def_path xdg-terminal-exec)"
     entry="$(_def_xte_path)"
@@ -146,8 +124,8 @@ _def_check_terminal() {
             "pacman -Qo $(doctor_q "$path") || rm $(doctor_q "$path"); if a package owns it, XTE_DEBUG=1 xdg-terminal-exec --print-path says why"
         return 0
     fi
-    term="$(_def_word "$(_def_option terminal)")"
-    word="$(_def_word "$(doctor_ini "$entry" 'Desktop Entry' Exec)")"
+    term="$(doctor_exec_word "$(_def_option terminal)")"
+    word="$(doctor_exec_word "$(doctor_ini "$entry" 'Desktop Entry' Exec)")"
     [ -n "$term" ] && [ -n "$word" ] || return 0
     [ "$(_def_resolve "$word")" != "$(_def_resolve "$term")" ] || return 0
     # terminal.sh writes the generic list, but a desktop-specific one is read
@@ -173,7 +151,7 @@ _def_check_mime() {
         file="$(_def_entry "$id")" || continue
         # Hidden=true means deleted: lookups skip the entry, nothing launches it.
         [ "$(doctor_ini "$file" 'Desktop Entry' Hidden)" = true ] && continue
-        missing="$(_def_entry_missing "$file")"
+        missing="$(doctor_entry_missing "$file")"
         [ -n "$missing" ] || continue
         hint="pick another app on the settings panel's Default Apps page"
         # Only a per-user entry is the user's to delete; a packaged one is pacman's.

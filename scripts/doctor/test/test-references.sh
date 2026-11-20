@@ -20,7 +20,6 @@ source "$DOCTOR_DIR/checks/references.sh"
 # cross-file use that SC2034 cannot see. Declare them external.
 export DOCTOR_ROOT DOCTOR_CACHE
 
-ref_out_file="$DOCTOR_TEST_TMP/references.out"
 
 # =====================================================================
 # A repo containing every reference state the check classifies.
@@ -142,57 +141,54 @@ stylesheet = ~/.config/generated/never-exists.css
 EOF
 ln -s "$ref_generated" "$ref_fixture/generated.ini"
 
-git -C "$ref_fixture" add -A
-git -C "$ref_fixture" commit -qm "fixture"
+commit_fixture "$ref_fixture"
 
 ref_cache_empty="$DOCTOR_TEST_TMP/ref-cache-empty"
 mkdir -p "$ref_cache_empty"
 
 DOCTOR_ROOT="$ref_fixture"
 DOCTOR_CACHE="$ref_cache_empty"
-doctor_reset
-check_references > "$ref_out_file" 2>&1
-ref_out="$(<"$ref_out_file")"
+run_check check_references
 
 # --- source chains ----------------------------------------------------------
-assert_contains "$ref_out" "hypr/hyprland.conf sources config/missing.conf" \
+assert_contains "$CHECK_OUT" "hypr/hyprland.conf sources config/missing.conf" \
     "missing source target is reported"
 # Hyprland fails the line outright and the whole module never loads, so this is
 # the one reference kind that genuinely breaks the session.
-ref_source_line="$(grep -F 'sources config/missing.conf' "$ref_out_file")"
+ref_source_line="$(finding_line "$DOCTOR_TEST_TMP/check.out" 'sources config/missing.conf')"
 assert_contains "$ref_source_line" "ERROR" "missing source target is ERROR severity"
-assert_contains "$ref_out" "hypr/hyprlock.conf sources config/lock-missing.conf" \
+assert_contains "$CHECK_OUT" "hypr/hyprlock.conf sources config/lock-missing.conf" \
     "source target is resolved against the sourcing file's own directory"
-assert_not_contains "$ref_out" "config/good.conf, which does not exist" \
+assert_not_contains "$CHECK_OUT" "config/good.conf, which does not exist" \
     "resolvable source target produces no finding"
-assert_not_contains "$ref_out" "config/inline.conf, which does not exist" \
+assert_not_contains "$CHECK_OUT" "config/inline.conf, which does not exist" \
     "inline comment is stripped off the source target"
-assert_not_contains "$ref_out" "trailing comment" \
+assert_not_contains "$CHECK_OUT" "trailing comment" \
     "no finding quotes the comment text back at the user"
-assert_not_contains "$ref_out" "spaced dir/there.conf, which does not exist" \
+assert_not_contains "$CHECK_OUT" "spaced dir/there.conf, which does not exist" \
     "source target containing a space still resolves"
-assert_contains "$ref_out" "spaced dir/gone.conf" \
+assert_contains "$CHECK_OUT" "spaced dir/gone.conf" \
     "missing source target containing a space is reported"
 
 # Neither a template nor a glob names a single file, so neither can be checked.
-assert_not_contains "$ref_out" "expanded.conf" \
+assert_not_contains "$CHECK_OUT" "expanded.conf" \
     "source target with an unexpanded variable is skipped"
-assert_not_contains "$ref_out" "config/*.conf" \
+assert_not_contains "$CHECK_OUT" "config/*.conf" \
     "globbed source target is skipped"
-assert_not_contains "$ref_out" "absolute.conf" \
+assert_not_contains "$CHECK_OUT" "absolute.conf" \
     "source target outside the tree under test is skipped"
 
-assert_contains "$ref_out" "hypr/hyprland.lua requires config.missing_lua" \
+assert_contains "$CHECK_OUT" "hypr/hyprland.lua requires config.missing_lua" \
     "missing Lua module is reported"
-ref_require_line="$(grep -F 'requires config.missing_lua' "$ref_out_file")"
+ref_require_line="$(finding_line "$DOCTOR_TEST_TMP/check.out" 'requires config.missing_lua')"
 assert_contains "$ref_require_line" "ERROR" "missing Lua module is ERROR severity"
-assert_not_contains "$ref_out" "requires config.good" \
+assert_not_contains "$CHECK_OUT" "requires config.good" \
     "resolvable Lua module produces no finding"
 
 # --- literal ~/.config references -------------------------------------------
-assert_contains "$ref_out" "scripts/broken.sh references ~/.config/gone/missing.sh" \
+assert_contains "$CHECK_OUT" "scripts/broken.sh references ~/.config/gone/missing.sh" \
     "missing literal \$HOME/.config path is reported"
-assert_not_contains "$ref_out" "present.sh, which does not exist" \
+assert_not_contains "$CHECK_OUT" "present.sh, which does not exist" \
     "literal path that exists produces no finding"
 
 # A script pointing at a missing file breaks that one feature when invoked; the
@@ -200,57 +196,57 @@ assert_not_contains "$ref_out" "present.sh, which does not exist" \
 # exit code stops meaning anything. Severity is asserted on the finding's own
 # line — the whole-output "contains ERROR" form cannot tell which finding it
 # came from once the check emits more than one severity.
-ref_literal_line="$(grep -F 'scripts/broken.sh references' "$ref_out_file")"
+ref_literal_line="$(finding_line "$DOCTOR_TEST_TMP/check.out" 'scripts/broken.sh references')"
 assert_contains "$ref_literal_line" "WARN" "missing literal path is WARN severity"
 assert_not_contains "$ref_literal_line" "ERROR" "missing literal path is not an ERROR"
 
 # docs/ and *.md hold illustrative paths; reporting them would bury the real
 # findings under the contents of every plan ever written.
-assert_not_contains "$ref_out" "docs-md" "a .md file under docs/ is not scanned"
-assert_not_contains "$ref_out" "docs-txt" "a non-md file under docs/ is not scanned"
-assert_not_contains "$ref_out" "md-only" "a .md file outside docs/ is not scanned"
+assert_not_contains "$CHECK_OUT" "docs-md" "a .md file under docs/ is not scanned"
+assert_not_contains "$CHECK_OUT" "docs-txt" "a non-md file under docs/ is not scanned"
+assert_not_contains "$CHECK_OUT" "md-only" "a .md file outside docs/ is not scanned"
 
 # Same rule, applied to the doctor's own tree: its fixtures are made of paths
 # picked for not existing, so scanning it makes the check report on itself.
-assert_not_contains "$ref_out" "doctor-fixture/never-exists" \
+assert_not_contains "$CHECK_OUT" "doctor-fixture/never-exists" \
     "a test fixture under scripts/doctor/ is not scanned"
-assert_not_contains "$ref_out" "doctor-prose" \
+assert_not_contains "$CHECK_OUT" "doctor-prose" \
     "an example path in a check module's own comments is not scanned"
-assert_not_contains "$ref_out" "doctor-fixture-target.conf" \
+assert_not_contains "$CHECK_OUT" "doctor-fixture-target.conf" \
     "a fixture .conf under scripts/doctor/ is not walked for source lines"
 
-assert_not_contains "$ref_out" "themes" \
+assert_not_contains "$CHECK_OUT" "themes" \
     "paths holding a variable or a glob are skipped, not reported"
 
-assert_not_contains "$ref_out" "present.sh}" \
+assert_not_contains "$CHECK_OUT" "present.sh}" \
     "a parameter-expansion default's closing brace is not part of the path"
-assert_contains "$ref_out" "defaults.sh references ~/.config/gone/defaulted.sh," \
+assert_contains "$CHECK_OUT" "defaults.sh references ~/.config/gone/defaulted.sh," \
     "a missing path used as a default is reported without the brace"
-assert_not_contains "$ref_out" "templated" \
+assert_not_contains "$CHECK_OUT" "templated" \
     "a braced variable inside a path keeps it unresolvable"
 
 # The strip must be anchored to the front. A longest-match strip would turn
 # scripts/x/.config/y into y and send the reader to the wrong file.
-assert_contains "$ref_out" "nested.sh references ~/.config/scripts/x/.config/y" \
+assert_contains "$CHECK_OUT" "nested.sh references ~/.config/scripts/x/.config/y" \
     "only the leading ~/.config/ is stripped"
-assert_not_contains "$ref_out" "references ~/.config/y," \
+assert_not_contains "$CHECK_OUT" "references ~/.config/y," \
     "a later /.config/ in the path is not mistaken for the prefix"
 
 # --- generated content ------------------------------------------------------
-assert_not_contains "$ref_out" "generated/never-exists.css" \
+assert_not_contains "$CHECK_OUT" "generated/never-exists.css" \
     "content of a tracked symlink is not scanned"
 
 # --- palette cache ----------------------------------------------------------
-assert_contains "$ref_out" "$ref_cache_empty/wal/colors-hyprland.conf" \
+assert_contains "$CHECK_OUT" "$ref_cache_empty/wal/colors-hyprland.conf" \
     "missing Hyprlock palette cache is reported"
-assert_contains "$ref_out" "$ref_cache_empty/wal/colors-hyprland.lua" \
+assert_contains "$CHECK_OUT" "$ref_cache_empty/wal/colors-hyprland.lua" \
     "missing Hyprland Lua palette cache is reported"
-assert_contains "$ref_out" "palette cache missing: $ref_cache_empty/wal/colors" \
+assert_contains "$CHECK_OUT" "palette cache missing: $ref_cache_empty/wal/colors" \
     "missing ANSI palette cache is reported"
-assert_contains "$ref_out" "palette cache missing: $ref_cache_empty/wal/roles" \
+assert_contains "$CHECK_OUT" "palette cache missing: $ref_cache_empty/wal/roles" \
     "missing semantic-role cache is reported"
 for ref_name in colors roles colors-hyprland.conf colors-hyprland.lua; do
-    ref_palette_line="$(grep -F "palette cache missing: $ref_cache_empty/wal/$ref_name" "$ref_out_file" | head -n1)"
+    ref_palette_line="$(finding_line "$DOCTOR_TEST_TMP/check.out" "palette cache missing: $ref_cache_empty/wal/$ref_name")"
     case "$ref_name" in
         colors|roles)
             assert_contains "$ref_palette_line" "WARN" "missing $ref_name uses fallback and is WARN severity"
@@ -270,31 +266,31 @@ assert_eq "$DOCTOR_NOTICES" "0" "nothing here is a notice"
 # --- every fix hint is copy-pasteable ---------------------------------------
 # One assertion per hint: a quoting bug once survived review because only one
 # hint was ever asserted.
-assert_contains "$ref_out" "restore $ref_fixture/hypr/config/spaced\\ dir/gone.conf, or drop the source line from $ref_fixture/hypr/hyprland.conf" \
+assert_contains "$CHECK_OUT" "restore $ref_fixture/hypr/config/spaced\\ dir/gone.conf, or drop the source line from $ref_fixture/hypr/hyprland.conf" \
     "source hint shell-quotes a target containing a space"
-assert_contains "$ref_out" "restore $ref_fixture/gone/missing2.sh, or drop the reference from $ref_fixture/has\\ space.sh" \
+assert_contains "$CHECK_OUT" "restore $ref_fixture/gone/missing2.sh, or drop the reference from $ref_fixture/has\\ space.sh" \
     "literal hint shell-quotes the referencing file's name"
-assert_contains "$ref_out" "change the wallpaper (Super+Ctrl+W)" \
+assert_contains "$CHECK_OUT" "change the wallpaper (Super+Ctrl+W)" \
     "palette hint offers the wallpaper carousel without requiring a saved selection"
-assert_contains "$ref_out" "$ref_fixture/scripts/theming/generate-palette.sh /path/to/wallpaper.jpg" \
+assert_contains "$CHECK_OUT" "$ref_fixture/scripts/theming/generate-palette.sh /path/to/wallpaper.jpg" \
     "palette hint accepts an image even without a saved wallpaper"
-assert_not_contains "$ref_out" "$ref_cache_empty/current_wallpaper" \
+assert_not_contains "$CHECK_OUT" "$ref_cache_empty/current_wallpaper" \
     "palette hint does not depend on a missing wallpaper symlink"
-assert_contains "$ref_out" "$ref_fixture/scripts/theming/apply-wal.sh" \
+assert_contains "$CHECK_OUT" "$ref_fixture/scripts/theming/apply-wal.sh" \
     "palette hint also renders every component's cache"
 
 # A top-level conf has no base directory; "$root//$target" would be an ugly,
 # unpasteable path even though the kernel tolerates it.
-assert_contains "$ref_out" "restore $ref_fixture/toplevel-target.conf" \
+assert_contains "$CHECK_OUT" "restore $ref_fixture/toplevel-target.conf" \
     "hint for a top-level conf has no doubled slash"
-assert_not_contains "$ref_out" "$ref_fixture//" "no hint contains a doubled slash"
+assert_not_contains "$CHECK_OUT" "$ref_fixture//" "no hint contains a doubled slash"
 
 # `<foo>` is input redirection to a shell, so the user would get an error from
 # bash rather than from the command they pasted.
-assert_not_contains "$ref_out" "<" "no hint contains what a shell reads as a redirection"
+assert_not_contains "$CHECK_OUT" "<" "no hint contains what a shell reads as a redirection"
 
 # --- the all-clear is reserved for an actually clear result -----------------
-assert_not_contains "$ref_out" "✓" "repo with broken references gets no green tick"
+assert_not_contains "$CHECK_OUT" "✓" "repo with broken references gets no green tick"
 
 # =====================================================================
 # A repo where everything resolves.
@@ -312,8 +308,7 @@ echo "return {}" > "$ref_clean/hypr/config/colors.lua"
 cat > "$ref_clean/launch.sh" <<'EOF'
 exec "$HOME/.config/hypr/hyprland.conf"
 EOF
-git -C "$ref_clean" add -A
-git -C "$ref_clean" commit -qm "fixture"
+commit_fixture "$ref_clean"
 
 ref_cache_full="$DOCTOR_TEST_TMP/ref-cache full"
 mkdir -p "$ref_cache_full/wal"
@@ -324,12 +319,10 @@ echo "surface=#0e1416" > "$ref_cache_full/wal/roles"
 
 DOCTOR_ROOT="$ref_clean"
 DOCTOR_CACHE="$ref_cache_full"
-doctor_reset
-check_references > "$ref_out_file" 2>&1
-ref_clean_out="$(<"$ref_out_file")"
+run_check check_references
 
-assert_contains "$ref_clean_out" "✓" "fully resolvable repo gets the green tick"
-assert_contains "$ref_clean_out" "all config references resolve" \
+assert_contains "$CHECK_OUT" "✓" "fully resolvable repo gets the green tick"
+assert_contains "$CHECK_OUT" "all config references resolve" \
     "fully resolvable repo says so"
 assert_eq "$DOCTOR_ERRORS" "0" "fully resolvable repo records no errors"
 assert_eq "$DOCTOR_WARNINGS" "0" "fully resolvable repo records no warnings"
@@ -338,17 +331,15 @@ assert_eq "$DOCTOR_NOTICES" "0" "fully resolvable repo records no notices"
 # Each missing input warns even with both Hyprland outputs present.
 for ref_name in colors roles; do
     mv "$ref_cache_full/wal/$ref_name" "$ref_cache_full/$ref_name.saved"
-    doctor_reset
-    check_references > "$ref_out_file" 2>&1
-    ref_missing_out="$(<"$ref_out_file")"
-    assert_contains "$ref_missing_out" "palette cache missing: $ref_cache_full/wal/$ref_name" \
+    run_check check_references
+    assert_contains "$CHECK_OUT" "palette cache missing: $ref_cache_full/wal/$ref_name" \
         "missing $ref_name is reported independently"
     assert_eq "$DOCTOR_ERRORS" "0" "missing $ref_name produces no errors"
     assert_eq "$DOCTOR_WARNINGS" "1" "missing $ref_name produces exactly one warning"
     assert_eq "$DOCTOR_NOTICES" "0" "missing $ref_name produces no notices"
-    assert_not_contains "$ref_missing_out" "✓" \
+    assert_not_contains "$CHECK_OUT" "✓" \
         "missing $ref_name gets no all-clear"
-    assert_contains "$ref_missing_out" "$(doctor_q "$ref_clean/scripts/theming/generate-palette.sh") $(doctor_q /path/to/wallpaper.jpg) && $(doctor_q "$ref_clean/scripts/theming/apply-wal.sh")" \
+    assert_contains "$CHECK_OUT" "$(doctor_q "$ref_clean/scripts/theming/generate-palette.sh") $(doctor_q /path/to/wallpaper.jpg) && $(doctor_q "$ref_clean/scripts/theming/apply-wal.sh")" \
         "palette hint supplies a valid image argument and component rendering command"
     mv "$ref_cache_full/$ref_name.saved" "$ref_cache_full/wal/$ref_name"
 done
@@ -363,17 +354,14 @@ cat > "$ref_warn_fixture/warn-only.sh" <<'EOF'
 #!/bin/bash
 "$HOME/.config/gone/warn-only.sh"
 EOF
-git -C "$ref_warn_fixture" add -A
-git -C "$ref_warn_fixture" commit -qm "fixture"
+commit_fixture "$ref_warn_fixture"
 
 DOCTOR_ROOT="$ref_warn_fixture"
 DOCTOR_CACHE="$ref_cache_full"
-doctor_reset
-check_references > "$ref_out_file" 2>&1
-ref_warn_out="$(<"$ref_out_file")"
+run_check check_references
 
-assert_contains "$ref_warn_out" "WARN" "warning-only repo still reports its warning"
-assert_not_contains "$ref_warn_out" "✓" "a warning suppresses the all-clear line"
+assert_contains "$CHECK_OUT" "WARN" "warning-only repo still reports its warning"
+assert_not_contains "$CHECK_OUT" "✓" "a warning suppresses the all-clear line"
 assert_eq "$DOCTOR_ERRORS" "0" "warning-only repo records no error"
 assert_eq "$DOCTOR_WARNINGS" "1" "warning-only repo records one warning"
 
@@ -384,16 +372,13 @@ assert_eq "$DOCTOR_WARNINGS" "1" "warning-only repo records one warning"
 # normal outcome, and doctor_require_repo has already ruled out "no repository".
 ref_bare_fixture="$(make_fixture)"
 echo "plain" > "$ref_bare_fixture/regular-file"
-git -C "$ref_bare_fixture" add -A
-git -C "$ref_bare_fixture" commit -qm "fixture"
+commit_fixture "$ref_bare_fixture"
 
 DOCTOR_ROOT="$ref_bare_fixture"
 DOCTOR_CACHE="$ref_cache_full"
-doctor_reset
-check_references > "$ref_out_file" 2>&1
-ref_bare_out="$(<"$ref_out_file")"
+run_check check_references
 
-assert_contains "$ref_bare_out" "all config references resolve" \
+assert_contains "$CHECK_OUT" "all config references resolve" \
     "repo without configs is a clear result"
 assert_eq "$DOCTOR_ERRORS" "0" "repo without configs records no errors"
 assert_eq "$DOCTOR_WARNINGS" "0" "repo without configs records no warnings"

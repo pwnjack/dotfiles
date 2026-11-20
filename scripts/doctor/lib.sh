@@ -12,8 +12,9 @@
 #   These names are reserved by this library — check modules must not redefine
 #   them (option comes from scripts/lib/options.sh): group ok ok_if_clean
 #   err warn note summary option doctor_reset doctor_q
-#   doctor_findings doctor_assignment doctor_sudo_grant doctor_require_repo
-#   doctor_ini _finding
+#   doctor_findings doctor_assignment doctor_sudo_grant doctor_sudo_listing
+#   doctor_file_state doctor_require_repo doctor_ini doctor_have
+#   doctor_exec_word doctor_entry_missing _finding
 #
 #   Any path interpolated into a fix hint must go through doctor_q, or the hint
 #   stops being copy-pasteable the moment a path contains a space.
@@ -101,6 +102,18 @@ doctor_q() {
     printf '%q' "$1"
 }
 
+# doctor_sudo_listing — the effective non-interactive sudo listing, a host probe
+# the SDDM and update checks share.
+doctor_sudo_listing() {
+    sudo -n -l 2>/dev/null
+}
+
+# doctor_file_state <path> — owner, group and mode of the path itself. Never -L:
+# a helper symlink must not inherit the ownership of the file it points at.
+doctor_file_state() {
+    stat -c '%U:%G %a' -- "$1" 2>/dev/null
+}
+
 # doctor_sudo_grant <sudo -l listing> <command> — 0 when the listing grants
 # <command> (or ALL) without a password: the entries after "NOPASSWD: ",
 # comma-separated and trimmed, compared whole. The SDDM and update helpers
@@ -158,6 +171,32 @@ doctor_ini() {
         }
         END { if (found) print value }
     ' "$1"
+}
+
+# doctor_have <binary> — host probe; type -P finds files only, so a shell
+# builtin never stands in for a program.
+doctor_have() { type -P -- "$1" >/dev/null 2>&1; }
+
+# doctor_exec_word <command line> -> its first word, either quote style honoured
+doctor_exec_word() {
+    case "$1" in
+        \"*) local v="${1#\"}"; printf '%s\n' "${v%%\"*}" ;;
+        \'*) local v="${1#\'}"; printf '%s\n' "${v%%\'*}" ;;
+        *) local v="${1#"${1%%[![:space:]]*}"}"; printf '%s\n' "${v%%[[:space:]]*}" ;;
+    esac
+}
+
+# doctor_entry_missing <desktop file> -> what its TryExec and Exec run that is
+# not installed; TryExec is looked up verbatim, never split.
+doctor_entry_missing() {
+    local tryexec word missing=""
+    tryexec="$(doctor_ini "$1" 'Desktop Entry' TryExec)"
+    word="$(doctor_exec_word "$(doctor_ini "$1" 'Desktop Entry' Exec)")"
+    if [ -n "$tryexec" ] && ! doctor_have "$tryexec"; then missing="$tryexec"; fi
+    if [ -n "$word" ] && [ "$word" != "$tryexec" ] && ! doctor_have "$word"; then
+        missing="${missing:+$missing and }$word"
+    fi
+    printf '%s' "$missing"
 }
 
 # Guards the assumption every check makes: that DOCTOR_ROOT is a git work tree,

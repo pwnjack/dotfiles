@@ -34,41 +34,35 @@ git -C "$plg_root" add quickshell/panel/nm.js quickshell/panel/glib.mjs quickshe
 
 plg_saved_root="$DOCTOR_ROOT"
 DOCTOR_ROOT="$plg_root"
-doctor_reset
-check_plugins > "$DOCTOR_TEST_TMP/plugins.out" 2>&1
-plg_text="$(cat "$DOCTOR_TEST_TMP/plugins.out")"
+run_check check_plugins
 assert_eq "$DOCTOR_WARNINGS" "2" "plugins: a missing typelib and a missing Qt 5 style"
-assert_contains "$plg_text" "No typelib for gi://NM" "plugins: names the missing typelib"
-assert_not_contains "$plg_text" "gi://Gio" "plugins: a ?version= import of an installed typelib is fine"
-assert_not_contains "$plg_text" "gi://GLib" "plugins: an installed typelib is fine"
-assert_not_contains "$plg_text" "Untracked" "plugins: an untracked file names no target"
-assert_not_contains "$plg_text" "DocOnly" "plugins: docs/ is not scanned"
-assert_not_contains "$plg_text" "DoctorOnly" "plugins: the doctor's own tree is not scanned"
-assert_not_contains "$plg_text" "Binary file" "plugins: a binary file names no namespace"
-assert_not_contains "$plg_text" "BinaryOnly" "plugins: binary files are not scanned"
-assert_contains "$plg_text" "Qt 5 has no 'Breeze' style plugin, which qt5ct/qt5ct.conf selects" "plugins: the live file's style wins over its default"
-assert_not_contains "$plg_text" "'other'" "plugins: only [Appearance] style counts"
-assert_not_contains "$plg_text" "Qt 6" "plugins: an installed Qt 6 style is fine"
-assert_contains "$plg_text" "qt/plugins/styles/" "plugins: the Qt 5 hint searches Qt 5's plugin directory"
-assert_not_contains "$plg_text" "✓" "plugins: no all-clear with findings"
+assert_contains "$CHECK_OUT" "No typelib for gi://NM" "plugins: names the missing typelib"
+assert_not_contains "$CHECK_OUT" "gi://Gio" "plugins: a ?version= import of an installed typelib is fine"
+assert_not_contains "$CHECK_OUT" "gi://GLib" "plugins: an installed typelib is fine"
+assert_not_contains "$CHECK_OUT" "Untracked" "plugins: an untracked file names no target"
+assert_not_contains "$CHECK_OUT" "DocOnly" "plugins: docs/ is not scanned"
+assert_not_contains "$CHECK_OUT" "DoctorOnly" "plugins: the doctor's own tree is not scanned"
+assert_not_contains "$CHECK_OUT" "Binary file" "plugins: a binary file names no namespace"
+assert_not_contains "$CHECK_OUT" "BinaryOnly" "plugins: binary files are not scanned"
+assert_contains "$CHECK_OUT" "Qt 5 has no 'Breeze' style plugin, which qt5ct/qt5ct.conf selects" "plugins: the live file's style wins over its default"
+assert_not_contains "$CHECK_OUT" "'other'" "plugins: only [Appearance] style counts"
+assert_not_contains "$CHECK_OUT" "Qt 6" "plugins: an installed Qt 6 style is fine"
+assert_contains "$CHECK_OUT" "qt/plugins/styles/" "plugins: the Qt 5 hint searches Qt 5's plugin directory"
+assert_not_contains "$CHECK_OUT" "✓" "plugins: no all-clear with findings"
 
 # With no live file the default's style is read, and the installed set covers
 # everything, so the check says so.
 rm "$plg_root/qt5ct/qt5ct.conf"
 plg_typelibs=" GLib Gio NM "
 plg_styles=" 5:kvantum 6:kvantum "
-doctor_reset
-check_plugins > "$DOCTOR_TEST_TMP/plugins.out" 2>&1
-plg_text="$(cat "$DOCTOR_TEST_TMP/plugins.out")"
+run_check check_plugins
 assert_eq "$DOCTOR_WARNINGS" "0" "plugins: nothing missing, nothing reported"
-assert_contains "$plg_text" "Every imported typelib and selected Qt style plugin is installed" "plugins: all-clear when nothing is missing"
+assert_contains "$CHECK_OUT" "Every imported typelib and selected Qt style plugin is installed" "plugins: all-clear when nothing is missing"
 
 # The default alone, with Qt 5's engine missing: kvantum without kvantum-qt5.
 plg_styles=" 6:kvantum "
-doctor_reset
-check_plugins > "$DOCTOR_TEST_TMP/plugins.out" 2>&1
-plg_text="$(cat "$DOCTOR_TEST_TMP/plugins.out")"
-assert_contains "$plg_text" "Qt 5 has no 'kvantum' style plugin, which defaults/qt5ct/qt5ct.conf selects" "plugins: a default's style is checked when nothing is rendered"
+run_check check_plugins
+assert_contains "$CHECK_OUT" "Qt 5 has no 'kvantum' style plugin, which defaults/qt5ct/qt5ct.conf selects" "plugins: a default's style is checked when nothing is rendered"
 DOCTOR_ROOT="$plg_saved_root"
 
 # The real probes, against fixture directories: a typelib is found on

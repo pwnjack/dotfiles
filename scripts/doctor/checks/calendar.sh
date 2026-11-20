@@ -33,8 +33,9 @@ _cal_now() { date +%s; }
 check_calendar() {
     local timer="$DOCTOR_ROOT/scripts/calendar/calendar-sync.timer"
     local installer="$DOCTOR_ROOT/install.sh"
-    local unit tools tool status state message last before
+    local unit tools tool status state message last before sync_hint
     before=$(doctor_findings)
+    sync_hint="bash $(doctor_q "$DOCTOR_ROOT/scripts/calendar/sync.sh")"
     [ -f "$timer" ] || return 0
     [ -n "$(_cal_account)" ] || return 0
     unit=$(basename "$timer")
@@ -56,8 +57,9 @@ check_calendar() {
     fi
     status=$(_cal_status)
     if [ -z "${status//[[:space:]]/}" ]; then
-        warn "no sync status yet — the calendar has not synced since login" \
-            "bash $(doctor_q "$DOCTOR_ROOT/scripts/calendar/sync.sh")"
+        warn "no sync status yet — the calendar has not synced since login" "$sync_hint"
+    elif ! _cal_have jq; then
+        warn "jq is not installed, so the sync status cannot be read" "sudo pacman -S jq"
     else
         # Validate the object once: a non-object, a non-string state or message,
         # or a lastSuccess that is neither null nor a whole number in a sane range
@@ -78,11 +80,11 @@ check_calendar() {
             last=$(printf '%s' "$status" | jq -r '(.lastSuccess // 0) | floor')
         fi
         if ! [[ $last =~ ^[0-9]+$ ]]; then
-            warn "status.json is not valid" "bash $(doctor_q "$DOCTOR_ROOT/scripts/calendar/sync.sh")"
+            warn "status.json is not valid" "$sync_hint"
         elif [ "$state" = failed ]; then
-            warn "last sync failed: $message" "bash $(doctor_q "$DOCTOR_ROOT/scripts/calendar/sync.sh")"
+            warn "last sync failed: $message" "$sync_hint"
         elif [ "$last" -le 0 ] || [ $(( $(_cal_now) - last )) -gt 3600 ]; then
-            warn "no successful sync in the last hour" "bash $(doctor_q "$DOCTOR_ROOT/scripts/calendar/sync.sh")"
+            warn "no successful sync in the last hour" "$sync_hint"
         fi
     fi
     ok_if_clean "$before" "iCloud calendar syncing"

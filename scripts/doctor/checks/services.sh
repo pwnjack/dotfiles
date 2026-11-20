@@ -72,22 +72,13 @@
 #     rejected: it matches full command lines, so `pgrep -f swaync` can match
 #     an unrelated shell invocation that merely mentions "swaync" in its argv.
 #
-#   * `pacman` and `busctl` are checked once in check_services before the
-#     probe that depends on them, so an unavailable tool skips the whole probe
-#     silently instead of producing one warning-shaped finding per item.
-#
 
 # The single-owner bus name being audited. See the header note on why this
 # stays one value instead of a newline list.
 DOCTOR_DBUS_ROLE="org.freedesktop.Notifications"
 
 # _svc_autostart_daemons -> bare-binary autostart targets, one per line,
-# deduplicated. Reads with process substitution, per the lib.sh contract:
-# piping sed's output into the read loop would run the loop in a subshell and
-# lose whatever it printed to the parent's stdout redirection along with it
-# (nothing here touches a severity counter, but the shape is kept identical to
-# every other check so the contract stays mechanically checkable by grep, not
-# by memory).
+# deduplicated.
 _svc_autostart_daemons() {
     local conf="$DOCTOR_ROOT/hypr/config/setup/autostart.lua" line first rest
     local commands
@@ -153,6 +144,7 @@ _svc_is_running() {
 # installed (a package providing the name counts), one per line. One pacman
 # call for the whole list: one `pacman -Q` per package took half a doctor run.
 _svc_missing_packages() {
+    command -v pacman >/dev/null 2>&1 || return 0
     local pkgs
     mapfile -t pkgs < <(_svc_install_packages)
     [ "${#pkgs[@]}" -gt 0 ] || return 0
@@ -169,18 +161,6 @@ _svc_bus_owner() {
 # Where D-Bus publishes its activation files. Overridable for tests.
 DOCTOR_DBUS_SERVICES="${DOCTOR_DBUS_SERVICES:-/usr/share/dbus-1/services}"
 
-# _svc_role_providers <bus-name> -> package names implementing that bus name,
-# one per line.
-#
-# Derived, never listed. Every program that can own a well-known D-Bus name
-# ships an activation file declaring `Name=<bus-name>`, and pacman maps that
-# file back to its owning package. So installing a third notification daemon
-# extends coverage on its own.
-#
-# pacman's Provides field is deliberately NOT used: verified on this machine
-# that `pacman -Qi mako` and `pacman -Qi swaync` both print "Provides : None",
-# so a Provides lookup would find nothing and the orphan finding — the reason
-# this section exists — would never fire.
 # _svc_role_service_files <bus-name> -> activation files declaring that name.
 # Split out from the package lookup below so the scanning half can be tested
 # against a fixture directory without needing pacman to know about it.
@@ -189,6 +169,7 @@ _svc_role_service_files() {
     grep -lFx "Name=$1" "$DOCTOR_DBUS_SERVICES"/*.service 2>/dev/null
 }
 
+# _svc_role_providers <bus-name> -> package names owning that name's activation files (see header §3).
 _svc_role_providers() {
     local file pkg
 
@@ -234,27 +215,23 @@ check_services() {
     done < <(_svc_wrapped_daemons)
 
     # --- 2. install.sh packages actually installed --------------------------
-    if command -v pacman >/dev/null 2>&1; then
-        while read -r pkg; do
-            [ -n "$pkg" ] || continue
-            note "install.sh lists '$pkg' but it is not installed" \
-                 "pacman -S $(doctor_q "$pkg")   (or your AUR helper, if it is AUR-only)"
-        done < <(_svc_missing_packages)
-    fi
+    while read -r pkg; do
+        [ -n "$pkg" ] || continue
+        note "install.sh lists '$pkg' but it is not installed" \
+             "pacman -S $(doctor_q "$pkg")   (or your AUR helper, if it is AUR-only)"
+    done < <(_svc_missing_packages)
 
     # --- 3. D-Bus role ownership + orphaned notification-daemon configs ----
-    if command -v busctl >/dev/null 2>&1; then
-        local bus_name="$DOCTOR_DBUS_ROLE"
-        owner="$(_svc_bus_owner "$bus_name")"
-        if [ -n "$owner" ]; then
-            while read -r candidate; do
-                [ -n "$candidate" ] || continue
-                [ "$candidate" = "$owner" ] && continue
-                _svc_has_tracked_config "$candidate" || continue
-                note "'$candidate' is installed with a tracked config at $(doctor_q "$candidate")/ but does not own $bus_name — its config has no effect while '$owner' holds the name" \
-                     "either uninstall $(doctor_q "$candidate"), or stop '$owner' and let $(doctor_q "$candidate") own $bus_name"
-            done < <(_svc_role_providers "$bus_name")
-        fi
+    local bus_name="$DOCTOR_DBUS_ROLE"
+    owner="$(_svc_bus_owner "$bus_name")"
+    if [ -n "$owner" ]; then
+        while read -r candidate; do
+            [ -n "$candidate" ] || continue
+            [ "$candidate" = "$owner" ] && continue
+            _svc_has_tracked_config "$candidate" || continue
+            note "'$candidate' is installed with a tracked config at $(doctor_q "$candidate")/ but does not own $bus_name — its config has no effect while '$owner' holds the name" \
+                 "either uninstall $(doctor_q "$candidate"), or stop '$owner' and let $(doctor_q "$candidate") own $bus_name"
+        done < <(_svc_role_providers "$bus_name")
     fi
 
     ok_if_clean "$before" "every autostart daemon is running, no respawn.sh unit has failed, install.sh packages are present, and no D-Bus role is contested"

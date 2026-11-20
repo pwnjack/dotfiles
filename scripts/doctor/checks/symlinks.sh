@@ -32,10 +32,10 @@
 check_symlinks() {
     group "Symlinks"
 
-    local total=0 healthy=0
+    local total=0 before
     local record mode path full target relative
+    before=$(doctor_findings)
 
-    # Process substitution, not a pipeline — see the contract note in lib.sh.
     while IFS= read -r -d '' record; do
         mode="${record%% *}"
         [ "$mode" = "120000" ] || continue
@@ -70,18 +70,12 @@ check_symlinks() {
             relative="$(realpath -ms --relative-to="${full%/*}" "$target" 2>/dev/null)"
             warn "$path → $target (absolute target is not portable)" \
                  "ln -sfn $(doctor_q "${relative:-NEW_TARGET}") $(doctor_q "$full")"
-        else
-            healthy=$((healthy + 1))
         fi
     done < <(git -C "$DOCTOR_ROOT" ls-files -sz 2>/dev/null)
 
-    # ok is the all-clear and nothing else. Every unhealthy link has already
-    # printed a finding naming its own path, so a "2 of 10" line adds no action
-    # in that case — and routing it through note would inflate the notices
-    # tally with a line that is not a finding.
     if [ "$total" -eq 0 ]; then
         note "no tracked symlinks found — nothing to check"
-    elif [ "$healthy" -eq "$total" ]; then
-        ok "all $total tracked symlinks are healthy and portable"
+    else
+        ok_if_clean "$before" "all $total tracked symlinks are healthy and portable"
     fi
 }

@@ -20,7 +20,6 @@ source "$DOCTOR_DIR/checks/waybar.sh"
 # Assigned throughout this file but read only by the check sourced above.
 export DOCTOR_ROOT
 
-way_out_file="$DOCTOR_TEST_TMP/waybar.out"
 
 # Only these two resolve; everything else the fixtures name does not.
 _way_have_cmd() {
@@ -99,15 +98,13 @@ way_config "$way_fixture" '{
 }'
 
 DOCTOR_ROOT="$way_fixture"
-doctor_reset
-check_waybar > "$way_out_file" 2>&1
-way_out="$(<"$way_out_file")"
+run_check check_waybar
 
 # --- placed but unconfigured ----------------------------------------------
-assert_contains "$way_out" "custom/orphaned" "a custom module with no block is reported"
-assert_contains "$way_out" "ERROR" "a custom module with no block is ERROR severity"
-assert_contains "$way_out" "typoed-builtin" "a built-in with no block is reported"
-assert_not_contains "$way_out" "hyprland/window but" \
+assert_contains "$CHECK_OUT" "custom/orphaned" "a custom module with no block is reported"
+assert_contains "$CHECK_OUT" "ERROR" "a custom module with no block is ERROR severity"
+assert_contains "$CHECK_OUT" "typoed-builtin" "a built-in with no block is reported"
+assert_not_contains "$CHECK_OUT" "hyprland/window but" \
     "a module that is both placed and configured is not reported as an orphan"
 
 # --- JSONC comments inside a modules array are not data --------------------
@@ -115,48 +112,49 @@ assert_not_contains "$way_out" "hyprland/window but" \
 # doctor.sh exiting 1 on a bar that works. And the "notes[1]" comment above
 # "clock" closes the array early unless // is stripped first, which would drop
 # every module below it and orphan all three of their blocks.
-assert_not_contains "$way_out" "custom/commented-out" "a commented-out module is not read as placed"
-assert_not_contains "$way_out" "configures clock but" "a bracket in a comment does not close the array early"
-assert_not_contains "$way_out" "configures custom/media but" "modules after a comment bracket stay placed"
+assert_not_contains "$CHECK_OUT" "custom/commented-out" "a commented-out module is not read as placed"
+assert_not_contains "$CHECK_OUT" "configures clock but" "a bracket in a comment does not close the array early"
+assert_not_contains "$CHECK_OUT" "configures custom/media but" "modules after a comment bracket stay placed"
 
 # --- configured but unplaced ----------------------------------------------
-assert_contains "$way_out" "unplaced-block" "a block in no modules list is reported"
-assert_contains "$way_out" "INFO" "an unplaced block is INFO severity"
+assert_contains "$CHECK_OUT" "unplaced-block" "a block in no modules list is reported"
+assert_contains "$CHECK_OUT" "INFO" "an unplaced block is INFO severity"
+assert_not_contains "$CHECK_OUT" "✓" "a config with findings gets no green tick"
 
 # --- handler binaries -----------------------------------------------------
-assert_contains "$way_out" "missing-tool" "an uninstalled handler binary is reported"
-assert_not_contains "$way_out" "installed-tool" "an installed handler binary produces no finding"
-assert_not_contains "$way_out" "hyprctl" "only the first token of a handler is checked"
-assert_not_contains "$way_out" "mediaexec.sh" "a ~/.config handler is left to references.sh"
-assert_not_contains "$way_out" "mediactl.sh" 'a $HOME/.config handler is left to references.sh too'
+assert_contains "$CHECK_OUT" "missing-tool" "an uninstalled handler binary is reported"
+assert_not_contains "$CHECK_OUT" "installed-tool" "an installed handler binary produces no finding"
+assert_not_contains "$CHECK_OUT" "hyprctl" "only the first token of a handler is checked"
+assert_not_contains "$CHECK_OUT" "mediaexec.sh" "a ~/.config handler is left to references.sh"
+assert_not_contains "$CHECK_OUT" "mediactl.sh" 'a $HOME/.config handler is left to references.sh too'
 
 # An absolute handler goes through _way_have_cmd like any other token, so both
 # outcomes are reachable through the stub -- a hand-rolled [ -x ] branch would
 # bypass the seam and pass a directory as if it were a program.
-assert_contains "$way_out" "/opt/absent/tool" "an absolute handler that does not resolve is reported"
-assert_not_contains "$way_out" "/opt/present/tool" "an absolute handler that resolves produces no finding"
+assert_contains "$CHECK_OUT" "/opt/absent/tool" "an absolute handler that does not resolve is reported"
+assert_not_contains "$CHECK_OUT" "/opt/present/tool" "an absolute handler that resolves produces no finding"
 
 # --- waybar's own action vocabulary ---------------------------------------
 # These sit where a command would and resolve nowhere; without the skip set
 # they are five warnings on a healthy machine.
-assert_not_contains "$way_out" "mode," "an action keyword is not read as a command"
-assert_not_contains "$way_out" "shift_up" "shift_up is not read as a command"
-assert_not_contains "$way_out" "shift_down" "shift_down is not read as a command"
+assert_not_contains "$CHECK_OUT" "mode," "an action keyword is not read as a command"
+assert_not_contains "$CHECK_OUT" "shift_up" "shift_up is not read as a command"
+assert_not_contains "$CHECK_OUT" "shift_down" "shift_down is not read as a command"
 
 # --- nested keys are not config blocks ------------------------------------
 # "calendar", "format" and "actions" are object-valued keys nested inside
 # clock; reading them as top-level blocks would report all three as unplaced.
-assert_not_contains "$way_out" "configures calendar" "a nested key is not read as a config block"
-assert_not_contains "$way_out" "configures format" "a doubly-nested key is not read as a config block"
-assert_not_contains "$way_out" "configures actions" "an actions sub-block is not read as a config block"
+assert_not_contains "$CHECK_OUT" "configures calendar" "a nested key is not read as a config block"
+assert_not_contains "$CHECK_OUT" "configures format" "a doubly-nested key is not read as a config block"
+assert_not_contains "$CHECK_OUT" "configures actions" "an actions sub-block is not read as a config block"
 
 assert_eq "$DOCTOR_ERRORS" "1" "one custom module without a block counted as an error"
 assert_eq "$DOCTOR_WARNINGS" "3" "the typoed built-in and both missing binaries counted as warnings"
 assert_eq "$DOCTOR_NOTICES" "1" "one unplaced block counted as a notice"
 
 # --- fix hints ------------------------------------------------------------
-assert_contains "$way_out" "$way_fixture/waybar/config.jsonc" "hints name the config file"
-assert_not_contains "$way_out" "<" "no hint contains what a shell reads as a redirection"
+assert_contains "$CHECK_OUT" "$way_fixture/waybar/config.jsonc" "hints name the config file"
+assert_not_contains "$CHECK_OUT" "<" "no hint contains what a shell reads as a redirection"
 
 # The bug this catches: an unquoted config path with a space is two arguments
 # to whatever the hint tells the reader to run. Fixture paths hold no
@@ -170,16 +168,14 @@ way_config "$way_spaced" '{
 }'
 
 DOCTOR_ROOT="$way_spaced"
-doctor_reset
-check_waybar > "$way_out_file" 2>&1
-way_spaced_out="$(<"$way_out_file")"
+run_check check_waybar
 
-assert_contains "$way_spaced_out" "spaced\\ root/waybar/config.jsonc" \
+assert_contains "$CHECK_OUT" "spaced\\ root/waybar/config.jsonc" \
     "hints shell-quote a config path containing a space"
 
 # Doubles as the ERROR arm of the ok gate: one error, nothing else. With the
 # error arm neutered the other two arms are both satisfied and print a tick.
-assert_not_contains "$way_spaced_out" "✓" "an error-only config gets no green tick"
+assert_not_contains "$CHECK_OUT" "✓" "an error-only config gets no green tick"
 assert_eq "$DOCTOR_ERRORS$DOCTOR_WARNINGS$DOCTOR_NOTICES" "100" "an error-only config records exactly one error"
 
 # --- a clean config gets the all-clear ------------------------------------
@@ -192,13 +188,10 @@ way_config "$way_clean" '{
 }'
 
 DOCTOR_ROOT="$way_clean"
-doctor_reset
-check_waybar > "$way_out_file" 2>&1
-way_clean_out="$(<"$way_out_file")"
+run_check check_waybar
 
-assert_contains "$way_clean_out" "✓" "a clean config gets the green tick"
+assert_contains "$CHECK_OUT" "✓" "a clean config gets the green tick"
 assert_eq "$DOCTOR_ERRORS$DOCTOR_WARNINGS$DOCTOR_NOTICES" "000" "a clean config records no findings"
-assert_not_contains "$way_out" "✓" "a config with findings gets no green tick"
 
 # --- each arm of the ok gate, isolated ------------------------------------
 # The main fixture records all three severities, so any two surviving arms hide
@@ -215,11 +208,9 @@ way_config "$way_warnonly" '{
 }'
 
 DOCTOR_ROOT="$way_warnonly"
-doctor_reset
-check_waybar > "$way_out_file" 2>&1
-way_warnonly_out="$(<"$way_out_file")"
+run_check check_waybar
 
-assert_not_contains "$way_warnonly_out" "✓" "a warning-only config gets no green tick"
+assert_not_contains "$CHECK_OUT" "✓" "a warning-only config gets no green tick"
 assert_eq "$DOCTOR_ERRORS$DOCTOR_WARNINGS$DOCTOR_NOTICES" "010" "a warning-only config records exactly one warning"
 
 # The notice-only case is the shape of the live repo: one orphaned block, no
@@ -237,11 +228,9 @@ way_config "$way_notice" '{
 }'
 
 DOCTOR_ROOT="$way_notice"
-doctor_reset
-check_waybar > "$way_out_file" 2>&1
-way_notice_out="$(<"$way_out_file")"
+run_check check_waybar
 
-assert_not_contains "$way_notice_out" "✓" "a notice-only config gets no green tick"
+assert_not_contains "$CHECK_OUT" "✓" "a notice-only config gets no green tick"
 assert_eq "$DOCTOR_ERRORS$DOCTOR_WARNINGS$DOCTOR_NOTICES" "001" "a notice-only config records exactly one notice"
 
 # --- no waybar config at all ----------------------------------------------
@@ -249,11 +238,9 @@ assert_eq "$DOCTOR_ERRORS$DOCTOR_WARNINGS$DOCTOR_NOTICES" "001" "a notice-only c
 # absence of a bar is not a broken bar.
 way_bare="$(make_fixture)"
 DOCTOR_ROOT="$way_bare"
-doctor_reset
-check_waybar > "$way_out_file" 2>&1
-way_bare_out="$(<"$way_out_file")"
+run_check check_waybar
 
-assert_contains "$way_bare_out" "nothing to check" "a repo without a waybar config says so"
+assert_contains "$CHECK_OUT" "nothing to check" "a repo without a waybar config says so"
 assert_eq "$DOCTOR_ERRORS$DOCTOR_WARNINGS" "00" "a missing waybar config is not an error or warning"
 
 # --- group members are placed ---------------------------------------------
@@ -270,11 +257,9 @@ way_config "$way_group_fixture" '{
   "memory": { "interval": 3 },
 }'
 DOCTOR_ROOT="$way_group_fixture"
-doctor_reset
-check_waybar > "$way_out_file" 2>&1
-way_group_out="$(<"$way_out_file")"
-assert_not_contains "$way_group_out" "configures cpu but" "a module inside a group is placed"
-assert_not_contains "$way_group_out" "configures group/res but" "the group itself is placed"
+run_check check_waybar
+assert_not_contains "$CHECK_OUT" "configures cpu but" "a module inside a group is placed"
+assert_not_contains "$CHECK_OUT" "configures group/res but" "the group itself is placed"
 
 # --- only a group's "modules" places anything ------------------------------
 # The privacy module also has a "modules" key, holding objects whose "type"
@@ -291,9 +276,7 @@ way_config "$way_privacy_fixture" '{
   },
 }'
 DOCTOR_ROOT="$way_privacy_fixture"
-doctor_reset
-check_waybar > "$way_out_file" 2>&1
-way_privacy_out="$(<"$way_out_file")"
-assert_not_contains "$way_privacy_out" "audio-in" "a privacy stream type is not a placed module"
-assert_not_contains "$way_privacy_out" "screenshare" "a privacy stream type is not a placed module"
+run_check check_waybar
+assert_not_contains "$CHECK_OUT" "audio-in" "a privacy stream type is not a placed module"
+assert_not_contains "$CHECK_OUT" "screenshare" "a privacy stream type is not a placed module"
 assert_eq "$DOCTOR_ERRORS$DOCTOR_WARNINGS" "00" "a configured privacy module is clean"

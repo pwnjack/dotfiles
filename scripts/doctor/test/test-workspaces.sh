@@ -15,32 +15,14 @@ export DOCTOR_ROOT
 
 wsm_real_current="$(declare -f _wsm_current)"
 
-wsm_out_file="$DOCTOR_TEST_TMP/workspaces.out"
 wsm_home="$DOCTOR_TEST_TMP/wsm-home"
 _wsm_home() { printf '%s' "$wsm_home"; }
 
 # wsm_fixture <modules-left entries...> -- a repo whose config.jsonc places them
 wsm_fixture() {
-    local dir entries="" e
-    dir="$(make_fixture)" || return 1
-    mkdir -p "$dir/waybar"
+    local entries="" e
     for e in "$@"; do entries="$entries\"$e\", "; done
-    cat > "$dir/waybar/config.jsonc" <<EOF2
-{
-  "include": ["~/.local/state/waybar/bar.jsonc", "~/.local/state/waybar/workspaces.jsonc"],
-  "modules-left": [$entries"clock"],
-  "cffi/workspaces": {},
-}
-EOF2
-    git -C "$dir" add -A
-    git -C "$dir" commit -qm fixture
-    printf '%s' "$dir"
-}
-
-wsm_run() {
-    doctor_reset
-    check_workspaces > "$wsm_out_file" 2>&1
-    wsm_out="$(<"$wsm_out_file")"
+    wsm_fixture_config "$(printf '{\n  "include": ["~/.local/state/waybar/bar.jsonc", "~/.local/state/waybar/workspaces.jsonc"],\n  "modules-left": [%s"clock"],\n  "cffi/workspaces": {},\n}' "$entries")"
 }
 
 # wsm_fixture_config <config body> -- a repo with exactly this config.jsonc
@@ -49,8 +31,7 @@ wsm_fixture_config() {
     dir="$(make_fixture)" || return 1
     mkdir -p "$dir/waybar"
     printf '%s\n' "$1" > "$dir/waybar/config.jsonc"
-    git -C "$dir" add -A
-    git -C "$dir" commit -qm fixture
+    commit_fixture "$dir"
     printf '%s' "$dir"
 }
 
@@ -60,24 +41,22 @@ wsm_include() {
     printf '%s\n' "$1" > "$wsm_home/.local/state/waybar/workspaces.jsonc"
 }
 
-echo "▸ workspaces"
-
 # wsm_reset -- every case starts from an empty fake home
 wsm_reset() { rm -rf "$wsm_home"; mkdir -p "$wsm_home"; }
 
 # --- no include: no module_path -----------------------------------------
 wsm_reset
 DOCTOR_ROOT="$(wsm_fixture "cffi/workspaces")"
-wsm_run
+run_check check_workspaces
 assert_eq "$DOCTOR_ERRORS" "1" "a placed cffi module with no module_path is an ERROR"
-assert_contains "$wsm_out" "build-workspaces.sh" "the fix hint names the build script"
+assert_contains "$CHECK_OUT" "build-workspaces.sh" "the fix hint names the build script"
 
 # --- module_path to a missing file --------------------------------------
 wsm_reset
 wsm_include '{"cffi/workspaces":{"module_path":"'"$wsm_home"'/lib/missing.so"}}'
-wsm_run
+run_check check_workspaces
 assert_eq "$DOCTOR_ERRORS" "1" "a missing library is an ERROR"
-assert_contains "$wsm_out" "missing.so" "the finding names the library"
+assert_contains "$CHECK_OUT" "missing.so" "the finding names the library"
 
 # --- stale library ------------------------------------------------------
 wsm_reset
@@ -86,9 +65,9 @@ touch "$wsm_home/lib/workspaces.so"
 wsm_include '{"cffi/workspaces":{"module_path":"'"$wsm_home"'/lib/workspaces.so"}}'
 _wsm_current() { return 1; }
 DOCTOR_ROOT="$(wsm_fixture "cffi/workspaces")"
-wsm_run
+run_check check_workspaces
 assert_eq "$DOCTOR_ERRORS/$DOCTOR_WARNINGS" "0/1" "a library that does not match its sources is a WARN"
-assert_contains "$wsm_out" "previous build" "the warning says the bar runs an old build"
+assert_contains "$CHECK_OUT" "previous build" "the warning says the bar runs an old build"
 
 # --- up to date ---------------------------------------------------------
 wsm_reset
@@ -97,16 +76,16 @@ touch "$wsm_home/lib/workspaces.so"
 wsm_include '{"cffi/workspaces":{"module_path":"'"$wsm_home"'/lib/workspaces.so"}}'
 DOCTOR_ROOT="$(wsm_fixture "cffi/workspaces")"
 _wsm_current() { return 0; }
-wsm_run
+run_check check_workspaces
 assert_eq "$DOCTOR_ERRORS/$DOCTOR_WARNINGS" "0/0" "an up-to-date library has no findings"
-assert_contains "$wsm_out" "every placed native module is built and current" "and prints the all-clear"
+assert_contains "$CHECK_OUT" "every placed native module is built and current" "and prints the all-clear"
 
 # --- nothing native placed ----------------------------------------------
 wsm_reset
 DOCTOR_ROOT="$(wsm_fixture "custom/media")"
-wsm_run
+run_check check_workspaces
 assert_eq "$DOCTOR_ERRORS/$DOCTOR_WARNINGS" "0/0" "no cffi module placed has no findings"
-assert_contains "$wsm_out" "every placed native module is built and current" "the all-clear is accurate when none is placed"
+assert_contains "$CHECK_OUT" "every placed native module is built and current" "the all-clear is accurate when none is placed"
 
 # --- placed inside a group's "modules" array, no include ----------------
 wsm_reset
@@ -116,7 +95,7 @@ DOCTOR_ROOT="$(wsm_fixture_config '{
     "modules": ["clock", "cffi/workspaces"],
   },
 }')"
-wsm_run
+run_check check_workspaces
 assert_eq "$DOCTOR_ERRORS" "1" "a cffi module placed in a group with no module_path is an ERROR"
 
 # --- two includes: the first one that sets the key wins -----------------
@@ -127,7 +106,7 @@ printf '%s\n' '{"cffi/workspaces":{"module_path":"'"$wsm_home"'/lib/first.so"}}'
 wsm_include '{"cffi/workspaces":{"module_path":"'"$wsm_home"'/lib/second-missing.so"}}'
 DOCTOR_ROOT="$(wsm_fixture "cffi/workspaces")"
 _wsm_current() { return 0; }
-wsm_run
+run_check check_workspaces
 assert_eq "$DOCTOR_ERRORS/$DOCTOR_WARNINGS" "0/0" "the first include's module_path is the one validated"
 
 # --- multi-line include array with comments and $HOME -------------------
@@ -143,7 +122,7 @@ DOCTOR_ROOT="$(wsm_fixture_config '{
   "modules-left": ["cffi/workspaces"],
   "cffi/workspaces": {},
 }')"
-wsm_run
+run_check check_workspaces
 assert_eq "$DOCTOR_ERRORS/$DOCTOR_WARNINGS" "0/0" "a multi-line include array with comments and \$HOME/ resolves"
 
 # --- config.jsonc sets module_path itself -------------------------------
@@ -158,10 +137,10 @@ DOCTOR_ROOT="$(wsm_fixture_config '{
     "module_path": "/opt/ws.so",
   },
 }')"
-wsm_run
+run_check check_workspaces
 assert_eq "$DOCTOR_ERRORS" "1" "module_path set in config.jsonc is an ERROR"
-assert_contains "$wsm_out" "must not set module_path" "the finding says why"
-assert_contains "$wsm_out" "remove module_path" "the fix hint says what to remove"
+assert_contains "$CHECK_OUT" "must not set module_path" "the finding says why"
+assert_contains "$CHECK_OUT" "remove module_path" "the fix hint says what to remove"
 
 # --- a commented-out module_path in config.jsonc is not a key ------------
 wsm_reset
@@ -176,7 +155,7 @@ DOCTOR_ROOT="$(wsm_fixture_config '{
   },
 }')"
 _wsm_current() { return 0; }
-wsm_run
+run_check check_workspaces
 assert_eq "$DOCTOR_ERRORS/$DOCTOR_WARNINGS" "0/0" "a commented-out module_path in config.jsonc is ignored"
 
 # --- the string form of include, followed by more keys -------------------
@@ -191,16 +170,16 @@ DOCTOR_ROOT="$(wsm_fixture_config '{
   "cffi/workspaces": {},
 }')"
 assert_eq "$(_wsm_includes | wc -l)" "1" "the string form of include names exactly one file"
-wsm_run
+run_check check_workspaces
 assert_eq "$DOCTOR_ERRORS/$DOCTOR_WARNINGS" "0/0" "and its module_path is found"
 
 # --- relative module_path -----------------------------------------------
 wsm_reset
 wsm_include '{"cffi/workspaces":{"module_path":"lib/workspaces.so"}}'
 DOCTOR_ROOT="$(wsm_fixture "cffi/workspaces")"
-wsm_run
+run_check check_workspaces
 assert_eq "$DOCTOR_ERRORS" "1" "a relative module_path is an ERROR"
-assert_contains "$wsm_out" "not absolute" "the finding says it is not absolute"
+assert_contains "$CHECK_OUT" "not absolute" "the finding says it is not absolute"
 
 # --- --check could not run ----------------------------------------------
 wsm_reset
@@ -209,9 +188,9 @@ touch "$wsm_home/lib/workspaces.so"
 wsm_include '{"cffi/workspaces":{"module_path":"'"$wsm_home"'/lib/workspaces.so"}}'
 DOCTOR_ROOT="$(wsm_fixture "cffi/workspaces")"
 _wsm_current() { echo "build-workspaces: sha256sum is not installed"; return 2; }
-wsm_run
+run_check check_workspaces
 assert_eq "$DOCTOR_ERRORS/$DOCTOR_WARNINGS" "1/0" "a --check that cannot run is an ERROR"
-assert_contains "$wsm_out" "sha256sum is not installed" "the finding shows the script's message"
+assert_contains "$CHECK_OUT" "sha256sum is not installed" "the finding shows the script's message"
 
 # --- the real _wsm_current against a fixture build script ---------------
 eval "$wsm_real_current"
@@ -239,15 +218,15 @@ touch "$wsm_home/lib/workspaces.so"
 wsm_include '{"cffi/workspaces":{"module_path":"'"$wsm_home"'/lib/workspaces.so"}}'
 DOCTOR_ROOT="$(wsm_real_fixture)"
 printf '%s\n' "$(wsm_stamp "$DOCTOR_ROOT")" > "$wsm_home/lib/workspaces.so.sha256"
-wsm_run
+run_check check_workspaces
 assert_eq "$DOCTOR_ERRORS/$DOCTOR_WARNINGS" "0/0" "the real --check reports a matching stamp as current"
 
 printf 'stale\n' > "$wsm_home/lib/workspaces.so.sha256"
-wsm_run
+run_check check_workspaces
 assert_eq "$DOCTOR_ERRORS/$DOCTOR_WARNINGS" "0/1" "the real --check reports a mismatched stamp as a WARN"
-assert_contains "$wsm_out" "previous build" "and the warning says the bar runs an old build"
+assert_contains "$CHECK_OUT" "previous build" "and the warning says the bar runs an old build"
 
 rm "$DOCTOR_ROOT/waybar/workspaces/Makefile"
-wsm_run
+run_check check_workspaces
 assert_eq "$DOCTOR_ERRORS/$DOCTOR_WARNINGS" "1/0" "the real --check that cannot run is an ERROR"
-assert_contains "$wsm_out" "Makefile not found" "and shows the script's own message"
+assert_contains "$CHECK_OUT" "Makefile not found" "and shows the script's own message"

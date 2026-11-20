@@ -25,7 +25,6 @@ source "$DOCTOR_DIR/checks/hardware.sh"
 # a fake sysfs path would hand it to every subprocess a later test file starts.
 export DOCTOR_ROOT
 
-hw_out_file="$DOCTOR_TEST_TMP/hardware.out"
 
 # hw_sysfs <dir> <name:status>... — build a fake /sys/class/drm.
 hw_sysfs() {
@@ -104,25 +103,23 @@ hw_drm2="$DOCTOR_TEST_TMP/drm-b"
 hw_sysfs "$hw_drm2" "card1-DP-1:connected" "card0-VGA-1:unknown"
 DOCTOR_DRM_SYSFS="$hw_drm2"
 
-doctor_reset
-check_hardware > "$hw_out_file" 2>&1
-hw_out="$(cat "$hw_out_file")"
+run_check check_hardware
 
-assert_contains "$hw_out" "options/mainmonitor names HDMI-A-1" "disconnected connector is reported"
-assert_contains "$hw_out" "hypr/stale.conf names eDP-9" "eDP-9 is matched whole, not as DP-9"
-assert_not_contains "$hw_out" "hypr/good.conf" "a connected connector is not reported"
-assert_not_contains "$hw_out" "hypr/unknown.conf" "a connector whose node reports unknown is not reported"
-assert_not_contains "$hw_out" "README.md" "markdown is skipped — docs carry example names"
-assert_not_contains "$hw_out" "docs/note.txt" "docs/ is skipped"
-assert_not_contains "$hw_out" "scripts/doctor/checks/hardware.sh" "the doctor's own tree is skipped"
-assert_not_contains "$hw_out" "quickshell/panel/test/fixture.mjs" "test fixtures are skipped — they name fake outputs"
-assert_not_contains "$hw_out" "test/test-thing.sh" "the top-level test/ is skipped too"
+assert_contains "$CHECK_OUT" "options/mainmonitor names HDMI-A-1" "disconnected connector is reported"
+assert_contains "$CHECK_OUT" "hypr/stale.conf names eDP-9" "eDP-9 is matched whole, not as DP-9"
+assert_not_contains "$CHECK_OUT" "hypr/good.conf" "a connected connector is not reported"
+assert_not_contains "$CHECK_OUT" "hypr/unknown.conf" "a connector whose node reports unknown is not reported"
+assert_not_contains "$CHECK_OUT" "README.md" "markdown is skipped — docs carry example names"
+assert_not_contains "$CHECK_OUT" "docs/note.txt" "docs/ is skipped"
+assert_not_contains "$CHECK_OUT" "scripts/doctor/checks/hardware.sh" "the doctor's own tree is skipped"
+assert_not_contains "$CHECK_OUT" "quickshell/panel/test/fixture.mjs" "test fixtures are skipped — they name fake outputs"
+assert_not_contains "$CHECK_OUT" "test/test-thing.sh" "the top-level test/ is skipped too"
 
 # A tracked symlink resolves into generated cache content the user cannot
 # correct by hand, so a hint naming it would misdirect. The regular file with
 # identical content proves the skip keys off the mode and not the content.
-assert_not_contains "$hw_out" "waypaper/config.ini" "a tracked symlink into the cache is skipped"
-assert_contains "$hw_out" "hypr/plain-copy.conf names HDMI-A-9" \
+assert_not_contains "$CHECK_OUT" "waypaper/config.ini" "a tracked symlink into the cache is skipped"
+assert_contains "$CHECK_OUT" "hypr/plain-copy.conf names HDMI-A-9" \
     "the same content in a regular file IS reported"
 
 assert_eq "$DOCTOR_WARNINGS" "3" "exactly three warnings"
@@ -136,11 +133,9 @@ hw_mst_good_drm="$DOCTOR_TEST_TMP/drm-mst-good"
 hw_sysfs "$hw_mst_good_drm" "card1-DP-1-1:connected"
 DOCTOR_DRM_SYSFS="$hw_mst_good_drm"
 
-doctor_reset
-check_hardware > "$hw_out_file" 2>&1
-hw_out="$(cat "$hw_out_file")"
+run_check check_hardware
 
-assert_not_contains "$hw_out" "hypr/mst-good.conf" "a present MST connector is not reported"
+assert_not_contains "$CHECK_OUT" "hypr/mst-good.conf" "a present MST connector is not reported"
 assert_eq "$DOCTOR_WARNINGS" "0" "a present MST connector warns about nothing"
 
 hw_mst_stale="$(make_fixture)"
@@ -150,13 +145,11 @@ hw_mst_stale_drm="$DOCTOR_TEST_TMP/drm-mst-stale"
 hw_sysfs "$hw_mst_stale_drm" "card1-DP-1:connected"
 DOCTOR_DRM_SYSFS="$hw_mst_stale_drm"
 
-doctor_reset
-check_hardware > "$hw_out_file" 2>&1
-hw_out="$(cat "$hw_out_file")"
+run_check check_hardware
 
-assert_contains "$hw_out" "hypr/mst-stale.conf names DP-1-1" \
+assert_contains "$CHECK_OUT" "hypr/mst-stale.conf names DP-1-1" \
     "a stale MST connector is reported whole"
-assert_not_contains "$hw_out" "names DP-1, which" \
+assert_not_contains "$CHECK_OUT" "names DP-1, which" \
     "a stale MST connector is not shortened to its plain DP parent"
 assert_eq "$DOCTOR_WARNINGS" "1" "a stale MST connector makes one warning"
 
@@ -166,11 +159,9 @@ DOCTOR_ROOT="$hw_clean"
 hw_track "$hw_clean" "options/mainmonitor" ""
 hw_track "$hw_clean" "hypr/monitor.conf" "monitor=,highrr,auto,1"
 
-doctor_reset
-check_hardware > "$hw_out_file" 2>&1
-hw_out="$(cat "$hw_out_file")"
+run_check check_hardware
 
-assert_contains "$hw_out" "no tracked config names a disconnected output" "clean tree prints ok"
+assert_contains "$CHECK_OUT" "no tracked config names a disconnected output" "clean tree prints ok"
 assert_eq "$DOCTOR_WARNINGS" "0" "clean tree warns about nothing"
 
 # --- no DRM nodes at all: one INFO, never a wall of warnings ----------------
@@ -179,11 +170,9 @@ mkdir -p "$hw_empty"
 DOCTOR_DRM_SYSFS="$hw_empty"
 DOCTOR_ROOT="$hw_fixture"
 
-doctor_reset
-check_hardware > "$hw_out_file" 2>&1
-hw_out="$(cat "$hw_out_file")"
+run_check check_hardware
 
-assert_contains "$hw_out" "no display output" "headless run explains itself"
+assert_contains "$CHECK_OUT" "no display output" "headless run explains itself"
 assert_eq "$DOCTOR_WARNINGS" "0" "headless run warns about nothing"
 
 # Files share one shell, so hand the probe back to the real machine — the same

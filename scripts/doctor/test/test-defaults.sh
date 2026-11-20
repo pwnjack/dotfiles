@@ -6,7 +6,6 @@ source "$DOCTOR_DIR/lib.sh"
 # shellcheck source=/dev/null
 source "$DOCTOR_DIR/checks/defaults.sh"
 
-def_out_file="$DOCTOR_TEST_TMP/defaults.out"
 def_root="$DOCTOR_TEST_TMP/defaults"
 mkdir -p "$def_root/repo/hypr/config/setup" "$def_root/repo/options" "$def_root/repo/scripts/settings" \
     "$def_root/user/kde" "$def_root/user/wine/Programs" "$def_root/system" "$def_root/bin" "$def_root/xte"
@@ -36,7 +35,7 @@ for def_bin in zen-browser ghostty alacritty nvim vlc xdg-terminal-exec; do
     printf '#!/bin/sh\n' > "$def_root/bin/$def_bin"
     chmod +x "$def_root/bin/$def_bin"
 done
-_def_have() { case "$1" in /*) [ -x "$1" ] ;; *) [ -n "$1" ] && [ -x "$def_root/bin/$1" ] ;; esac; }
+doctor_have() { case "$1" in /*) [ -x "$1" ] ;; *) [ -n "$1" ] && [ -x "$def_root/bin/$1" ] ;; esac; }
 _def_resolve() { case "$1" in /*) printf '%s\n' "$1" ;; *) printf '%s\n' "$def_root/bin/$1" ;; esac; }
 _def_path() { _def_resolve "$1"; }
 _def_desktops() { echo hyprland; }
@@ -91,57 +90,52 @@ _def_systemd_raw() {
 }
 _def_xte_path() { printf '%s\n' "$def_root/user/alacritty.desktop"; }
 
-doctor_reset
-check_defaults > "$def_out_file" 2>&1
-def_text="$(cat "$def_out_file")"
+run_check check_defaults
 # firefox, gone-editor, xdg-terminal-exec -> alacritty, thunderbird-old, tried,
 # kde gone, wine gone, packaged gone
 assert_eq "$DOCTOR_WARNINGS" "8" "defaults: eight warnings"
 assert_eq "$DOCTOR_NOTICES" "1" "defaults: one notice"
-assert_contains "$def_text" "BROWSER is firefox in this shell, and firefox is not installed" "defaults: a stale export naming a missing program warns"
-assert_contains "$def_text" "EDITOR is gone-editor --flag 'x' for systemd" "defaults: systemd's \$'...' quoting is undone"
-assert_contains "$def_text" "TERMINAL is alacritty in this shell, but options/ says ghostty" "defaults: a stale but installed shell value is a notice"
-assert_not_contains "$def_text" "TERMINAL is alacritty for systemd" "defaults: a stale but installed systemd value is not reported"
-assert_not_contains "$def_text" "BROWSER is zen-browser:firefox" "defaults: only the first of BROWSER's colon-separated list is checked"
-assert_contains "$def_text" "xdg-terminal-exec opens alacritty.desktop, not options/terminal (ghostty)" "defaults: xdg-terminal-exec must open options/terminal"
-assert_contains "$def_text" "scripts/settings/terminal.sh" "defaults: the terminal fix runs terminal.sh"
-assert_contains "$def_text" "thunderbird-old.desktop, which runs /usr/lib/thunderbird-gone/thunderbird" "defaults: an association with a dead program warns"
-assert_contains "$def_text" "tried.desktop, which runs missing-try" "defaults: Added Associations and TryExec are checked"
-assert_contains "$def_text" "kde-org.kde.gone.desktop" "defaults: an ID's dash finds an entry in a subdirectory"
-assert_contains "$def_text" "wine-Programs-Gone.desktop" "defaults: an ID's dashes find an entry two directories down"
-assert_eq "$(grep -c 'WARN.*thunderbird-old' "$def_out_file")" "1" "defaults: one warning per entry, not per type"
-assert_contains "$(grep -A1 'thunderbird-old' "$def_out_file")" "rm " "defaults: a per-user entry may be removed"
-assert_not_contains "$(grep -A1 'packaged-gone' "$def_out_file")" "rm " "defaults: a packaged entry is never offered for rm"
-assert_not_contains "$def_text" "never-installed" "defaults: an app this machine never had is skipped"
-assert_not_contains "$def_text" "hidden-gone" "defaults: a Hidden (deleted) entry is skipped"
-assert_not_contains "$def_text" "removed-gone" "defaults: Removed Associations are not checked"
-assert_not_contains "$def_text" "VISUAL" "defaults: commented hl.env lines are ignored"
-assert_eq "$(grep -c 'EDITOR is' "$def_out_file")" "1" "defaults: an unset shell value is not reported, only systemd's"
-assert_not_contains "$def_text" "✓" "defaults: no all-clear with findings"
+assert_contains "$CHECK_OUT" "BROWSER is firefox in this shell, and firefox is not installed" "defaults: a stale export naming a missing program warns"
+assert_contains "$CHECK_OUT" "EDITOR is gone-editor --flag 'x' for systemd" "defaults: systemd's \$'...' quoting is undone"
+assert_contains "$CHECK_OUT" "TERMINAL is alacritty in this shell, but options/ says ghostty" "defaults: a stale but installed shell value is a notice"
+assert_not_contains "$CHECK_OUT" "TERMINAL is alacritty for systemd" "defaults: a stale but installed systemd value is not reported"
+assert_not_contains "$CHECK_OUT" "BROWSER is zen-browser:firefox" "defaults: only the first of BROWSER's colon-separated list is checked"
+assert_contains "$CHECK_OUT" "xdg-terminal-exec opens alacritty.desktop, not options/terminal (ghostty)" "defaults: xdg-terminal-exec must open options/terminal"
+assert_contains "$CHECK_OUT" "scripts/settings/terminal.sh" "defaults: the terminal fix runs terminal.sh"
+assert_contains "$CHECK_OUT" "thunderbird-old.desktop, which runs /usr/lib/thunderbird-gone/thunderbird" "defaults: an association with a dead program warns"
+assert_contains "$CHECK_OUT" "tried.desktop, which runs missing-try" "defaults: Added Associations and TryExec are checked"
+assert_contains "$CHECK_OUT" "kde-org.kde.gone.desktop" "defaults: an ID's dash finds an entry in a subdirectory"
+assert_contains "$CHECK_OUT" "wine-Programs-Gone.desktop" "defaults: an ID's dashes find an entry two directories down"
+assert_eq "$(grep -c 'WARN.*thunderbird-old' "$DOCTOR_TEST_TMP/check.out")" "1" "defaults: one warning per entry, not per type"
+assert_contains "$(grep -A1 'thunderbird-old' "$DOCTOR_TEST_TMP/check.out")" "rm " "defaults: a per-user entry may be removed"
+assert_not_contains "$(grep -A1 'packaged-gone' "$DOCTOR_TEST_TMP/check.out")" "rm " "defaults: a packaged entry is never offered for rm"
+assert_not_contains "$CHECK_OUT" "never-installed" "defaults: an app this machine never had is skipped"
+assert_not_contains "$CHECK_OUT" "hidden-gone" "defaults: a Hidden (deleted) entry is skipped"
+assert_not_contains "$CHECK_OUT" "removed-gone" "defaults: Removed Associations are not checked"
+assert_not_contains "$CHECK_OUT" "VISUAL" "defaults: commented hl.env lines are ignored"
+assert_eq "$(grep -c 'EDITOR is' "$DOCTOR_TEST_TMP/check.out")" "1" "defaults: an unset shell value is not reported, only systemd's"
+assert_not_contains "$CHECK_OUT" "✓" "defaults: no all-clear with findings"
 
 # Everything right: the all-clear, and the fallback when an option file is empty.
 _def_env() { case "$1" in BROWSER) echo zen-browser ;; TERMINAL) echo "A=\"x y\" B='p q' C=1 ghostty" ;; EDITOR) echo "LANG=C nvim" ;; esac; }
 _def_systemd_raw() { printf '%s\n' "EDITOR=\$'nvim --clean'" "BROWSER=ONLY=1"; }
 _def_xte_path() { printf '%s\n' "$def_root/user/ghostty.desktop"; }
 printf '[Default Applications]\nvideo/mp4=vlc.desktop\n' > "$def_root/repo/mimeapps.list"
-doctor_reset
-check_defaults > "$def_out_file" 2>&1
+run_check check_defaults
 assert_eq "$DOCTOR_WARNINGS" "0" "defaults: quoted systemd values, quoted VAR= prefixes and a bare assignment pass"
 assert_eq "$DOCTOR_NOTICES" "2" "defaults: the shell's differing EDITOR and TERMINAL are notices"
 printf 'LANG=C nvim\n' > "$def_root/repo/options/editor"
 _def_env() { case "$1" in BROWSER) echo zen-browser ;; TERMINAL) echo ghostty ;; EDITOR) echo "LANG=C nvim" ;; esac; }
-doctor_reset
-check_defaults > "$def_out_file" 2>&1
+run_check check_defaults
 assert_eq "$((DOCTOR_WARNINGS + DOCTOR_NOTICES))" "0" "defaults: matching values are clean"
-assert_contains "$(cat "$def_out_file")" "✓" "defaults: clean prints the all-clear"
+assert_contains "$CHECK_OUT" "✓" "defaults: clean prints the all-clear"
 : > "$def_root/repo/options/editor"
 
 # The options/ value itself naming a missing program is check_binaries' finding.
 _def_env() { case "$1" in BROWSER) echo zen-browser ;; esac; }
 _def_systemd_raw() { :; }
 rm -f "$def_root/bin/zen-browser"
-doctor_reset
-check_defaults > "$def_out_file" 2>&1
+run_check check_defaults
 assert_eq "$((DOCTOR_WARNINGS + DOCTOR_NOTICES))" "0" "defaults: a missing options/ program is left to check_binaries"
 printf '#!/bin/sh\n' > "$def_root/bin/zen-browser"
 chmod +x "$def_root/bin/zen-browser"
@@ -150,31 +144,26 @@ chmod +x "$def_root/bin/zen-browser"
 # the hint names the file instead.
 _def_xte_path() { printf '%s\n' "$def_root/user/alacritty.desktop"; }
 printf 'alacritty.desktop\n' > "$def_root/xte/xdg-terminals.list"
-doctor_reset
-check_defaults > "$def_out_file" 2>&1
-assert_contains "$(cat "$def_out_file")" "written by hand" "defaults: a hand-written list is named in the hint"
+run_check check_defaults
+assert_contains "$CHECK_OUT" "written by hand" "defaults: a hand-written list is named in the hint"
 printf 'alacritty.desktop\n' > "$def_root/xte/hyprland-xdg-terminals.list"
-doctor_reset
-check_defaults > "$def_out_file" 2>&1
-assert_contains "$(cat "$def_out_file")" "hyprland-xdg-terminals.list, which takes precedence" "defaults: a desktop-specific list is named in the hint"
+run_check check_defaults
+assert_contains "$CHECK_OUT" "hyprland-xdg-terminals.list, which takes precedence" "defaults: a desktop-specific list is named in the hint"
 rm -f "$def_root/xte/"*.list
 printf '# Written by terminal.sh\nalacritty.desktop\n' > "$def_root/xte/xdg-terminals.list"
-doctor_reset
-check_defaults > "$def_out_file" 2>&1
-assert_contains "$(cat "$def_out_file")" "fix: bash " "defaults: terminal.sh's own list gets the terminal.sh hint"
+run_check check_defaults
+assert_contains "$CHECK_OUT" "fix: bash " "defaults: terminal.sh's own list gets the terminal.sh hint"
 rm -f "$def_root/xte/"*.list
 
 # A broken xdg-terminal-exec (the stub that ran "$TERMINAL -e" unset).
 _def_xte_path() { :; }
-doctor_reset
-check_defaults > "$def_out_file" 2>&1
+run_check check_defaults
 assert_eq "$DOCTOR_WARNINGS" "1" "defaults: a broken xdg-terminal-exec warns"
-assert_contains "$(cat "$def_out_file")" "does not work" "defaults: says xdg-terminal-exec does not work"
+assert_contains "$CHECK_OUT" "does not work" "defaults: says xdg-terminal-exec does not work"
 
 # Not installed at all: install.sh's package drift reports that, not this check.
-_def_have() { case "$1" in xdg-terminal-exec) return 1 ;; /*) [ -x "$1" ] ;; *) [ -n "$1" ] && [ -x "$def_root/bin/$1" ] ;; esac; }
-doctor_reset
-check_defaults > "$def_out_file" 2>&1
+doctor_have() { case "$1" in xdg-terminal-exec) return 1 ;; /*) [ -x "$1" ] ;; *) [ -n "$1" ] && [ -x "$def_root/bin/$1" ] ;; esac; }
+run_check check_defaults
 assert_eq "$((DOCTOR_WARNINGS + DOCTOR_NOTICES))" "0" "defaults: a missing xdg-terminal-exec is left to package drift"
 
 # The real systemd decoding, on the probe's own output format.

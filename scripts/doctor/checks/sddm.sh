@@ -45,10 +45,6 @@ _sddm_is_display_manager() {
     [ "${unit##*/}" = "sddm.service" ]
 }
 
-_sddm_sudo_listing() {
-    sudo -n -l 2>/dev/null
-}
-
 _sddm_watcher_running() {
     pgrep -f -- "$DOCTOR_ROOT/sddm/watch_wallpaper.sh" >/dev/null 2>&1
 }
@@ -59,13 +55,6 @@ _sddm_have_ffmpeg() {
 
 _sddm_username() {
     id -un 2>/dev/null
-}
-
-# Metadata is a host probe of its own because the test fixture cannot create
-# root-owned files. Do not add -L: a helper symlink must never inherit the
-# ownership and mode of the privileged file it points at.
-_sddm_file_state() {
-    stat -c '%U:%G %a' -- "$1" 2>/dev/null
 }
 
 # Resolve directories before checking ownership: a root-owned symlink into a
@@ -86,6 +75,26 @@ _sddm_resolved_others_writable() {
     resolved=$(readlink -f -- "$1" 2>/dev/null) || return 1
     mode=$(stat -c '%a' -- "$resolved" 2>/dev/null) || return 1
     [[ "$mode" =~ [2367][0-7]$|[2367]$ ]]
+}
+
+# _sddm_check_dir <label> <dir> — the resolved directory must be root-owned and
+# not writable by others. Returns 1 when it reported a finding.
+_sddm_check_dir() {
+    local owner
+    owner=$(_sddm_resolved_owner "$2")
+    if [ -z "$owner" ]; then
+        err "cannot determine ownership of the resolved SDDM $1 directory: $2" \
+            "restore a root-owned SDDM $1 directory before enabling wallpaper sync"
+    elif [ "$owner" != "root" ]; then
+        err "resolved SDDM $1 directory is owned by $owner, not root — the privileged helper writes into a user-controlled directory: $2" \
+            "restore root ownership of the $1 directory before enabling wallpaper sync"
+    elif _sddm_resolved_others_writable "$2"; then
+        err "resolved SDDM $1 directory is writable by others — the helper refuses it, so greeter sync fails: $2" \
+            "sudo chmod go-w $(doctor_q "$2")"
+    else
+        return 0
+    fi
+    return 1
 }
 
 # GNU stat does not dereference symlinks unless -L is supplied. Keep that
@@ -143,7 +152,7 @@ check_sddm() {
     local watcher="$DOCTOR_ROOT/sddm/watch_wallpaper.sh"
     local sudoers_file installed_helper default_theme current_theme
     local theme_dir backgrounds_dir background sudo_listing grant_user helper_state
-    local theme_owner backgrounds_owner trigger trigger_mtime background_mtime
+    local trigger trigger_mtime background_mtime
 
     if [ ! -f "$setup_script" ]; then
         err "cannot derive SDDM privileged paths because sddm/setup-sudo.sh is missing" \
@@ -166,7 +175,7 @@ check_sddm() {
         return 0
     fi
 
-    sudo_listing=$(_sddm_sudo_listing || true)
+    sudo_listing=$(doctor_sudo_listing || true)
     grant_user=$(_sddm_username)
     if [ -n "$grant_user" ] &&
        _sddm_has_passwordless_grant "$sudo_listing" "$installed_helper" "$grant_user"; then
@@ -183,7 +192,7 @@ check_sddm() {
         err "installed SDDM wallpaper helper is missing: $installed_helper" \
             "run $(doctor_q "$setup_script")"
     else
-        helper_state=$(_sddm_file_state "$installed_helper")
+        helper_state=$(doctor_file_state "$installed_helper")
         if [ "$helper_state" != "root:root 755" ]; then
             err "installed SDDM wallpaper helper has unsafe ownership or mode ($helper_state; expected root:root 755)" \
                 "run $(doctor_q "$setup_script")"
@@ -210,30 +219,8 @@ check_sddm() {
     backgrounds_dir="$theme_dir/Backgrounds"
     background="$backgrounds_dir/wallpaper.jpg"
 
-    if [ -d "$theme_dir" ]; then
-        theme_owner=$(_sddm_resolved_owner "$theme_dir")
-        if [ -z "$theme_owner" ]; then
-            err "cannot determine ownership of the resolved SDDM theme directory: $theme_dir" \
-                "restore a root-owned SDDM theme directory before enabling wallpaper sync"
-        elif [ "$theme_owner" != "root" ]; then
-            err "resolved SDDM theme directory is owned by $theme_owner, not root — the privileged helper writes into a user-controlled directory: $theme_dir" \
-                "restore root ownership of the theme directory before enabling wallpaper sync"
-        elif _sddm_resolved_others_writable "$theme_dir"; then
-            err "resolved SDDM theme directory is writable by others — the helper refuses it, so greeter sync fails: $theme_dir" \
-                "sudo chmod go-w $(doctor_q "$theme_dir")"
-        elif [ -d "$backgrounds_dir" ]; then
-            backgrounds_owner=$(_sddm_resolved_owner "$backgrounds_dir")
-            if [ -z "$backgrounds_owner" ]; then
-                err "cannot determine ownership of the resolved SDDM Backgrounds directory: $backgrounds_dir" \
-                    "restore a root-owned Backgrounds directory before enabling wallpaper sync"
-            elif [ "$backgrounds_owner" != "root" ]; then
-                err "resolved SDDM Backgrounds directory is owned by $backgrounds_owner, not root — the privileged helper writes into a user-controlled directory: $backgrounds_dir" \
-                    "restore root ownership of the Backgrounds directory before enabling wallpaper sync"
-            elif _sddm_resolved_others_writable "$backgrounds_dir"; then
-                err "resolved SDDM Backgrounds directory is writable by others — the helper refuses it, so greeter sync fails: $backgrounds_dir" \
-                    "sudo chmod go-w $(doctor_q "$backgrounds_dir")"
-            fi
-        fi
+    if [ -d "$theme_dir" ] && _sddm_check_dir theme "$theme_dir" && [ -d "$backgrounds_dir" ]; then
+        _sddm_check_dir Backgrounds "$backgrounds_dir"
     fi
 
     if [ ! -e "$background" ]; then

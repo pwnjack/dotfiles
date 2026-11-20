@@ -18,16 +18,6 @@ _upd_have_pacman() {
     command -v pacman >/dev/null 2>&1
 }
 
-_upd_sudo_listing() {
-    sudo -n -l 2>/dev/null
-}
-
-# Metadata of the path itself; never -L, so a symlink cannot borrow the
-# ownership of what it points at.
-_upd_file_state() {
-    stat -c '%U:%G %a' -- "$1" 2>/dev/null
-}
-
 # Where updates/setup-sudo.sh installs the helper. Normally that script is the
 # source of truth and is parsed; this default is used only when the tracked
 # sources are gone, so a root helper left behind with nothing to compare it
@@ -36,8 +26,8 @@ _upd_default_helper() {
     printf '%s' /usr/local/bin/system-update
 }
 
-# Whether anything, even a dangling symlink, sits at the path.
-_upd_helper_present() {
+# Whether anything, even a dangling symlink, sits at the default helper path.
+_upd_orphan_present() {
     [ -e "$1" ] || [ -L "$1" ]
 }
 
@@ -57,7 +47,7 @@ check_updates() {
     # compare it against.
     if [ ! -e "$setup" ] && [ ! -e "$tracked" ]; then
         helper=$(_upd_default_helper)
-        _upd_helper_present "$helper" || return 0
+        _upd_orphan_present "$helper" || return 0
         group "One-click updates"
         warn "installed update helper has no tracked source to check against: $helper" \
             "remove it with: sudo rm -- $(doctor_q "$helper") /etc/sudoers.d/system-update, or restore updates/ from git"
@@ -79,8 +69,8 @@ check_updates() {
     fi
 
     fix="bash $(doctor_q "$setup")"
-    listing=$(_upd_sudo_listing)
-    state=$(_upd_file_state "$helper")
+    listing=$(doctor_sudo_listing)
+    state=$(doctor_file_state "$helper")
 
     if [ ! -e "$helper" ] && [ ! -L "$helper" ] && ! _upd_has_grant "$listing" "$helper"; then
         warn "one-click updates are not set up — the update card will ask for the setup" "$fix"

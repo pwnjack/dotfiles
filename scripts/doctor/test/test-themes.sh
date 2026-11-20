@@ -24,90 +24,84 @@ git -C "$thm_root" add defaults
 
 thm_saved_root="$DOCTOR_ROOT"
 DOCTOR_ROOT="$thm_root"
-thm_run() {
-    doctor_reset
-    check_themes > "$DOCTOR_TEST_TMP/themes.out" 2>&1
-    thm_text="$(cat "$DOCTOR_TEST_TMP/themes.out")"
-}
-
-thm_run
+run_check check_themes
 assert_eq "$DOCTOR_WARNINGS" "0" "themes: everything selected is installed, nothing is reported"
-assert_contains "$thm_text" "Every selected GTK, icon, cursor and Kvantum theme is installed" "themes: all-clear when nothing is missing"
+assert_contains "$CHECK_OUT" "Every selected GTK, icon, cursor and Kvantum theme is installed" "themes: all-clear when nothing is missing"
 
 # Each kind missing on its own: one finding, naming the file that selects it.
 thm_installed=" icon:Papirus-Dark cursor:Bibata "
-thm_run
+run_check check_themes
 assert_eq "$DOCTOR_WARNINGS" "1" "themes: a missing GTK theme is one finding for both GTK versions"
-assert_contains "$thm_text" "No GTK theme 'Kripton', selected by defaults/gtk-3.0/settings.ini, defaults/gtk-4.0/settings.ini" "themes: names the GTK theme and every file selecting it (CRLF and spaces trimmed)"
-assert_contains "$thm_text" "pacman -F usr/share/themes/Kripton/gtk-3.0/gtk.css" "themes: the GTK hint names a file to look up"
-assert_not_contains "$thm_text" "✓" "themes: no all-clear with findings"
+assert_contains "$CHECK_OUT" "No GTK theme 'Kripton', selected by defaults/gtk-3.0/settings.ini, defaults/gtk-4.0/settings.ini" "themes: names the GTK theme and every file selecting it (CRLF and spaces trimmed)"
+assert_contains "$CHECK_OUT" "pacman -F usr/share/themes/Kripton/gtk-3.0/gtk.css" "themes: the GTK hint names a file to look up"
+assert_not_contains "$CHECK_OUT" "✓" "themes: no all-clear with findings"
 
 thm_installed=" gtk:Kripton cursor:Bibata "
-thm_run
+run_check check_themes
 assert_eq "$DOCTOR_WARNINGS" "1" "themes: a missing icon theme is one finding across GTK and Qt files"
-assert_contains "$thm_text" "No icon theme 'Papirus-Dark', selected by defaults/gtk-3.0/settings.ini, defaults/gtk-4.0/settings.ini, defaults/qt5ct/qt5ct.conf, defaults/qt6ct/qt6ct.conf" "themes: names every file selecting the icon theme"
-assert_not_contains "$thm_text" "NotThis" "themes: only [Appearance] icon_theme counts"
-assert_contains "$thm_text" "pacman -F usr/share/icons/Papirus-Dark/index.theme" "themes: the icon hint names a file to look up"
+assert_contains "$CHECK_OUT" "No icon theme 'Papirus-Dark', selected by defaults/gtk-3.0/settings.ini, defaults/gtk-4.0/settings.ini, defaults/qt5ct/qt5ct.conf, defaults/qt6ct/qt6ct.conf" "themes: names every file selecting the icon theme"
+assert_not_contains "$CHECK_OUT" "NotThis" "themes: only [Appearance] icon_theme counts"
+assert_contains "$CHECK_OUT" "pacman -F usr/share/icons/Papirus-Dark/index.theme" "themes: the icon hint names a file to look up"
 
 thm_installed=" gtk:Kripton icon:Papirus-Dark "
-thm_run
+run_check check_themes
 assert_eq "$DOCTOR_WARNINGS" "1" "themes: a missing cursor theme is one finding across the option and GTK files"
-assert_contains "$thm_text" "No cursor theme 'Bibata', selected by defaults/gtk-3.0/settings.ini, defaults/gtk-4.0/settings.ini, defaults/options/cursortheme" "themes: names every file selecting the cursor theme"
+assert_contains "$CHECK_OUT" "No cursor theme 'Bibata', selected by defaults/gtk-3.0/settings.ini, defaults/gtk-4.0/settings.ini, defaults/options/cursortheme" "themes: names every file selecting the cursor theme"
 
 # A live file overrides its default.
 mkdir -p "$thm_root/options"
 printf '\n' > "$thm_root/options/cursortheme"
 thm_installed=" gtk:Kripton icon:Papirus-Dark cursor:Bibata "
-thm_run
+run_check check_themes
 assert_eq "$DOCTOR_WARNINGS" "0" "themes: an empty live cursor option falls back to the default, which is installed"
 thm_installed=" gtk:Kripton icon:Papirus-Dark "
-thm_run
-assert_contains "$thm_text" "No cursor theme 'Bibata', selected by defaults/gtk-3.0/settings.ini, defaults/gtk-4.0/settings.ini, defaults/options/cursortheme" "themes: an empty live cursor option still selects the default's theme"
+run_check check_themes
+assert_contains "$CHECK_OUT" "No cursor theme 'Bibata', selected by defaults/gtk-3.0/settings.ini, defaults/gtk-4.0/settings.ini, defaults/options/cursortheme" "themes: an empty live cursor option still selects the default's theme"
 thm_installed=" gtk:Kripton icon:Papirus-Dark cursor:Bibata "
 printf 'LiveCursor\n' > "$thm_root/options/cursortheme"
-thm_run
-assert_contains "$thm_text" "No cursor theme 'LiveCursor', selected by options/cursortheme" "themes: the live option wins over its default"
+run_check check_themes
+assert_contains "$CHECK_OUT" "No cursor theme 'LiveCursor', selected by options/cursortheme" "themes: the live option wins over its default"
 rm -r "$thm_root/options"
 
 # gsettings is a selection source of its own.
 thm_gs=" gtk-theme=GsGtk icon-theme=GsIcons cursor-theme=GsCursor"
-thm_run
+run_check check_themes
 assert_eq "$DOCTOR_WARNINGS" "3" "themes: a missing gsettings GTK, icon and cursor theme are each reported"
-assert_contains "$thm_text" "No GTK theme 'GsGtk', selected by gsettings org.gnome.desktop.interface gtk-theme" "themes: names the gsettings GTK key"
-assert_contains "$thm_text" "No icon theme 'GsIcons', selected by gsettings org.gnome.desktop.interface icon-theme" "themes: names the gsettings icon key"
-assert_contains "$thm_text" "No cursor theme 'GsCursor', selected by gsettings org.gnome.desktop.interface cursor-theme" "themes: names the gsettings cursor key"
+assert_contains "$CHECK_OUT" "No GTK theme 'GsGtk', selected by gsettings org.gnome.desktop.interface gtk-theme" "themes: names the gsettings GTK key"
+assert_contains "$CHECK_OUT" "No icon theme 'GsIcons', selected by gsettings org.gnome.desktop.interface icon-theme" "themes: names the gsettings icon key"
+assert_contains "$CHECK_OUT" "No cursor theme 'GsCursor', selected by gsettings org.gnome.desktop.interface cursor-theme" "themes: names the gsettings cursor key"
 thm_gs=" gtk-theme=Kripton"
-thm_run
+run_check check_themes
 assert_eq "$DOCTOR_WARNINGS" "0" "themes: an installed gsettings theme adds nothing"
 thm_gs=""
 
 # The AUR defaults have no pacman -F answer, so the hint says where they come from.
 thm_installed=" icon:Papirus-Dark cursor:Bibata "
-thm_run
-assert_contains "$thm_text" "AUR_PACKAGES" "themes: the GTK hint points at the AUR packages"
+run_check check_themes
+assert_contains "$CHECK_OUT" "AUR_PACKAGES" "themes: the GTK hint points at the AUR packages"
 thm_installed=" gtk:Kripton icon:Papirus-Dark cursor:Bibata "
 
 # Kvantum has no tracked default: nothing is read until the live file exists.
-thm_run
+run_check check_themes
 assert_eq "$DOCTOR_WARNINGS" "0" "themes: no Kvantum file, no Kvantum finding"
 printf '[General]\ntheme=Carl\n' > "$thm_root/Kvantum/kvantum.kvconfig"
-thm_run
+run_check check_themes
 assert_eq "$DOCTOR_WARNINGS" "1" "themes: a missing Kvantum theme is reported"
-assert_contains "$thm_text" "No Kvantum theme 'Carl', selected by Kvantum/kvantum.kvconfig" "themes: names the Kvantum theme and file"
-assert_contains "$thm_text" "pacman -F usr/share/Kvantum/Carl/Carl.kvconfig" "themes: the Kvantum hint names a file to look up"
+assert_contains "$CHECK_OUT" "No Kvantum theme 'Carl', selected by Kvantum/kvantum.kvconfig" "themes: names the Kvantum theme and file"
+assert_contains "$CHECK_OUT" "pacman -F usr/share/Kvantum/Carl/Carl.kvconfig" "themes: the Kvantum hint names a file to look up"
 thm_installed=" gtk:Kripton icon:Papirus-Dark cursor:Bibata kvantum:Carl "
-thm_run
+run_check check_themes
 assert_eq "$DOCTOR_WARNINGS" "0" "themes: an installed Kvantum theme is fine"
 printf '[General]\ntheme=default\n' > "$thm_root/Kvantum/kvantum.kvconfig"
 thm_installed=" gtk:Kripton icon:Papirus-Dark cursor:Bibata "
-thm_run
+run_check check_themes
 assert_eq "$DOCTOR_WARNINGS" "0" "themes: Kvantum's built-in default needs nothing"
 
 # A name with a space is quoted in the hint.
 printf '[Settings]\ngtk-theme-name=My Theme\n' > "$thm_root/gtk-3.0/settings.ini"
-thm_run
-assert_contains "$thm_text" "pacman -F usr/share/themes/My\\ Theme/gtk-3.0/gtk.css" "themes: every hint path goes through doctor_q"
-assert_not_contains "$thm_text" "<" "themes: no placeholder text in hints"
+run_check check_themes
+assert_contains "$CHECK_OUT" "pacman -F usr/share/themes/My\\ Theme/gtk-3.0/gtk.css" "themes: every hint path goes through doctor_q"
+assert_not_contains "$CHECK_OUT" "<" "themes: no placeholder text in hints"
 DOCTOR_ROOT="$thm_saved_root"
 
 # --- the real probe, against a private fixture ------------------------------
