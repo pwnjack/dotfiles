@@ -112,12 +112,4 @@ else
     echo "  sudo $INSTALLED_HELPER $USER"
 fi
 
-if printf '%s\n' "$sudo_listing" | \
-   grep -qE 'NOPASSWD:.*Backgrounds/wallpaper\.jpg'; then
-    echo ""
-    echo "Note: sudo still lists an obsolete NOPASSWD rule for Backgrounds/wallpaper.jpg."
-    echo "Find it with: sudo grep -R -nF 'Backgrounds/wallpaper.jpg' /etc/sudoers /etc/sudoers.d"
-    echo "Then review and remove that legacy rule from the matching sudoers file."
-fi
-
 $verify_ok || exit 1

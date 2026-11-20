@@ -115,10 +115,9 @@ sed -i \
     "$sddm_setup_fixture/sddm/setup-sudo.sh"
 
 : > "$sddm_sudo_log"
-sddm_current_listing=$(printf '%s\n%s\n%s' \
+sddm_current_listing=$(printf '%s\n%s' \
     "(root) NOPASSWD: $sddm_setup_helper fixture-user" \
-    "(root) NOPASSWD: /usr/bin/true" \
-    "(root) /tmp/Backgrounds/wallpaper.jpg")
+    "(root) NOPASSWD: /usr/bin/true")
 sddm_script_out=$(USER=fixture-user \
     PATH="$sddm_script_fixture/bin:$PATH" \
     SDDM_TEST_STAT_NAMED="root:root 755" \
@@ -135,8 +134,6 @@ assert_not_contains "$(cat "$sddm_sudo_log")" "install" \
     "current setup does not reinstall privileged files"
 assert_contains "$(cat "$sddm_sudo_log")" "-n -l" \
     "setup inspects grants with non-interactive sudo"
-assert_not_contains "$sddm_script_out" "obsolete NOPASSWD rule" \
-    "legacy detector does not span separate sudo-listing lines"
 
 : > "$sddm_sudo_log"
 sddm_script_out=$(USER=fixture-user \

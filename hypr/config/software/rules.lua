@@ -31,7 +31,7 @@ hl.window_rule({
 
 -- Floating apps
 hl.window_rule({ name = "float-pavucontrol", match = { class = "^(org.pulseaudio.pavucontrol)$" }, float = true })
-hl.window_rule({ name = "float-blueman", match = { title = "^(blueman-manager)$" }, float = true })
+hl.window_rule({ name = "float-blueman", match = { class = "^(blueman-manager)$" }, float = true })
 hl.window_rule({ name = "float-network-editor", match = { class = "^(nm-connection-editor)$" }, float = true })
 hl.window_rule({ name = "float-waypaper", match = { class = "^(waypaper)$" }, float = true })
 hl.window_rule({ name = "resources", match = { class = "^(net.nokyan.Resources)$" }, float = true, size = "1150 600" })

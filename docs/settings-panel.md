@@ -308,7 +308,7 @@ module and the low-battery toast. `shell.qml` runs it when the page opens and ev
 only while `opened && !closing && category === "devices"` with no search query; nothing
 runs otherwise: hiding the page stops a read in flight and discards a late result
 (`deviceRead.mjs` `fresh`). `alert` (low/critical) comes from the script, not the page, and draws the
-value in the error colour, bold. An asleep device shows its last reading; a USB input device
+value in the error colour, semi-bold. An asleep device shows its last reading; a USB input device
 with no readable battery (a dongle or a wired keyboard) shows "Connected" and "No battery info".
 A USB headset's battery comes from `headsetcontrol` (optional; without it the headset has no
 battery row), and a headset switched off behind its dongle shows "Asleep".
