@@ -11,16 +11,16 @@ const palette = source('../../../scripts/theming/palette.sh')
 const slots = palette.match(/_WAL_FALLBACK=\(([\s\S]*?)\n\)/)[1].match(/#[0-9a-f]{6}/g)
 const roles = Object.fromEntries([...palette.match(/_ROLE_FALLBACK=\(([\s\S]*?)\n\)/)[1]
     .matchAll(/([a-z0-9_]+)=(#[0-9a-f]{6})/g)].map(match => [match[1], match[2]]))
-assert.equal(slots[0], roles.surface)
 assert.equal(slots[7], roles.on_surface)
 const shell = source('../shell.qml')
-for (const [setting, role] of [
-    ['BACKGROUND','surface'], ['FOREGROUND','on_surface'], ['ACCENT','primary'],
-    ['ON_ACCENT','on_primary'], ['ERROR','error'],
+for (const [setting, name, colour] of [
+    ['BACKGROUND', 'slot 0', slots[0]], ['FOREGROUND', 'on_surface', roles.on_surface],
+    ['ACCENT', 'primary', roles.primary], ['ON_ACCENT', 'on_primary', roles.on_primary],
+    ['ERROR', 'error', roles.error],
 ]) {
     const fallback = shell.match(new RegExp(`Quickshell\\.env\\("SETTINGS_${setting}"\\)\\s*\\|\\|\\s*"(#[0-9a-f]{6})"`))
     assert.ok(fallback, `SETTINGS_${setting} has an explicit fallback`)
-    assert.equal(fallback[1], roles[role], `SETTINGS_${setting} matches ${role}`)
+    assert.equal(fallback[1], colour, `SETTINGS_${setting} matches ${name}`)
 }
 const viewError = source('../SettingsView.qml').match(/readonly property color warn:\s*controller\.errorColor\s*\|\|\s*"(#[0-9a-f]{6})"/)
 assert.ok(viewError, 'alerts use the supplied semantic error colour with a fallback')

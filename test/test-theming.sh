@@ -4,7 +4,8 @@
 # palette when matugen has never run: the repo tracks symlinks to these files,
 # and a dangling one is a doctor ERROR on a fresh checkout.
 #
-# swaync only reloads a live consumer and renders nothing, so it is not run;
+# swaync re-renders Waybar's colours (tested through waybar) and reloads a live
+# daemon, so it is not run;
 # nvim renders its palette here and its reload behaviour is tested below.
 # pkill, hyprctl, spicetify, eww and nvim are stubbed so no running cava,
 # Hyprland, Spotify, eww daemon or editor is touched.
@@ -222,7 +223,6 @@ XDG_CACHE_HOME="$tmp/cache" role_load
 nvim_palette="$tmp/cache/wal/colors-wal.vim"
 nvim_text="$(cat "$nvim_palette" 2>/dev/null || true)"
 assert_contains "$nvim_text" '" Special' "nvim palette has the special section"
-assert_contains "$nvim_text" 'let wallpaper = ""' "nvim uses an empty wallpaper when none is selected"
 assert_contains "$nvim_text" "let background = \"${wal[0]}\"" "nvim background uses fallback slot 0"
 assert_contains "$nvim_text" "let foreground = \"${wal[7]}\"" "nvim foreground uses fallback slot 7"
 assert_contains "$nvim_text" "let cursor = \"${wal[7]}\"" "nvim cursor uses fallback slot 7"
@@ -231,21 +231,13 @@ for ((i = 0; i < 16; i++)); do
     assert_contains "$nvim_text" "let color$i = \"${wal[$i]}\"" "nvim fallback color$i matches the palette"
 done
 
-# A generated palette replaces every fallback slot; the wallpaper is resolved
-# from the cache symlink, with paths safely quoted for Vim.
+# A generated palette replaces every fallback slot.
 mkdir -p "$tmp/nvim-cache/wal"
 printf '#ABCDEF\n%.0s' {1..16} > "$tmp/nvim-cache/wal/colors"
-nvim_wallpaper="$tmp/home/wallpaper "$'\n\r'"\\\"quoted\".png"
-touch "$nvim_wallpaper"
-ln -s "$nvim_wallpaper" "$tmp/nvim-cache/current_wallpaper"
 PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/nvim-cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
     bash "$ROOT/nvim/apply_wal_colors.sh"
-assert_eq "$?" 0 "nvim renders a cached palette and wallpaper"
+assert_eq "$?" 0 "nvim renders a cached palette"
 nvim_text="$(cat "$tmp/nvim-cache/wal/colors-wal.vim" 2>/dev/null || true)"
-assert_contains "$nvim_text" "let wallpaper = \"$tmp/home/wallpaper \\\\\\\"quoted\\\".png\"" \
-    "nvim resolves the wallpaper symlink, strips LF/CR, and escapes backslashes and quotes"
-assert_eq "$(printf '%s\n' "$nvim_text" | wc -l)" 23 \
-    "nvim wallpaper control characters do not introduce extra Vim lines"
 for ((i = 0; i < 16; i++)); do
     assert_contains "$nvim_text" "let color$i = \"#abcdef\"" "nvim cached color$i is lowercase"
 done
@@ -435,14 +427,29 @@ PY_CONTRAST
 assert_eq "$?" 0 "Strata has a complete hex TOML theme and readable contrast on dark, light and mid-tone palettes"
 
 # wal_render must substitute @color15@ before @color1@, which is its prefix.
-printf '@color1@ @color15@ @oncolor0@\n' > "$tmp/template"
+printf '@color1@ @color15@\n' > "$tmp/template"
 wal_render "$tmp/template" "$tmp/rendered"
-expected="${wal[1]} ${wal[15]} $(wal_readable_on "${wal[0]}")"
+expected="${wal[1]} ${wal[15]}"
 if [ "$(cat "$tmp/rendered")" = "$expected" ]; then
     pass "wal_render substitutes prefix-overlapping tokens correctly"
 else
     fail "wal_render produced '$(cat "$tmp/rendered")', expected '$expected'"
 fi
+
+# wal_write replaces a file only when its content changes; a failed write
+# keeps the previous file and leaves no temporary behind.
+write_dir="$tmp/wal-write"
+mkdir -p "$write_dir"
+printf 'old\n' > "$write_dir/out"
+printf 'old\n' | wal_write "$write_dir/out"
+assert_eq "$?" 1 "wal_write reports unchanged content"
+printf 'new\n' | wal_write "$write_dir/out"
+assert_eq "$?" 0 "wal_write replaces changed content"
+assert_eq "$(stat -c %a "$write_dir/out")" 644 "wal_write leaves the file world-readable"
+wal_write "$write_dir/out" < "$write_dir" 2>/dev/null
+assert_eq "$?" 2 "wal_write reports a failed write"
+assert_eq "$(cat "$write_dir/out")" new "a failed write keeps the previous file"
+assert_eq "$(ls -A "$write_dir")" out "wal_write leaves no temporary file"
 
 # wal_oklch is the hex form of the CSS themes' OKLCH clamp: unclamped it must
 # round-trip, and clamped it must hold a light colour inside the dark band.
@@ -465,9 +472,9 @@ mkdir -p "$role_cache/wal"
 XDG_CACHE_HOME="$role_cache" wal_load
 XDG_CACHE_HOME="$role_cache" role_load
 assert_eq "$(wal_role primary)" '#82d3e1' "empty cache uses the fallback primary role"
-assert_eq "$(wal_role surface)" '#0e1416' "empty cache uses the fallback surface role"
+assert_eq "$(wal_role surface_container)" '#1b2122' "empty cache uses the fallback surface_container role"
 assert_eq "${wal[1]}" '#ffb2bd' "empty cache uses the matugen fallback ANSI red"
-assert_eq "${#role[@]}" 27 "role_load supplies all 27 fixed roles"
+assert_eq "${#role[@]}" 22 "role_load supplies all 22 fixed roles"
 assert_eq "$(wal_role primary_t95)" '#d1f7ff' "role_load supplies fallback primary tones"
 
 # Existing slot palettes remain usable during an upgrade without a roles file.
@@ -476,19 +483,19 @@ XDG_CACHE_HOME="$role_cache" wal_load
 XDG_CACHE_HOME="$role_cache" role_load
 assert_eq "${wal[1]}" '#123456' "wal_load reads cached slots without roles"
 assert_eq "$(wal_role primary)" '#82d3e1' "a slots-only cache keeps fallback roles"
-assert_eq "$(wal_role surface)" '#0e1416' "a slots-only cache keeps the fallback surface"
+assert_eq "$(wal_role surface_container)" '#1b2122' "a slots-only cache keeps the fallback surface_container"
 
-printf '%s\n' 'primary=#123456' 'not a role line' 'surface=#ZZZZZZ' \
-    'unknown_name=#abcdef' 'on_surface=#ABCDEF' 'outline=#1234567' \
+printf '%s\n' 'primary=#123456' 'not a role line' 'primary_container=#ZZZZZZ' \
+    'unknown_name=#abcdef' 'on_surface=#ABCDEF' 'error=#1234567' \
     'primary_t30=#654321' > "$role_cache/wal/roles"
 XDG_CACHE_HOME="$role_cache" role_load
 assert_eq "$(wal_role primary)" '#123456' "valid cached roles override the fallback"
-assert_eq "$(wal_role surface)" '#0e1416' "invalid cached roles retain the fallback"
+assert_eq "$(wal_role primary_container)" '#004f58' "invalid cached roles retain the fallback"
 assert_eq "${role[unknown_name]+present}" '' "unknown cached roles are ignored"
 assert_eq "$(wal_role on_surface)" '#dee3e5' "cached roles require lowercase hex"
-assert_eq "$(wal_role outline)" '#899294' "cached roles require exactly six hex digits"
+assert_eq "$(wal_role error)" '#ffb4ab' "cached roles require exactly six hex digits"
 assert_eq "$(wal_role primary_t30)" '#654321' "cached primary tones override the fallback"
-assert_eq "${#role[@]}" 27 "malformed role lines do not add names"
+assert_eq "${#role[@]}" 22 "malformed role lines do not add names"
 
 printf '@role_primary@ @role_primary_container@ @color1@\n' > "$tmp/role-template"
 wal_render "$tmp/role-template" "$tmp/role-rendered"
@@ -496,10 +503,10 @@ assert_eq "$(cat "$tmp/role-rendered")" '#123456 #004f58 #123456' \
     "wal_render substitutes role tokens and slots without prefix collisions"
 
 # Reloading reseeds roles rather than retaining overrides from an earlier load.
-printf 'surface=#112233\n' > "$role_cache/wal/roles"
+printf 'error=#112233\n' > "$role_cache/wal/roles"
 XDG_CACHE_HOME="$role_cache" role_load
 assert_eq "$(wal_role primary)" '#82d3e1' "role_load resets roles missing from the next cache"
-assert_eq "$(wal_role surface)" '#112233' "role_load reads the next cache"
+assert_eq "$(wal_role error)" '#112233' "role_load reads the next cache"
 
 # nvim renders colors-wal.vim and asks running instances to re-apply.
 # It must exit 0 whether nvim is missing,
@@ -514,7 +521,7 @@ if PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME
 else
     fail "nvim/apply_wal_colors.sh failed, or never addressed the instance's socket"
 fi
-for cmd in bash timeout id mkdir mv readlink; do ln -sf "$(command -v "$cmd")" "$tmp/nobin/$cmd"; done
+for cmd in bash cat chmod cmp id mkdir mktemp mv timeout; do ln -sf "$(command -v "$cmd")" "$tmp/nobin/$cmd"; done
 mkdir -p "$tmp/no-nvim-cache"
 if PATH="$tmp/nobin" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/no-nvim-cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" "$tmp/nobin/bash" "$ROOT/nvim/apply_wal_colors.sh"; then
     pass "nvim/apply_wal_colors.sh succeeds without nvim"

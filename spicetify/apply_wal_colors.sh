@@ -34,7 +34,7 @@ declare -a wal=()
 # shellcheck source=scripts/theming/palette.sh
 . "$config_dir/scripts/theming/palette.sh"
 wal_load
-# shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
+# shellcheck disable=SC2034  # read by role_load and wal_role
 declare -A role=()
 role_load
 
@@ -71,7 +71,8 @@ accent() { local c; c=$(wal_oklch "$(wal_role primary)" 0.62 0.75 0.16 "$1") && 
     echo "button-disabled    = $(base 0.12)"
     echo "play-button        = $(accent 0)"
     echo "playback-bar       = $(accent 0)"
-} > "$rendered.tmp" && mv "$rendered.tmp" "$rendered" || exit 1
+} | wal_write "$rendered"
+[ $? -lt 2 ] || exit 1   # 1 means unchanged
 
 command -v spicetify >/dev/null 2>&1 && [ -r "$spicetify_ini" ] || exit 0
 grep -qE '^current_theme[[:space:]]*=[[:space:]]*Pywal[[:space:]]*$' "$spicetify_ini" || exit 0

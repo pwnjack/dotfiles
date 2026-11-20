@@ -32,10 +32,10 @@ slots=(surface red green yellow blue magenta cyan on_surface outline
 for i in "${!slots[@]}"; do
     assert_eq "${colors[$i]:-}" "$(c "${slots[$i]}")" "slot $i = ${slots[$i]}"
 done
-roles=(surface surface_container_low surface_container surface_container_high
-       surface_container_highest on_surface on_surface_variant outline outline_variant
-       primary on_primary primary_container on_primary_container secondary_container
-       on_secondary_container tertiary_container on_tertiary_container error on_error)
+roles=(surface_container surface_container_high surface_container_highest on_surface
+       on_surface_variant primary on_primary primary_container on_primary_container
+       secondary_container on_secondary_container tertiary_container
+       on_tertiary_container error)
 for role in "${roles[@]}"; do
     assert_contains "$(cat "$tmp/out/roles")" "$role=$(c "$role")" "role $role"
 done
@@ -43,7 +43,7 @@ for tone in 30 40 50 60 70 80 90 95; do
     expected=$(jq -r --arg tone "$tone" '.palettes.primary[$tone].color | ascii_downcase' "$fixture")
     assert_contains "$(cat "$tmp/out/roles")" "primary_t$tone=$expected" "primary tone $tone"
 done
-assert_eq "$(wc -l < "$tmp/out/roles")" 27 'roles has exactly 27 lines'
+assert_eq "$(wc -l < "$tmp/out/roles")" 22 'roles has exactly 22 lines'
 if grep -qEv '^[a-z0-9_]+=#[0-9a-f]{6}$' "$tmp/out/roles"; then
     fail 'all roles are named lowercase hex'
 else

@@ -8,7 +8,7 @@
 # shellcheck source=scripts/lib/wallpaper.sh
 . "$(dirname "${BASH_SOURCE[0]}")/../scripts/lib/wallpaper.sh"
 cache_dir="$HOME/.cache/awww"
-update_script="$HOME/.config/sddm/update_sddm.sh"
+update_script="$(dirname "${BASH_SOURCE[0]}")/update_sddm.sh"
 
 # Ensure the cache dir exists
 mkdir -p "$cache_dir"
@@ -28,21 +28,10 @@ update_sddm
 # close_write alone: awww rewrites the entry in place, so modify would start a
 # second conversion for the same image. The monitor preference is read per
 # event, so a change in the settings panel takes effect without a restart.
-if command -v inotifywait >/dev/null 2>&1; then
-    inotifywait -m -r -e close_write --format '%f' "$cache_dir" 2>/dev/null | while read -r file; do
-        monitor=$(wallpaper_main_monitor)
-        # With no preference set, any monitor's cache entry is a real change.
-        [[ -z "$monitor" || "$file" == "$monitor" ]] || continue
-        update_sddm
-    done
-else
-    # Fallback: poll every 5 seconds if inotifywait is not available
-    while true; do
-        sleep 5
-        current_wallpaper=$(wallpaper_from_cache "$cache_dir")
-        if [[ -n "$current_wallpaper" ]] && [[ "$current_wallpaper" != "$last_wallpaper" ]]; then
-            last_wallpaper="$current_wallpaper"
-            update_sddm
-        fi
-    done
-fi
+command -v inotifywait >/dev/null 2>&1 || { echo "watch_wallpaper: inotifywait (inotify-tools) is required" >&2; exit 1; }
+inotifywait -m -r -e close_write --format '%f' "$cache_dir" 2>/dev/null | while read -r file; do
+    monitor=$(wallpaper_main_monitor)
+    # With no preference set, any monitor's cache entry is a real change.
+    [[ -z "$monitor" || "$file" == "$monitor" ]] || continue
+    update_sddm
+done

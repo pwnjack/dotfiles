@@ -34,10 +34,12 @@ role_load
 
 mkdir -p "$cache_dir"
 
-wal_render "$template" "$rendered" || exit 1
-
-if [ -L "$link" ]; then
-    touch -h "$link"
+if wal_render "$template" /dev/stdout | wal_write "$rendered"; then
+    if [ -L "$link" ]; then
+        touch -h "$link"
+    fi
+elif [ $? -gt 1 ]; then   # 1 means unchanged
+    exit 1
 fi
 
 exit 0

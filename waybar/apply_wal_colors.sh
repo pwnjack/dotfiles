@@ -20,18 +20,15 @@ declare -a wal=()
 # shellcheck source=scripts/theming/palette.sh
 . "$config_dir/scripts/theming/palette.sh"
 wal_load
-# shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
+# shellcheck disable=SC2034  # read by role_load and wal_role
 declare -A role=()
 role_load
 
 mkdir -p "$cache_dir"
 
-# Rendered to a temporary file and moved into place only when it differs:
-# Waybar watches this file, so a truncating write could be read half-written,
-# and a second render in the same fan-out (swaync's script runs this first)
-# must not restyle the bar again.
-out="$cache_dir/colors-waybar.css"
-tmp=$(mktemp "$out.XXXXXX") || exit 1
+# Replaced only when it differs: Waybar watches this file, so a truncating
+# write could be read half-written, and a second render in the same fan-out
+# (swaync's script runs this first) must not restyle the bar again.
 {
     echo "@define-color foreground ${wal[7]};"
     echo "@define-color background ${wal[0]};"
@@ -40,9 +37,5 @@ tmp=$(mktemp "$out.XXXXXX") || exit 1
     for name in surface_container secondary_container on_secondary_container error; do
         echo "@define-color $name $(wal_role "$name");"
     done
-} > "$tmp"
-if [ -f "$out" ] && cmp -s "$tmp" "$out"; then
-    rm -f -- "$tmp"
-else
-    chmod 644 -- "$tmp" && mv -f -- "$tmp" "$out"
-fi
+} | wal_write "$cache_dir/colors-waybar.css"
+[ $? -lt 2 ] || exit 1   # 1 means unchanged

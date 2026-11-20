@@ -46,7 +46,7 @@ run_script() {
         BUSCTL_LOG="$TMP/busctl.log" \
         BAR_OPTIONS="$TMP/no-options" BAR_INCLUDE="$TMP/state/bar.jsonc" BAR_CSS="$TMP/state/bar.css" \
         CLOCK_OPTION="$TMP/no-options/clock" CLOCK_INCLUDE="$TMP/state/clock.jsonc" \
-        XDG_CACHE_HOME="$TMP/cache" \
+        XDG_CONFIG_HOME="$TEST_DIR/../.." XDG_CACHE_HOME="$TMP/cache" \
         PKILL_STATUS="$2" PATH="$TMP/bin:$PATH" bash "$1"
 }
 

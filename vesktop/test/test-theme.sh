@@ -1,8 +1,9 @@
 #!/bin/bash
 # vesktop/apply_wal_colors.sh against a throwaway config and cache: the theme
 # follows the palette, is idempotent, and touches the themes-directory symlink
-# that a running Vesktop watches. The fallback render and leftover tokens are
-# covered for every component by test/test-theming.sh.
+# that a running Vesktop watches only when the theme changes. The fallback
+# render and leftover tokens are covered for every component by
+# test/test-theming.sh.
 set -uo pipefail
 
 here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
@@ -41,9 +42,12 @@ check "the accent follows primary"
 check "the themes-directory symlink is touched so Vesktop reloads"
 
 first=$(cat "$out")
+touch -h -d '2000-01-01' "$config/vesktop/themes/pywal.theme.css"
 run
 [ "$(cat "$out")" = "$first" ]
 check "a second run renders the same theme"
+[ "$(stat -c %Y "$config/vesktop/themes/pywal.theme.css")" -eq "$(date -d '2000-01-01' +%s)" ]
+check "an unchanged palette leaves the symlink alone"
 
 # The tracked symlink must name the file the script writes.
 [ "$(basename "$(readlink "$repo/vesktop/themes/pywal.theme.css")")" = vesktop.theme.css ]

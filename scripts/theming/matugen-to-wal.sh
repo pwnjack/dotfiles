@@ -25,10 +25,10 @@ trap 'exit 1' ERR
 mkdir -p -- "$out"
 colors_tmp=$(mktemp "$out/.colors.XXXXXX")
 roles_tmp=$(mktemp "$out/.roles.XXXXXX")
-roles=(surface surface_container_low surface_container surface_container_high
-       surface_container_highest on_surface on_surface_variant outline outline_variant
-       primary on_primary primary_container on_primary_container secondary_container
-       on_secondary_container tertiary_container on_tertiary_container error on_error)
+roles=(surface_container surface_container_high surface_container_highest on_surface
+       on_surface_variant primary on_primary primary_container on_primary_container
+       secondary_container on_secondary_container tertiary_container
+       on_tertiary_container error)
 
 jq -er --slurpfile ansi "${3:-$json}" '
   def a($n): ($ansi[0].colors[$n].dark.color // error("missing ANSI \($n)")) | ascii_downcase;
@@ -51,7 +51,7 @@ jq -er --argjson names "$(printf '%s\n' "${roles[@]}" | jq -R . | jq -s .)" '
 ' "$json" > "$roles_tmp"
 
 if [ "$(wc -l < "$colors_tmp")" -ne 16 ] ||
-   [ "$(wc -l < "$roles_tmp")" -ne 27 ] ||
+   [ "$(wc -l < "$roles_tmp")" -ne 22 ] ||
    grep -qEv '^#[0-9a-f]{6}$' "$colors_tmp" ||
    grep -qEv '^[a-z0-9_]+=#[0-9a-f]{6}$' "$roles_tmp"; then
     echo 'matugen-to-wal: invalid palette colors or roles' >&2

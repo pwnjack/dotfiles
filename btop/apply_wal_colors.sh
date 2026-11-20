@@ -29,7 +29,7 @@ declare -a wal=()
 # shellcheck source=scripts/theming/palette.sh
 . "$config_dir/scripts/theming/palette.sh"
 wal_load
-# shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
+# shellcheck disable=SC2034  # read by role_load and wal_role
 declare -A role=()
 role_load
 

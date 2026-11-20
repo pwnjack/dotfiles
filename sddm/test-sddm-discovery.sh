@@ -4,7 +4,8 @@
 # single-quoted `bash -c` block handed to runuser), exercised on its own
 # against a fake home. It cannot share scripts/lib/wallpaper.sh, so this pins
 # the same choices: awww 0.12's NUL-separated cache, the monitor preference,
-# ignoring non-path cache files, and the current-wallpaper fallback.
+# ignoring non-path cache files, the current-wallpaper fallback, and success
+# with no wallpaper at all.
 #
 
 set -uo pipefail
@@ -48,6 +49,9 @@ rm "$b"
 ln -s "$a" "$home/.config/options/wallpaper"
 assert_eq "$(discover)" "$a" \
     "an entry naming a deleted image falls back to the current-wallpaper link"
+rm "$home/.config/options/wallpaper" "$cache"/*
+assert_eq "$(discover; echo "status=$?")" "status=0" \
+    "no wallpaper anywhere: empty output and success"
 assert_eq "$(grep -c "'" <<< "$block")" "0" \
     "the block contains no single quote (it is itself single-quoted)"
 

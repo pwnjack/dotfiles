@@ -97,25 +97,27 @@ with their matching text roles; decorative ramps use primary tones.
 The fixed roles in `wal/roles` are:
 
 ```text
-surface surface_container_low surface_container surface_container_high
-surface_container_highest on_surface on_surface_variant outline outline_variant
-primary on_primary primary_container on_primary_container secondary_container
-on_secondary_container tertiary_container on_tertiary_container error on_error
-primary_t30 primary_t40 primary_t50 primary_t60 primary_t70 primary_t80
-primary_t90 primary_t95
+surface_container surface_container_high surface_container_highest on_surface
+on_surface_variant primary on_primary primary_container on_primary_container
+secondary_container on_secondary_container tertiary_container
+on_tertiary_container error primary_t30 primary_t40 primary_t50 primary_t60
+primary_t70 primary_t80 primary_t90 primary_t95
 ```
 
 The primary tones come from matugen's `.palettes.primary`. Templates refer to
-roles with `@role_<name>@`, for example `@role_primary@`. Existing `@colorN@`
-and `@oncolorN@` tokens still select a slot and text readable on that slot.
+roles with `@role_<name>@`, for example `@role_primary@`. `@colorN@` tokens
+select a slot.
 
 `scripts/theming/palette.sh` is the shared loader. `wal_load` fills the
 caller's `wal` array from `wal/colors`; `role_load` fills a declared
 associative `role` array from `wal/roles`; `wal_role <name>` returns a loaded
 role. Slots and roles fall back independently, so an old pywal cache without
-`roles` remains usable until the first generation. `wal_render` replaces slot,
-readable-text and role tokens after their loaders have run. Use these helpers
-instead of parsing matugen JSON in a component.
+`roles` remains usable until the first generation. `wal_render` replaces slot
+and role tokens after their loaders have run. `wal_write <file>` replaces a
+file with its stdin through a temporary file and a rename, leaves it alone
+when the content is unchanged (status 1) and keeps it when the write fails
+(status 2), so a watching consumer never reads a partial file or restyles for
+nothing. Use these helpers instead of parsing matugen JSON in a component.
 
 `wal_readable_on <hex>` chooses the darkest or lightest palette text for a
 background using perceived brightness. `wal_oklch <hex> <lmin> <lmax> <cmax>
@@ -254,7 +256,7 @@ leaving Discord's text variables alone. The base clamps OKLCH lightness to
 0.21–0.26 with capped chroma; the primary accent is clamped to the brand
 lightness expected by white button labels. Vesktop watches the themes
 directory rather than the symlink target, so `touch -h` on the link recolours
-open windows.
+open windows; the script touches it only when the theme changed.
 
 **Zen** renders `zen/userChrome.css.in` into `wal/zen-userChrome.css` with the
 same base clamp and a lighter primary accent for tabs and focus rings. Its

@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # SDDM Wallpaper Updater (root side)
-# Runs as root via sudo (see setup-sudo.sh) or a systemd service.
+# Runs as root via the passwordless sudo rule that setup-sudo.sh installs.
 # Converts the user's current wallpaper into the SDDM theme background.
 #
 # Usage: update_sddm_root.sh [username]
@@ -68,7 +68,7 @@ if ! wallpaper=$("$RUNUSER" -u "$TARGET_USER" -- /bin/bash -c '
     if [[ -z "$wallpaper" ]] || [[ ! -f "$wallpaper" ]]; then
         wallpaper=$(readlink -f "$user_home/.config/options/wallpaper" 2>/dev/null)
     fi
-    [[ -n "$wallpaper" ]] && [[ -f "$wallpaper" ]] && printf "%s\n" "$wallpaper"
+    if [[ -f "$wallpaper" ]]; then printf "%s\n" "$wallpaper"; fi
 ' _ "$USER_HOME"); then
     echo "Error: could not resolve home directory for user '$TARGET_USER'" >&2
     exit 1

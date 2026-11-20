@@ -18,7 +18,7 @@ declare -a wal=()
 # shellcheck source=scripts/theming/palette.sh
 . "$config_dir/scripts/theming/palette.sh"
 wal_load
-# shellcheck disable=SC2034  # read by role_load, wal_role and wal_render
+# shellcheck disable=SC2034  # read by role_load and wal_role
 declare -A role=()
 role_load
 
@@ -58,17 +58,7 @@ syntax_type=$(foreground "${wal[3]}")
 syntax_preprocessor=$(foreground "${wal[6]}")
 
 mkdir -p "$cache_dir"
-temporary=$(mktemp "$rendered.XXXXXX")
-trap 'rm -f -- "$temporary"' EXIT
-publish() {
-    cmp -s "$temporary" "$rendered" && return
-    mv -f -- "$temporary" "$rendered"
-    # Replacing the cache file emits no event in the themes directory.
-    if [ "$link" -ef "$rendered" ]; then
-        touch -ch -- "$link"
-    fi
-}
-cat > "$temporary" <<EOF_THEME && publish
+if wal_write "$rendered" <<EOF_THEME; then
 # Generated from the matugen palette - do not edit manually.
 name = "Wallpaper"
 background = "$bg"
@@ -86,3 +76,10 @@ syntax_constant = "$syntax_constant"
 syntax_type = "$syntax_type"
 syntax_preprocessor = "$syntax_preprocessor"
 EOF_THEME
+    # Replacing the cache file emits no event in the themes directory.
+    if [ "$link" -ef "$rendered" ]; then
+        touch -ch -- "$link"
+    fi
+elif [ $? -gt 1 ]; then   # 1 means unchanged
+    exit 1
+fi

@@ -21,12 +21,11 @@ _WAL_FALLBACK=(
     '#cbe6ff' '#e4dfff' '#9df0fb' '#dee3e5'
 )
 _ROLE_FALLBACK=(
-    surface=#0e1416 surface_container_low=#171d1e surface_container=#1b2122
-    surface_container_high=#252b2c surface_container_highest=#303637
-    on_surface=#dee3e5 on_surface_variant=#bfc8ca outline=#899294 outline_variant=#3f484a
+    surface_container=#1b2122 surface_container_high=#252b2c surface_container_highest=#303637
+    on_surface=#dee3e5 on_surface_variant=#bfc8ca
     primary=#82d3e1 on_primary=#00363d primary_container=#004f58 on_primary_container=#9eeffe
     secondary_container=#334b4f on_secondary_container=#cde7ec
-    tertiary_container=#3b4665 on_tertiary_container=#dae2ff error=#ffb4ab on_error=#690005
+    tertiary_container=#3b4665 on_tertiary_container=#dae2ff error=#ffb4ab
     primary_t30=#004f58 primary_t40=#006875 primary_t50=#008393 primary_t60=#009fb2
     primary_t70=#24bcd0 primary_t80=#50d8ec primary_t90=#9bf0ff primary_t95=#d1f7ff
 )
@@ -111,8 +110,7 @@ wal_readable_on() {
 
 # wal_render <template> <output>
 #
-# Copies a template with every @colorN@ replaced by wal[N] and every
-# @oncolorN@ by the text color readable on it. Call wal_load first.
+# Copies a template with every @colorN@ replaced by wal[N]. Call wal_load first.
 # When `role` is declared, replace @role_<name>@ too; call role_load first.
 # The closing @ ends every token, so @color1@ never matches inside @color15@.
 wal_render() {
@@ -120,7 +118,6 @@ wal_render() {
     local i
     for ((i = 0; i <= 15; i++)); do
         sed_args+=(-e "s|@color$i@|${wal[$i]}|g")
-        sed_args+=(-e "s|@oncolor$i@|$(wal_readable_on "${wal[$i]}")|g")
     done
     if declare -p role >/dev/null 2>&1; then
         local name
@@ -129,6 +126,25 @@ wal_render() {
         done
     fi
     sed "${sed_args[@]}" "$1" > "$2"
+}
+
+# wal_write <file>
+#
+# Replaces <file> with stdin through a temporary file and a rename, so a
+# watcher never reads it half-written. Returns 1 and leaves <file> alone when
+# the content is unchanged, and 2 when the write fails, keeping the old file.
+wal_write() {
+    local tmp status=2
+    tmp=$(mktemp "$1.XXXXXX") || return 2
+    if cat > "$tmp"; then
+        if cmp -s -- "$tmp" "$1"; then
+            status=1
+        elif chmod 644 -- "$tmp" && mv -f -- "$tmp" "$1"; then
+            return 0
+        fi
+    fi
+    rm -f -- "$tmp"
+    return "$status"
 }
 
 # wal_oklch <hex> <lmin> <lmax> <cmax> [dl]
