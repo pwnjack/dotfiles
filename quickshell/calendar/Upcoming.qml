@@ -8,8 +8,7 @@ import "model.mjs" as Model
 ColumnLayout {
     id: up
     required property var card
-    readonly property var summary: Model.upcomingSummary(card.c.agenda, card.c.now)
-    readonly property var groups: Model.groupUpcoming(card.c.agenda, card.c.now, 7)
+    readonly property var summary: Model.upcoming(card.c.agenda, card.c.now)
     readonly property string todayKey: Model.dayKey(card.c.now)
     readonly property bool noAccount: !!card.c.status && card.c.status.state === "none"
     spacing: card.px(4)
@@ -52,12 +51,12 @@ ColumnLayout {
         label.color: up.summary.next || up.card.c.state.unfolded ? up.card.c.foreground : up.card.dim
         onClicked: up.card.c.toggleUpcoming()
     }
-    Text { visible: !up.noAccount && up.card.c.state.unfolded && !up.groups.length; text: "Nothing in the next 7 days"
+    Text { visible: !up.noAccount && up.card.c.state.unfolded && !up.summary.groups.length; text: "Nothing in the next 7 days"
         Layout.leftMargin: up.card.px(12); Layout.topMargin: up.card.px(6)
         color: up.card.dim; font.family: up.card.c.monoFont; font.pixelSize: up.card.px(13) }
     Repeater {
         id: list
-        model: !up.noAccount && up.card.c.state.unfolded ? up.groups : []
+        model: !up.noAccount && up.card.c.state.unfolded ? up.summary.groups : []
         delegate: ColumnLayout {
             id: group
             required property var modelData

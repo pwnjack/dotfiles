@@ -47,8 +47,8 @@ FocusScope {
     }
     onExpandedChanged: {
         if (expanded === "startDate" || expanded === "endDate") {
-            opener = expanded === "startDate" ? startDatePill : endDatePill;
-            (expanded === "startDate" ? startPicker : endPicker).forceActiveFocus();
+            opener = expanded === "startDate" ? startRow.datePill : endRow.datePill;
+            (expanded === "startDate" ? startRow.picker : endRow.picker).forceActiveFocus();
             return;
         }
         if (expanded === "calendar" || expanded === "alert") {
@@ -118,8 +118,8 @@ FocusScope {
     function toggle(which) {
         // A typed time is applied before its field closes, so clicking another pill keeps it.
         const was = expanded;
-        if (was === "startTime") startTimeField.commit();
-        else if (was === "endTime") endTimeField.commit();
+        if (was === "startTime") startRow.timeField.commit();
+        else if (was === "endTime") endRow.timeField.commit();
         if (was === which) { expanded = ""; return; }
         if (which === "startDate" || which === "endDate") {
             const key = which === "startDate" ? d.startDay : d.endDay;
@@ -146,6 +146,94 @@ FocusScope {
     // Return saves from anywhere in the sheet once valid. Pills and time fields take it first.
     Keys.onReturnPressed: event => { returnPressed(); event.accepted = true; }
     Keys.onEnterPressed: event => { returnPressed(); event.accepted = true; }
+
+    // The title and location fields: Return saves from them as from anywhere in the sheet.
+    component DraftTextField: Controls.TextField {
+        Layout.fillWidth: true
+        Layout.preferredHeight: sheet.card.px(40)
+        leftPadding: sheet.card.px(12); rightPadding: sheet.card.px(12)
+        topPadding: 0; bottomPadding: 0
+        verticalAlignment: TextInput.AlignVCenter
+        activeFocusOnTab: true
+        enabled: !sheet.readOnly
+        Keys.onReturnPressed: event => { sheet.returnPressed(); event.accepted = true; }
+        Keys.onEnterPressed: event => { sheet.returnPressed(); event.accepted = true; }
+        color: sheet.card.c.foreground
+        placeholderTextColor: sheet.card.dim
+        font.family: sheet.card.c.monoFont
+        font.pixelSize: sheet.card.px(13)
+        background: Item {}
+    }
+    // The Starts or Ends row and its date picker. Only the end is struck through when it is before the start.
+    component DateTimeRow: ColumnLayout {
+        id: row
+        required property string which         // "start" or "end"
+        readonly property bool isStart: which === "start"
+        readonly property string day: sheet.d ? (isStart ? sheet.d.startDay : sheet.d.endDay) : ""
+        property alias datePill: datePill
+        property alias timeField: timeField
+        property alias picker: picker
+        Layout.fillWidth: true
+        spacing: 0
+        SheetRow {
+            card: sheet.card
+            label: row.isStart ? "Starts" : "Ends"
+            Pill {
+                id: datePill
+                objectName: row.which + "Date"
+                card: sheet.card
+                enabled: !sheet.readOnly && !(sheet.d && sheet.d.recurring)
+                text: sheet.d ? sheet.fmtDay(row.day) : ""
+                strikeout: !row.isStart && sheet.check.endBeforeStart
+                active: sheet.expanded === row.which + "Date"
+                onClicked: sheet.toggle(row.which + "Date")
+            }
+            Pill {
+                objectName: row.which + "Time"
+                visible: !!sheet.d && !sheet.d.allDay && sheet.expanded !== row.which + "Time"
+                card: sheet.card
+                enabled: !sheet.readOnly
+                text: sheet.d ? sheet.fmtTime(sheet.d[row.which]) : ""
+                strikeout: !row.isStart && sheet.check.endBeforeStart
+                onClicked: sheet.toggle(row.which + "Time")
+                onWheelStep: steps => sheet.stepTime(row.which, steps)
+            }
+            TimeField {
+                id: timeField
+                objectName: row.which + "TimeField"
+                visible: sheet.expanded === row.which + "Time"
+                card: sheet.card
+                value: sheet.d ? Model.minutesOf(sheet.d[row.which]) : 0
+                onChosen: minutes => {
+                    const t = Model.at(row.day, minutes);
+                    sheet.set(row.isStart ? Model.moveStart(sheet.d, t) : Model.setEnd(sheet.d, t));
+                    sheet.expanded = "";
+                }
+            }
+        }
+        Reveal {
+            Layout.fillWidth: true
+            Layout.preferredHeight: implicitHeight
+            padding: sheet.card.px(10)
+            open: sheet.expanded === row.which + "Date"
+            MonthGrid {
+                id: picker
+                objectName: row.which + "Picker"
+                width: parent.width
+                returnPicksSelected: true
+                enabled: sheet.expanded === row.which + "Date"
+                card: sheet.card
+                peek: false
+                titleOpens: false
+                year: sheet.pickYear
+                month: sheet.pickMonth
+                selected: row.day
+                onPicked: key => { sheet.set(row.isStart ? Model.setStartDay(sheet.d, key) : Model.setEndDay(sheet.d, key)); sheet.expanded = ""; }
+                onPrev: sheet.shiftPicker(-1)
+                onNext: sheet.shiftPicker(1)
+            }
+        }
+    }
 
     ColumnLayout {
         id: col
@@ -244,46 +332,18 @@ FocusScope {
                     y: sheet.card.px(4)
                     width: parent.width
                     spacing: 0
-                    Controls.TextField {
+                    DraftTextField {
                         id: titleField
                         objectName: "titleField"
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: sheet.card.px(40)
-                        leftPadding: sheet.card.px(12); rightPadding: sheet.card.px(12)
-                        topPadding: 0; bottomPadding: 0
-                        verticalAlignment: TextInput.AlignVCenter
-                        activeFocusOnTab: true
-                        enabled: !sheet.readOnly
                         placeholderText: "Title"
                         onTextChanged: if (sheet.d && text !== sheet.d.title) sheet.set(Object.assign({}, sheet.d, { title: text }))
-                        Keys.onReturnPressed: event => { sheet.returnPressed(); event.accepted = true; }
-                        Keys.onEnterPressed: event => { sheet.returnPressed(); event.accepted = true; }
-                        color: sheet.card.c.foreground
-                        placeholderTextColor: sheet.card.dim
-                        font.family: sheet.card.c.monoFont
-                        font.pixelSize: sheet.card.px(13)
-                        background: Item {}
                     }
                     Rectangle { Layout.fillWidth: true; Layout.leftMargin: sheet.card.px(12); implicitHeight: 1; color: sheet.card.line }
-                    Controls.TextField {
+                    DraftTextField {
                         id: locationField
                         objectName: "locationField"
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: sheet.card.px(40)
-                        leftPadding: sheet.card.px(12); rightPadding: sheet.card.px(12)
-                        topPadding: 0; bottomPadding: 0
-                        verticalAlignment: TextInput.AlignVCenter
-                        activeFocusOnTab: true
-                        enabled: !sheet.readOnly
                         placeholderText: "Location"
                         onTextChanged: if (sheet.d && text !== sheet.d.location) sheet.set(Object.assign({}, sheet.d, { location: text }))
-                        Keys.onReturnPressed: event => { sheet.returnPressed(); event.accepted = true; }
-                        Keys.onEnterPressed: event => { sheet.returnPressed(); event.accepted = true; }
-                        color: sheet.card.c.foreground
-                        placeholderTextColor: sheet.card.dim
-                        font.family: sheet.card.c.monoFont
-                        font.pixelSize: sheet.card.px(13)
-                        background: Item {}
                     }
                 }
             }
@@ -311,112 +371,8 @@ FocusScope {
                             onToggled: sheet.set(Model.setAllDay(sheet.d, !checked))
                         }
                     }
-                    SheetRow {
-                        card: sheet.card
-                        label: "Starts"
-                        Pill {
-                            id: startDatePill
-                            objectName: "startDate"
-                            card: sheet.card
-                            enabled: !sheet.readOnly && !(sheet.d && sheet.d.recurring)
-                            text: sheet.d ? sheet.fmtDay(sheet.d.startDay) : ""
-                            active: sheet.expanded === "startDate"
-                            onClicked: sheet.toggle("startDate")
-                        }
-                        Pill {
-                            objectName: "startTime"
-                            visible: !!sheet.d && !sheet.d.allDay && sheet.expanded !== "startTime"
-                            card: sheet.card
-                            enabled: !sheet.readOnly
-                            text: sheet.d ? sheet.fmtTime(sheet.d.start) : ""
-                            onClicked: sheet.toggle("startTime")
-                            onWheelStep: steps => sheet.stepTime("start", steps)
-                        }
-                        TimeField {
-                            id: startTimeField
-                            objectName: "startTimeField"
-                            visible: sheet.expanded === "startTime"
-                            card: sheet.card
-                            value: sheet.d ? Model.minutesOf(sheet.d.start) : 0
-                            onChosen: minutes => { sheet.set(Model.moveStart(sheet.d, Model.at(sheet.d.startDay, minutes))); sheet.expanded = ""; }
-                        }
-                    }
-                    Reveal {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: implicitHeight
-                        padding: sheet.card.px(10)
-                        open: sheet.expanded === "startDate"
-                        MonthGrid {
-                            id: startPicker
-                            objectName: "startPicker"
-                            width: parent.width
-                            returnPicksSelected: true
-                            enabled: sheet.expanded === "startDate"
-                            card: sheet.card
-                            peek: false
-                            titleOpens: false
-                            year: sheet.pickYear
-                            month: sheet.pickMonth
-                            selected: sheet.d ? sheet.d.startDay : ""
-                            onPicked: key => { sheet.set(Model.setStartDay(sheet.d, key)); sheet.expanded = ""; }
-                            onPrev: sheet.shiftPicker(-1)
-                            onNext: sheet.shiftPicker(1)
-                        }
-                    }
-                    SheetRow {
-                        card: sheet.card
-                        label: "Ends"
-                        Pill {
-                            id: endDatePill
-                            objectName: "endDate"
-                            card: sheet.card
-                            enabled: !sheet.readOnly && !(sheet.d && sheet.d.recurring)
-                            text: sheet.d ? sheet.fmtDay(sheet.d.endDay) : ""
-                            strikeout: sheet.check.endBeforeStart
-                            active: sheet.expanded === "endDate"
-                            onClicked: sheet.toggle("endDate")
-                        }
-                        Pill {
-                            objectName: "endTime"
-                            visible: !!sheet.d && !sheet.d.allDay && sheet.expanded !== "endTime"
-                            card: sheet.card
-                            enabled: !sheet.readOnly
-                            text: sheet.d ? sheet.fmtTime(sheet.d.end) : ""
-                            strikeout: sheet.check.endBeforeStart
-                            onClicked: sheet.toggle("endTime")
-                            onWheelStep: steps => sheet.stepTime("end", steps)
-                        }
-                        TimeField {
-                            id: endTimeField
-                            objectName: "endTimeField"
-                            visible: sheet.expanded === "endTime"
-                            card: sheet.card
-                            value: sheet.d ? Model.minutesOf(sheet.d.end) : 0
-                            onChosen: minutes => { sheet.set(Model.setEnd(sheet.d, Model.at(sheet.d.endDay, minutes))); sheet.expanded = ""; }
-                        }
-                    }
-                    Reveal {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: implicitHeight
-                        padding: sheet.card.px(10)
-                        open: sheet.expanded === "endDate"
-                        MonthGrid {
-                            id: endPicker
-                            objectName: "endPicker"
-                            width: parent.width
-                            returnPicksSelected: true
-                            enabled: sheet.expanded === "endDate"
-                            card: sheet.card
-                            peek: false
-                            titleOpens: false
-                            year: sheet.pickYear
-                            month: sheet.pickMonth
-                            selected: sheet.d ? sheet.d.endDay : ""
-                            onPicked: key => { sheet.set(Model.setEndDay(sheet.d, key)); sheet.expanded = ""; }
-                            onPrev: sheet.shiftPicker(-1)
-                            onNext: sheet.shiftPicker(1)
-                        }
-                    }
+                    DateTimeRow { id: startRow; which: "start" }
+                    DateTimeRow { id: endRow; which: "end" }
                     ColumnLayout {
                         visible: !!sheet.d && !sheet.d.allDay
                         Layout.fillWidth: true

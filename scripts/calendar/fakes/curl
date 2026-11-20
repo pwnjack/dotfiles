@@ -1,12 +1,14 @@
 #!/bin/bash
 # Fake curl for the calendar suites: answers PROPFINDs by URL from fixtures/,
 # logs argv, and notes whether stdin carried the credentials. Exits 22 for the
-# URL in $FAKE_CURL_FAIL, like curl --fail on an HTTP error.
+# URL in $FAKE_CURL_FAIL, like curl --fail on an HTTP error, and answers the URL in
+# $FAKE_CURL_GARBLE with a truncated body.
 printf '%s\n' "$*" >> "$FAKE_LOG/curl.argv"
 stdin=$(cat)
 [[ $stdin == *'user = "'* ]] && echo creds-on-stdin >> "$FAKE_LOG/curl.stdin"
 url=${*: -1}; dir=$(dirname "$0")/../fixtures
 [[ -n ${FAKE_CURL_FAIL:-} && $url == *"$FAKE_CURL_FAIL"* ]] && exit 22
+[[ -n ${FAKE_CURL_GARBLE:-} && $url == *"$FAKE_CURL_GARBLE"* ]] && { echo '<multistatus>'; exit 0; }
 case $url in
     https://caldav.icloud.com/) cat "$dir/propfind-principal.xml" ;;
     */principal/) cat "$dir/propfind-home.xml" ;;

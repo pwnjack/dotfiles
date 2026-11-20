@@ -163,9 +163,9 @@ const week = [ev('Gym', '2026-10-11T07:00', '2026-10-11T08:00'), ev('Dentist', '
     ev('Call', '2026-10-13T09:30', '2026-10-13T10:00'), ev('Calcetto', '2026-10-13T20:00', '2026-10-13T22:30'),
     ev('Birthday', '2026-10-17T00:00', '2026-10-18T00:00', true), ev('Later', '2026-10-25T10:00', '2026-10-25T11:00')]
 const now = at('2026-10-11T16:52')
-assert.deepEqual((({ next, more }) => [next.title, more])(M.upcomingSummary(week, now)), ['Dentist', 3])
-assert.equal(M.upcomingSummary([], now).next, null)
-const groups = M.groupUpcoming(week, now)
+assert.deepEqual((({ next, more }) => [next.title, more])(M.upcoming(week, now)), ['Dentist', 3])
+assert.equal(M.upcoming([], now).next, null)
+const groups = M.upcoming(week, now).groups
 assert.deepEqual(groups.map(g => g.key), ['2026-10-11', '2026-10-13', '2026-10-17'])
 assert.deepEqual(groups[0].events.map(e => e.title), ['Dentist'])        // ended ones are gone
 

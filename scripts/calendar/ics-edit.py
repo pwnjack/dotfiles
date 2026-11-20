@@ -372,7 +372,7 @@ def run():
             apply(target, changes, like, times=not is_date(like))
         else:
             # An existing override keeps its own zone and form, not the series'.
-            apply(target, changes, target.decoded("DTSTART"), times=not is_date(like))
+            apply(target, changes, target.decoded("DTSTART"), times=not is_date(like) and moved)
     print(json.dumps({"ok": True, "raw": cal.to_ical().decode()}))
 
 

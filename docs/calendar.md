@@ -35,10 +35,12 @@ Without one, it prints a pointer to the panel. `setup.sh --sign-out` clears the
 keyring entries, disables and stops the timer, and deletes the local copy, the
 state files, the vdirsyncer status and the `agenda.json` and `status.json`
 runtime files. It keeps `draft.json`, and the timer's unit links stay in place,
-so a sign-out is not a complete removal. The sign-out first stops the timer and
-the sync service, then waits up to two minutes for a running sync to finish and
-for a running render (which reads and publishes `agenda.json`) to end. If either
-still holds its lock, the sign-out refuses, and it removes nothing.
+so a sign-out is not a complete removal. The sign-out first tries to disable
+the timer and stop the sync service. It then waits up to two minutes for a
+running sync to release its lock, and after that up to two more for a running
+render (which reads and publishes `agenda.json`). If either lock is still held,
+the sign-out refuses: the credentials and the calendar data stay, but automatic
+sync may be left disabled.
 
 ## How it works
 
@@ -58,8 +60,9 @@ iCloud ⇄ vdirsyncer ⇄ ~/.local/share/calendars/icloud/ ⇄ khal ⇄ cal.sh �
   day, and rebuilds the declined list. Then it renders `agenda.json` and
   `status.json` in `$XDG_RUNTIME_DIR/calendar/`, and sends Waybar signal 12. A
   render that fails leaves the last `agenda.json` in place and turns a sync that
-  would have been `ok` into a failed one, with `cal.sh`'s message. `sync.sh
-  --render` exits 1 in that case, which is what the panel rolls an option back on.
+  would have been `ok` into a failed one, with `cal.sh`'s message. A failed
+  `sync.sh --render` exits 1 and leaves the sync status as it was; the panel
+  rolls an option back on that exit.
   A sync whose account is removed while it runs writes nothing, and a render whose
   account is removed while it reads publishes nothing.
   `sync.sh --render` does the rendering and the signal with no network at all.
@@ -267,9 +270,9 @@ file. The sheet then opens with the event's values, under *Cancel · Edit event
   only* or *All events*, and asks *All events* alone when the calendar changed.
   *This event only* writes a `RECURRENCE-ID` override for that date, or updates
   the existing override. *All events* changes the series, keeps its first date
-  and changes only its time of day. The series' times are written only when
-  the times were moved, so a title, location or alert edit opened from an
-  override leaves them alone.
+  and changes only its time of day. The series' times, and an existing
+  override's, are written only when the times were moved, so a title, location
+  or alert edit leaves them alone.
 - **Delete.** This confirms with *Delete event?*. A repeating event asks *This
   event only*, which adds an `EXDATE` and drops any override for that date, or
   *All events*, which removes the file.
@@ -320,8 +323,9 @@ comes from `options/clock`. UI words are English, as in the rest of the panel.
 | Changed on another device | Done or Delete is refused, with *This event changed elsewhere since you opened it; open it again*. |
 | Edit cannot be written | The sheet stays open with the error. The file is untouched, because the write is atomic. |
 | A sync is running | An add, edit or delete waits up to 15 seconds for the sync, then is refused with *A sync with iCloud is running; try again in a moment*. The file is untouched. |
-| A render fails | The header shows the sync as failed, with khal's message, and the bar keeps its last agenda. An option change that needed the render is rolled back. |
-| Tools missing | `sync.sh` records *vdirsyncer is not installed*, or *Calendar tools not installed* when khal is missing, as a failed sync of kind tool, and the header shows that message. With khal missing it also removes `agenda.json`, so the pill hides. `cal.sh` answers *khal is not installed*, which a read treats as no events and an add or edit shows under Add. The doctor reports each missing tool as an error. With only vdirsyncer missing, the pill keeps the last `agenda.json` that rendered. |
+| A render fails during a sync | The header shows the sync as failed, with khal's message, and the bar keeps its last agenda. |
+| A settings-only render fails | The bar keeps its last agenda and the header keeps the last sync status. The option change that needed the render is rolled back. |
+| Tools missing | `sync.sh` records *vdirsyncer is not installed*, or *Calendar tools not installed* when khal is missing, as a failed sync of kind tool, and the header shows that message. With khal missing it also removes `agenda.json`, so the pill hides. `cal.sh` answers *khal is not installed*, which a read treats as no events and an add or edit shows under Add. The doctor reports each missing tool as an error. With only vdirsyncer missing, the sync is still recorded as failed, but `sync.sh` renders from the local copy; a render that fails keeps the previous `agenda.json`. |
 | DST | New timed events are written in UTC and shown in local time. Existing events keep their own time zone (`TZID`) or floating time. An edit writes its new times in that same form, so a repeating event keeps its wall time across DST. An all-day event that becomes timed is written in UTC. |
 
 ## Files and options

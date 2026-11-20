@@ -53,6 +53,13 @@ assert_eq "$([[ $code -ne 0 ]] && echo failed || echo ok)" failed "writable: a f
 assert_eq "$(cat "$CALENDAR_STATE_DIR/addresses")" "/old" "writable: failure leaves addresses unchanged"
 assert_eq "$(cat "$CALENDAR_STATE_DIR/readonly")" "Family" "writable: failure leaves readonly unchanged"
 assert_eq "$(find "$CALENDAR_STATE_DIR" -name '*.*' | wc -l)" 0 "writable: failure leaves no temp files"
+# An HTTP success whose body is not a DAV multistatus is a failure too.
+out=$(FAKE_CURL_GARBLE=/calendars/ bash "$TEST_DIR/writable.sh" 2>&1); code=$?
+assert_eq "$([[ $code -ne 0 ]] && echo failed || echo ok)" failed "writable: a malformed listing exits non-zero"
+assert_contains "$out" "could not be read" "writable: a malformed listing says so"
+assert_eq "$(cat "$CALENDAR_STATE_DIR/addresses")" "/old" "writable: a malformed listing leaves addresses unchanged"
+assert_eq "$(cat "$CALENDAR_STATE_DIR/readonly")" "Family" "writable: a malformed listing leaves readonly unchanged"
+assert_eq "$(cat "$CALENDAR_STATE_DIR/skip")" "Reminders" "writable: a malformed listing leaves skip unchanged"
 
 before=$(wc -l < "$FAKE_LOG/systemctl.argv")
 setup >/dev/null 2>&1

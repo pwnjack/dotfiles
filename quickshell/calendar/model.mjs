@@ -202,24 +202,19 @@ export function monthGrid(year, month, firstDay) {
     return cells
 }
 
-// ── Upcoming: events not yet over, within 7 days of now.
-function ahead(events, now, days) {
-    const until = dayStart(addDays(dayKey(now), days))
-    return events.filter(e => e.endEpoch > now && e.startEpoch < until).slice().sort((a, b) => a.startEpoch - b.startEpoch)
-}
-export function upcomingSummary(events, now) {
-    const list = ahead(events, now, 7)
-    return { next: list.length ? list[0] : null, more: Math.max(0, list.length - 1) }
-}
-export function groupUpcoming(events, now, days) {
+// ── Upcoming: events not yet over, within 7 days of now. The next one, how many
+// more, and the list by day, where an event already running counts as today's.
+export function upcoming(events, now) {
+    const until = dayStart(addDays(dayKey(now), 7))
+    const list = events.filter(e => e.endEpoch > now && e.startEpoch < until).sort((a, b) => a.startEpoch - b.startEpoch)
     const groups = []
-    for (const e of ahead(events, now, days || 7)) {
+    for (const e of list) {
         const key = e.startEpoch < now ? dayKey(now) : dayKey(e.startEpoch)
         let g = groups.find(x => x.key === key)
         if (!g) { g = { key: key, events: [] }; groups.push(g) }
         g.events.push(e)
     }
-    return groups
+    return { next: list.length ? list[0] : null, more: Math.max(0, list.length - 1), groups: groups }
 }
 
 // ── Timeline of one day.

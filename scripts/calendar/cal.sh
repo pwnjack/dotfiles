@@ -90,20 +90,17 @@ hide_declined() {
 # calendar, so the names are deduplicated, limited to existing calendars, and
 # an all-excluded set never reaches khal.
 list() {
-    local name known remaining=0 raw err
-    local -a exclude=() seen=()
-    known=$(known_calendars)
+    local name total raw err
+    local -a exclude=()
+    local -A known=()
+    while IFS= read -r name; do [[ -z $name ]] || known["$name"]=1; done < <(known_calendars)
+    total=${#known[@]}
+    # Each name leaves the set as it is excluded, so a repeat or an unknown name is skipped.
     while IFS= read -r name; do
-        [[ -n $name ]] || continue
-        grep -qxF -- "$name" <<<"$known" || continue
-        if ((${#seen[@]})) && printf '%s\n' "${seen[@]}" | grep -qxF -- "$name"; then continue; fi
-        seen+=("$name"); exclude+=(-d "$name")
+        [[ -n $name && ${known[$name]+x} ]] || continue
+        exclude+=(-d "$name"); unset 'known[$name]'
     done < <(cal_excluded)
-    while IFS= read -r name; do
-        [[ -n $name ]] || continue
-        if ! ((${#seen[@]})) || ! printf '%s\n' "${seen[@]}" | grep -qxF -- "$name"; then remaining=1; fi
-    done <<<"$known"
-    if [[ -n $known ]] && ((!remaining)); then echo '[]'; return; fi
+    if ((total && !${#known[@]})); then echo '[]'; return; fi
     err=$(mktemp "${TMPDIR:-/tmp}/cal-khal.XXXXXX")
     if ! raw=$("$khal" list --day-format '' --json uid --json title --json location --json calendar --json calendar-color \
         --json start --json end --json repeat-pattern "${exclude[@]}" "$1" "${2}d" 2>"$err"); then

@@ -34,27 +34,26 @@ function keepDraft(M, c, w) {
 // A click on a listed event: a typed new-event draft is kept first, then
 // start(session) asks cal.sh inspect. Its reply comes back to inspectReply
 // with that same session.
-function beginEdit(M, c, w, e, start) {
+function beginEdit(M, c, w, start) {
     keepDraft(M, c, w);
     start(c.sheetSession);
 }
 
-// cal.sh inspect's reply. Returns "opened", "failed" or "dropped". An inspect is a
+// cal.sh inspect's reply: it opens the sheet or sets the error line. An inspect is a
 // read: once navigation has retired the session that asked, its reply is dropped
 // whether it succeeded or failed, so an abandoned read never leaves an error behind.
 function inspectReply(M, c, asked, e, info) {
-    if (asked !== c.sheetSession) return "dropped";
+    if (asked !== c.sheetSession) return;
     const ok = !!info && info.ok !== false;
     if (!ok) {
         c.addError = info && info.error ? info.error : "The event could not be read.";
-        return "failed";
+        return;
     }
     const writable = c.calendars.some(x => x.name === e.calendar && x.writable);
     c.draft = M.draftFromEvent(e, Object.assign({}, info, { readOnly: !writable || info.invitation }), c.defaults());
     c.addError = "";
     c.state = M.openSheet(c.state);
     c.loadDay(c.draft.startDay);
-    return "opened";
 }
 
 // cal.sh update|delete's reply. A saved change always highlights its event; only
@@ -117,7 +116,7 @@ function reopened(c) { c.quitting = false; }
 // is not a list: the list shown stays. An empty list is a real answer. A draft that
 // names a calendar no longer writable takes the default (a new event) or turns
 // read-only (an edit, whose calendar is gone or whose event is an invitation).
-function calendarsReply(M, c, list) {
+function calendarsReply(c, list) {
     if (!Array.isArray(list)) return;
     c.calendars = list;
     const d = c.draft;
@@ -129,6 +128,20 @@ function calendarsReply(M, c, list) {
     } else if (!writable(d.calendar)) {
         c.draft = Object.assign({}, d, { calendar: c.defaults().calendar });
     }
+}
+
+// The card header's sync line. The settings panel words the account its own way.
+function headerStatus(M, c) {
+    const status = c.status;
+    if (!c.syncGaveUp && (!status || (status.lastAttempt || 0) < c.openedAt - 1)) return "syncing…";
+    if (!status || status.state === "none") return "Not signed in";
+    if (status.state === "failed") {
+        if (status.kind === "auth") return "Sign-in rejected · Fix in Settings";
+        const t = status.lastSuccess ? M.formatTime(M.minutesOf(status.lastSuccess), c.clock, c.locale.amText, c.locale.pmText) : "";
+        return status.kind === "network" ? (t ? "Offline · showing events from " + t : "Offline") : status.message;
+    }
+    const ago = Math.round((c.now - (status.lastSuccess || c.now)) / 60);
+    return "iCloud · " + (ago <= 0 ? "synced just now" : "synced " + ago + " min ago");
 }
 
 // The month and year arrows. Each one moves the view, so it retires pending replies.

@@ -41,6 +41,9 @@ account=$(propfind "$principal" 0 '<c:calendar-home-set/><c:calendar-user-addres
 home=$(xp "string(//$(L calendar-home-set)/$(L href))" <<<"$account")
 [[ -n $home ]] || { echo 'iCloud did not name the calendar home' >&2; exit 1; }
 listing=$(propfind "$home" 1 '<d:displayname/><d:resourcetype/><c:supported-calendar-component-set/><d:current-user-privilege-set/>')
+# xp hides parse errors, so a garbled body would otherwise empty all three files.
+[[ $(xmllint --xpath 'boolean(/*[local-name()="multistatus" and namespace-uri()="DAV:"])' - <<<"$listing" 2>/dev/null) == true ]] \
+    || { echo 'iCloud sent a calendar list that could not be read' >&2; exit 1; }
 
 mkdir -p "$cal_state"
 t_ro=$(mktemp "$cal_state/readonly.XXXXXX"); t_skip=$(mktemp "$cal_state/skip.XXXXXX"); t_addr=$(mktemp "$cal_state/addresses.XXXXXX")

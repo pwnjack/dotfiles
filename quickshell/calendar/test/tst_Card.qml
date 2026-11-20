@@ -40,14 +40,7 @@ Item {
             lastAction = a; state = Model.transition(state, a);
             if (before.sheet && !state.sheet) keepDraft();
         }
-        // The same rule as the real controller (shell.qml headerStatus).
-        function headerStatus() {
-            if (!syncGaveUp && (!status || (status.lastAttempt || 0) < openedAt - 1)) return "syncing…";
-            if (!status || status.state === "none") return "Not signed in";
-            if (status.state === "failed") return status.kind === "auth" ? "Sign-in rejected · Fix in Settings"
-                : "Offline · showing events from " + Model.formatTime(Model.minutesOf(status.lastSuccess), clock, "AM", "PM");
-            return "iCloud · synced " + Math.round((now - status.lastSuccess) / 60) + " min ago";
-        }
+        function headerStatus() { return Controller.headerStatus(Model, controller); }
         function goToday() {} function newEvent() { state = Model.openSheet(state); }
         // The shell's selection, through the same controller.js functions.
         function selectDay(k) { Controller.selectDay(controller, k); }
@@ -88,7 +81,7 @@ Item {
         // The shell's editEvent: the controller.js path, then the fixture's inspect reply unless it is held.
         function editEvent(e) {
             lastEdited = e; inspectEvent = e;
-            Controller.beginEdit(Model, controller, draftWriter, e, s => { asked = s; });
+            Controller.beginEdit(Model, controller, draftWriter, s => { asked = s; });
             if (!holdInspect) replyInspect(inspectInfo(e));
         }
         function saveReply(session, title, r) { Controller.updateReply(Model, controller, session, title, r); }
@@ -96,7 +89,7 @@ Item {
         property string lastNotice: ""
         function notifyFailure(message) { lastNotice = message; }
         function addReply(session, sent, title, r) { Controller.addReply(Model, controller, session, sent, title, r, draftWriter); }
-        function calendarsReply(list) { Controller.calendarsReply(Model, controller, list); }
+        function calendarsReply(list) { Controller.calendarsReply(controller, list); }
         // The shell's write count, dismissal and quit, through the same controller.js functions.
         property int pendingWrites: 0; property bool quitting: false; property bool closing: false; property int quitCalls: 0
         function quit() { quitCalls += 1; }
@@ -117,6 +110,12 @@ Item {
             controller.status = { state: "none", kind: "", message: "", lastSuccess: null, lastAttempt: 1000 };
             compare(find("syncStatus").text, "Not signed in");
             verify(!find("plusButton").enabled);
+            controller.status = { state: "failed", kind: "tool", message: "vdirsyncer is not installed", lastSuccess: 1000, lastAttempt: 1000 };
+            compare(find("syncStatus").text, "vdirsyncer is not installed");
+            controller.status = { state: "failed", kind: "network", message: "iCloud is unreachable", lastSuccess: null, lastAttempt: 1000 };
+            compare(find("syncStatus").text, "Offline");
+            controller.status = { state: "ok", kind: "", message: "", lastSuccess: controller.now, lastAttempt: controller.now };
+            compare(find("syncStatus").text, "iCloud · synced just now");
             controller.status = { state: "ok", kind: "", message: "", lastSuccess: 1000, lastAttempt: 1000 };
             verify(find("plusButton").enabled);
         }
@@ -514,7 +513,7 @@ Item {
             return out;
         }
         function hasText(item, text) {
-            for (const c of item.children) { if (c.text === text || hasText(c, text)) return true; }
+            for (const c of item.children) { if ((c.visible && c.text === text) || hasText(c, text)) return true; }
             return false;
         }
         function test_month_weekdays_start_on_monday_in_italian() {
@@ -563,16 +562,17 @@ Item {
             controller.state = Model.transition(Model.CLOSED, "clock");
         }
         function test_unfolded_groups_are_headed_today_and_tomorrow() {
-            const t = Math.floor(Date.now() / 1000);
-            controller.now = t;
+            const day = "2026-10-24", tomorrow = Model.addDays(day, 1);     // tomorrow is the 25-hour DST day
+            controller.now = Model.at(day, 12 * 60);
             controller.agenda = [
-                { title: "Now", calendar: "Home", color: "", location: "", allDay: false, startEpoch: t + 60, endEpoch: t + 1800 },
-                { title: "Later", calendar: "Home", color: "", location: "", allDay: true, startEpoch: t + 86400, endEpoch: t + 172800 },
+                { title: "Now", calendar: "Home", color: "", location: "", allDay: false, startEpoch: Model.at(day, 13 * 60), endEpoch: Model.at(day, 13 * 60 + 30) },
+                { title: "Later", calendar: "Home", color: "", location: "", allDay: true, startEpoch: Model.at(tomorrow, 0), endEpoch: Model.at(Model.addDays(tomorrow, 1), 0) },
             ];
             controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { unfolded: true });
             waitForRendering(card);
-            verify(hasText(card, "Today"));
-            verify(hasText(card, "Tomorrow"));
+            // Each visible row's heading is the Text that leads its day's column in Upcoming.
+            const headings = rowsNamed(card, "eventRow").filter(r => r.visible).map(r => r.parent.children.find(c => c.text !== undefined).text);
+            compare(headings, ["Today", "Tomorrow"]);
             verify(hasText(card, "all day"));
             controller.agenda = [];
             controller.state = Model.transition(Model.CLOSED, "clock");
@@ -781,6 +781,7 @@ Item {
             controller.draft = Model.setEnd(controller.draft, controller.draft.start - 600);
             verify(find("endTime").strikeout);
             verify(find("endDate").strikeout);
+            verify(!find("startTime").strikeout && !find("startDate").strikeout, "the start is struck too");
         }
         function test_all_day_hides_times_and_switches_alerts() {
             openSheet();
@@ -804,6 +805,20 @@ Item {
             field.selectAll(); keyClick(Qt.Key_1); keyClick(Qt.Key_9); keyClick(Qt.Key_Return);
             compare(Model.minutesOf(controller.draft.start), 19 * 60);
             compare(controller.draft.end - controller.draft.start, 3600);
+        }
+        // The Ends row writes the end alone, from its picker and its time field.
+        function test_end_row_sets_only_the_end() {
+            openSheet();
+            const start = controller.draft.start;
+            mouseClick(find("endDate"));
+            find("endPicker").picked("2026-10-15");
+            compare(controller.draft.endDay, "2026-10-15");
+            compare(controller.draft.start, start);
+            mouseClick(find("endTime"));
+            const field = find("endTimeField");
+            field.selectAll(); keyClick(Qt.Key_2); keyClick(Qt.Key_3); keyClick(Qt.Key_Return);
+            compare(controller.draft.end, Model.at("2026-10-15", 23 * 60));
+            compare(controller.draft.start, start);
         }
         function test_italian_date_pill() {
             openSheet();

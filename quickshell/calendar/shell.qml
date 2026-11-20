@@ -84,11 +84,11 @@ ShellRoot {
         state = Model.CLOSED;
         card.disappear();
     }
-    function startSheet(dayKey, minutes) {
+    function startSheet(dayKey) {
         let restored = null;
         try { restored = JSON.parse(draftFile.text()); } catch (e) { restored = null; }
-        if (restored && !dayKey && minutes === undefined) draft = restored;
-        else draft = Model.newDraft(Date.now() / 1000, defaults(), dayKey || null, minutes);
+        if (restored && !dayKey) draft = restored;
+        else draft = Model.newDraft(Date.now() / 1000, defaults(), dayKey || null);
         loadDay(draft.startDay);
     }
     // The sheet's edits come back here: a new start day reloads the timeline's events.
@@ -97,14 +97,14 @@ ShellRoot {
         draft = d;
         if (dayChanged) loadDay(d.startDay);
     }
-    function newEvent(dayKey, minutes) {        // "+", "New event on …", a timeline gap
+    function newEvent(dayKey) {        // "+", "New event on …"
         state = Model.openSheet(state);
-        startSheet(dayKey, minutes);
+        startSheet(dayKey);
     }
     // A click on a listed event: read it with cal.sh inspect, then open it for editing.
     function editEvent(e) {
         if (!e || !e.uid || inspector.running) return;
-        Controller.beginEdit(Model, root, draftFile, e, session => {   // keeps a typed new-event draft first
+        Controller.beginEdit(Model, root, draftFile, session => {   // keeps a typed new-event draft first
             inspector.event = e;
             inspector.session = session;
             inspector.command = [calSh, "inspect", e.calendar, e.uid, String(e.startEpoch)];
@@ -209,17 +209,7 @@ ShellRoot {
         settingsLauncher.running = true;
         close();
     }
-    function headerStatus() {
-        if (!syncGaveUp && (!status || (status.lastAttempt || 0) < openedAt - 1)) return "syncing…";
-        if (!status || status.state === "none") return "Not signed in";
-        if (status.state === "failed") {
-            if (status.kind === "auth") return "Sign-in rejected · Fix in Settings";
-            const t = status.lastSuccess ? Model.formatTime(Model.minutesOf(status.lastSuccess), clock, locale.amText, locale.pmText) : "";
-            return status.kind === "network" ? (t ? "Offline · showing events from " + t : "Offline") : status.message;
-        }
-        const ago = Math.round((now - (status.lastSuccess || now)) / 60);
-        return "iCloud · " + (ago <= 0 ? "synced just now" : "synced " + ago + " min ago");
-    }
+    function headerStatus() { return Controller.headerStatus(Model, root); }
     Component.onCompleted: act(({ month: "clock", upcoming: "pill", "new": "keybind" })[Quickshell.env("CALENDAR_ENTRY")] || "clock")
 
     Timer { interval: 30000; repeat: true; running: root.state.open; onTriggered: root.now = Date.now() / 1000 }
@@ -242,41 +232,20 @@ ShellRoot {
     Process { id: syncer; command: ["bash", "-c", "setsid -f bash \"$1\" </dev/null >/dev/null 2>&1", "bash",
         root.configDir + "/scripts/calendar/sync.sh"] }
     Process { id: settingsLauncher; command: ["setsid", "-f", root.configDir + "/scripts/hyprland/settings-panel.sh", "calendar"] }
-    Process {
-        id: monthReader
-        property string verb: "month"
+    // One cal.sh verb with its own queue; readerDone sees the reply as replyAs.
+    component KeyedCalendarReader: Process {
+        id: reader
+        required property string verb
+        property string replyAs: verb
         property string queued: ""
-        onRunningChanged: if (!running && queued) root.startReader(monthReader, queued)
-        stdout: StdioCollector { onStreamFinished: root.readerDone(monthReader.verb, text) }
+        onRunningChanged: if (!running && queued) root.startReader(reader, queued)
+        stdout: StdioCollector { onStreamFinished: root.readerDone(reader.replyAs, text) }
     }
-    Process {
-        id: yearReader
-        property string verb: "year"
-        property string queued: ""
-        onRunningChanged: if (!running && queued) root.startReader(yearReader, queued)
-        stdout: StdioCollector { onStreamFinished: root.readerDone(yearReader.verb, text) }
-    }
-    Process {
-        id: dayReader
-        property string verb: "day"
-        property string queued: ""
-        onRunningChanged: if (!running && queued) root.startReader(dayReader, queued)
-        stdout: StdioCollector { onStreamFinished: root.readerDone(dayReader.verb, text) }
-    }
-    Process {
-        id: pickerReader
-        property string verb: "month"
-        property string queued: ""
-        onRunningChanged: if (!running && queued) root.startReader(pickerReader, queued)
-        stdout: StdioCollector { onStreamFinished: root.readerDone(pickerReader.verb, text) }
-    }
-    Process {
-        id: peekReader
-        property string verb: "day"     // cal.sh's verb; readerDone sees "peek"
-        property string queued: ""
-        onRunningChanged: if (!running && queued) root.startReader(peekReader, queued)
-        stdout: StdioCollector { onStreamFinished: root.readerDone("peek", text) }
-    }
+    KeyedCalendarReader { id: monthReader; verb: "month" }
+    KeyedCalendarReader { id: yearReader; verb: "year" }
+    KeyedCalendarReader { id: dayReader; verb: "day" }
+    KeyedCalendarReader { id: pickerReader; verb: "month" }
+    KeyedCalendarReader { id: peekReader; verb: "day"; replyAs: "peek" }
     Process {
         id: calendarReader
         command: [root.calSh, "calendars"]
@@ -285,7 +254,7 @@ ShellRoot {
         stdout: StdioCollector { onStreamFinished: {
             let list = null;
             try { list = JSON.parse(text); } catch (e) { list = null; }
-            Controller.calendarsReply(Model, root, list);
+            Controller.calendarsReply(root, list);
         } }
     }
     Process {

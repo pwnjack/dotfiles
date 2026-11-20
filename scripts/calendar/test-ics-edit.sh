@@ -182,6 +182,15 @@ assert_contains "$mr" "DTEND;TZID=Europe/Rome:20261006T160000" "all, retimed: th
 assert_not_contains "$mr" "DTSTART;TZID=Europe/Rome:20261006T100000" "all, retimed: the old series time is gone"
 assert_contains "$mr" "RECURRENCE-ID;TZID=Europe/Rome:20261013T150000" "all, retimed: the override's slot moves with the series"
 assert_contains "$mr" "DTSTART;TZID=Europe/Rome:20261013T140000" "all, retimed: the override keeps its own start"
+# An existing override edited without touching its times keeps its own DTEND, seconds included, or DURATION.
+sed 's/^DTEND;TZID=Europe\/Rome:20261013T150000$/DTEND;TZID=Europe\/Rome:20261013T150030/' "$MOVED" > "$TMP/override-sec.ics"
+sed 's/^DTEND;TZID=Europe\/Rome:20261013T150000$/DURATION:PT1H/' "$MOVED" > "$TMP/override-dur.ics"
+os=$(req "$TMP/override-sec.ics" "$(at '2026-10-13 14:00')" one "$(changes '2026-10-13 14:00' '2026-10-13 15:00' 'Standup renamed' 30m | jq -c '. + {timesChanged: false}')" | edit update | raw)
+assert_contains "$os" "SUMMARY:Standup renamed" "override, title only: the title changed"
+assert_contains "$os" "DTEND;TZID=Europe/Rome:20261013T150030" "override, title only: DTEND keeps its seconds"
+od=$(req "$TMP/override-dur.ics" "$(at '2026-10-13 14:00')" one "$(changes '2026-10-13 14:00' '2026-10-13 15:00' 'Standup renamed' 30m | jq -c '. + {timesChanged: false}')" | edit update | raw)
+assert_contains "$od" "DURATION:PT1H" "override, title only: DURATION is kept"
+assert_eq "$(grep -c '^DTEND;TZID=Europe/Rome:20261013' <<<"$od")" 0 "override, title only: no DTEND replaces DURATION"
 # A one-off edited without touching its times keeps them byte for byte (here, the UTC form).
 oo=$(req "$FIX/end-alarm.ics" 0 all "$(changes '2026-10-15 19:00' '2026-10-15 20:00' 'Renamed' 15m | jq -c '. + {timesChanged: false}')" | edit update | raw)
 assert_contains "$oo" "SUMMARY:Renamed" "one-off, title only: the title changed"
