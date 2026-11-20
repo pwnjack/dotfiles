@@ -1,4 +1,4 @@
-return function(apps)
+return function()
     hl.on("hyprland.start", function()
         -- System UI components. respawn.sh restarts a daemon that crashes
         -- and leaves one that was stopped on purpose alone.

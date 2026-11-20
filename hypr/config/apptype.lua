@@ -10,6 +10,7 @@ local function read_option(name, fallback)
 
     local value = file:read("*l")
     file:close()
+    value = value and value:match("^%s*(.-)%s*$")
     if not value or value == "" then
         return fallback
     end

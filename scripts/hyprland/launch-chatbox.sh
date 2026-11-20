@@ -3,7 +3,7 @@
 # Toggle the AI sidebar (Super+A): aichat in a ghostty window on the special
 # workspace "aichat".
 #
-# Placement, float, opacity and workspace all come from the "ai-sidebar" window
+# Placement, float and workspace all come from the "ai-sidebar" window
 # rule in hypr/config/software/rules.lua, which matches the class set here.
 #
 # ghostty is started from this script rather than through `hyprctl dispatch
@@ -19,6 +19,10 @@
 #
 
 class="aichat.sidebar"
+
+for c in hyprctl jq aichat ghostty; do
+    command -v "$c" >/dev/null 2>&1 || { notify-send "AI sidebar" "$c is not installed" 2>/dev/null; exit 1; }
+done
 
 if hyprctl clients -j | jq -e --arg class "$class" 'any(.[]; .class == $class)' >/dev/null; then
     hyprctl dispatch 'hl.dsp.workspace.toggle_special("aichat")'

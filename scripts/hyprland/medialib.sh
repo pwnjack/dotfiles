@@ -45,7 +45,7 @@ _media_snapshot_all() {
         2>/dev/null
 }
 
-# Echoes the winning line (five tab-separated fields), or nothing when no
+# Echoes the winning line (five MEDIA_SEP-separated fields), or nothing when no
 # player is on the bus. Fields may contain spaces; only a newline inside a
 # title would confuse this, and no player emits one.
 # Everything is `local`: this file is sourced, and a bare `status` or `title`

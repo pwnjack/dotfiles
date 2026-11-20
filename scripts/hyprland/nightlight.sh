@@ -15,7 +15,7 @@
 # NIGHTLIGHT_CONFIG is the test seam (test-nightlight-config.sh).
 CONFIG="${NIGHTLIGHT_CONFIG:-$HOME/.config/hypr/hyprsunset.conf}"
 
-# Waybar glyphs (CaskaydiaCove Nerd Font).
+# Waybar glyphs, drawn in Symbols Nerd Font.
 ICON_WARM="󰖔"
 ICON_NEUTRAL="󰖙"
 
@@ -97,17 +97,19 @@ neutral_temp() {
 # Best effort: no running Waybar is not a failure of the change itself.
 refresh_waybar() { pkill -x -RTMIN+8 waybar 2>/dev/null || true; }
 
-notify() { notify-send -i "$1" -e "$2" "$3"; }
+notify() { command -v notify-send >/dev/null 2>&1 || return 0; notify-send -i "$1" -e "$2" "$3"; }
 
 case "$action" in
     on)
-        hs temperature "$(warm_temp)" >/dev/null || exit 1
-        notify "$ICON_ON" "Night Light" "Warm ($(warm_temp)K) until the next schedule change"
+        t=$(warm_temp)
+        hs temperature "$t" >/dev/null || exit 1
+        notify "$ICON_ON" "Night Light" "Warm (${t}K) until the next schedule change"
         refresh_waybar
         ;;
     off)
-        hs temperature "$(neutral_temp)" >/dev/null || exit 1
-        notify "$ICON_OFF" "Night Light" "Neutral ($(neutral_temp)K) until the next schedule change"
+        t=$(neutral_temp)
+        hs temperature "$t" >/dev/null || exit 1
+        notify "$ICON_OFF" "Night Light" "Neutral (${t}K) until the next schedule change"
         refresh_waybar
         ;;
     toggle)
@@ -172,8 +174,8 @@ case "$action" in
             class="${state}-override"
         fi
 
-        printf '{"text": "%s", "alt": "%s", "class": "%s", "tooltip": "Night Light: %sK\\n%s\\n\\nLeft-click: toggle\\nRight-click: follow schedule"}\n' \
-            "$icon" "$state" "$class" "$current" "$mode"
+        printf '{"text": "%s", "class": "%s", "tooltip": "Night Light: %sK\\n%s\\n\\nLeft-click: toggle\\nRight-click: follow schedule"}\n' \
+            "$icon" "$class" "$current" "$mode"
         ;;
     *)
         echo "usage: $(basename "$0") [toggle|on|off|auto|status|waybar]" >&2

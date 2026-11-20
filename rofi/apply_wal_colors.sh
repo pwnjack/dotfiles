@@ -7,8 +7,8 @@
 # from a generator template, keeps it existing on a fresh checkout where
 # matugen has never run and no template is installed.
 #
-# Every theme overrides selected with a literal and sets its borders from
-# foreground, so only background (the menus) and foreground are read from here.
+# Every theme sets its own background, background-alt and selected literals, so
+# only foreground (the borders and text) comes from here.
 #
 # rofi reads its theme on every launch, so there is nothing to reload.
 #
@@ -27,7 +27,6 @@ mkdir -p "$cache_dir"
 
 cat > "$cache_dir/colors-rofi.rasi" <<EOF
 * {
-    background: ${wal[0]}CC;
     foreground: ${wal[7]};
 }
 EOF

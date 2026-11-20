@@ -15,8 +15,7 @@ trap 'rm -rf "$TMP"' EXIT
 
 # The fake prints $FAKE_PLAYERS, one player per line as name|status|title|artist|album,
 # joined with the separator playerctl is asked for (the byte after {{playerName}}).
-mkdir -p "$TMP/bin" "$TMP/home/.config/scripts"
-ln -s "$ROOT/scripts/hyprland" "$TMP/home/.config/scripts/hyprland"
+mkdir -p "$TMP/bin"
 cat > "$TMP/bin/playerctl" <<'EOF'
 #!/bin/bash
 sep=""
@@ -28,7 +27,7 @@ done
 awk -F'|' -v OFS="$sep" '{ $1 = $1; print }' "$FAKE_PLAYERS"
 EOF
 chmod +x "$TMP/bin/playerctl"
-export PATH="$TMP/bin:$PATH" HOME="$TMP/home" FAKE_PLAYERS="$TMP/players"
+export PATH="$TMP/bin:$PATH" FAKE_PLAYERS="$TMP/players"
 # shellcheck source=scripts/hyprland/medialib.sh
 . "$ROOT/scripts/hyprland/medialib.sh"
 players() { printf '%s\n' "$@" > "$FAKE_PLAYERS"; }

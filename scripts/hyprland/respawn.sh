@@ -4,8 +4,8 @@
 #
 # Runs the command and starts it again whenever it dies uncleanly, the way
 # systemd's Restart=on-failure would. autostart.lua starts Waybar, SwayNC,
-# hypridle and hyprsunset through it, and so do the paths that restart them
-# later (scripts/waybar/waybar.sh, the settings panel).
+# hypridle, hyprsunset and the polkit agent through it, and so do the paths
+# that restart them later (scripts/waybar/waybar.sh, the settings panel).
 #
 # The packaged user units are not used on purpose: when a unit's main process
 # crashes, systemd kills everything left in its cgroup, so a Waybar crash

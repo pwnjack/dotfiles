@@ -12,7 +12,7 @@ bash "$HOME/.config/scripts/state/overlay.sh" sync >/dev/null 2>&1 &
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/options.sh"
 
 # Lock the screen after an autologin, through the one lock path. It runs in the
-# foreground, so nothing below starts before the lock is up.
+# foreground until the user unlocks, so nothing below starts before then.
 if [ "$(option "$HOME/.config/options/autologin")" = enabled ]; then
     command -v hyprlock >/dev/null 2>&1 && bash "$HOME/.config/scripts/hyprland/lock.sh"
 fi

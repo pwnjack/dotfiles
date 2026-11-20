@@ -12,7 +12,7 @@
 # escape Pango entities -- hyprlock parses label markup exactly as waybar does.
 #
 # The glyph is wrapped in <span size='large'> to match the bar scale: every
-# module sits at 13px and promotes its glyph by a fifth. See waybar/style.css.
+# module sits at 14px and promotes its glyph by a fifth. See waybar/style.css.
 # Because the markup counts toward waybar's max-length, that key is deliberately
 # absent from the module config -- truncation happens here instead, on the
 # rendered "Artist - Title" label.
@@ -22,7 +22,7 @@
 #
 
 # shellcheck source=./medialib.sh
-. "$HOME/.config/scripts/hyprland/medialib.sh"
+. "${BASH_SOURCE[0]%/*}/medialib.sh"
 
 MAXLEN=38
 DEFAULT_ICON=$'\U000f075a'

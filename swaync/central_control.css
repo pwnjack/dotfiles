@@ -207,21 +207,8 @@ progressbar {
   font-size: 0.8rem;
 }
 
-/* Volume widget */
+/* Progress bars (notification value hints) */
 trough {
     border-radius: 6px;
     background: transparent;
-}
-trough highlight {
-    padding: 5px;
-    background: @selected;
-    color: @on_secondary_container;
-    border-radius: 5px;
-    box-shadow: 0px 0px 5px rgba(0, 0, 0, .5);
-}
-trough highlight:hover {
-    padding: 5px;
-    background: @selected;
-    color: @on_secondary_container;
-    box-shadow: 0px 0px 5px rgba(0, 0, 0, 1);
 }

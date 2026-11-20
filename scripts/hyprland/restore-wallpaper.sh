@@ -20,8 +20,7 @@ if [ "$(option "$HOME/.config/options/randomwallpaper")" = enabled ] \
 fi
 
 # 1. Wallpaper saved by waypaper
-wp=$(grep "^wallpaper = " "$HOME/.config/waypaper/config.ini" 2>/dev/null \
-    | sed "s/^wallpaper = //" | sed "s|^~|$HOME|")
+wp=$(sed -n "/^wallpaper = /{s///;s|^~|$HOME|;p}" "$HOME/.config/waypaper/config.ini" 2>/dev/null)
 [ -f "$wp" ] && awww img "$wp" && exit 0
 
 # 2. Last wallpaper recorded in the awww cache for the main monitor, or for

@@ -13,7 +13,7 @@ require("config.hardware.monitor")
 require("config.hardware.input")
 
 require("config.setup.envvars")(apps)
-require("config.setup.autostart")(apps)
+require("config.setup.autostart")()
 
 require("config.looks.decor")(colors)
 require("config.looks.animations")
