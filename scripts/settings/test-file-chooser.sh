@@ -55,9 +55,6 @@ run_script() {
     PATH="$TMP/bin" HOME="$TMP/home" XDG_CONFIG_HOME="$TMP/config" XDG_DATA_HOME="$TMP/data" \
         CALLS="$TMP/calls" bash "$SCRIPT"
 }
-assert_absent() {
-    assert_eq "$([ -e "$1" ] && echo present || echo absent)" absent "$2"
-}
 assert_changed() {
     assert_eq "$(grep -c 'ReloadConfig' "$TMP/calls")" 1 "$1 reloads the bus once"
     assert_eq "$(grep -c 'systemctl --user try-restart xdg-desktop-portal.service' "$TMP/calls")" 1 \

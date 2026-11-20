@@ -69,12 +69,17 @@ uses_palette() {
     return 1
 }
 
+# render <cache dir> <component> -- run a component's palette script against the test stubs
+render() {
+    PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$1" \
+        XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" bash "$ROOT/$2/apply_wal_colors.sh"
+}
+
 for component in "${!outputs[@]}"; do
     out="$tmp/cache/wal/${outputs[$component]}"
     # HOME too: zen's script links into the browser profile under ~/.zen, and
     # must never point a real profile at this temporary cache.
-    if ! PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
-        "$ROOT/$component/apply_wal_colors.sh" >/dev/null 2>&1; then
+    if ! render "$tmp/cache" "$component" >/dev/null 2>&1; then
         fail "$component/apply_wal_colors.sh exits nonzero with no palette cache"
     elif [ ! -s "$out" ]; then
         fail "$component/apply_wal_colors.sh leaves ${outputs[$component]} missing or empty"
@@ -138,8 +143,7 @@ mkdir -p "$accent_cache/wal"
 printf '#112233\n%.0s' {1..16} > "$accent_cache/wal/colors"
 printf 'primary=#0000aa\non_primary=#ffeedd\nsurface_container=#223344\nsurface_container_high=#334455\nsecondary_container=#445566\non_secondary_container=#ddeeff\nerror=#ff9988\non_error=#331100\n' > "$accent_cache/wal/roles"
 for component in waybar btop strata rofi; do
-    PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$accent_cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
-        bash "$ROOT/$component/apply_wal_colors.sh"
+    render "$accent_cache" "$component"
     assert_eq "$?" 0 "$component renders with a primary distinct from slot 4"
 done
 waybar_css="$(cat "$accent_cache/wal/colors-waybar.css")"
@@ -171,8 +175,7 @@ for name in primary on_primary primary_container on_primary_container secondary_
 done > "$ramp_cache/wal/roles"
 XDG_CACHE_HOME="$ramp_cache" role_load
 for component in starship cava btop; do
-    PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$ramp_cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
-        bash "$ROOT/$component/apply_wal_colors.sh"
+    render "$ramp_cache" "$component"
     assert_eq "$?" 0 "$component renders decorative roles independently of ANSI slots"
 done
 python3 - "$ramp_cache/wal/starship.toml" "$ramp_cache/wal/roles" <<'PY_STARSHIP'
@@ -234,8 +237,7 @@ done
 # A generated palette replaces every fallback slot.
 mkdir -p "$tmp/nvim-cache/wal"
 printf '#ABCDEF\n%.0s' {1..16} > "$tmp/nvim-cache/wal/colors"
-PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/nvim-cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
-    bash "$ROOT/nvim/apply_wal_colors.sh"
+render "$tmp/nvim-cache" nvim
 assert_eq "$?" 0 "nvim renders a cached palette"
 nvim_text="$(cat "$tmp/nvim-cache/wal/colors-wal.vim" 2>/dev/null || true)"
 for ((i = 0; i < 16; i++)); do
@@ -244,8 +246,7 @@ done
 assert_contains "$nvim_text" 'let background = "#abcdef"' "nvim uses the cached background"
 assert_contains "$nvim_text" 'let foreground = "#abcdef"' "nvim uses the cached foreground"
 assert_contains "$nvim_text" 'let cursor = "#abcdef"' "nvim uses the cached cursor"
-PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/nvim-cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
-    bash "$ROOT/nvim/apply_wal_colors.sh"
+render "$tmp/nvim-cache" nvim
 assert_eq "$(cat "$tmp/nvim-cache/wal/colors-wal.vim")" "$nvim_text" "nvim rerender is byte-identical"
 
 # Reset old terminal colour overrides so Ghostty's reloaded palette can show.
@@ -267,8 +268,7 @@ accent_moved=$!
 printf '%s\n' "$tmp/pts/1" > "$accent_registry/$accent_live"
 printf '%s\n' "$tmp/pts/2" > "$accent_registry/$accent_moved"
 printf '%s\n' "$tmp/pts/2" > "$accent_registry/999999999"
-PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" \
-    bash "$ROOT/ghostty/apply_wal_colors.sh"
+render "$tmp/cache" ghostty
 assert_eq "$?" 0 "Ghostty reload succeeds even when no instance is running"
 printf '\033]104\033\\\033]110\033\\\033]111\033\\\033]112\033\\' > "$tmp/pty-reset"
 if cmp -s "$tmp/pty-reset" "$tmp/pts/0"; then
@@ -515,7 +515,7 @@ mkdir -p "$tmp/run" "$tmp/nobin"
 python3 -c 'import socket,sys; socket.socket(socket.AF_UNIX).bind(sys.argv[1])' "$tmp/run/nvim.123.0"
 printf '#!/bin/sh\necho "$@" >> "%s"\nexit 1\n' "$tmp/nvim-calls" > "$tmp/bin/nvim"
 chmod +x "$tmp/bin/nvim"
-if PATH="$tmp/bin:$PATH" HOME="$tmp/home" XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$tmp/cache" XDG_RUNTIME_DIR="$tmp/run" WAL_PTS_DIR="$tmp/pts" "$ROOT/nvim/apply_wal_colors.sh" \
+if render "$tmp/cache" nvim \
     && grep -q -- "--server $tmp/run/nvim.123.0 --remote-expr" "$tmp/nvim-calls"; then
     pass "nvim asks each running instance to re-apply, and a failed request is not a failure"
 else

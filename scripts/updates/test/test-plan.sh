@@ -144,7 +144,7 @@ assert_json_field "$out" '.checkedAt | type' number "the plan says when it was c
 assert_eq "$(cat "$TMP/state/plan.json")" "$out" "a printed plan is saved as printed"
 rm -f "$TMP/checked"
 assert_eq "$(cached)" "$out" "--cached prints the saved plan"
-assert_eq "$([ -e "$TMP/checked" ] && echo ran || echo skipped)" skipped "--cached never runs the check"
+assert_absent "$TMP/checked" "--cached never runs the check"
 
 touch -d @"$(jq .checkedAt <<< "$out")" "$TMP/local"
 assert_eq "$(cached)" "exit 4" "packages changed in the second the check began: not usable"
@@ -172,7 +172,7 @@ assert_eq "$(cached | jq -r '.repo[0].name')" mesa "and it is the last good one"
 stub checkupdates 'echo "mesa 1-1 -> 2-1"; exit 0'
 stub pacman 'exit 1'
 run >/dev/null 2>&1
-assert_eq "$([ -e "$TMP/state/plan.json" ] && echo kept || echo removed)" removed \
+assert_absent "$TMP/state/plan.json" \
     "an unresolvable upgrade removes the saved plan"
 
 test_summary "updates-plan"

@@ -44,12 +44,6 @@ run() {
 }
 clip() { cat "$FAKE_LOG/clip" 2>/dev/null; }
 toasts() { cat "$FAKE_LOG/notify" 2>/dev/null; }
-# The detached Open toast logs from a background shell.
-wait_for() {
-    local _
-    for _ in $(seq 100); do [ -e "$1" ] && return 0; /usr/bin/sleep 0.05; done
-    return 1
-}
 leftovers() { find "$XDG_RUNTIME_DIR" -mindepth 1 | wc -l; }
 unset ZBAR_OUT TESS_OUT TESS_NO_ITA NOTIFY_CHOICE WLCOPY_FAIL
 
@@ -69,7 +63,8 @@ assert_contains "$(toasts)" "Code copied" "the code toast"
 assert_contains "$(toasts)" "-a|Capture|" "toasts come from Capture"
 assert_contains "$(toasts)" "-A|open=Open" "a URL toast offers Open"
 assert_contains "$(toasts)" "https://example.com/a?b=1&amp;c=2" "the body is markup-safe"
-if wait_for "$FAKE_LOG/xdg-open"; then
+# The detached Open toast logs from a background shell.
+if wait_for test -e "$FAKE_LOG/xdg-open"; then
     assert_eq "$(cat "$FAKE_LOG/xdg-open")" "https://example.com/a?b=1&c=2" "Open opens the URL"
 else
     fail "Open opens the URL"

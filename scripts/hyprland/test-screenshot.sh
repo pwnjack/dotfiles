@@ -72,10 +72,9 @@ else
     fail "region argv" "$(cat "$EVENTS")"
 fi
 
-# The toast is detached; give it a moment to log. The real sleep, not the fake.
+# The toast is detached; give it a moment to log.
 toast_log() {
-    local _
-    for _ in $(seq 50); do [ -s "$EVENTS.notify" ] && break; /usr/bin/sleep 0.05; done
+    wait_for test -s "$EVENTS.notify" || true
     cat "$EVENTS.notify" 2>/dev/null
 }
 assert_contains "$(toast_log)" "Screenshot saved" "a saved shot gets the shared toast"

@@ -12,7 +12,6 @@
 set -e  # Exit on error
 
 # Color output
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
@@ -42,7 +41,6 @@ done
 info() { echo -e "${BLUE}==>${NC} $1"; }
 success() { echo -e "${GREEN}✓${NC} $1"; }
 warning() { echo -e "${YELLOW}⚠${NC} $1"; }
-error() { echo -e "${RED}✗${NC} $1"; exit 1; }
 
 execute() {
     if [ "$DRY_RUN" = true ]; then
@@ -222,7 +220,6 @@ if [ "$DOTFILES_DIR" != "$CONFIG_DIR" ]; then
     source "$DOTFILES_DIR/scripts/lib/deploy.sh"
     deploy_dotfiles "$DOTFILES_DIR" "$CONFIG_DIR" "$BACKUP_DIR" "$DRY_RUN" "$NO_BACKUP"
     success "Tracked dotfiles deployed"
-    [ "$NO_BACKUP" = true ] || info "Backup saved to: $BACKUP_DIR"
 else
     info "Repo already lives at $CONFIG_DIR - no deployment needed"
 fi
@@ -241,7 +238,6 @@ fi
 # Directories and wallpapers
 # ------------------------------------------------------------------
 info "Setting up directory structure..."
-execute mkdir -p "$HOME/.cache/wal"
 execute mkdir -p "$HOME/.cache/awww"
 execute mkdir -p "$HOME/Pictures/Wallpapers"
 execute mkdir -p "$HOME/Pictures/Screenshots"

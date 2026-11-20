@@ -77,12 +77,12 @@ assert_eq "$(listed)" "kitty-z.desktop" "the choice does not depend on the local
 # A user entry with the same ID shadows the system one, even when it is not a terminal.
 printf '[Desktop Entry]\nType=Application\nExec=alacritty\nCategories=Utility;\n' > "$TMP/home/applications/Alacritty.desktop"
 run alacritty
-assert_eq "$([ -e "$target" ] && echo present || echo absent)" absent \
+assert_absent "$target" \
     "a shadowed entry does not count, and no match removes the list"
 rm -f "$TMP/home/applications/Alacritty.desktop"
 
 run missing-terminal
-assert_eq "$([ -e "$target" ] && echo present || echo absent)" absent "a missing binary leaves no list"
+assert_absent "$target" "a missing binary leaves no list"
 
 printf 'my-terminal.desktop\n' > "$target"
 run ghostty

@@ -87,7 +87,7 @@ rm -rf "$TMP/state"; mkdir -p "$TMP/modules/$UPDATES_KERNEL"
 printf '#!/bin/bash\nsleep 2\n' > "$TMP/helper"; chmod +x "$TMP/helper"
 UPDATES_HELPER="$TMP/helper" UPDATES_STATE_DIR="$TMP/state" UPDATES_MODULES_DIR="$TMP/modules" bash "$RUNNER" &
 first=$!
-for _ in $(seq 50); do [ -e "$TMP/state/state.json" ] && break; sleep 0.05; done
+wait_for test -e "$TMP/state/state.json" || true
 assert_json_field "$(state)" .status running "the fold publishes a running snapshot before any line"
 before=$(state)
 UPDATES_HELPER="$TMP/helper" UPDATES_STATE_DIR="$TMP/state" UPDATES_MODULES_DIR="$TMP/modules" bash "$RUNNER"

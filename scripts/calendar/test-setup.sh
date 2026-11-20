@@ -20,13 +20,13 @@ secret='s3cr-etpw-xxxx-yyyy'
 out=$(setup 2>&1); code=$?
 assert_eq "$code" 0 "install path, no account: exit 0"
 assert_contains "$out" "Settings › Calendar" "install path: points at the panel"
-assert_eq "$([[ -e $FAKE_LOG/systemctl.argv ]] && echo yes || echo no)" no "install path, no account: no units touched"
+assert_absent "$FAKE_LOG/systemctl.argv" "install path, no account: no units touched"
 
 out=$(printf 'me@example.com\n%s\n' "$secret" | FAKE_VDIR_ERROR='401 Unauthorized' setup --sign-in --stdin 2>&1); code=$?
 assert_eq "$code" 1 "sign-in rejected: exit 1"
 assert_contains "$out" "Sign-in rejected" "sign-in rejected: says so"
-assert_eq "$([[ -e $FAKE_KEYRING/password ]] && echo yes || echo no)" no "sign-in rejected: password cleared"
-assert_eq "$([[ -e $FAKE_KEYRING/username ]] && echo yes || echo no)" no "sign-in rejected: username cleared"
+assert_absent "$FAKE_KEYRING/password" "sign-in rejected: password cleared"
+assert_absent "$FAKE_KEYRING/username" "sign-in rejected: username cleared"
 
 out=$(printf 'me@example.com\n%s\n' "$secret" | FAKE_SECRET_FAIL_FIELD=password setup --sign-in --stdin 2>&1); code=$?
 assert_eq "$code" 1 "keyring rejects the password: exit 1"
@@ -71,7 +71,7 @@ mkdir -p "$CALENDAR_DATA/x" "$CALENDAR_RUNTIME_DIR"; echo '[]' > "$CALENDAR_RUNT
 out=$(FAKE_SECRET_CLEAR_NOOP=1 setup --sign-out 2>&1); code=$?
 assert_eq "$code" 1 "sign-out, keyring keeps the account: exit 1"
 assert_contains "$out" "Could not remove the account from the keyring" "sign-out, keyring keeps the account: says so"
-assert_eq "$([[ -e $CALENDAR_DATA ]] && echo yes || echo no)" no "sign-out, keyring keeps the account: local copy still removed"
+assert_absent "$CALENDAR_DATA" "sign-out, keyring keeps the account: local copy still removed"
 
 out=$(FAKE_SECRET_LOOKUP_ERROR=1 setup --sign-out 2>&1); code=$?
 assert_eq "$code" 1 "sign-out, keyring unreadable: exit 1"
@@ -81,9 +81,9 @@ setup --sign-out; code=$?
 assert_eq "$code" 0 "sign-out: exit 0"
 assert_eq "$(find "$FAKE_KEYRING" -type f | wc -l)" 0 "sign-out: keyring cleared"
 assert_contains "$(cat "$FAKE_LOG/systemctl.argv")" "--user disable --now calendar-sync.timer" "sign-out: timer disabled"
-assert_eq "$([[ -e $CALENDAR_DATA ]] && echo yes || echo no)" no "sign-out: local copy removed"
-assert_eq "$([[ -e $CALENDAR_STATE_DIR ]] && echo yes || echo no)" no "sign-out: state dir removed"
-assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "sign-out: agenda removed"
+assert_absent "$CALENDAR_DATA" "sign-out: local copy removed"
+assert_absent "$CALENDAR_STATE_DIR" "sign-out: state dir removed"
+assert_absent "$CALENDAR_RUNTIME_DIR/agenda.json" "sign-out: agenda removed"
 assert_contains "$(tail -n1 "$FAKE_LOG/pkill")" "-x -RTMIN+12 waybar" "sign-out: Waybar signalled"
 # Sign-out while a sync is paused in vdirsyncer (a detached sync is outside the unit, so
 # stopping the unit does not reach it): the removal waits for sync.lock, and when it cannot
@@ -94,27 +94,28 @@ echo Home > "$CALENDAR_DATA/home/displayname"; echo 'BEGIN:VCALENDAR' > "$CALEND
 touch "$CALENDAR_STATE_DIR/discovered"
 gate="$TMP/gate"; mkfifo "$gate"
 metasyncs=$(grep -c metasync "$FAKE_LOG/vdirsyncer.argv" 2>/dev/null || true)
+metasync_ran() { [[ $(grep -c metasync "$FAKE_LOG/vdirsyncer.argv" 2>/dev/null) -gt $metasyncs ]]; }
 FAKE_VDIR_WAIT="$gate" bash "$TEST_DIR/sync.sh" & syncpid=$!
 # Wait for this sync's own metasync (the log already holds earlier ones), so it is paused in vdirsyncer.
-for ((n = 0; n < 100; n++)); do [[ $(grep -c metasync "$FAKE_LOG/vdirsyncer.argv") -gt $metasyncs ]] && break; sleep 0.05; done
+wait_for metasync_ran || true
 before=$(wc -l < "$FAKE_LOG/systemctl.argv")
 out=$(CALENDAR_LOCK_WAIT=1 setup --sign-out 2>&1); code=$?
 assert_eq "$code" 1 "sign-out during a sync: exit 1"
 assert_contains "$out" "A sync with iCloud is running; try again in a moment" "sign-out during a sync: says why"
 assert_eq "$(cat "$FAKE_KEYRING/username")" "me@example.com" "sign-out during a sync: username kept"
 assert_eq "$(cat "$FAKE_KEYRING/password")" "$secret" "sign-out during a sync: password kept"
-assert_eq "$([[ -e $CALENDAR_DATA/home/x.ics ]] && echo yes || echo no)" yes "sign-out during a sync: local copy kept"
-assert_eq "$([[ -e $CALENDAR_STATE_DIR/discovered ]] && echo yes || echo no)" yes "sign-out during a sync: state kept"
+assert_exists "$CALENDAR_DATA/home/x.ics" "sign-out during a sync: local copy kept"
+assert_exists "$CALENDAR_STATE_DIR/discovered" "sign-out during a sync: state kept"
 new_calls=$(tail -n +"$((before + 1))" "$FAKE_LOG/systemctl.argv")
 assert_contains "$new_calls" "--user stop calendar-sync.service" "sign-out during a sync: the service is stopped first"
 timeout 5 sh -c "echo go > '$gate'" || true
 wait "$syncpid"
 setup --sign-out; code=$?
 assert_eq "$code" 0 "sign-out after the sync: exit 0"
-assert_eq "$([[ -e $CALENDAR_DATA ]] && echo yes || echo no)" no "sign-out after the sync: copy gone"
-assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "sign-out after the sync: no agenda left"
+assert_absent "$CALENDAR_DATA" "sign-out after the sync: copy gone"
+assert_absent "$CALENDAR_RUNTIME_DIR/agenda.json" "sign-out after the sync: no agenda left"
 sleep 0.2
-assert_eq "$([[ -e $CALENDAR_DATA ]] && echo yes || echo no)" no "sign-out after the sync: nothing recreated"
+assert_absent "$CALENDAR_DATA" "sign-out after the sync: nothing recreated"
 # Sign-out while a render is paused in khal: the render holds render.lock while it reads and
 # publishes, so the removal waits for it. When it cannot get the lock it removes nothing; once
 # the render has published, the removal takes the agenda with it, and nothing comes back.
@@ -124,28 +125,29 @@ echo Home > "$CALENDAR_DATA/home/displayname"; echo 'BEGIN:VCALENDAR' > "$CALEND
 touch "$CALENDAR_STATE_DIR/discovered"; rm -f "$CALENDAR_RUNTIME_DIR/agenda.json"
 kgate="$TMP/khal-gate"; mkfifo "$kgate"
 lists=$(grep -c '^list' "$FAKE_LOG/khal.argv" 2>/dev/null || true)
+khal_listed() { [[ $(grep -c '^list' "$FAKE_LOG/khal.argv" 2>/dev/null) -gt $lists ]]; }
 FAKE_KHAL_WAIT="$kgate" bash "$TEST_DIR/sync.sh" --render & renderpid=$!
-for ((n = 0; n < 100; n++)); do [[ $(grep -c '^list' "$FAKE_LOG/khal.argv" 2>/dev/null || true) -gt $lists ]] && break; sleep 0.05; done
+wait_for khal_listed || true
 out=$(CALENDAR_LOCK_WAIT=1 setup --sign-out 2>&1); code=$?
 assert_eq "$code" 1 "sign-out during a render: exit 1"
 assert_contains "$out" "Calendar is busy; try again in a moment" "sign-out during a render: says why"
 assert_eq "$(cat "$FAKE_KEYRING/username")" "me@example.com" "sign-out during a render: username kept"
-assert_eq "$([[ -e $CALENDAR_DATA/home/x.ics ]] && echo yes || echo no)" yes "sign-out during a render: local copy kept"
+assert_exists "$CALENDAR_DATA/home/x.ics" "sign-out during a render: local copy kept"
 timeout 5 sh -c "echo go > '$kgate'" || true
 wait "$renderpid"
-assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" yes "render finished before sign-out: its agenda was published"
+assert_exists "$CALENDAR_RUNTIME_DIR/agenda.json" "render finished before sign-out: its agenda was published"
 setup --sign-out; code=$?
 assert_eq "$code" 0 "sign-out after the render: exit 0"
-assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "sign-out after the render: agenda removed"
+assert_absent "$CALENDAR_RUNTIME_DIR/agenda.json" "sign-out after the render: agenda removed"
 sleep 0.2
-assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "sign-out after the render: nothing recreated"
+assert_absent "$CALENDAR_RUNTIME_DIR/agenda.json" "sign-out after the render: nothing recreated"
 
 # A render whose account is removed while cal.sh reads (the keyring forgets it, without the
 # render lock) publishes no agenda: the copy it read is no longer the account's.
 printf 'me@example.com' > "$FAKE_KEYRING/username"; rm -f "$CALENDAR_RUNTIME_DIR/agenda.json"
 FAKE_KHAL_FORGET=1 bash "$TEST_DIR/sync.sh" --render; code=$?
 assert_eq "$code" 0 "render signed out mid-read: exit 0"
-assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "render signed out mid-read: no agenda published"
+assert_absent "$CALENDAR_RUNTIME_DIR/agenda.json" "render signed out mid-read: no agenda published"
 printf 'me@example.com' > "$FAKE_KEYRING/username"
 
 test_summary setup

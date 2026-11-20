@@ -89,7 +89,7 @@ sleep 0.5
 check "no refresh while the launcher holds the patch lock"
 exec 8>&-
 # The detached waiter refreshes once the patch run lets go.
-for _ in $(seq 50); do [ -e "$calls" ] && break; sleep 0.1; done
+wait_for test -e "$calls" || true
 grep -qx -- '-q -n refresh' "$calls" 2>/dev/null
 check "a refresh queued behind the patch lock runs when it is released"
 

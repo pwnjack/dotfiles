@@ -82,9 +82,7 @@ function paths(target) {
     }
 }
 
-// Copies what --replace is about to supersede into the backup directory. It
-// never deletes: the render's own atomic rename replaces the file, so a target
-// that fails to render keeps its live file byte-identical.
+// True when the live file (or options/ directory) is unchanged since it was read.
 function sameLive(isDir, before, after) {
     if (!isDir) return before === after
     if (before === null || after === null) return before === after
@@ -93,6 +91,9 @@ function sameLive(isDir, before, after) {
     return true
 }
 
+// Copies what --replace is about to supersede into the backup directory. It
+// never deletes: the render's own atomic rename replaces the file, so a target
+// that fails to render keeps its live file byte-identical.
 function backupLive(target, live, backup, declared) {
     if (!backup) return
     if (overlay.formatFor(target) === 'dir') {

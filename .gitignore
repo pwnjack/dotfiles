@@ -39,10 +39,6 @@
 !/systemd/
 
 # Theming
-!/gtk-3.0/
-!/gtk-4.0/
-!/qt5ct/
-!/qt6ct/
 !/btop/
 !/cava/
 !/starship/
@@ -88,7 +84,6 @@ systemd/user/swaync.service.d/*
 
 # Per-machine state
 fish/fish_variables
-gtk-3.0/bookmarks
 aichat/sessions/
 aichat/messages.md
 aichat/models-override.yaml
@@ -97,10 +92,6 @@ aichat/models-override.yaml
 hypr/hyprsunset.conf
 options/*
 !options/wallpaper
-gtk-3.0/settings.ini
-gtk-4.0/settings.ini
-qt5ct/qt5ct.conf
-qt6ct/qt6ct.conf
 swaync/config.json
 btop/btop.conf
 # its write-then-rename file, left behind only by a crash
@@ -165,4 +156,3 @@ sddm/theme/
 *.o
 *.so
 __pycache__/
-.superpowers/

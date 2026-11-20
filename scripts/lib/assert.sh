@@ -93,6 +93,22 @@ check() {
     if [ "$rc" -eq 0 ]; then pass "$1"; else fail "$1" "exit status $rc"; fi
 }
 
+# assert_exists <path> <label> / assert_absent <path> <label> -- a dangling link is present.
+assert_exists() {
+    if [ -e "$1" ] || [ -L "$1" ]; then pass "$2"; else fail "$2" "expected to exist: $1"; fi
+}
+assert_absent() {
+    if [ -e "$1" ] || [ -L "$1" ]; then fail "$2" "expected to be absent: $1"; else pass "$2"; fi
+}
+
+# wait_for <cmd...> -- poll until cmd succeeds, for WAIT_FOR_TRIES x 50 ms (10 s).
+# command -p: suites stub sleep on PATH.
+wait_for() {
+    local i
+    for ((i = 0; i < ${WAIT_FOR_TRIES:-200}; i++)); do "$@" && return 0; command -p sleep 0.05; done
+    return 1
+}
+
 # test_summary [name] -- prints the tally; returns nonzero when anything failed.
 test_summary() {
     echo

@@ -47,14 +47,21 @@ suite() {
     return 0
 }
 
+# repo <name> -- print the path of a fresh git repo under $TMP.
+repo() {
+    local r
+    r=$(mktemp -d "$TMP/$1.XXXXXX")
+    git -C "$r" init -q -b main
+    git -C "$r" config user.email test@test
+    git -C "$r" config user.name test
+    printf '%s' "$r"
+}
+
 # fixture -- a git repo laid out like this one: a doctor-style suite with
 # sibling fragments, a standalone suite, and a non-suite script.
 fixture() {
     local root
-    root="$(mktemp -d "$TMP/repo.XXXXXX")"
-    git -C "$root" init -q -b main
-    git -C "$root" config user.email "test@test"
-    git -C "$root" config user.name "test"
+    root=$(repo repo)
     # One executable, the rest mode 644: both are meant to run, which is what
     # "discovery does not depend on the exec bit" has to mean to be worth
     # claiming. The waybar stub is the non-executable one, and the roll-up
@@ -116,10 +123,7 @@ assert_contains "$out" "no suites cover the changed files" "a sibling directory 
 # the case where deriving "the directory of a path" as ${file%/*} silently
 # yields the FILENAME instead: the two passes then key on different strings and
 # the sibling fragment is emitted as an entry point of its own.
-root_flat="$(mktemp -d "$TMP/flat.XXXXXX")"
-git -C "$root_flat" init -q -b main
-git -C "$root_flat" config user.email "test@test"
-git -C "$root_flat" config user.name "test"
+root_flat=$(repo flat)
 suite "$root_flat" "run-tests.sh" 0
 suite "$root_flat" "test-frag.sh" 1
 git -C "$root_flat" add -A
@@ -148,10 +152,7 @@ assert_contains "$out" "no test suites found" "a missing tracked suite is not ex
 # suite list on newlines rather than NULs splits this ONE file into two bogus
 # entries, and both then fail as missing files -- a green suite turning into
 # two red ones with no source change.
-root_nl="$(mktemp -d "$TMP/nl.XXXXXX")"
-git -C "$root_nl" init -q -b main
-git -C "$root_nl" config user.email "test@test"
-git -C "$root_nl" config user.name "test"
+root_nl=$(repo nl)
 suite "$root_nl" "$(printf 'we\nird')/test-nl.sh" 0
 git -C "$root_nl" add -A
 git -C "$root_nl" commit -qm nl
@@ -401,8 +402,7 @@ assert_not_contains "$out" "Testing " "an absolute --for path starts no run at a
 # --- an empty repository --------------------------------------------------
 # Distinct from the non-repository case below: git works, there is simply
 # nothing to run. Not a failure.
-empty="$(mktemp -d "$TMP/empty.XXXXXX")"
-git -C "$empty" init -q -b main
+empty=$(repo empty)
 run "$empty"; out="$RUN_OUT"
 assert_eq "$RC" "0" "a repo with no suites exits 0"
 assert_contains "$out" "no test suites found" "a repo with no suites says so"

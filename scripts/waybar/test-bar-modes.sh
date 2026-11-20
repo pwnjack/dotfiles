@@ -132,7 +132,7 @@ render --no-reload > /dev/null
 assert_eq "$(jq 'has("output")' "$TMP/out/bar.jsonc")" false "an empty output writes no key"
 
 assert_eq "$(find "$TMP/out" -name 'bar.*.*' | wc -l)" 0 "no temporary file is left behind by any render"
-[ -s "$TMP/out/bar.jsonc" ] && [ -s "$TMP/out/bar.css" ] && pass "both outputs exist" || fail "both outputs exist"
+[ -s "$TMP/out/bar.jsonc" ] && [ -s "$TMP/out/bar.css" ]; check "both outputs exist"
 
 config="$TEST_DIR/../../waybar/config.jsonc"
 # shellcheck disable=SC2088 # The literal tilde is present in Waybar's config.

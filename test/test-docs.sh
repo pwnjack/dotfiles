@@ -8,8 +8,8 @@
 # pre-commit hook runs it on every commit -- including the commit that changes
 # keybinds.lua and forgets to regenerate.
 #
-# Standalone and dependency-free, exit 1 on any failure, the same style as
-# scripts/waybar/test-updates.sh.
+# Standalone, exit 1 on any failure. Needs jq and the keybinds overlay's QML
+# suite (node, qmltestrunner).
 #
 set -uo pipefail
 
@@ -123,14 +123,24 @@ fi
 # but a label is edited in keybinds.lua. Its elision check renders the real
 # sheet, so it belongs to every commit, the same as this file does.
 
-if out=$(bash "$ROOT/quickshell/keybinds-overlay/test/run-tests.sh" Overlay::test_no_real_label_is_elided 2>&1); then
-    pass "no keybinds.lua label is elided in the overlay"
-else
-    # The same suite also fails for a missing tool or a broken model test, so
-    # show what failed rather than assuming it was a label.
-    fail "the overlay's label check failed (\"labels elided\" below means: shorten that comment)" \
-        "$(printf '%s\n' "$out" | grep -E 'FAIL|Actual|required|not found|rror' | head -5)"
-fi
+# overlay_label_check -- a pass, a fail, or the suite's own `skip:` lines (a
+# skipped suite checked nothing, so it must reach test.sh's skip roll-up).
+overlay_label_check() {
+    local out skips
+    if out=$(bash "$ROOT/quickshell/keybinds-overlay/test/run-tests.sh" Overlay::test_no_real_label_is_elided 2>&1); then
+        skips=$(printf '%s\n' "$out" | grep -E '^[[:space:]]*skip: ')
+        if [ -n "$skips" ]; then printf '%s\n' "$skips"; else pass "no keybinds.lua label is elided in the overlay"; fi
+    else
+        # The same suite also fails for a missing tool or a broken model test, so
+        # show what failed rather than assuming it was a label.
+        fail "the overlay's label check failed (\"labels elided\" below means: shorten that comment)" \
+            "$(printf '%s\n' "$out" | grep -E 'FAIL|Actual|required|not found|rror' | head -5)"
+    fi
+}
+overlay_label_check
+skipped=$(QML_TESTRUNNER=/nonexistent overlay_label_check)
+assert_contains "$skipped" "skip: keybinds overlay QML tests" "a missing qmltestrunner prints its skip line"
+assert_not_contains "$skipped" "  ok " "a skipped label check is not reported as a pass"
 
 # --- per-user values are not frozen into the document ------------------------
 #
@@ -142,7 +152,7 @@ frozen=()
 while IFS= read -r name; do
     # The tracked default: options/ is this machine's rendered copy and is not in a commit.
     [ -f "$ROOT/defaults/options/$name" ] || { frozen+=("$name: defaults/options/$name is missing"); continue; }
-    value="$(head -n1 "$ROOT/defaults/options/$name")"
+    value=$(option "$ROOT/defaults/options/$name")
     [ -n "$value" ] || { frozen+=("$name: defaults/options/$name is empty"); continue; }
     grep -qF "options/$name" "$DOC" || frozen+=("$name: no reference to options/$name")
     if grep -qi "(\`\?$value\`\?)" "$DOC"; then

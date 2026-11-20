@@ -24,7 +24,7 @@ sync_run; code=$?
 assert_eq "$code" 0 "no account: exit 0"
 assert_json_field "$(status)" '.state' none "no account: state none"
 assert_eq "$(count vdirsyncer.argv)" 0 "no account: vdirsyncer never runs"
-assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "no account: no agenda"
+assert_absent "$CALENDAR_RUNTIME_DIR/agenda.json" "no account: no agenda"
 assert_contains "$(cat "$FAKE_LOG/pkill")" "-x -RTMIN+12 waybar" "no account: Waybar signalled"
 
 # Success, first run discovers.
@@ -109,7 +109,7 @@ touch -d '2001-01-01' "$CALENDAR_STATE_DIR/declined"
 sync_run --render
 assert_eq "$(stat -c %Y "$CALENDAR_STATE_DIR/declined")" "$(date -d 2001-01-01 +%s)" "--render: an existing declined list is not rewritten"
 rm -f "$CALENDAR_STATE_DIR/declined"; sync_run --render
-assert_eq "$([[ -e $CALENDAR_STATE_DIR/declined ]] && echo yes || echo no)" yes "--render: a missing declined list is written"
+assert_exists "$CALENDAR_STATE_DIR/declined" "--render: a missing declined list is written"
 
 # A failing scan keeps the previous list, logs one line, and leaves the sync ok.
 mkdir -p "$TMP/badpy"; printf '#!/bin/sh\nexit 1\n' > "$TMP/badpy/python3"; chmod +x "$TMP/badpy/python3"
@@ -168,7 +168,7 @@ CAL_KHAL=khal-missing sync_run
 assert_json_field "$(status)" '.state' failed "no khal: state failed"
 assert_json_field "$(status)" '.kind' tool "no khal: kind tool"
 assert_json_field "$(status)" '.message' "Calendar tools not installed" "no khal: the tools message"
-assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "no khal: the agenda is removed"
+assert_absent "$CALENDAR_RUNTIME_DIR/agenda.json" "no khal: the agenda is removed"
 
 # A failed render is not success: the sync records it, with khal's own message, and keeps the
 # last agenda that rendered.
@@ -205,8 +205,8 @@ kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null || true
 rm -f "$CALENDAR_RUNTIME_DIR/status.json" "$CALENDAR_RUNTIME_DIR/agenda.json"; : > "$FAKE_LOG/pkill"
 FAKE_VDIR_FORGET=1 sync_run; code=$?
 assert_eq "$code" 0 "signed out mid-sync: exit 0"
-assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/status.json ]] && echo yes || echo no)" no "signed out mid-sync: no status written"
-assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "signed out mid-sync: no agenda written"
+assert_absent "$CALENDAR_RUNTIME_DIR/status.json" "signed out mid-sync: no status written"
+assert_absent "$CALENDAR_RUNTIME_DIR/agenda.json" "signed out mid-sync: no agenda written"
 assert_eq "$(wc -c < "$FAKE_LOG/pkill")" 0 "signed out mid-sync: Waybar not signalled"
 printf 'me@example.com' > "$FAKE_KEYRING/username"
 
@@ -221,8 +221,8 @@ rm -f "$FAKE_KEYRING/username"
 kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null || true
 wait "$waiter"; code=$?
 assert_eq "$code" 0 "signed out while waiting: exit 0"
-assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/status.json ]] && echo yes || echo no)" no "signed out while waiting: no status written"
-assert_eq "$([[ -e $CALENDAR_RUNTIME_DIR/agenda.json ]] && echo yes || echo no)" no "signed out while waiting: no agenda written"
+assert_absent "$CALENDAR_RUNTIME_DIR/status.json" "signed out while waiting: no status written"
+assert_absent "$CALENDAR_RUNTIME_DIR/agenda.json" "signed out while waiting: no agenda written"
 assert_eq "$(wc -c < "$FAKE_LOG/pkill")" 0 "signed out while waiting: Waybar not signalled"
 printf 'me@example.com' > "$FAKE_KEYRING/username"
 sync_run

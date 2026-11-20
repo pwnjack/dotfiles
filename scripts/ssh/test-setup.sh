@@ -58,7 +58,6 @@ setup() {
     out=$(HOME="$h" XDG_RUNTIME_DIR=/run/user/test SSH_SETUP_REPO="$TEST_REPO" bash "$SETUP" "$@" 2>&1) && rc=0 || rc=$?
 }
 mode() { stat -c %a -- "$1"; }
-exists() { if [ -e "$1" ] || [ -L "$1" ]; then echo yes; else echo no; fi; }
 # existing_config <mode> -- a config with a Host block and no Include.
 existing_config() {
     mkdir -p "$h/.ssh"
@@ -74,7 +73,7 @@ assert_eq "$rc" 0 "fresh: exits 0"
 assert_eq "$(mode "$h/.ssh")" 700 "fresh: ~/.ssh is created private"
 assert_eq "$(mode "$h/.ssh/config")" 600 "fresh: the config is created private"
 assert_eq "$(cat "$h/.ssh/config")" "$INC" "fresh: the config holds just the Include"
-assert_eq "$(exists "$h/bak")" no "fresh: nothing to back up"
+assert_absent "$h/bak" "fresh: nothing to back up"
 assert_contains "$(cat "$STUB_LOG")" "--user enable --now ssh-agent.socket" \
     "fresh: the agent socket is enabled"
 assert_contains "$(cat "$STUB_LOG")" \
@@ -86,7 +85,7 @@ fresh_home
 existing_config 640
 setup --backup-dir "$h/bak"
 assert_eq "$rc" 0 "existing: exits 0"
-assert_eq "$(cmp -s "$TMP/original$n" "$h/bak/.ssh/config" && echo same)" same \
+assert_eq "$(same "$TMP/original$n" "$h/bak/.ssh/config")" same \
     "existing: the backup is byte-for-byte the old file"
 assert_eq "$(mode "$h/bak/.ssh/config")" 640 "existing: the backup keeps the mode"
 assert_eq "$(head -n 1 "$h/.ssh/config")" "$INC" "existing: the Include comes first"
@@ -100,9 +99,9 @@ assert_contains "$out" "$h/bak/.ssh/config" "existing: says where the backup wen
 cp -a "$h/.ssh/config" "$TMP/after$n"
 setup --backup-dir "$h/bak2"
 assert_eq "$rc" 0 "rerun: exits 0"
-assert_eq "$(cmp -s "$TMP/after$n" "$h/.ssh/config" && echo same)" same \
+assert_eq "$(same "$TMP/after$n" "$h/.ssh/config")" same \
     "rerun: the config is unchanged"
-assert_eq "$(exists "$h/bak2")" no "rerun: no backup when nothing changes"
+assert_absent "$h/bak2" "rerun: no backup when nothing changes"
 
 # --- Include present but not first -------------------------------------------
 fresh_home
@@ -151,7 +150,7 @@ assert_not_contains "$out" "Log out" "dry run: no re-login note"
 fresh_home
 setup --dry-run
 assert_eq "$rc" 0 "dry run, fresh: exits 0"
-assert_eq "$(exists "$h/.ssh")" no "dry run: a fresh HOME gets no ~/.ssh"
+assert_absent "$h/.ssh" "dry run: a fresh HOME gets no ~/.ssh"
 
 # --- no unit -----------------------------------------------------------------
 fresh_home
@@ -174,7 +173,7 @@ assert_contains "$out" "Log out" "symlink: the closing message still prints"
 assert_eq "$(readlink "$h/.ssh/config")" "$h/elsewhere" "symlink: the link is untouched"
 assert_eq "$(cat "$h/elsewhere")" "Host x" "symlink: its target is untouched"
 assert_contains "$out" "$INC" "symlink: names the line to add"
-assert_eq "$(exists "$h/bak")" no "symlink: no backup made"
+assert_absent "$h/bak" "symlink: no backup made"
 
 # --- symlinked config that already includes the fragment ---------------------
 fresh_home
@@ -187,7 +186,7 @@ assert_eq "$rc" 0 "symlink+include: exits 0"
 assert_contains "$out" "already includes the tracked fragment" "symlink+include: says so"
 assert_eq "$(readlink "$h/.ssh/config")" "$h/elsewhere" "symlink+include: link untouched"
 assert_eq "$(same "$TMP/target$n" "$h/elsewhere")" same "symlink+include: target untouched"
-assert_eq "$(exists "$h/bak")" no "symlink+include: no backup made"
+assert_absent "$h/bak" "symlink+include: no backup made"
 
 fresh_home
 mkdir -p "$h/.ssh"
@@ -207,7 +206,7 @@ for variant in 'crlf:\r' 'trailing space:  '; do
     setup --backup-dir "$h/bak"
     assert_eq "$rc" 0 "${variant%%:*}: exits 0"
     assert_eq "$(same "$TMP/original$n" "$h/.ssh/config")" same "${variant%%:*}: config unchanged"
-    assert_eq "$(exists "$h/bak")" no "${variant%%:*}: no backup"
+    assert_absent "$h/bak" "${variant%%:*}: no backup"
 done
 
 # --- config shapes -----------------------------------------------------------
@@ -236,7 +235,7 @@ setup --backup-dir "$h/bak"
 assert_eq "$rc" 0 "ssh dir without config: exits 0"
 assert_eq "$(mode "$h/.ssh")" 755 "ssh dir without config: the directory mode is kept"
 assert_eq "$(mode "$h/.ssh/config")" 600 "ssh dir without config: config created private"
-assert_eq "$(exists "$h/bak")" no "ssh dir without config: nothing to back up"
+assert_absent "$h/bak" "ssh dir without config: nothing to back up"
 
 # --- the included fragment must not be group/world writable ------------------
 mk_repo "$TMP/repo664"
@@ -356,6 +355,6 @@ setup --backup-dir
 assert_eq "$rc" 2 "args: --backup-dir without a value exits 2"
 setup --backup-dir --no-backup
 assert_eq "$rc" 2 "args: --backup-dir refuses an option as its value"
-assert_eq "$(exists "$h/--no-backup")" no "args: no directory was created"
+assert_absent "$h/--no-backup" "args: no directory was created"
 
 test_summary "ssh setup"

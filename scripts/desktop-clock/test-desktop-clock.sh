@@ -116,13 +116,13 @@ reset; touch "$state/daemon" "$state/open"; opt desktop-clock disabled
 clock apply >/dev/null
 assert_contains "$(calls)" "close clock" "disable closes the clock"
 assert_contains "$(calls)" "kill" "disable stops the then-idle daemon"
-assert_eq "$([ -e "$state/daemon" ] && echo up || echo down)" down "the daemon is gone"
+assert_absent "$state/daemon" "the daemon is gone"
 opt desktop-clock enabled
 
 # kill only queues the shutdown; disable returns once the daemon is really gone.
 reset; touch "$state/daemon" "$state/open"; opt desktop-clock disabled
 STUB_SLOW_KILL=1 clock apply >/dev/null
-assert_eq "$([ -e "$state/daemon" ] && echo up || echo down)" down "disable waits for a queued kill to finish"
+assert_absent "$state/daemon" "disable waits for a queued kill to finish"
 opt desktop-clock enabled
 
 # A reload eww rejects is reported, not passed off as applied.
@@ -184,7 +184,7 @@ reset; touch "$state/daemon"; clock reload >/dev/null
 assert_not_contains "$(calls)" "reload" "reload with the clock closed does nothing"
 reset; touch "$state/daemon" "$state/open"; clock reload >/dev/null
 assert_contains "$(calls)" " reload" "reload with the clock open reloads"
-assert_eq "$([ -e "$state/open" ] && echo open || echo closed)" open "...and never closes it"
+assert_exists "$state/open" "...and never closes it"
 
 # Usage error.
 assert_eq "$(clock bogus | head -1 | cut -c1-6)" "usage:" "an unknown subcommand prints usage"

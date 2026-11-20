@@ -40,28 +40,6 @@ with tempfile.TemporaryDirectory() as tmp:
             entries.append(entry)
         data = b'DIRC' + struct.pack('!II', 2, len(entries)) + b''.join(entries)
         (metadata / 'index').write_bytes(data + hashlib.sha1(data).digest())
-    def head_tree(files):
-        tree = {}
-        for name, value in files.items():
-            node = tree
-            parts = name.split('/')
-            for part in parts[:-1]:
-                node = node.setdefault(part, {})
-            node[parts[-1]] = value
-        def encode(node):
-            result = b''
-            for name in sorted(node, key=lambda name: name + ('/' if isinstance(node[name], dict) else '')):
-                value = node[name]
-                if isinstance(value, dict):
-                    mode, oid = '40000', encode(value)
-                else:
-                    mode, content = value
-                    oid = obj(b'blob', content)
-                result += mode.encode() + b' ' + name.encode() + b'\0' + oid
-            return obj(b'tree', result)
-        tree_id = encode(tree)
-        commit = obj(b'commit', b'tree ' + tree_id.hex().encode() + b'\nauthor Fixture <test@example.org> 0 +0000\ncommitter Fixture <test@example.org> 0 +0000\n\nfixture\n')
-        (metadata / 'refs/heads/main').write_text(commit.hex() + '\n')
     runner = b'#!/bin/bash\nset -eu\ntest "$(cat payload)" = staged\ngit show :payload | cmp - payload\n'
     files = {'test.sh': ('100755', runner), 'payload': ('100644', b'staged'),
              'probe.sh': ('100755', b'#!/bin/bash\necho "unterminated\n'),

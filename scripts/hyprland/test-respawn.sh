@@ -76,12 +76,6 @@ finish_respawn() {
 
 run_respawn() { start_respawn "$@"; finish_respawn; }
 
-# wait_for CMD... -- poll up to 5 s.
-wait_for() {
-    local i
-    for ((i = 0; i < 50; i++)); do "$@" && return 0; sleep 0.1; done
-    return 1
-}
 restart_logged() { grep -q restarting "$TMP/log/logger" 2>/dev/null; }
 
 run_respawn "139 134 0"

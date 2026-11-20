@@ -12,7 +12,7 @@ trap 'rm -rf "$tmp"' EXIT
 make_tree() {
     local root=$1
     mkdir -p "$root/scripts/state" "$root/scripts/lib" "$root/defaults/options" "$root/defaults/gtk-3.0" "$root/defaults/swaync" "$root/options"
-    cp "$src"/overlay.mjs "$src"/overlay-cli.mjs "$src"/overlay.sh "$src"/derived.sh "$root/scripts/state/"
+    cp "$src"/*.mjs "$src"/*.sh "$root/scripts/state/"
     cp "$src"/../lib/options.sh "$root/scripts/lib/"
     printf 'zen\n' > "$root/defaults/options/browser"
     printf 'nvim\n' > "$root/defaults/options/editor"
@@ -21,13 +21,14 @@ make_tree() {
     ln -s ../../.cache/current_wallpaper "$root/options/wallpaper"
 }
 
-run() { env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state" bash "$1/scripts/state/overlay.sh" "${@:2}"; }
+run_at() { env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$1" bash "$2/scripts/state/overlay.sh" "${@:3}"; }
+run() { run_at "$tmp/state" "$@"; }
 
 # No defaults/: a pre-overlay commit. Nothing happens.
 mkdir -p "$tmp/old/scripts/state"
-cp "$src"/overlay.mjs "$src"/overlay-cli.mjs "$src"/overlay.sh "$src"/derived.sh "$tmp/old/scripts/state/"
+cp "$src"/*.mjs "$src"/*.sh "$tmp/old/scripts/state/"
 run "$tmp/old" sync
-assert_eq "$([ -e "$tmp/state" ] && echo yes || echo no)" "no" "no defaults/: nothing is written"
+assert_absent "$tmp/state" "no defaults/: nothing is written"
 
 tree="$tmp/cfg"
 make_tree "$tree"
@@ -82,7 +83,7 @@ fresh="$tmp/fresh"
 make_tree "$fresh"
 mkdir -p "$fresh/gtk-3.0"
 printf '[Settings]\ngtk-theme-name=Old\n' > "$fresh/gtk-3.0/settings.ini"
-env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state2" bash "$fresh/scripts/state/overlay.sh" sync --replace "$tmp/backup"
+run_at "$tmp/state2" "$fresh" sync --replace "$tmp/backup"
 assert_eq "$(cat "$tmp/backup/gtk-3.0/settings.ini")" "$(printf '[Settings]\ngtk-theme-name=Old')" "--replace backs up the stale file"
 assert_eq "$(cat "$fresh/gtk-3.0/settings.ini")" "$(printf '[Settings]\ngtk-theme-name=Kripton')" "--replace starts from the defaults"
 assert_eq "$(readlink "$fresh/options/wallpaper")" "../../.cache/current_wallpaper" "--replace never moves symlinks"
@@ -93,7 +94,7 @@ make_tree "$bare"
 mkdir -p "$bare/gtk-3.0" "$tmp/nobackup"
 printf '[Settings]\ngtk-theme-name=Old\n' > "$bare/gtk-3.0/settings.ini"
 # Run from an empty directory: a relative backup path built from '' would land here.
-(cd "$tmp/nobackup" && env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state3" bash "$bare/scripts/state/overlay.sh" sync --replace '')
+(cd "$tmp/nobackup" && run_at "$tmp/state3" "$bare" sync --replace '')
 assert_eq "$(cat "$bare/gtk-3.0/settings.ini")" "$(printf '[Settings]\ngtk-theme-name=Kripton')" "--replace '' replaces the stale file"
 assert_eq "$(find "$tmp/nobackup" -mindepth 1 | wc -l)" "0" "--replace '' writes no backup, not even under the working directory"
 
@@ -105,7 +106,7 @@ printf 'firefox\n' > "$tmp/state6/overrides/options/browser"
 printf 'old\n' > "$keep/options/browser"
 printf '[Settings]\ngtk-theme-name=Adwaita\n' > "$tmp/state6/overrides/gtk-3.0/settings.ini"
 printf '[Settings]\ngtk-theme-name=Old\n' > "$keep/gtk-3.0/settings.ini"
-env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state6" bash "$keep/scripts/state/overlay.sh" sync --replace ''
+run_at "$tmp/state6" "$keep" sync --replace ''
 assert_eq "$(cat "$keep/options/browser")" "firefox" "--replace keeps a recorded option override"
 assert_eq "$(cat "$tmp/state6/overrides/options/browser")" "firefox" "--replace keeps the option override recorded"
 assert_contains "$(cat "$keep/gtk-3.0/settings.ini")" "gtk-theme-name=Adwaita" "--replace keeps a recorded ini override"
@@ -115,12 +116,12 @@ opt="$tmp/opt"
 make_tree "$opt"
 printf 'brave\n' > "$opt/options/browser"
 printf 'enabled\n' > "$opt/options/calendar-default"
-env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state4" bash "$opt/scripts/state/overlay.sh" sync --replace "$tmp/backup2"
+run_at "$tmp/state4" "$opt" sync --replace "$tmp/backup2"
 assert_eq "$(cat "$tmp/backup2/options/browser")" "brave" "--replace backs up a declared option"
 assert_eq "$(cat "$opt/options/browser")" "zen" "--replace resets a declared option"
 assert_eq "$(cat "$opt/options/calendar-default")" "enabled" "--replace keeps a per-machine option live"
 assert_eq "$(cat "$tmp/state4/overrides/options/calendar-default")" "enabled" "--replace records a per-machine option"
-assert_eq "$([ -e "$tmp/backup2/options/calendar-default" ] && echo yes || echo no)" "no" "--replace does not back up per-machine options"
+assert_absent "$tmp/backup2/options/calendar-default" "--replace does not back up per-machine options"
 assert_eq "$(readlink "$opt/options/wallpaper")" "../../.cache/current_wallpaper" "--replace keeps the wallpaper symlink"
 
 # An unparseable overrides file never costs the live file.
@@ -129,7 +130,7 @@ make_tree "$bad"
 mkdir -p "$bad/gtk-3.0" "$tmp/state5/overrides/gtk-3.0"
 printf '[Settings]\ngtk-theme-name=Old\n' > "$bad/gtk-3.0/settings.ini"
 printf 'garbage\n' > "$tmp/state5/overrides/gtk-3.0/settings.ini"
-set +e; env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state5" bash "$bad/scripts/state/overlay.sh" sync --replace '' >/dev/null 2>&1; status=$?; set -e
+set +e; run_at "$tmp/state5" "$bad" sync --replace '' >/dev/null 2>&1; status=$?; set -e
 assert_eq "$status" "1" "a bad overrides file fails a --replace run"
 assert_eq "$(cat "$bad/gtk-3.0/settings.ini")" "$(printf '[Settings]\ngtk-theme-name=Old')" "the live file survives a failed --replace"
 
@@ -138,7 +139,6 @@ back="$tmp/back"
 make_tree "$back"
 printf 'x\n' > "$back/options/browser~"
 printf 'x\n' > "$back/options/#editor#"
-run_at() { env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$1" bash "$2/scripts/state/overlay.sh" "${@:3}"; }
 run_at "$tmp/state7" "$back" sync
 assert_eq "$(find "$tmp/state7/overrides/options" -type f 2>/dev/null | wc -l)" "0" "editor backup files are never harvested"
 
@@ -148,17 +148,15 @@ make_tree "$race"
 run_at "$tmp/state8" "$race" sync
 echo brave > "$race/options/browser"
 marker="$tmp/raced"
-env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state8" \
-    OVERLAY_TEST_BEFORE_WRITE="[ -e $marker ] || { touch $marker; echo late > $race/options/editor; }" \
-    bash "$race/scripts/state/overlay.sh" sync
+OVERLAY_TEST_BEFORE_WRITE="[ -e $marker ] || { touch $marker; echo late > $race/options/editor; }" \
+    run_at "$tmp/state8" "$race" sync
 assert_eq "$(cat "$tmp/state8/overrides/options/browser")" "brave" "the retried sync keeps the first change"
 assert_eq "$(cat "$tmp/state8/overrides/options/editor")" "late" "a write racing the sync is harvested, not overwritten"
 assert_eq "$(cat "$race/options/editor")" "late" "the racing write stays live"
 # A target that never settles fails with a clear message.
 set +e
-err=$(env -u XDG_STATE_HOME HOME="$tmp/home" OVERLAY_STATE_DIR="$tmp/state8" \
-    OVERLAY_TEST_BEFORE_WRITE="echo \$RANDOM > $race/options/editor" \
-    bash "$race/scripts/state/overlay.sh" sync 2>&1); status=$?
+err=$(OVERLAY_TEST_BEFORE_WRITE="echo \$RANDOM > $race/options/editor" \
+    run_at "$tmp/state8" "$race" sync 2>&1); status=$?
 set -e
 assert_eq "$status" "1" "a target that keeps changing fails"
 assert_contains "$err" "kept changing" "the failure says why"
@@ -194,7 +192,7 @@ g add -A; g commit -qm old
 old=$(g rev-parse HEAD)
 g rm -q --cached options/browser options/editor
 mkdir -p "$hk/scripts/state" "$hk/scripts/lib" "$hk/defaults"
-cp "$src"/overlay.mjs "$src"/overlay-cli.mjs "$src"/overlay.sh "$src"/derived.sh "$hk/scripts/state/"
+cp "$src"/*.mjs "$src"/*.sh "$hk/scripts/state/"
 cp "$src"/../lib/options.sh "$hk/scripts/lib/"
 mkdir -p "$hk/defaults/options"
 printf 'zen\n' > "$hk/defaults/options/browser"
@@ -218,7 +216,7 @@ mkdir -p "$tmp/home2"
 set +e; err=$(env -u XDG_STATE_HOME -u OVERLAY_STATE_DIR HOME="$tmp/home2" bash "$tree/scripts/state/overlay.sh" sync 2>&1); status=$?; set -e
 assert_eq "$status" "1" "a foreign tree without OVERLAY_STATE_DIR is refused"
 assert_contains "$err" "OVERLAY_STATE_DIR" "the refusal names the override"
-assert_eq "$([ -e "$tmp/home2/.local" ] && echo yes || echo no)" "no" "the refusal creates no state"
+assert_absent "$tmp/home2/.local" "the refusal creates no state"
 
 # The lock serialises concurrent runs; both succeed.
 run "$tree" sync & first=$!

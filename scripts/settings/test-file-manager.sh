@@ -59,13 +59,13 @@ run "dolphin --new-window"
 assert_contains "$(cat "$target")" "dolphin --daemon" "arguments in the option are ignored; dolphin's file is used"
 
 run yazi
-assert_eq "$([ -e "$target" ] && echo present || echo absent)" absent \
+assert_absent "$target" \
     "a file manager without a D-Bus service leaves the system's choice"
 assert_contains "$(cat "$TMP/bus")" "ReloadConfig" "removing the override reloads the bus"
 
 run nautilus
 run missing-app
-assert_eq "$([ -e "$target" ] && echo present || echo absent)" absent "a missing binary removes the override"
+assert_absent "$target" "a missing binary removes the override"
 
 run "  dolphin"
 assert_contains "$(cat "$target")" "dolphin --daemon" "leading spaces in the option are ignored"
