@@ -38,12 +38,13 @@ colours are lowercase. Missing matugen, failure of either pass or invalid
 conversion returns 1 with a diagnostic and leaves the previous palette in
 place. Each matugen pass has its own 30-second timeout, overridable with
 `GENERATE_TIMEOUT` for tests. Publication to the default cache takes
-`flock -w 30` on `wallpaper.lock` and renames `roles` before `colors`, restoring
-the previous roles if the second rename fails. Other output directories do
+`flock -w 30` on `wallpaper.lock`, copies complete files into a temporary
+directory on the same filesystem, and renames `roles` before `colors`,
+restoring the previous roles if the second rename fails. Other output directories do
 not take this lock, so `wall.sh` can generate into staging while holding it.
 
 `wall.sh` holds a cache-backed `flock` across generation, publication and
-fan-out. It reads the current selection after taking the lock, so a queued
+fan-out, which keeps wallpaper runs serialised. It reads the current selection after taking the lock, so a queued
 request cannot restore an older wallpaper's palette. It generates into
 `~/.cache/wal/next` while awww's transition plays, then waits until
 `publish_delay_ns`: 60% of Waypaper's transition duration (the duration is
@@ -55,11 +56,8 @@ points stable in comma-decimal locales.
 If the selected wallpaper changes during the wait, it is staged again; after
 four rounds the newest queried selection is published without another wait.
 A queued run exits quietly if the preceding run already published that image
-and the staged slots and roles match. Publication copies complete files into
-a temporary directory on the same filesystem, then renames `roles` before
-`colors`, restoring the previous roles if the second rename fails. The lock
-keeps wallpaper runs serialised; component outputs update
-only when the driver subsequently renders them. Generation failure publishes
+and the staged slots and roles match. Component outputs update only when the
+driver subsequently renders them. Generation failure publishes
 nothing and sends a failure toast. The driver attempts every component and
 returns nonzero on partial failure; `wall.sh` names failed components in its
 toast, and `install.sh` reports a warning. Success posts no notification.
@@ -213,8 +211,8 @@ when CachyOS uses it as `MANPAGER`.
 **Ghostty** includes `wal/ghostty-colors` through `config-file = ?colors`.
 Its script sends `SIGUSR2` to reload the configured palette, then writes
 OSC 104/110/111/112 resets to writable, user-owned numeric ptys. These clear
-old indexed-colour, foreground, background and cursor overrides. pywal's
-OSC 4 overrides take precedence over the configured palette, so any window
+old indexed-colour, foreground, background and cursor overrides. OSC 4
+overrides from other tools take precedence over the configured palette, so any window
 that received them would keep them. The resets let the palette reloaded by
 `SIGUSR2` show in open terminals. Each write has a one-second timeout;
 `WAL_PTS_DIR` points tests at fake ptys. ncurses applications also reset indexed

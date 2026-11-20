@@ -45,43 +45,6 @@ Strata is the default file manager. Super+E and “Show in folder” follow
 
 ## Structure
 
-```
-~/.config/
-├── hypr/          # Hyprland: modular Lua config from hyprland.lua,
-│                  # plus Hyprlang configs for hyprlock/idle/sunset
-├── waybar/        # Bar: config.jsonc, style.css, scripts/, the native
-│                  # workspaces/ module (C)
-├── rofi/          # Launcher, power and clipboard menus
-├── swaync/        # Notification daemon and sidebar
-├── quickshell/    # On-demand settings panel, wallpaper carousel, keybinds
-│                  # overlay, capture bar and update card
-├── defaults/      # Tracked defaults for settings a machine changes
-├── options/       # This machine's preferences, one value per text file (rendered)
-├── scripts/       # Helper scripts by area: hyprland/, waybar/, theming/,
-│                  # capture/, updates/, settings/, devices/, doctor/, …
-├── fish/ ghostty/ nvim/ btop/ cava/ starship/ bat/ fastfetch/ git/
-│                  # Per-app config (starship.toml is a generated symlink)
-├── matugen/       # Palette generator config
-├── eww/           # The desktop clock widget
-├── khal/ vdirsyncer/   # Calendar tools (see calendar.md)
-├── gtk-3.0/ gtk-4.0/ qt5ct/ qt6ct/ strata/ swappy/ waypaper/ aichat/
-│                  # Toolkit themes and small utilities (the GTK and Qt
-│                  # settings.ini/.conf files are rendered from defaults/,
-│                  # not tracked)
-├── spicetify/ vesktop/ zen/   # Spotify, Discord and Zen themes
-├── pipewire/      # The virtual surround sink
-├── sddm/          # Login-screen wallpaper sync (see its README)
-├── updates/       # Root helper and sudoers setup for the update card
-├── ssh/           # The ssh-agent fragment ~/.ssh/config includes
-├── wallpapers/    # Bundled wallpapers
-├── screenshots/   # The README images
-├── docs/          # This guide, the deep dives listed above and internals/
-├── test/          # Repo-wide suites: runner, hook, deploy, docs, theming, …
-├── install.sh     # Fresh-system setup
-├── doctor.sh      # Health check (see Maintenance)
-└── test.sh        # Test runner (see Maintenance)
-```
-
 `CLAUDE.md` carries the detailed `hypr/config/` breakdown and the rules that
 hold on every edit; [internals/](internals/) has the design notes behind each
 piece. Files ending in `.in` are templates rendered into
@@ -91,24 +54,11 @@ piece. Files ending in `.in` are templates rendered into
 
 ### Keybindings
 
-| Key | Action |
-|-----|--------|
-| `Super + Enter` | Terminal (`options/terminal`) |
-| `Super + Space` | App launcher |
-| `Super + Ctrl + W` | Wallpaper carousel |
-| `Super + I` | Settings panel |
-| `Super + H` | Keybindings overlay |
-
-Those five, the same as the README's, are the ones worth memorising, along with
-`Super + Q` or `Super + W` to close a window and `Super + L` to lock.
+The README's five keys are the ones worth memorising, along with `Super + Q`
+or `Super + W` to close a window and `Super + L` to lock.
 **[docs/keybindings.md](keybindings.md) has every binding**, grouped by
 section — or press `Super + H` for the same list, searchable, without leaving
 the desktop.
-
-Both are rendered from `hypr/config/software/keybinds.lua` by one parser, so
-neither can drift from the bindings it documents. After editing the config, run
-`./scripts/docs/generate-keybindings.sh`; `test/test-docs.sh` fails on a stale
-copy, so the pre-commit hook catches a forgotten regeneration.
 
 Navigation follows one rule: **every window and workspace binding carries `Super`**,
 so `Alt`/`Ctrl` + arrows always reach the focused app (browser back/forward,
@@ -135,6 +85,11 @@ low and high on one scale. The card opens on the last forecast and asks
 Open-Meteo for a new one only when that is older than 15 minutes. The place
 is the one the bar's `waybar-weather` service found; to set it by hand, put
 `<city>,<country>` in `~/.config/waybar-weather/cityname`.
+
+The **volume icon** opens the sound popover: output and input devices, per-app
+volume and which output each app plays on. Device names and hidden devices are
+set on the settings panel's Sound page; see
+[sound-popover.md](internals/sound-popover.md).
 
 The **pending-updates module** sits right after the CPU, memory, GPU and disk
 readouts and appears only when repository, AUR or Flatpak updates exist — the
@@ -175,15 +130,16 @@ own special workspace; its API key comes from `~/.config/.env` (see below).
 ### Idle efficiency
 
 The settings panel, wallpaper carousel, keybindings overlay, capture bar,
-calendar card, update card and weather card are launched on demand and exit when closed, so none keeps a UI
-runtime resident. The desktop clock's eww daemon runs only while the clock is
-on, and the time costs no process per tick. The workspace dots are a native
+calendar card, sound popover, update card and weather card are launched on
+demand and exit when closed, so none keeps a UI runtime resident. The desktop
+clock's eww daemon runs only while the clock is on, and the time costs no
+process per tick. The workspace dots are a native
 Waybar module that listens to Hyprland's event socket instead of polling.
 Media, night-light, recording, next-event and update modules refresh on a
 Waybar signal when something changes; their intervals are safety fallbacks
 rather than the primary refresh path. The GPU module makes one `nvidia-smi`
 call per five-second poll, and none while the settings panel's Bar page hides
-it. See the component docs for measured panel and carousel memory.
+it.
 
 ### Media
 
@@ -234,41 +190,17 @@ nvim ~/.config/hypr/config/software/keybinds.lua
 
 ### Default applications
 
-The settings panel's **Default Apps** page (`Super + I`) sets both kinds of
-default: the apps the keybindings launch (browser, terminal, editors, file
-manager), and what opens each kind of link and file (`mimeapps.list`, rendered from `defaults/mimeapps.list`). The
-first set also becomes `$BROWSER`, `$TERMINAL`, `$EDITOR` and `$VISUAL` for
-every program Hyprland starts, which is what git, `gh`, `sudoedit` and yazi
-read, and the terminal is also the one file managers open for nvim, yazi or
-btop (`xdg-terminal-exec`). Don't set these in `~/.profile`, and never set
-`TERM`: each terminal sets it itself. `./doctor.sh` warns when one of these
-defaults names a program that is not installed.
+The settings panel's **Default Apps** page (`Super + I`) sets the apps the
+keybindings launch and what opens each kind of link and file. How each choice
+reaches programs is in [default-apps.md](internals/default-apps.md).
 
 ### User preferences
 
 Simple text files in `~/.config/options/`, mostly written by the settings
-panel. They are this machine's copy of `defaults/options/`: a change you make
-by hand or in the panel is kept as a per-machine override, and deleting a file
-resets it to the default. To change the default for everyone, edit `defaults/`
-and commit:
-
-```bash
-~/.config/options/
-├── browser      # zen-browser
-├── terminal     # ghostty
-├── editor       # nvim
-├── filemanager  # strata
-├── font         # FiraCode Nerd Font
-├── aurhelper    # paru -Syu
-├── launchertype # vertical
-├── mainmonitor  # empty = no preference
-├── bar-*        # the Bar page's module modes and layout
-└── ...
-```
-
-[options.md](internals/options.md) describes every option file, and
-[state.md](internals/state.md) how the overlay renders them and keeps your
-differences in `~/.local/state/dotfiles/overrides`.
+panel. A change you make by hand or in the panel is kept as a per-machine
+override, and deleting a file resets it to the default.
+[options.md](internals/options.md) describes the files, and
+[state.md](internals/state.md) how the overlay renders them.
 
 ### Wallpaper carousel
 
@@ -284,47 +216,17 @@ first use. See [controls, integration, and verification](wallpaper-carousel.md).
 
 ### Wallpaper colours
 
-Generate colours from any wallpaper:
-
-```bash
-~/.config/scripts/theming/generate-palette.sh /path/to/wallpaper.jpg
-~/.config/scripts/theming/apply-wal.sh
-```
-
 matugen draws a dark Material palette from the wallpaper. The settings panel's
 Appearance page (Palette section) picks its scheme, contrast and source colour
 (`options/theme-scheme`, `options/theme-contrast`, `options/theme-prefer`) and
 regenerates the current wallpaper's palette when you change one.
 
-Colours apply to Hyprland, Hyprlock, Waybar, Rofi, SwayNC, Ghostty, Strata,
-cava, btop, Neovim, the Starship prompt, the desktop clock, Vesktop
-(Discord), Zen Browser and Spotify (through Spicetify; see
-[spotify.md](spotify.md)). Strata and Zen pick up a new palette at their
-next launch. Open Neovim windows re-theme in place unless you picked another colour scheme in them; before
-its generated `colors-wal.vim` exists, Neovim uses LazyVim's tokyonight.
-fastfetch and bat (and so man pages) follow too, without rendering anything — they colour by ANSI
-index, and the terminal palette comes from matugen. ANSI green stays green on
-every palette, so the `cmatrix` and `tty-clock` aliases run through
-`scripts/theming/accent-run.sh`, which paints their green in the wallpaper's
-accent for that terminal only. The pipeline and every component are in
-[theming.md](internals/theming.md).
-
-Components needing more than a plain include own a
-`<component>/apply_wal_colors.sh`, rendering into `~/.cache/wal/`. The repo
-tracks only a symlink to the result, so switching wallpapers never dirties git.
-`scripts/theming/apply-wal.sh` runs them all — it finds them by glob, so adding
-a themed component means adding one file and nothing else:
-
-```bash
-# Re-render every component's colours without changing the wallpaper
-~/.config/scripts/theming/apply-wal.sh
-```
-
-Four components are templated: cava and Starship because neither program can
-include another file, and Vesktop and Zen because their themes are rendered
-CSS. Edit the `.in` file (`cava/config.in`, `starship/starship.toml.in`,
-`vesktop/pywal.theme.css.in`, `zen/userChrome.css.in`), never the rendered
-copy or the symlink that points to it.
+Colours apply to Hyprland, Hyprlock, Waybar, Rofi (text and borders), SwayNC,
+Ghostty, Strata, cava, btop, Neovim, the Starship prompt, the desktop clock,
+Vesktop (Discord), Zen Browser and Spotify (through Spicetify; see
+[spotify.md](spotify.md)); fastfetch and bat follow the terminal palette.
+[theming.md](internals/theming.md) has the pipeline, each component and how to
+add one; to re-render by hand, see Troubleshooting.
 
 ### Visual tweaks
 
@@ -464,55 +366,17 @@ automatically. There is no list to keep in sync.
 | `WARN` | Degraded — a keybind does nothing, a daemon did not start | exits 0 |
 | `INFO` | Tidiness — orphaned config, package drift | exits 0 |
 
-What it checks:
+[doctor.md](internals/doctor.md) lists what each check module covers.
 
-- **Symlinks** — dangling targets, non-portable absolute paths, and links
-  clobbered by a regular file (which git still reports as a symlink)
-- **Config references** — every Lua `require()` and Hyprlang `source =` target,
-  every literal `~/.config` path in a tracked file, the `wall.sh` colour
-  fan-out, the palette slots and roles, and both Hyprland/Hyprlock caches
-- **Binaries** — every command passed to `hl.exec_cmd()` by keybinds or
-  autostart, resolving the application table indirection first, and that the
-  screen recorder's helper holds `cap_sys_admin`
-- **Services** — autostart daemons actually running, who owns
-  `org.freedesktop.Notifications`, and `install.sh` package drift
-- **SDDM** and **updates** — the passwordless helpers are installed, current
-  and granted as `sudo -l` reports
-- **Waybar** — every module on the bar has a config block, every block is on
-  the bar, and every command an `exec`, click or scroll handler invokes is
-  installed
-- **Workspaces** — the native Waybar workspace module is built and current
-- **Hyprctl Lua compatibility** — tracked runtime calls do not use the removed
-  `hyprctl keyword` or positional dispatcher forms
-- **Hardware** — tracked files name no connector this machine lacks
-- **Autostart** — per-user XDG autostart entries whose program is missing
-- **SSH** — the agent socket is enabled and `~/.ssh/config` includes the
-  tracked fragment
-- **Calendar** — when an iCloud account is stored: the sync tools are
-  installed, the timer is enabled and the last sync succeeded within the hour
-- **Default applications** — `$BROWSER`, `$TERMINAL`, `$EDITOR` and `$VISUAL`,
-  the terminal `xdg-terminal-exec` opens, and each `mimeapps.list` association
-  whose app has a desktop entry here name a program that is installed
-- **Machine state** — every file under `defaults/` has an ignored, untracked
-  rendered copy, and the overrides file parses
-
-A pre-commit hook (`scripts/hooks/pre-commit`, activated by `install.sh` via
-`core.hooksPath`) runs `shellcheck` on staged shell scripts and the test suites
-covering whatever the commit touches. All checks run in a private snapshot of
-the index, so partially staged changes are checked as they will be committed.
-The working tree and real index are untouched. The snapshot contains staged
-files and blobs, without commit history. Bypass with `git commit --no-verify`.
-
-Run every test suite with `./test.sh`. Suites are discovered, not registered:
-`./test.sh --list` prints the current set and each one is runnable on its own,
-so naming and tracking a file `test-*.sh` or `run-tests.sh` is the whole of
-adding one (an untracked suite is not discovered; run it directly). The
-Quickshell suites run their views offscreen under Qt's `qmltestrunner`, the
-pure models and the panel persistence suite under Node.js (built-in TypeScript
-support and module hooks; verified with Node.js 26.11), and the installation,
-hook and theming fixtures use Python 3. A check whose binary is missing prints
-`skip:` instead of running; the runner lists those lines and counts them, and
-`TEST_STRICT=1 ./test.sh` fails any suite that skipped one.
+The pre-commit hook (`scripts/hooks/pre-commit`, activated by `install.sh` via
+`core.hooksPath`) runs `shellcheck` and the suites covering the staged files;
+bypass it with `git commit --no-verify`. `./test.sh` runs every suite and
+`./test.sh --list` prints them. The Quickshell suites need Qt's
+`qmltestrunner`, the model suites Node.js (built-in TypeScript support and
+module hooks) and the install, hook and theming fixtures Python 3; a missing
+one prints `skip:`, which `TEST_STRICT=1` fails. How suites are discovered and
+how the hook builds its snapshot are in
+[conventions.md](internals/conventions.md).
 
 GitHub Actions runs the same checks on every push to `main` and every pull
 request (`.github/workflows/tests.yml`): `shellcheck -S warning` on every
@@ -637,13 +501,8 @@ Running Ghostty and btop windows reload the new palette by themselves.
 output. A missing Hyprland palette (`~/.cache/wal/colors-hyprland.conf` or
 `.lua`) is an ERROR; a missing `~/.cache/wal/colors` or `roles` is a WARN,
 because components fall back to the built-in palette. Change the wallpaper
-(`Super + Ctrl + W`), or generate the palette from any wallpaper and re-render
-every component:
-
-```bash
-~/.config/scripts/theming/generate-palette.sh ~/Pictures/Wallpapers/<wallpaper>
-~/.config/scripts/theming/apply-wal.sh
-```
+(`Super + Ctrl + W`), or run `generate-palette.sh` on any wallpaper and then
+`apply-wal.sh` as above.
 
 **Waybar issues:** press `Super + Shift + B`, which reloads the bar and starts
 it if it is not running.

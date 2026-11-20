@@ -56,8 +56,8 @@
    unit, closer to each other than to anything else. One space at text size
    welded them together. Measured ink gaps are misleading here -- digit ink
    sits nearer its box edge than glyph ink does, so a numerically larger gap
-   can still read as tighter. Trust the render: two spaces inside the label
-   (~14px), 20px between modules, 30px between groups.
+   can still read as tighter. Trust the render: the gap-glyph spacing above
+   inside the label, 20px between modules, 30px between groups.
 
    The bar's background, border and radius are not set here: bar.css
    (rendered by scripts/waybar/bar-modes.sh from the Bar page's options) is

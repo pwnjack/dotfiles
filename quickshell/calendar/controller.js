@@ -4,8 +4,8 @@
 // and tst_Card.qml runs the same functions against a fake controller and a text
 // draft writer, so a test of this file tests the shell's path too.
 //
-// Every function takes the model module M (a .js file cannot import a .mjs), the
-// controller c, and, where it writes the draft, a writer w with setText(text).
+// Each function takes only what it uses, in this order: the model module M (a .js
+// file cannot import a .mjs), the controller c and a draft writer w (setText).
 // Nothing here names a QML type.
 
 // Navigation retires every cal.sh reply still in flight: a reply asked before

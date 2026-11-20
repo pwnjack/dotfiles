@@ -10,14 +10,17 @@ During a start delay the pill is amber and a click cancels the countdown.
 
 ## Pieces
 
+The rules an edit must keep are in
+[internals/capture-bar.md](internals/capture-bar.md).
+
 | Piece | Job |
 |---|---|
 | `quickshell/capture/` | The strip. `model.mjs` is the pure model; `Strip.qml` draws it; `shell.qml` owns the window, IPC and the option files. Exits on close. |
-| `scripts/hyprland/capture-bar.sh` | Launcher: lock, IPC toggle, palette, daemonize. `record` while recording stops instead. |
-| `scripts/capture/record.sh` | The only driver of gpu-screen-recorder. State in `$XDG_RUNTIME_DIR/capture/recording.json`, recorder log in `gsr.log` beside it. |
-| `scripts/hyprland/screenshot.sh` | The only screenshot command (hyprshot): `screen`, `window`, `region`; `--annotate` opens swappy, `--text` reads the shot. |
+| `scripts/hyprland/capture-bar.sh` | Launcher. `record` while recording stops instead. |
+| `scripts/capture/record.sh` | Drives gpu-screen-recorder. State in `$XDG_RUNTIME_DIR/capture/recording.json`, recorder log in `gsr.log` beside it. |
+| `scripts/hyprland/screenshot.sh` | The screenshot command (hyprshot): `screen`, `window`, `region`; `--annotate` opens swappy, `--text` reads the shot. |
 | `scripts/capture/read-text.sh` | Reads a PNG on stdin: a QR code or barcode first, otherwise text. Copies the result and posts the toast. |
-| `scripts/hyprland/lock.sh` | The only lock path (autologin in `startup.sh` runs hyprlock directly; nothing records then); locks first, saves a recording in a detached process. |
+| `scripts/hyprland/lock.sh` | Locks, then saves a recording in a detached process (autologin in `startup.sh` runs hyprlock directly; nothing records then). |
 | Waybar `custom/recording` | Hidden when idle; `interval: once` plus signal 11; click stops (or cancels a countdown). |
 
 ## Copying text or a QR code
@@ -75,7 +78,7 @@ differently; `screenshot.sh` reads `capture-freeze`. `capture-shot-target` and
 `capture-annotate` are read only by the strip, which passes target, annotate
 and delay to `screenshot.sh` as argv; the Text tab passes `region --text` and
 the delay, and shares the Freeze file with Screenshot. The Freeze toggle (`capture-freeze`) applies to every screenshot path,
-including Super+S and Super+Alt+S (Super+Alt+S did not freeze before the strip);
+including Super+S and Super+Alt+S;
 they ignore the strip's other options by design. The files:
 `capture-shot-target`, `capture-rec-target` (`screen|window|region`),
 `capture-delay` (decimal seconds, `0` = off, so `08` is 8 s), `capture-freeze`,
@@ -104,9 +107,8 @@ package sets it; `doctor.sh` warns if it is lost). No portal dialog.
   scaled monitor (only scale 1 has been tried).
 - **Very small regions fail.** NVENC rejected 64x64 and accepted 256x256;
   a tiny selection ends in a "Recording failed" toast.
-- **Identity.** record.sh identifies the recorder by pid and its `/proc` start
-  time (`since` in the state), so a recycled pid is never mistaken for it. Stops
-  are serialised by a flock. A click that lands on the countdown boundary
+- **Identity.** A recycled pid is never mistaken for the recorder, and stops
+  are serialised. A click that lands on the countdown boundary
   cancels and discards. If the recorder dies mid-recording, a "Recording
   stopped" toast says so and the bar clears; the partial file stays in
   `~/Videos/Recordings` and the toast names it. The same holds for a stop that
@@ -118,14 +120,10 @@ package sets it; `doctor.sh` warns if it is lost). No portal dialog.
   Open and Show in folder. Nothing goes to the clipboard.
 - **Saved toasts.** Recordings and screenshots post the same toast
   (`scripts/capture/toast.sh`): Open, and Show in folder, which selects the file
-  through D-Bus's `org.freedesktop.FileManager1`. hyprshot runs with `-s`, since
+  through D-Bus `FileManager1` (see
+  [default-apps.md](internals/default-apps.md)). hyprshot runs with `-s`, since
   its own toast has no actions; a cancelled selection writes no file and posts
-  nothing. Strata, Nautilus, Dolphin and Thunar all claim that D-Bus name.
-  D-Bus picked Nautilus whatever the preference said, so
-  `scripts/settings/file-manager.sh` copies the configured file manager's own
-  service file into `~/.local/share/dbus-1/services/`, which wins. install.sh
-  and the panel's File manager row run it; it covers every app's Show in
-  folder, not only ours.
+  nothing.
 - **Waybar.** The module runs once and on signal 11; record.sh sends it on each
   change and once a second while recording, so an idle bar runs nothing. The
   glyph is in `<span size='large'>`, the module carries its own 15 px edges, red
@@ -133,33 +131,16 @@ package sets it; `doctor.sh` warns if it is lost). No portal dialog.
 
 ## Lock and suspend
 
-The lock comes first, the save second. logind's `InhibitDelayMaxSec` is 5 s, so
-on suspend nothing may stand in front of hyprlock: `lock.sh` starts hyprlock at
-once and hands `record.sh stop` to a detached process (a failed or missing save
-never prevents the lock). A clip may therefore end with about a second of the
-lock screen.
-
-The guard fails closed: `flock -w 1` serialises callers, and only a running
-hyprlock of the same user skips locking (a stale one still counts as locked).
-Arguments go on to hyprlock. hypridle's `lock_cmd` is `lock.sh`, and
-`before_sleep_cmd` runs `loginctl lock-session`, so suspend saves the recording
+The lock comes first, the save second (a failed or missing save never prevents
+the lock), so a clip may end with about a second of the lock screen. A stale
+hyprlock of the same user still counts as locked. Arguments go on to hyprlock.
+hypridle's `lock_cmd` is `lock.sh`, and `before_sleep_cmd` runs `loginctl lock-session`, so suspend saves the recording
 too. The idle listener (`$lock_timeout`, 30 minutes by default) runs
 `lock.sh --grace 5` directly, so the same save happens, and for five seconds a
 key press or a mouse move dismisses that lock without a password. Super+L, the
 power menu and before-sleep ask for the password at once. hyprlock times the
-grace by wall clock, so a suspend inside the window ends it.
-hypridle has `inhibit_sleep = 3` (sleep waits until the session is locked)
-because its auto mode keys on the string "hyprlock" in `lock_cmd`, which
-lock.sh's path lacks.
-
-## NVIDIA note
-
-On NVIDIA, the gpu-screen-recorder package ships
-`/usr/lib/modprobe.d/gsr-nvidia.conf` with
-`NVreg_PreserveVideoMemoryAllocations=1`; without it the author's driver ran
-with 2. It takes effect at the next boot; check the running value with
-`grep PreserveVideoMemoryAllocations /proc/driver/nvidia/params`, which reads
-1 once it applies.
+grace by wall clock, so a suspend inside the window ends it. Sleep waits until
+the session is locked.
 
 ## Testing
 

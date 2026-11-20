@@ -67,21 +67,9 @@ Delete its override and sync: `rm ~/.local/state/dotfiles/overrides/<live path>`
 
 The file must fit one of the four formats as it stands. The engine is deliberately finished: a file that would need a new format or a new flag stays untracked instead, because every addition here is code that every sync, hook and test carries.
 
-## Pulling the overlay for the first time
-
-The merge that moved these files into `defaults/` makes git delete the old tracked live files, and `post-merge` renders them again (with `--restore`, see below, which is harmless because there are no overrides yet). Per-machine options with no default (`calendar-*`, `capture-*`) are untracked, so git leaves them alone and the first sync adopts them as overrides.
-
-A pull refuses if one of the moved files has local edits. Recovery: move the files aside, pull, move them back, then run `bash ~/.config/scripts/state/overlay.sh sync`. Adoption records the differences as overrides.
-
-`hypr/hypridle.conf` is the exception. Before the overlay the panel wrote timeouts into that tracked file, so a machine may have it modified, and the pull refuses. Note the timeouts, discard the local edit with `git checkout -- hypr/hypridle.conf` (if you stash it instead, drop the stash afterwards: popping it conflicts with the new file), pull, then set them again in the panel's Power page (or write `$lock_timeout = N` and `$dpms_timeout = N` lines, and any suspend listener, into `~/.local/state/hypr/hypridle.conf`). Moving the old file back would drop the new `source` line, and sync never adopts it.
-
-After that pull, Waybar's `style.css` imports `~/.local/state/waybar/font.css`, which `post-merge` creates. Restart the bar once with `scripts/waybar/waybar.sh`.
-
-## Old commits and reverting
+## Old commits
 
 Visiting a commit from before the overlay (`git checkout` of an old revision, a bisect) and coming back makes git delete the tracked option files it restored for the old commit. The hook sees declared keys missing from `options/`, which a plain sync would read as resets and drop their overrides. So `post-merge` and `post-checkout` pass `--restore` whenever the previous tree (`$1` for a checkout, `ORIG_HEAD` for a merge) has no `defaults/`: a declared option missing from live then counts as unchanged and keeps its override, while options present are harvested as usual and undeclared ones (`calendar-*`, `capture-*`) stay. `git reset --hard` runs no hook; after one that crosses the overlay boundary, run `bash ~/.config/scripts/state/overlay.sh sync --restore` by hand.
-
-Reverting the merge (`git revert -m 1`, the repo's usual way back) tracks `options/*` and the GTK, Qt, MIME and swaync files again. Git overwrites the ignored live files with the old defaults, and the overrides in `~/.local/state/dotfiles/overrides` stay unused. To carry a value back, copy it from `overrides/<live path>` into the live file.
 
 ## Doctor
 

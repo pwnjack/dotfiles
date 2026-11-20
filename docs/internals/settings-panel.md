@@ -1,6 +1,6 @@
 # Settings panel
 
-`CLAUDE.md` keeps the rules that must hold on every edit; this file has the reasoning and the traps. `docs/settings-panel.md` describes what each page does, how the catalogue and backend sources work, and the measurements; read it first and use this file for what an edit can break.
+`CLAUDE.md` keeps the rules that must hold on every edit; this file has the reasoning and the traps. `docs/settings-panel.md` describes what each page does and how the catalogue and backend sources work; read it first and use this file for what an edit can break.
 
 `quickshell/settings-panel/shell.qml` starts on demand through `scripts/hyprland/settings-panel.sh` (Super+I and Waybar) and exits once pending saves finish. There is no login autostart, and nothing runs while it is closed.
 `catalog.json` is the only list of settings, categories and sections; `pages.mjs` validates it and `test/catalog.mjs` freezes the row-id set, because ids are API. The frame appears before values arrive: a short-lived GTK-free GJS helper (`request.js`, serialised by `scripts/settings/panel-request.sh`) reads them outside the UI thread.

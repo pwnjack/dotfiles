@@ -37,7 +37,7 @@ Deep dives live in `docs/internals/`. **Read the matching file before changing a
 3. Be idempotent, and a no-op when its component is not installed.
 4. Reload its own running consumer if possible; the driver knows nothing about `swaync-client` or `SIGUSR2`.
 
-Use `scripts/theming/palette.sh` (`wal_load`, `role_load`, `wal_role`, `wal_readable_on`, `wal_oklch`), never re-parse matugen output. Never reload Waybar for a palette. Cava, starship, Vesktop and Zen are templated (`<component>/<name>.in`): **edit the `.in` file, never the symlink.** Read `docs/internals/theming.md` before touching a themed component or `wall.sh`.
+Use `scripts/theming/palette.sh` (`wal_load`, `role_load`, `wal_role`, `wal_readable_on`, `wal_oklch`, and `wal_write`, the one atomic writer of an output), never re-parse matugen output. Never reload Waybar for a palette. Cava, starship, Vesktop and Zen are templated (`<component>/<name>.in`): **edit the `.in` file, never the symlink.** Read `docs/internals/theming.md` before touching a themed component or `wall.sh`.
 
 ### Components
 
@@ -48,6 +48,7 @@ Doc named per item is in `docs/internals/`.
 - **Keybindings overlay** (Super+H): `quickshell/keybinds-overlay/`, read-only. `keybinds-overlay.md`.
 - **Workspaces** (`waybar/workspaces/`, C): native Waybar CFFI module built by `scripts/waybar/build-workspaces.sh`; `module.c` must export all five `wbcffi_*` functions. `workspaces.md`.
 - **Update card** (`quickshell/updates/`): runs root helper `/usr/local/bin/system-update`. `update-card.md`.
+- **Bar cards** (sound, update, weather): one window, `quickshell/popover/BarPopover.qml` (and `Collect.qml`), reached through a tracked symlink in each card's folder because Quickshell loads QML only from a config's own folder: edit the file in `quickshell/popover/`, never the symlink. `update-card.md`.
 - **Weather card** (Waybar's weather): `quickshell/weather/`, started by `scripts/hyprland/weather-popover.sh`. `model.mjs` decides everything and the QML only draws it; `scripts/weather/forecast.sh` is the only thing that asks Open-Meteo for it, for the `location` that `waybar/waybar-weather-wrapper.sh` keeps in the bar's cache. `waybar/weather.toml` is a copy of the service's default tooltip plus the coordinate line: keep that line last. Fixtures use Berlin, never a real location. `weather-card.md`.
 - **Sound popover** (Waybar's volume icon): `quickshell/sound/`, started by `scripts/hyprland/sound-popover.sh`. `model.mjs` decides everything and the QML only draws it; `scripts/sound/sound.sh` is the only thing that moves a stream (`pactl move-sink-input`) or reads pins (`pw-metadata`). Streams are addressed by `object.serial`, never by the reused object id. Device names and hidden devices are the panel's untracked `options/sound-*`. SwayNC has no volume widget. `sound-popover.md`.
 - **Calendar** (Super+Shift+E): `scripts/calendar/sync.sh` is the only path to iCloud and `cal.sh` the only khal reader and writer (edits via `ics-edit.py`, adds via `khal import`, never `khal new`). Passwords live only in the keyring and reach tools on stdin, never argv. `options/calendar-*` is untracked. `calendar.md`.

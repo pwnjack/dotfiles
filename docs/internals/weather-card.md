@@ -1,10 +1,10 @@
 # Weather card
 
 `quickshell/weather/shell.qml` is the on-demand card started by
-`scripts/hyprland/weather-popover.sh` when Waybar's weather is clicked (lock,
-IPC toggle, cursor-anchored, palette passed in `WEATHER_*` variables, exits on
-close). IPC target `weather`: `ping`, `toggle`, `close`, `status`. Nothing of
-it runs while it is closed. It shows the weather now, the next 21 hours in
+`scripts/hyprland/weather-popover.sh` when Waybar's weather is clicked
+(cursor-anchored) in the shared bar-card window (see `update-card.md`). IPC
+target `weather`: `ping`, `toggle`, `close`, `status`. Nothing of it runs while
+it is closed. It shows the weather now, the next 21 hours in
 eight 3-hour steps and up to seven days, each with a low-to-high bar on one
 shared scale. There is nothing to press in it: Escape or a click outside
 closes it, and opening it again is the retry.

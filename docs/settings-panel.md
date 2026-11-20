@@ -9,9 +9,8 @@ clicking outside, or Super+I closes it.
 Once pending saves finish, the process exits. Failed saves keep the error visible
 by reopening the panel. Text fields apply with Return or their Apply button, which appears while the text differs from the saved value; sliders save on release.
 
-`catalog.json` is the only list of settings: 121 rows on 17 pages (16 in the
-sidebar, plus About), with search, editable display cards and per-row resets.
-Pages sit in five sidebar groups, and rows sit in titled sections inside each
+`catalog.json` is the only list of settings, with search, editable display
+cards and per-row resets. Pages sit in five sidebar groups, and rows sit in titled sections inside each
 page, one line each: label on the left, control on the right. Reload Hyprland,
 Restart bar and Update system… live in the title bar's ⋯ menu; Restart bar also
 appears as a button in the Bar page's Layout section, and Update now in Default
@@ -21,30 +20,29 @@ output and input device, their volume and mute, and per-app volume and routing
 (the sound popover on the bar's volume icon), running updates (the update card; the panel only
 chooses whether the bar shows the module), screenshot and recording options
 (the capture bar) and picking wallpapers (the carousel; the panel only holds
-the random-wallpaper-at-login switch and palette options). The palette is
-read through `scripts/theming/palette.sh` on every launch.
+the random-wallpaper-at-login switch and palette options).
 
 ## Pages
 
-| Page | Group | Rows | Sections |
-| --- | --- | --- | --- |
-| Appearance | look | 23 | Style, Themes, Palette, Fonts, Desktop clock, Cursor, Window style, Transparency & effects |
-| Bar | look | 14 | Layout, Clock & workspaces, Modules (see [Bar](#bar)) |
-| Windows | look | 10 | Tiling, Focus, Advanced |
-| Animations | look | 8 | General, Speed |
-| Notifications | look | 7 | Position, Timing, Size |
-| Network | connectivity | 1 | Its own view: Wi-Fi, Wired, VPN (see [Network](#network)) |
-| Devices | connectivity | — | Its own view: wireless peripherals (see [Devices](#devices)) |
-| Displays | hardware | 1 | One card per output, plus Options (see [Displays](#displays)) |
-| Sound | hardware | 3 | Output, Input, then its own Devices list (see [Sound](#sound)) |
-| Power | hardware | 9 | Power mode, Lock & sleep, Wake screen, Night Light |
-| Keyboard & Mouse | input | 15 | Keyboard, Mouse, Touchpad, Pointer |
-| Accessibility | input | 2 | Vision |
-| Date & Region | system | 5 | Date & time, Language & formats (see [Date & Region](#date--region)) |
-| Calendar | system | 4 | Its own view (account, sync, calendars), then Events and New events (see [Calendar](#calendar)) |
-| Startup | system | 3 | At login, then the autostart lists (see [Startup](#startup)) |
-| Default Apps | system | 16 | Applications, File types, Launcher & updates |
-| About this machine | system | — | Opened from the account card under the sidebar |
+| Page | Group | Sections |
+| --- | --- | --- |
+| Appearance | look | Style, Themes, Palette, Fonts, Desktop clock, Cursor, Window style, Transparency & effects |
+| Bar | look | Layout, Clock & workspaces, Modules (see [Bar](#bar)) |
+| Windows | look | Tiling, Focus, Advanced |
+| Animations | look | General, Speed |
+| Notifications | look | Position, Timing, Size |
+| Network | connectivity | Its own view: Wi-Fi, Wired, VPN (see [Network](#network)) |
+| Devices | connectivity | Its own view: wireless peripherals (see [Devices](#devices)) |
+| Displays | hardware | One card per output, plus Options (see [Displays](#displays)) |
+| Sound | hardware | Output, Input, then its own Devices list (see [Sound](#sound)) |
+| Power | hardware | Power mode, Lock & sleep, Wake screen, Night Light |
+| Keyboard & Mouse | input | Keyboard, Mouse, Touchpad, Pointer |
+| Accessibility | input | Vision |
+| Date & Region | system | Date & time, Language & formats (see [Date & Region](#date--region)) |
+| Calendar | system | Its own view (account, sync, calendars), then Events and New events (see [Calendar](#calendar)) |
+| Startup | system | At login, then the autostart lists (see [Startup](#startup)) |
+| Default Apps | system | Applications, File types, Launcher & updates |
+| About this machine | system | Opened from the account card under the sidebar |
 
 ## Palette
 
@@ -116,18 +114,13 @@ and contrast. Error messages use matugen's error colour.
 - `request.js` runs the GTK-free GJS backend for one JSON request and exits.
   `panel-request.sh` holds a lock across the complete request. Arguments stay
   argument arrays, including text containing quotes or shell metacharacters.
-- `persist.js` and `hyprctl.js` own the shared persistence layer. Apply/save
-  waits for Hyprland's `ok`; failed writes reload the saved config;
-  resets remove just the selected override and reload the actual Lua defaults.
-  Overrides are per-machine state in `${XDG_STATE_HOME:-~/.local/state}/hypr/overrides.lua`,
-  never a tracked file, so using the panel leaves git clean; `hyprland.lua` loads
-  it last if present and skips it, with a notification, if it fails to run.
-- The backend writes hypridle's timeouts to `~/.local/state/hypr/hypridle.conf`
-  (sourced by the tracked `hypridle.conf`) and the night-light `$variables` in
-  `hypr/hyprsunset.conf` (the rendered live file; the tracked default is
-  `defaults/hypr/hyprsunset.conf`), preserving unrelated
-  content, and restores files if applying them fails. SwayNC retains unrelated
-  keys. Night light liveness uses `nightlight.sh`, never an identity getter.
+- Hyprland rows write per-machine overrides to
+  `${XDG_STATE_HOME:-~/.local/state}/hypr/overrides.lua`, never a tracked file;
+  `hyprland.lua` loads it last if present and skips it, with a notification, if
+  it fails to run. hypridle's timeouts go to `~/.local/state/hypr/hypridle.conf`
+  and the night-light `$variables` to the rendered `hypr/hyprsunset.conf`. How
+  saves, resets and failed writes behave is in
+  `docs/internals/settings-panel.md`.
 - Rows whose value lives in a file the machine-state overlay renders (`options/`,
   GTK and Qt settings, `mimeapps.list`, `swaync/config.json`, the night-light
   variables) write the live file and then run `scripts/state/overlay.sh sync`, so
@@ -220,49 +213,10 @@ file. If the panel dies or its screen goes dark, the guard reverts at 20 s.
 While a change is pending every other setting and button waits, and the backend refuses every request but reads and the
 display operations, since a reset or reload would silently undo it.
 
-Verified on DP-1 (ROG PG279Q, 2560×1440) with Hyprland 0.56.2:
-
-- `hyprctl eval 'hl.monitor({ output = "DP-1", ... })'` applies at once
-  (143.998 → 119.998 Hz within 1 s); `hyprctl reload` restores the file's rule.
-- Apply then nothing: the panel reverts at 15 s. Apply then `kill -9` of the
-  panel: the guard reverts at about 21 s. Apply then Close: reverted in about
-  140 ms. None leaves a unit, a pending record or a panel process.
-- Scales, each accepted by `eval` with `ok` and no config error: `1.25` →
-  1.25; `1.3333333333333333` → 1.3333334; `1.5` → **1.6, silently**. Hyprland
-  substitutes a nearby scale when the logical size is not whole, so the panel
-  offers only `k/120` scales that divide the staged mode.
-- The systemd user manager of the UWSM session carries
-  `HYPRLAND_INSTANCE_SIGNATURE`, which the guard inherits when a request has
-  none. `systemctl stop` of an unloaded unit says `Unit … not loaded.`
-
-## Design decisions behind the Network, Date & Region and Startup pages
-
-- **Refresh after a Wi-Fi scan.** `nmcli monitor` prints nothing for a
-  completed `nmcli device wifi rescan`, so the list refresh comes from the
-  panel's follow-up read (`scanSettle`). Its start-up banner line causes one
-  extra debounced read when the page opens, which is harmless.
-- **Quickshell stdin.** A `Process` with `stdinEnabled: true` that calls
-  `write()` in `onStarted` delivers the line, which is how panel writes reach
-  `panel-request.sh -`.
-- **Waybar include.** Waybar 0.15 expands `~` in `include` and merges key by
-  key, so a main `clock` object without `format` takes the include's format.
-  The clock override is therefore an include at
-  `~/.local/state/waybar/clock.jsonc`.
-- **Proton VPN.** `nmcli connection down` on the Proton profile makes the
-  Proton app delete both the WireGuard profile and the `pvpn-killswitch-ipv6`
-  dummy, so nothing remains for `nmcli connection up` to restore, and traffic
-  keeps flowing over the real IP unless the kill switch is in permanent mode. Hence
-  every Proton profile belongs to the Proton app (`isProton` in `network.mjs`):
-  the panel shows the state and opens the app, and never switches Proton's
-  profile itself.
-- **Polkit dialog versus the overlay.** An interactive `SetTimezone` opens the
-  polkit agent's dialog behind the panel's Overlay surface, unreachable, so
-  `authHidesPanel: true` (`shell.qml`) hides the panel while a prompt is open.
-  A dismissed dialog returns `org.freedesktop.DBus.Error.AccessDenied`, which
-  `authError.mjs` maps to "Authentication was cancelled; nothing changed."
-- **Per-user locale.** The systemd user manager already carries `LANG` and
-  `LC_TIME`, and `/etc/profile.d/locale.sh` reads `~/.config/locale.conf` only
-  when `LANG` is unset, so formats use `SetLocale` (system-wide, polkit).
+Hyprland silently substitutes a nearby scale when the logical size is not
+whole, so the panel offers only `k/120` scales that divide the staged mode. The
+guard inherits `HYPRLAND_INSTANCE_SIGNATURE` from the UWSM session's systemd
+user manager when a request has none.
 
 ## Network
 
@@ -282,10 +236,12 @@ Traps:
 
 - **The PSK only travels on stdin.** Panel writes reach `panel-request.sh -` as one JSON
   line on the helper's stdin, never in argv, so a password cannot show in `ps` or a log.
+  A `Process` with `stdinEnabled: true` must `write()` in `onStarted`.
 - **A failed new connection is deleted.** A wrong password leaves no half-made profile.
-- **Proton is the app's.** The Proton app deletes its WireGuard profile on disconnect
-  and creates a new one per server, so the panel shows the state and opens the app; it
-  never brings a Proton profile up or down.
+- **Proton is the app's.** The Proton app deletes its WireGuard profile and kill-switch
+  dummy on disconnect, leaving traffic on the real IP unless the kill switch is permanent,
+  and creates a new profile per server. So every Proton profile (`isProton` in
+  `network.mjs`) is shown and opens the app; the panel never brings one up or down.
 - **Nothing runs when closed:** no `nmcli monitor`, no timer, no panel process.
 - `pgrep -f '^nmcli monitor$'` finds nothing: the real command line is
   `/usr/bin/nmcli monitor`.
@@ -502,64 +458,17 @@ by display SSID.
 
 ## Performance
 
-Measured on the author's machine (2560×1440 at scale 1, Quickshell 0.3.1 /
-Qt 6.11.2), as a baseline taken before the session snapshot: first frame 221 to
-291 ms after the launcher timestamp, the first 14 values ready by 348 to 418 ms,
-about 105 to 107 MiB PSS while open (the AGS
-panel it replaced held about 137 MiB), and no process at all once closed.
-
-A full backend read of every row (`panel-request.sh` with all ids) takes about
-300 ms with the 89 rows it had when measured, most of it the nine File types rows forking
-`xdg-mime`. An empty read takes about 44 ms; the Network page adds about 4 ms
-and the Startup page about 25 ms. The frame is drawn before values arrive, so
-the read delays values, not the panel. With the panel closed there is no
-`pactl subscribe`, no `settings-display-*` unit, no `nmcli monitor` and no
-panel process. On the Sound page, playback on an awake sink plus notifications
-cause no live read; each default-device change caused one when measured, before the
-Sound devices list had its own read. A read can be timed with:
-
-```bash
-req=$(jq -c '{op:"read",ids:[.rows[].id],monitors:true}' quickshell/settings-panel/catalog.json)
-bash scripts/settings/panel-request.sh "$req"
-```
-
-The timestamp starts after the launcher's lock, IPC probe and palette load, so
-these are not full keypress-to-display measurements. A frame swap is a render
-milestone, not a physical screen latency measurement. PSS apportions shared
-pages; these values exclude GPU memory and are not a guarantee of an identical
-drop in total system usage. Short-lived GJS reads can add memory while loading.
-The saving at idle comes from exiting, not from
-keeping a Qt runtime hidden.
+The panel exits on close instead of staying resident: the saving at idle comes
+from exiting, and with it closed there is no `pactl subscribe`, no
+`settings-display-*` unit, no `nmcli monitor` and no panel process. The frame
+is drawn before values arrive, so a slow backend read delays values, not the
+panel.
 
 ## Verification
 
-```bash
-bash quickshell/settings-panel/test/run-tests.sh
-node quickshell/settings-panel/test/displays.mjs
-node quickshell/settings-panel/test/monitor-lua.mjs # runs monitor.lua under Lua
-bash quickshell/settings-panel/test/live-smoke.sh # opens/closes on the desktop
-bash scripts/hyprland/test-wallpaper.sh
-/usr/lib/qt6/bin/qmllint -I /usr/lib/qt6/qml quickshell/settings-panel/*.qml
-scripts/docs/generate-keybindings.sh --check
-./test.sh
-./doctor.sh
-```
-
-`./test.sh` runs this suite. Tests cover keyboard/search/close,
-no writes while building controls, slider release and explicit text saves,
-backend validation (XKB, fonts, commands, choices), GTK/Kvantum ini
-round-trips, File Types subtype handling and rollback, suspend listener
-round-trips, animation preservation, notification rollback, main-monitor
-write failure, the shared apply/save/reset transactions, Sound choices and
-writes, palette saves (generate, then apply, with rollback), the panel's fallback
-colours against `palette.sh`, the Calendar page's sign-in and
-read helpers, interaction locking, display staging, the pending banner, and every
-Apply/Keep/Revert ordering and failure path against a mocked systemd guard. The desktop smoke
-check reads every catalogue setting without changing them, captures
-`/tmp/settings-panel-live.png`, measures opening, and verifies process exit.
-Qt's linter reports four warnings (PanelWindow is not creatable
-outside Quickshell, an `actionsMenu` id shadowing a property, and two property
-lookups on types it has no metadata for); live loading succeeds.
+`./test.sh` runs this suite. `bash quickshell/settings-panel/test/live-smoke.sh`
+is the opt-in desktop check: it opens and closes the panel and reads every
+setting without changing one.
 
 Only a single physical monitor at scale 1 has been tested; multiple monitors
 and fractional scaling have not.

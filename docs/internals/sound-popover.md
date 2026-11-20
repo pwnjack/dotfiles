@@ -1,13 +1,13 @@
 # Sound popover
 
 `quickshell/sound/shell.qml` is the on-demand popover started by
-`scripts/hyprland/sound-popover.sh` when Waybar's volume icon is clicked (lock,
-IPC toggle, cursor-anchored, palette passed in `SOUND_*` variables, exits on
-close). Scrolling the icon still runs `wpctl`. IPC target `sound`: `ping`,
-`toggle`, `close`, `status`. Nothing of it runs while it is closed: the pins
+`scripts/hyprland/sound-popover.sh` when Waybar's volume icon is clicked
+(cursor-anchored) in the shared bar-card window (see `update-card.md`).
+Scrolling the icon still runs `wpctl`. IPC target `sound`: `ping`, `toggle`,
+`close`, `status`. Nothing of it runs while it is closed: the pins
 watch, the battery timer and the microphone meter all live and die with the
-process. SwayNC no longer carries a volume widget; the sidebar keeps Do Not
-Disturb, media and notifications.
+process. SwayNC has no volume widget; the sidebar keeps Do Not Disturb, media
+and notifications.
 
 ## What owns what
 
@@ -18,7 +18,7 @@ Disturb, media and notifications.
 | `shell.qml` | The controller: it joins the adapter, `model.mjs`, the pins watch, the battery reader and the options files, and runs the route requests. |
 | `Popover.qml`, `DeviceCard.qml`, `Picker.qml`, `AppRow.qml`, `VolumeSlider.qml` | Drawing only. They read the controller's properties and call its functions. |
 | `scripts/sound/sound.sh` | What Quickshell's PipeWire bindings cannot do: move a stream to another output (`route`) and read which streams are pinned (`pins`). |
-| Settings panel Sound page | Names and visibility of devices, plus the card's ports and profile. See `settings-panel.md`. |
+| Settings panel Sound page | Names and visibility of devices, plus the card's ports and profile. See `docs/settings-panel.md`. |
 
 The QML never decides what to show. A rule changes in `model.mjs` and its
 tests (`quickshell/sound/test/model.mjs`, run with the QML cases by
@@ -57,17 +57,16 @@ whole `nodes` array once per event-loop turn. A stream's links come from the
 global `Pipewire.linkGroups`, not from `PwNodeLinkTracker`: the tracker follows
 `isSink`, which Quickshell also sets on **output streams**, so for a playing
 app it reports links into the stream (there are none) and never the links out
-of it. A live pause and resume check confirmed the global groups follow the
-state (the app list went from two to one in 44 ms on pause and back in 39 ms).
+of it. The global groups follow the state.
 
 `isSink` therefore means "a device sink" only after the adapter has masked it
 with `!isStream`; `model.mjs` and its fixture rely on that.
 
-**Playing** means any of the stream's links is `active`. Probed with mpv over
-its IPC socket: both channel links go `paused` on pause (the node state goes
-`idle`) and `active` again on resume, while `mpv --volume=0` stays `active`, so
-silence still counts as playing. The virtual surround leg's links read `paused`
-while nothing plays through it, which is why the leg is not listed as an app.
+**Playing** means any of the stream's links is `active`. Links go `paused` on
+pause (the node state goes `idle`) and `active` again on resume, and a player at
+volume 0 stays `active`, so silence still counts as playing. The virtual
+surround leg's links read `paused` while nothing plays through it, which is why
+the leg is not listed as an app.
 
 A stream is an app only when its media class is `Stream/Output/Audio` and it
 is neither virtual nor passive. Its name is `application.name`, then the node
@@ -99,7 +98,7 @@ A stream has two identifiers and they are not interchangeable:
 
 - the **object id** (`id`) is the PipeWire graph id. It is what Quickshell
   reports and what `pw-metadata` keys its `target.*` entries by, and PipeWire
-  **reuses** it: a new stream took id 107 again on every loop of the probe.
+  **reuses** it for the next stream.
 - the **serial** (`object.serial`) never repeats. It is the Pulse sink-input
   index, so it is what `pactl move-sink-input` takes, and the value a pin holds
   is usually the target sink's serial.
@@ -153,11 +152,10 @@ the stream by serial first).
 ## The battery join
 
 The headset's charge comes from `scripts/devices/devices.sh` (the same reader
-the Devices page and the low-battery toast use), which now prints the USB id of
-a headset as `usb`. `batteryFor` joins it to a sink through the sink's
+the Devices page and the low-battery toast use), which prints the USB id of a
+headset as `usb`. `batteryFor` joins it to a sink through the sink's
 `alsa.components`, which reads `USB046d:0a66`: the row's `046d:0a66` must
-appear in it. Confirmed on a Logitech G533, whose sysfs `idVendor` and
-`idProduct` match.
+appear in it; the sysfs `idVendor` and `idProduct` are the same id.
 
 - Only sinks are looked at. The headset's **source** carries the same
   `alsa.components`, so matching sources would attach the charge to the

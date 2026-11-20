@@ -4,10 +4,7 @@ Clicking the bar's updates module opens a small Quickshell card under it:
 `scripts/hyprland/updates-popover.sh` toggles `quickshell/updates/shell.qml`,
 anchored to the cursor's x on the bar's edge, and the process exits when the
 card closes. The update itself is a separate detached run that the card only
-starts and watches. The card's colours come from the matugen palette (the
-launcher passes the background, the readable foreground and the `primary` role
-as the accent); `palette.sh`'s fallback palette stands in when none has been
-generated.
+starts and watches.
 
 ## What it does
 
@@ -19,9 +16,9 @@ generated.
 - **The last check is reused.** Every plan the planner prints, from the card or
   the bar's half-hourly check, is also saved as
   `$XDG_RUNTIME_DIR/updates/plan.json`. The card opens on that saved plan
-  (`updates-plan.sh --cached`). If it is under ten minutes old, the card does
-  not check again, so closing it by mistake and reopening costs nothing. If it
-  is older, the card shows it straight away and checks again behind it: the
+  (`updates-plan.sh --cached`). If it is under ten minutes old
+  (`model.PLAN_FRESH_SECONDS`), the card does not check again, so closing it by
+  mistake and reopening costs nothing. If it is older, the card shows it straight away and checks again behind it: the
   spinner turns, the clock line beside the buttons says "Checking…", and the
   new plan replaces it when it arrives. Otherwise that line says how old the
   plan is ("4 min ago"). A saved plan is not used once pacman's local

@@ -1,7 +1,7 @@
 # Wallpaper carousel
 
-Written against Quickshell 0.3.1 and Qt 6.11.2. Wallpapers flow
-through Waypaper, awww and matugen, exactly as they do without the carousel.
+Wallpapers flow through Waypaper, awww and matugen, exactly as they do without
+the carousel.
 
 ## Controls
 
@@ -77,39 +77,12 @@ qs -p ~/.config/quickshell/wallpaper-carousel/shell.qml log -t 50
 
 ## Verification
 
-Warm opens were only slightly faster than cold ones (579 ms against 911 ms
-to the selected preview on a 2560×1440 display with 132 wallpapers), which
-was not worth holding hundreds of MiB (about 270 to 360 MiB resident) while
-idle, so closing exits the process and leaves no carousel RSS.
-
+Warm opens were barely faster than cold ones, which was not worth holding a few
+hundred MiB while idle, so closing exits the process and leaves no carousel RSS.
 Synthetic `wtype` modifier injection does not trigger the global Super+Ctrl+W
-shortcut, so that check needs a real keypress.
-
-Offscreen tests exercise the actual QML view's mouse selection, wheel input over
-cards and background, horizontal/high-resolution wheels, keyboard/search/
-cancellation, empty results, and unreadable-preview behaviour (eight test
-functions). Shell fixtures cover argument boundaries (quotes, spaces, Unicode,
-`$()`, backticks and `#`), read-only browsing, runtime folder settings,
-backend/query/save/theme failures, deleted files, duplicate submissions, and
-racing launches.
-
-```bash
-bash scripts/hyprland/test-carousel.sh
-bash quickshell/wallpaper-carousel/test/run-tests.sh
-bash scripts/hyprland/test-wallpaper.sh
-shellcheck -x scripts/hyprland/carousel-*.sh scripts/hyprland/wallpaper-carousel.sh \
-  scripts/hyprland/test-carousel.sh quickshell/wallpaper-carousel/test/run-tests.sh
-/usr/lib/qt6/bin/qmllint -I /usr/lib/qt6/qml quickshell/wallpaper-carousel/*.qml
-scripts/docs/generate-keybindings.sh --check
-./test.sh
-./doctor.sh
-```
-
-`./test.sh` discovers both carousel suites with the rest. Qt's native linter succeeds with three Quickshell metadata warnings, all in
-`shell.qml`: `PanelWindow` marked uncreatable, `devicePixelRatio` not found on
-`QuickshellScreenInfo`, and the optional chaining on that same lookup reported
-as redundant. Live Quickshell loads them successfully. Use the
-Qt 6 tool path above; the unrelated `/usr/bin/qmllint` exits 255 on the author's machine.
+shortcut, so that check needs a real keypress. `./test.sh` runs both carousel
+suites, `scripts/hyprland/test-carousel.sh` and
+`quickshell/wallpaper-carousel/test/run-tests.sh`.
 
 ## Limits
 

@@ -68,12 +68,8 @@ device_icon() {
 # entry <icon> <value> — one rendered chunk of the bar text. The glyph is
 # promoted a fifth to match the bar scale (14px base); see waybar/style.css.
 #
-# ONE space between glyph and value. This used to be two, on the argument that
-# a battery glyph carries ink to the right and needed the wider spacer to look
-# equal to its neighbours. Screenshotting the bar with this module forced
-# visible (BATTERY_SYSFS, which is what that seam is for) showed the opposite:
-# beside cpu/memory/gpu/disk the two-space entries read as visibly detached
-# from their numbers.
+# ONE space between glyph and value: beside cpu/memory/gpu/disk a two-space
+# entry reads as detached from its number.
 # The gap BETWEEN entries stays wider -- see the joiner below -- so two
 # batteries still read as two readouts rather than one run-on number.
 entry() {
