@@ -310,6 +310,26 @@ Item {
             mouseClick(blocks[0]);
             compare(controller.lastEdited.title, "Calcetto");
         }
+        function test_controls_are_named() {
+            const prev = find("prevMonth");
+            compare(prev.Accessible.role, Accessible.Button);
+            compare(prev.Accessible.name, "Previous month");
+            compare(find("plusButton").Accessible.name, "New event");
+            const key = controller.viewYear + "-" + String(controller.viewMonth + 1).padStart(2, "0");
+            const b = {}; b[key] = [13]; controller.busy = b;
+            const cell = find("dot-" + key + "-13").parent;
+            compare(cell.Accessible.role, Accessible.ListItem);
+            compare(cell.Accessible.name, Qt.locale("it_IT").toString(new Date(controller.viewYear, controller.viewMonth, 13), "dddd d MMMM yyyy"));
+            controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: "2026-10-20" });
+            controller.dayFor = "2026-10-20"; controller.dayEvents = [listed({ recurring: false })];
+            waitForRendering(card);
+            const row = rowsNamed(card, "eventRow")[0];
+            compare(row.Accessible.role, Accessible.Button);
+            compare(row.Accessible.name, "Calcetto, " + findChild(row, "eventTime").text);
+            controller.lastEdited = null;
+            row.Accessible.pressAction();
+            compare(controller.lastEdited.title, "Calcetto");
+        }
         function test_event_row_click_opens_the_event() {
             controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: "2026-10-20" });
             controller.dayFor = "2026-10-20"; controller.dayEvents = [listed({ recurring: false })];

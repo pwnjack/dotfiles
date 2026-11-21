@@ -75,6 +75,11 @@ Rectangle {
             width: ListView.view.width
             height: menu.rowHeight
             radius: menu.card.px(7)
+            Accessible.role: Accessible.RadioButton
+            Accessible.name: item.modelData.label
+            Accessible.checkable: true
+            Accessible.checked: item.modelData.value === menu.current
+            Accessible.onPressAction: if (menu.enabled) menu.chosen(item.modelData.value)
             color: item.index === menu.hi ? Qt.rgba(menu.card.c.accent.r, menu.card.c.accent.g, menu.card.c.accent.b, 0.28) : "transparent"
             Rectangle {
                 id: dot

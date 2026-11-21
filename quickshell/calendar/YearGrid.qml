@@ -15,11 +15,11 @@ ColumnLayout {
     Item {
         Layout.fillWidth: true
         implicitHeight: year.card.px(30)
-        IconButton { card: year.card; glyph: "‹"; glyphSize: 18; x: Math.round(parent.width / 14 - width / 2)
+        IconButton { name: "Previous year"; card: year.card; glyph: "‹"; glyphSize: 18; x: Math.round(parent.width / 14 - width / 2)
             anchors.verticalCenter: parent.verticalCenter; onClicked: year.card.c.shiftYear(-1) }
         Text { anchors.centerIn: parent; text: year.card.c.viewYear
             color: year.card.c.foreground; font.family: year.card.c.monoFont; font.pixelSize: year.card.px(13); font.weight: Font.DemiBold }
-        IconButton { card: year.card; glyph: "›"; glyphSize: 18; x: Math.round(parent.width * 13 / 14 - width / 2)
+        IconButton { name: "Next year"; card: year.card; glyph: "›"; glyphSize: 18; x: Math.round(parent.width * 13 / 14 - width / 2)
             anchors.verticalCenter: parent.verticalCenter; onClicked: year.card.c.shiftYear(1) }
     }
     GridLayout {
@@ -32,6 +32,9 @@ ColumnLayout {
                 required property int index
                 readonly property bool current: index === new Date().getMonth() && year.card.c.viewYear === new Date().getFullYear()
                 objectName: "yearMonth" + index
+                Accessible.role: Accessible.Button
+                Accessible.name: year.card.c.locale.standaloneMonthName(index, Locale.LongFormat) + " " + year.card.c.viewYear
+                Accessible.onPressAction: year.card.c.pickMonth(index)
                 Layout.fillWidth: true
                 implicitHeight: year.card.px(48)
                 radius: year.card.px(10)

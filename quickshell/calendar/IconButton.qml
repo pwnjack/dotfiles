@@ -11,7 +11,12 @@ Rectangle {
     property real glyphSize: 16
     // Optical centring: a glyph's ink is not centred in its line box.
     property real nudgeY: 0
+    property string name: ""
     signal clicked()
+    Accessible.role: Accessible.Button
+    Accessible.name: name
+    Accessible.ignored: name === ""      // a bar that is itself the button names it
+    Accessible.onPressAction: clicked()
     implicitWidth: card.px(28)
     implicitHeight: card.px(28)
     radius: width / 2
@@ -21,6 +26,7 @@ Rectangle {
         anchors.centerIn: parent
         anchors.verticalCenterOffset: button.card.px(button.nudgeY)
         text: button.glyph
+        Accessible.ignored: true
         rotation: button.turn
         Behavior on rotation { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
         color: button.card.c.accent

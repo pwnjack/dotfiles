@@ -27,7 +27,10 @@ ColumnLayout {
         visible: up.noAccount
         Layout.fillWidth: true; implicitHeight: up.card.px(36); radius: up.card.px(10)
         color: Qt.rgba(up.card.c.accent.r, up.card.c.accent.g, up.card.c.accent.b, 0.18)
-        Text { anchors.centerIn: parent; text: "Set up iCloud in Settings ›"; color: up.card.c.foreground
+        Accessible.role: Accessible.Button
+        Accessible.name: setUpText.text
+        Accessible.onPressAction: up.card.c.openSettings()
+        Text { id: setUpText; anchors.centerIn: parent; text: "Set up iCloud in Settings ›"; color: up.card.c.foreground
             font.family: up.card.c.monoFont; font.pixelSize: up.card.px(13) }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: up.card.c.openSettings() }
     }

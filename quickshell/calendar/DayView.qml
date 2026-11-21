@@ -26,6 +26,7 @@ ColumnLayout {
         card: dv.card
         text: dv.card.c.locale.toString(dv.dayDate, "dddd d MMMM")
         glyph: "×"
+        buttonName: "Close day"
         glyphSize: 20
         onClicked: dv.card.c.closeDay()
     }
@@ -49,7 +50,10 @@ ColumnLayout {
         Behavior on color { ColorAnimation { duration: 100 } }
         border.width: 1
         border.color: Qt.rgba(dv.card.c.accent.r, dv.card.c.accent.g, dv.card.c.accent.b, 0.45)
-        Text { objectName: "newOnDay"; x: dv.card.px(12); anchors.verticalCenter: parent.verticalCenter
+        Accessible.role: Accessible.Button
+        Accessible.name: newOnDay.text
+        Accessible.onPressAction: dv.card.c.newEvent(dv.day)
+        Text { id: newOnDay; objectName: "newOnDay"; x: dv.card.px(12); anchors.verticalCenter: parent.verticalCenter
             text: "+ New event on " + dv.card.c.locale.toString(dv.dayDate, "ddd d")
             color: dv.card.c.accent; font.family: dv.card.c.monoFont; font.pixelSize: dv.card.px(13) }
         MouseArea { id: newHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: dv.card.c.newEvent(dv.day) }

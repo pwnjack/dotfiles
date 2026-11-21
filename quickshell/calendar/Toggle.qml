@@ -12,6 +12,12 @@ Item {
     implicitHeight: 28
     opacity: enabled ? 1 : 0.42
     activeFocusOnTab: true
+    // The owner names it (Accessible.name), as the row's label is a sibling.
+    Accessible.role: Accessible.CheckBox
+    Accessible.checkable: true
+    Accessible.checked: checked
+    Accessible.onToggleAction: if (enabled) toggled()
+    Accessible.onPressAction: if (enabled) toggled()
     Keys.onSpacePressed: event => { toggle.toggled(); event.accepted = true; }
     Rectangle {
         id: track

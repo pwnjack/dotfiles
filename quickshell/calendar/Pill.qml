@@ -19,6 +19,9 @@ Rectangle {
     border.width: active ? 1 : 0
     border.color: card.c.accent
     activeFocusOnTab: true
+    Accessible.role: Accessible.Button
+    Accessible.name: text
+    Accessible.onPressAction: if (enabled) clicked()
     // Return is not taken here: it passes to the sheet, which adds a valid draft.
     Keys.onSpacePressed: event => { pill.clicked(); event.accepted = true; }
     Keys.onUpPressed: event => { pill.wheelStep(1); event.accepted = true; }

@@ -95,7 +95,7 @@ FocusScope {
         border.width: 1
         border.color: Qt.rgba(card.c.foreground.r, card.c.foreground.g, card.c.foreground.b, 0.14)
         Behavior on height { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
-        MouseArea { anchors.fill: parent }       // clicks inside never reach the close catcher
+        MouseArea { anchors.fill: parent } // a11y: not a control; clicks inside never reach the close catcher
         ColumnLayout {
             id: content
             x: card.px(16); y: card.px(16)
@@ -121,7 +121,7 @@ FocusScope {
                         font.family: card.c.monoFont; font.pixelSize: card.px(12.5) }
                 }
                 HeaderButton { objectName: "todayButton"; visible: card.browsedAway; label: "Today"; card: card; onClicked: card.c.goToday() }
-                HeaderButton { objectName: "plusButton"; label: "+"; card: card; square: true
+                HeaderButton { objectName: "plusButton"; label: "+"; name: "New event"; card: card; square: true
                     enabled: card.c.status && card.c.status.state !== "none"; onClicked: card.c.newEvent(card.c.state.day || null) }
             }
             // A failure with no sheet open (an event that could not be read, a change that failed after its sheet closed).

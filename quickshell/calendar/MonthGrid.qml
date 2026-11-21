@@ -52,7 +52,7 @@ FocusScope {
         Item {
             Layout.fillWidth: true
             implicitHeight: grid.card.px(30)
-            IconButton { objectName: "prevMonth"; card: grid.card; glyph: "‹"; glyphSize: 18
+            IconButton { objectName: "prevMonth"; name: "Previous month"; card: grid.card; glyph: "‹"; glyphSize: 18
                 x: Math.round(parent.width / 14 - width / 2); anchors.verticalCenter: parent.verticalCenter; onClicked: grid.prev() }
             Rectangle {
                 id: titleChip
@@ -61,13 +61,16 @@ FocusScope {
                 color: Qt.rgba(grid.card.c.foreground.r, grid.card.c.foreground.g, grid.card.c.foreground.b,
                     grid.titleOpens && titleHover.containsMouse ? 0.10 : 0)
                 Behavior on color { ColorAnimation { duration: 100 } }
+                Accessible.role: Accessible.Button
+                Accessible.name: name.text
+                Accessible.onPressAction: if (grid.titleOpens) grid.titleClicked()
                 Text { id: name; objectName: "monthName"; anchors.centerIn: parent
                     text: grid.card.c.locale.standaloneMonthName(grid.month, Locale.LongFormat) + " " + grid.year
                     color: grid.card.c.foreground; font.family: grid.card.c.monoFont; font.pixelSize: grid.card.px(13); font.weight: Font.DemiBold }
                 MouseArea { id: titleHover; anchors.fill: parent; enabled: grid.titleOpens; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor; onClicked: grid.titleClicked() }
             }
-            IconButton { objectName: "nextMonth"; card: grid.card; glyph: "›"; glyphSize: 18
+            IconButton { objectName: "nextMonth"; name: "Next month"; card: grid.card; glyph: "›"; glyphSize: 18
                 x: Math.round(parent.width * 13 / 14 - width / 2); anchors.verticalCenter: parent.verticalCenter; onClicked: grid.next() }
         }
         GridLayout {
@@ -99,7 +102,11 @@ FocusScope {
                     border.width: modelData.key === grid.selected || index === grid.focusIndex ? 1.5 : 0
                     border.color: grid.card.c.foreground
                     opacity: modelData.inMonth ? 1 : 0.32
-                    Text { anchors.horizontalCenter: parent.horizontalCenter; y: grid.card.px(5)
+                    Accessible.role: Accessible.ListItem
+                    Accessible.name: grid.card.c.locale.toString(new Date(Model.dayStart(modelData.key) * 1000), "dddd d MMMM yyyy")
+                    Accessible.selected: modelData.key === grid.selected
+                    Accessible.onPressAction: grid.picked(modelData.key)
+                    Text { anchors.horizontalCenter: parent.horizontalCenter; y: grid.card.px(5); Accessible.ignored: true
                         text: cell.modelData.day; color: cell.today ? grid.card.c.accentInk : grid.card.c.foreground
                         font.family: grid.card.c.monoFont; font.pixelSize: grid.card.px(13); font.weight: cell.today ? Font.Bold : Font.Normal }
                     Rectangle { objectName: "dot-" + cell.modelData.key.slice(0, 7) + "-" + cell.modelData.day

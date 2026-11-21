@@ -11,6 +11,9 @@ Rectangle {
     readonly property bool lit: card.c.highlight !== "" && event.title === card.c.highlight
     Layout.fillWidth: true
     implicitHeight: card.px(28)
+    Accessible.role: Accessible.Button
+    Accessible.name: event.title + ", " + timeText.text
+    Accessible.onPressAction: card.c.editEvent(event)
     radius: card.px(8)
     // A row opens its event, so it lights under the pointer like every other button on the card.
     color: lit ? Qt.rgba(card.c.accent.r, card.c.accent.g, card.c.accent.b, 0.25)
@@ -25,7 +28,7 @@ Rectangle {
         anchors.leftMargin: row.card.px(12)
         anchors.rightMargin: row.card.px(12)
         spacing: row.card.px(10)
-        Text { objectName: "eventTime"; Layout.preferredWidth: widest.advanceWidth; Layout.minimumWidth: widest.advanceWidth
+        Text { id: timeText; objectName: "eventTime"; Layout.preferredWidth: widest.advanceWidth; Layout.minimumWidth: widest.advanceWidth
             text: row.event.allDay ? "all day" : row.fmt(row.event.startEpoch) + "–" + row.fmt(row.event.endEpoch)
             color: row.card.c.accent; font.family: row.card.c.monoFont; font.pixelSize: row.card.px(13) }
         Rectangle { objectName: "eventDot"; width: row.card.px(9); height: width; radius: width / 2; color: row.event.color || row.card.c.accent }

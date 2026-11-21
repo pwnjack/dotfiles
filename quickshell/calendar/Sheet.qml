@@ -246,6 +246,9 @@ FocusScope {
             Text {
                 objectName: "cancelButton"
                 text: "Cancel"
+                Accessible.role: Accessible.Button
+                Accessible.name: text
+                Accessible.onPressAction: sheet.card.c.cancelSheet()
                 color: sheet.card.c.accent
                 font.family: sheet.card.c.monoFont
                 font.pixelSize: sheet.card.px(13)
@@ -271,6 +274,9 @@ FocusScope {
                 radius: sheet.card.px(9)
                 color: enabled ? sheet.card.c.accent : Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.10)
                 activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: addLabel.text
+                Accessible.onPressAction: if (enabled) sheet.done()
                 Text {
                     id: addLabel
                     objectName: "addLabel"
@@ -365,6 +371,7 @@ FocusScope {
                         label: "All day"
                         Toggle {
                             objectName: "allDaySwitch"
+                            Accessible.name: "All day"
                             card: sheet.card
                             enabled: !sheet.readOnly && !(sheet.d && sheet.d.recurring)
                             checked: !!sheet.d && sheet.d.allDay
@@ -476,7 +483,10 @@ FocusScope {
                 visible: sheet.editing && !sheet.readOnly
                 Layout.fillWidth: true; implicitHeight: sheet.card.px(36); radius: sheet.card.px(12)
                 color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
-                Text { anchors.centerIn: parent; text: "Delete event"; color: "#e0787a"; font.weight: Font.DemiBold
+                Accessible.role: Accessible.Button
+                Accessible.name: deleteLabel.text
+                Accessible.onPressAction: sheet.prompting = "delete"
+                Text { id: deleteLabel; anchors.centerIn: parent; text: "Delete event"; color: "#e0787a"; font.weight: Font.DemiBold
                     font.family: sheet.card.c.monoFont; font.pixelSize: sheet.card.px(13) }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: sheet.prompting = "delete" }
             }
@@ -493,7 +503,7 @@ FocusScope {
 
     // The dropdowns float over the sheet. A click anywhere else closes the open one
     // and does nothing more, as a menu does on the desktop.
-    MouseArea {
+    MouseArea { // a11y: not a control; it only catches the click that closes a dropdown
         anchors.fill: parent
         anchors.margins: -sheet.card.px(16)      // the card's padding too: the whole card, not just the sheet
         z: 39

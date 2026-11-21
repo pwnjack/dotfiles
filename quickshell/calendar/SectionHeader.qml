@@ -12,6 +12,7 @@ Rectangle {
     property real glyphSize: 16
     property real nudgeY: 0
     property bool whole: false
+    property string buttonName: ""
     property bool showButton: true
     property alias label: title
     signal clicked()
@@ -19,6 +20,10 @@ Rectangle {
     radius: card.px(10)
     color: Qt.rgba(card.c.foreground.r, card.c.foreground.g, card.c.foreground.b, header.whole && rowHover.containsMouse ? 0.10 : 0.06)
     Behavior on color { ColorAnimation { duration: 100 } }
+    Accessible.role: Accessible.Button
+    Accessible.name: text
+    Accessible.ignored: !whole
+    Accessible.onPressAction: if (whole) clicked()
     MouseArea { id: rowHover; anchors.fill: parent; enabled: header.whole; hoverEnabled: true
         cursorShape: Qt.PointingHandCursor; onClicked: header.clicked() }
     Text {
@@ -41,6 +46,7 @@ Rectangle {
         anchors.rightMargin: header.card.px(3)
         anchors.verticalCenter: parent.verticalCenter
         glyph: header.glyph
+        name: header.buttonName
         turn: header.turn
         glyphSize: header.glyphSize
         nudgeY: header.nudgeY

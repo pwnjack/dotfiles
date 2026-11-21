@@ -324,7 +324,7 @@ ShellRoot {
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: root.state.open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-        MouseArea { anchors.fill: parent; onClicked: if (!card.closePopup()) root.act("outside") }
+        MouseArea { anchors.fill: parent; onClicked: if (!card.closePopup()) root.act("outside") } // a11y: not a control
 
         Card {
             id: card

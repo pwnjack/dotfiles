@@ -43,7 +43,7 @@ Item {
         height: tl.card.px(tl.twoLanes ? 44 : 28)
         radius: tl.card.px(7)
         color: Qt.rgba(tl.card.c.foreground.r, tl.card.c.foreground.g, tl.card.c.foreground.b, 0.05)
-        MouseArea {
+        MouseArea { // a11y: not a control; a click on a coordinate, the sheet's time pills are the other way in
             id: free
             anchors.fill: parent
             enabled: tl.pickable
@@ -83,6 +83,10 @@ Item {
                 height: tl.card.px(modelData.lane === 0 && !tl.twoLanes ? 20 : 18)
                 radius: tl.card.px(5)
                 color: modelData.color || tl.card.c.accent
+                Accessible.role: Accessible.Button
+                Accessible.name: modelData.title
+                Accessible.ignored: !tl.editable
+                Accessible.onPressAction: if (tl.editable) tl.card.c.editEvent(modelData)
                 border.width: bhov.containsMouse ? 2 : 0; border.color: tl.card.c.foreground
                 Text {
                     id: label

@@ -16,7 +16,7 @@ Rectangle {
     z: 30
     color: Qt.rgba(card.c.background.r, card.c.background.g, card.c.background.b, 0.86)
     radius: card.px(12)
-    MouseArea { anchors.fill: parent; onClicked: prompt.cancelled() }
+    MouseArea { anchors.fill: parent; onClicked: prompt.cancelled() } // a11y: not a control; Cancel and Esc do the same
     Keys.onEscapePressed: event => { prompt.cancelled(); event.accepted = true; }
     onVisibleChanged: if (visible) { forceActiveFocus(); pop.restart(); }
     Rectangle {
@@ -28,7 +28,7 @@ Rectangle {
         color: Qt.rgba(prompt.card.c.background.r * 1.6, prompt.card.c.background.g * 1.6, prompt.card.c.background.b * 1.6, 1)
         border.width: 1
         border.color: Qt.rgba(prompt.card.c.foreground.r, prompt.card.c.foreground.g, prompt.card.c.foreground.b, 0.16)
-        MouseArea { anchors.fill: parent }        // a click inside is not a cancel
+        MouseArea { anchors.fill: parent } // a11y: not a control; a click inside is not a cancel
         ParallelAnimation {
             id: pop
             NumberAnimation { target: dialog; property: "scale"; from: 0.96; to: 1; duration: 160; easing.type: Easing.OutCubic }
@@ -53,6 +53,9 @@ Rectangle {
                     Layout.fillWidth: true; implicitHeight: prompt.card.px(34); radius: prompt.card.px(10)
                     readonly property color base: modelData.danger ? "#c2484b" : prompt.card.c.accent
                     color: Qt.lighter(base, choiceHover.containsMouse ? 1.12 : 1)
+                    Accessible.role: Accessible.Button
+                    Accessible.name: modelData.label
+                    Accessible.onPressAction: prompt.chosen(modelData.value)
                     Text { anchors.centerIn: parent; text: choice.modelData.label; font.weight: Font.Bold
                         color: choice.modelData.danger ? "#ffffff" : prompt.card.c.accentInk
                         font.family: prompt.card.c.monoFont; font.pixelSize: prompt.card.px(13) }
@@ -64,7 +67,10 @@ Rectangle {
                 objectName: "promptCancel"
                 Layout.fillWidth: true; implicitHeight: prompt.card.px(34); radius: prompt.card.px(10)
                 color: Qt.rgba(prompt.card.c.foreground.r, prompt.card.c.foreground.g, prompt.card.c.foreground.b, cancelHover.containsMouse ? 0.14 : 0.08)
-                Text { anchors.centerIn: parent; text: "Cancel"; color: prompt.card.c.foreground
+                Accessible.role: Accessible.Button
+                Accessible.name: cancelText.text
+                Accessible.onPressAction: prompt.cancelled()
+                Text { id: cancelText; anchors.centerIn: parent; text: "Cancel"; color: prompt.card.c.foreground
                     font.family: prompt.card.c.monoFont; font.pixelSize: prompt.card.px(13) }
                 MouseArea { id: cancelHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: prompt.cancelled() }
             }
