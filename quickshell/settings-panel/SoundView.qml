@@ -113,7 +113,7 @@ SettingsSection {
                     enabled: !line.modelData.inUse
                     onToggled: page.controller.submit({ op: "soundShow", name: line.device.name, shown: checked })
                 }
-                MouseArea {
+                MouseArea { // a11y: not a control; it only shows a tooltip
                     id: tipArea
                     anchors.fill: parent
                     enabled: !toggle.enabled

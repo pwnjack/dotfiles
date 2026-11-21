@@ -79,6 +79,9 @@ ColumnLayout {
                         text: "Create an app-specific password ↗"
                         color: page.theme.accent
                         font.pixelSize: 13
+                        Accessible.role: Accessible.Link
+                        Accessible.name: text
+                        Accessible.onPressAction: Qt.openUrlExternally("https://account.apple.com")
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor

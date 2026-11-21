@@ -84,7 +84,7 @@ FocusScope {
         clip: true
 
         // Clicks inside the card never reach the close-on-outside-click area.
-        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
+        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons } // a11y: not a control
 
         Column {
             id: content
@@ -208,6 +208,10 @@ FocusScope {
                 width: parent.width
                 height: card.px(18)
                 visible: card.info.seekRow
+                Accessible.role: Accessible.Slider
+                Accessible.name: "Seek, " + card.info.elapsed
+                Accessible.onIncreaseAction: card.step(Model.STEP_SECONDS)
+                Accessible.onDecreaseAction: card.step(-Model.STEP_SECONDS)
                 Text {
                     id: elapsed
                     objectName: "elapsed"

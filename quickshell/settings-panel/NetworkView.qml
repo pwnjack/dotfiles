@@ -148,7 +148,7 @@ ColumnLayout {
                         // button, which is transparent to input) so they cannot fall through to
                         // the entry's own MouseArea and collapse the row out from under the user.
                         // A sibling of the RowLayout, not its child: anchors inside a layout are undefined.
-                        MouseArea { objectName: "pskShield-" + entry.modelData.ssid; anchors.fill: parent; onClicked: {} }
+                        MouseArea { objectName: "pskShield-" + entry.modelData.ssid; anchors.fill: parent; onClicked: {} } // a11y: not a control
                         RowLayout {
                             id: pskRow
                             anchors.left: parent.left; anchors.right: parent.right

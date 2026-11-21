@@ -101,7 +101,7 @@ FocusScope {
         border.color: strip.hairline
         // A click on the pill itself must not reach the window's
         // click-outside-closes area; the space beside it must.
-        MouseArea { anchors.fill: parent }
+        MouseArea { anchors.fill: parent } // a11y: not a control
         Row {
             id: tabRow
             anchors.centerIn: parent
@@ -181,7 +181,7 @@ FocusScope {
         border.width: 1
         border.color: strip.hairline
         // As for the pill: swallow clicks on the panel only.
-        MouseArea { anchors.fill: parent }
+        MouseArea { anchors.fill: parent } // a11y: not a control
 
         Row {
             id: row

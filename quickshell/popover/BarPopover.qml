@@ -48,7 +48,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: controller.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    MouseArea { anchors.fill: parent; onClicked: window.controller.close() }
+    MouseArea { anchors.fill: parent; onClicked: window.controller.close() } // a11y: not a control
 
     FocusScope {
         id: holder

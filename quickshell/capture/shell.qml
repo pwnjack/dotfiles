@@ -175,7 +175,7 @@ ShellRoot {
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-        MouseArea { anchors.fill: parent; onClicked: root.close() }
+        MouseArea { anchors.fill: parent; onClicked: root.close() } // a11y: not a control
 
         // Dims the whole screen while the strip is up, so it is noticed at once
         // even when the eye is elsewhere. It follows the strip's own fade, and
