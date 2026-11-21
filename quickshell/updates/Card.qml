@@ -85,7 +85,7 @@ FocusScope {
         clip: true
 
         // Clicks inside the card never reach the close-on-outside-click area.
-        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
+        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons } // a11y: not a control
 
         SummaryView {
             id: summaryView

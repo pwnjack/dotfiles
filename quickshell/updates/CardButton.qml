@@ -12,6 +12,9 @@ Rectangle {
 
     readonly property color ink: kind === "primary" ? card.accentInk : kind === "warn" ? card.warnInk : card.foreground
     activeFocusOnTab: true
+    Accessible.role: Accessible.Button
+    Accessible.name: text
+    Accessible.onPressAction: if (enabled) clicked()
     implicitWidth: row.implicitWidth + card.px(32)
     implicitHeight: card.px(34)
     radius: card.px(10)

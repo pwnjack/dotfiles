@@ -157,6 +157,25 @@ Item {
             keyClick(Qt.Key_Return);
             compare(controller.starts, 1);
         }
+        function named(item, name) {
+            for (const c of item.children) {
+                if (c.Accessible.name === name) return c;
+                const r = named(c, name);
+                if (r) return r;
+            }
+            return null;
+        }
+        function test_controlsAreNamed() {
+            const link = findChild(card, "terminalLink");
+            tryVerify(() => link.visible, 1000);
+            compare(link.Accessible.role, Accessible.Link);
+            compare(link.Accessible.name, "Update in terminal");
+            for (const n of ["Show packages", "Later", "Update"]) {
+                const it = named(card, n);
+                verify(it !== null, n);
+                compare(it.Accessible.role, Accessible.Button);
+            }
+        }
         function test_aurLinkOpensAurPath() {
             const link = findChild(card, "terminalLink");
             tryVerify(() => link.visible, 1000);

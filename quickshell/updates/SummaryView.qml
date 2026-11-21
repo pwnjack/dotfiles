@@ -48,6 +48,9 @@ Column {
         Item {
             width: parent.width
             height: view.card.px(32)
+            Accessible.role: Accessible.Button
+            Accessible.name: (view.controller.expanded ? "Hide" : "Show") + " packages"
+            Accessible.onPressAction: view.controller.toggleList()
             Rectangle {
                 anchors.fill: parent
                 radius: view.card.px(10)
@@ -61,6 +64,7 @@ Column {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: String.fromCodePoint(0xf0142)
+                    Accessible.ignored: true
                     color: view.card.dim
                     font.family: view.card.monoFont
                     font.pixelSize: view.card.px(13)
@@ -198,6 +202,9 @@ Column {
             font.family: view.card.monoFont
             font.pixelSize: view.card.px(12.5)
             font.underline: true
+            Accessible.role: Accessible.Link
+            Accessible.name: text
+            Accessible.onPressAction: view.controller.terminal(view.info.terminal)
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
