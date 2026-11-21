@@ -588,6 +588,7 @@ Item {
             controller.state = Object.assign({}, Model.transition(Model.CLOSED, "clock"), { day: "2026-10-13" });
             controller.dayFor = "2026-10-13"; controller.dayEvents = [];
             verify(find("newOnDay").text.indexOf(Qt.locale("it_IT").toString(new Date(2026, 9, 13), "ddd d")) >= 0);
+            wait(250);                  // the frame eases its height over 160 ms; a click lands in the settled card
             mouseClick(find("newOnDayButton"));
             verify(controller.state.sheet);
             controller.state = Model.transition(Model.CLOSED, "clock");
