@@ -70,7 +70,9 @@ chips switches which one the card shows and controls.
 - **Buttons and chips are named.** A glyph says nothing to a screen reader:
   the three buttons are `Accessible.Button`s called Previous, Play or Pause,
   and Next; the chips are radio buttons named after their player, the shown
-  one checked. The glyphs themselves are ignored.
+  one checked. The seek row is a slider named with the elapsed time, stepped
+  by the same five seconds as the arrow keys. The glyphs themselves are
+  ignored.
 - **Glyphs are code points** (`String.fromCodePoint`), never typed.
 - **The size is 1:1** (`uiScale` 1), as for every popover that belongs to the
   bar.
