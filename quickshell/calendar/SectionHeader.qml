@@ -23,7 +23,7 @@ Rectangle {
     Accessible.role: Accessible.Button
     Accessible.name: text
     Accessible.ignored: !whole
-    Accessible.onPressAction: if (whole) clicked()
+    Accessible.onPressAction: if (enabled && whole) clicked()
     MouseArea { id: rowHover; anchors.fill: parent; enabled: header.whole; hoverEnabled: true
         cursorShape: Qt.PointingHandCursor; onClicked: header.clicked() }
     Text {

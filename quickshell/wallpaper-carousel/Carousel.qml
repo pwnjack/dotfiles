@@ -259,7 +259,7 @@ FocusScope {
         enabled: !view.controller.loading && !view.controller.submitting && !!view.currentCard?.ready
         onClicked: view.controller.confirm()
     }
-    MouseArea {
+    MouseArea { // a11y: not a control; it only takes the wheel
         id: scrolling
         anchors.fill: parent
         // Capture wheels anywhere, but let card/button clicks and hover pass through.

@@ -63,7 +63,7 @@ FocusScope {
                 Behavior on color { ColorAnimation { duration: 100 } }
                 Accessible.role: Accessible.Button
                 Accessible.name: name.text
-                Accessible.onPressAction: if (grid.titleOpens) grid.titleClicked()
+                Accessible.onPressAction: if (enabled && grid.titleOpens) grid.titleClicked()
                 Text { id: name; objectName: "monthName"; anchors.centerIn: parent
                     text: grid.card.c.locale.standaloneMonthName(grid.month, Locale.LongFormat) + " " + grid.year
                     color: grid.card.c.foreground; font.family: grid.card.c.monoFont; font.pixelSize: grid.card.px(13); font.weight: Font.DemiBold }
@@ -105,7 +105,7 @@ FocusScope {
                     Accessible.role: Accessible.ListItem
                     Accessible.name: grid.card.c.locale.toString(new Date(Model.dayStart(modelData.key) * 1000), "dddd d MMMM yyyy")
                     Accessible.selected: modelData.key === grid.selected
-                    Accessible.onPressAction: grid.picked(modelData.key)
+                    Accessible.onPressAction: if (enabled) grid.picked(modelData.key)
                     Text { anchors.horizontalCenter: parent.horizontalCenter; y: grid.card.px(5); Accessible.ignored: true
                         text: cell.modelData.day; color: cell.today ? grid.card.c.accentInk : grid.card.c.foreground
                         font.family: grid.card.c.monoFont; font.pixelSize: grid.card.px(13); font.weight: cell.today ? Font.Bold : Font.Normal }

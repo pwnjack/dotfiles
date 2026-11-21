@@ -49,8 +49,8 @@ Column {
             width: parent.width
             height: view.card.px(32)
             Accessible.role: Accessible.Button
-            Accessible.name: (view.controller.expanded ? "Hide" : "Show") + " packages"
-            Accessible.onPressAction: view.controller.toggleList()
+            Accessible.name: disclosureLabel.text
+            Accessible.onPressAction: if (enabled) view.controller.toggleList()
             Rectangle {
                 anchors.fill: parent
                 radius: view.card.px(10)
@@ -72,6 +72,7 @@ Column {
                     Behavior on rotation { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                 }
                 Text {
+                    id: disclosureLabel
                     anchors.verticalCenter: parent.verticalCenter
                     text: (view.controller.expanded ? "Hide" : "Show") + " packages"
                     color: view.card.foreground
@@ -204,7 +205,7 @@ Column {
             font.underline: true
             Accessible.role: Accessible.Link
             Accessible.name: text
-            Accessible.onPressAction: view.controller.terminal(view.info.terminal)
+            Accessible.onPressAction: if (enabled) view.controller.terminal(view.info.terminal)
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor

@@ -52,7 +52,7 @@ ColumnLayout {
         border.color: Qt.rgba(dv.card.c.accent.r, dv.card.c.accent.g, dv.card.c.accent.b, 0.45)
         Accessible.role: Accessible.Button
         Accessible.name: newOnDay.text
-        Accessible.onPressAction: dv.card.c.newEvent(dv.day)
+        Accessible.onPressAction: if (enabled) dv.card.c.newEvent(dv.day)
         Text { id: newOnDay; objectName: "newOnDay"; x: dv.card.px(12); anchors.verticalCenter: parent.verticalCenter
             text: "+ New event on " + dv.card.c.locale.toString(dv.dayDate, "ddd d")
             color: dv.card.c.accent; font.family: dv.card.c.monoFont; font.pixelSize: dv.card.px(13) }

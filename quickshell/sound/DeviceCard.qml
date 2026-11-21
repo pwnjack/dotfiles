@@ -27,12 +27,13 @@ Rectangle {
             width: parent.width
             height: heading.implicitHeight
             Accessible.role: Accessible.Button
-            Accessible.name: card.kind === "output" ? "Choose output device" : "Choose input device"
-            Accessible.onPressAction: if (card.controller.ready) card.controller.openPicker(card.kind)
+            Accessible.name: kindLabel.text + ": " + deviceLabel.text
+            Accessible.onPressAction: if (enabled && card.controller.ready) card.controller.openPicker(card.kind)
             Column {
                 id: heading
                 width: parent.width - chevron.width - card.popover.px(8)
                 Text {
+                    id: deviceLabel
                     objectName: card.kind + "Label"
                     width: Math.min(implicitWidth, parent.width)
                     elide: Text.ElideRight
@@ -45,6 +46,7 @@ Rectangle {
                     font.weight: Font.Medium
                 }
                 Text {
+                    id: kindLabel
                     text: card.kind === "output" ? "Output" : "Input"
                     color: card.popover.dim
                     font.family: card.popover.monoFont
@@ -90,7 +92,7 @@ Rectangle {
                 color: muteArea.containsMouse ? card.popover.foreground : card.popover.dim
                 Accessible.role: Accessible.Button
                 Accessible.name: (card.live && card.device.muted ? "Unmute " : "Mute ") + card.kind
-                Accessible.onPressAction: card.controller.setMuted(card.device.key, !card.device.muted)
+                Accessible.onPressAction: if (enabled) card.controller.setMuted(card.device.key, !card.device.muted)
                 font.family: card.popover.iconFont
                 font.pixelSize: card.popover.px(15)
                 MouseArea {

@@ -85,6 +85,6 @@ Item {
         Accessible.role: Accessible.ListItem
         Accessible.name: card.title
         Accessible.selected: card.selected
-        Accessible.onPressAction: card.clicked()
+        Accessible.onPressAction: if (enabled) card.clicked()
     }
 }

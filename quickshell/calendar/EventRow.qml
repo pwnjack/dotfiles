@@ -13,7 +13,7 @@ Rectangle {
     implicitHeight: card.px(28)
     Accessible.role: Accessible.Button
     Accessible.name: event.title + ", " + timeText.text
-    Accessible.onPressAction: card.c.editEvent(event)
+    Accessible.onPressAction: if (enabled) card.c.editEvent(event)
     radius: card.px(8)
     // A row opens its event, so it lights under the pointer like every other button on the card.
     color: lit ? Qt.rgba(card.c.accent.r, card.c.accent.g, card.c.accent.b, 0.25)

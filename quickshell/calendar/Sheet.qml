@@ -248,7 +248,7 @@ FocusScope {
                 text: "Cancel"
                 Accessible.role: Accessible.Button
                 Accessible.name: text
-                Accessible.onPressAction: sheet.card.c.cancelSheet()
+                Accessible.onPressAction: if (enabled) sheet.card.c.cancelSheet()
                 color: sheet.card.c.accent
                 font.family: sheet.card.c.monoFont
                 font.pixelSize: sheet.card.px(13)
@@ -485,7 +485,7 @@ FocusScope {
                 color: Qt.rgba(sheet.card.c.foreground.r, sheet.card.c.foreground.g, sheet.card.c.foreground.b, 0.06)
                 Accessible.role: Accessible.Button
                 Accessible.name: deleteLabel.text
-                Accessible.onPressAction: sheet.prompting = "delete"
+                Accessible.onPressAction: if (enabled) sheet.prompting = "delete"
                 Text { id: deleteLabel; anchors.centerIn: parent; text: "Delete event"; color: "#e0787a"; font.weight: Font.DemiBold
                     font.family: sheet.card.c.monoFont; font.pixelSize: sheet.card.px(13) }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: sheet.prompting = "delete" }

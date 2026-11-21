@@ -89,7 +89,7 @@ Item {
     // Above everything: any click closes, and the wheel moves the grid by
     // pixels. The Flickable itself is not interactive, so it never swallows
     // the click.
-    MouseArea {
+    MouseArea { // a11y: not a control
         anchors.fill: parent
         z: 10
         acceptedButtons: Qt.AllButtons

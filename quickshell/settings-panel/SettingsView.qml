@@ -89,7 +89,7 @@ FocusScope {
     // While the ⋯ menu is open, Escape closes the menu (its closePolicy), not the panel.
     Shortcut { sequence: "Escape"; enabled: !actionsMenu.visible; onActivated: view.controller.close() }
     Rectangle { anchors.fill: parent; color: Qt.rgba(view.background.r, view.background.g, view.background.b, 0.24) }
-    MouseArea { anchors.fill: parent; onClicked: view.controller.close() }
+    MouseArea { anchors.fill: parent; onClicked: view.controller.close() } // a11y: not a control
     Rectangle {
         id: panel
         objectName: "settingsPanel"
@@ -99,7 +99,7 @@ FocusScope {
         radius: 20
         color: view.background
         border.color: view.tone(0.14)
-        MouseArea { anchors.fill: parent } // Keep clicks inside the panel from closing it.
+        MouseArea { anchors.fill: parent } // a11y: not a control; it keeps clicks inside the panel from closing it
         RowLayout {
             anchors.fill: parent
             anchors.margins: 1

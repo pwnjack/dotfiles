@@ -102,7 +102,7 @@ Bash; check for command existence before running; read preferences from `options
 - Use `git ls-files -z` with `while IFS= read -r -d ''`, never plain `git ls-files`.
 - `scripts/doctor/` and `docs/` are excluded from the doctor's literal-path scan.
 - `./test.sh` discovers suites: a tracked `run-tests.sh`, or a `test-*.sh` in a directory with none, is an entry point; naming a file that way is the whole of adding one. A check whose binary is absent prints `skip: <what> (<why>)`, never `pass`; `test.sh` counts those lines and `TEST_STRICT=1` (CI) fails them.
-- Every pointer area (`MouseArea`, `TapHandler`) in a `quickshell/<app>/*.qml` is a named control (`Accessible.role`, `.name` and `.onPressAction` on the item that owns the action) or opens with `// a11y: not a control` on its line; `quickshell/test-accessible.sh` fails a file where the areas outnumber the two.
+- Every pointer area (`MouseArea`, `TapHandler`) in a `quickshell/<app>/*.qml` is a named control (`Accessible.role`, `.name` and an `.onPressAction` that checks `enabled`, on the item that owns the action) or opens with `// a11y: not a control` on its line; `quickshell/test-accessible.sh` counts both per file.
 - `scripts/hooks/pre-commit` passes staged paths to `test.sh --for` and runs checks in a snapshot of the staged tree, never against unstaged files.
 
 ## Doctor architecture (`scripts/doctor/`)

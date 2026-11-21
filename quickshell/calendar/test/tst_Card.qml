@@ -353,6 +353,24 @@ Item {
             mouseClick(blocks[0]);
             compare(controller.lastEdited, null);
         }
+        function test_sheet_timeline_is_a_slider_over_the_start() {
+            controller.state = Model.transition(Model.CLOSED, "clock");
+            openEvent(listed({ recurring: false }));
+            waitForRendering(card);
+            const strip = findChild(find("sheetTimeline"), "timelineStrip");
+            compare(strip.Accessible.role, Accessible.Slider);
+            verify(!strip.Accessible.ignored);
+            verify(/^Start time, \d/.test(strip.Accessible.name), strip.Accessible.name);
+            const start = controller.draft.start, length = controller.draft.end - start;
+            strip.Accessible.increaseAction();
+            compare(controller.draft.start, start + 900, "a quarter of an hour later");
+            compare(controller.draft.end - controller.draft.start, length, "the event keeps its length");
+            strip.Accessible.decreaseAction();
+            strip.Accessible.decreaseAction();
+            compare(controller.draft.start, start - 900);
+            // The day view's strip picks nothing, so it is no slider.
+            verify(find("timeline") === null || findChild(find("timeline"), "timelineStrip").Accessible.ignored);
+        }
         function test_delete_moved_series_offers_all_only() {
             controller.state = Model.transition(Model.CLOSED, "clock");
             controller.calendars = [{ name: "Home", color: "#ff9f0a", writable: true },

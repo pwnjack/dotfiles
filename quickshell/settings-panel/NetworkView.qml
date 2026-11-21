@@ -88,7 +88,7 @@ ColumnLayout {
                 Keys.onReturnPressed: entry.activate()
                 Keys.onEnterPressed: entry.activate()
                 Keys.onSpacePressed: entry.activate()
-                Accessible.onPressAction: entry.activate()
+                Accessible.onPressAction: if (enabled) entry.activate()
                 // Every network follows the Wi-Fi switch row, so each has a hairline.
                 Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.leftMargin: 14; height: 1; color: page.theme.line }
                 Rectangle {

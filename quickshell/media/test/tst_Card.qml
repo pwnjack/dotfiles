@@ -188,6 +188,32 @@ Item {
             compare(list.itemAt(1).Accessible.role, Accessible.RadioButton);
             verify(list.itemAt(0).Accessible.checked && !list.itemAt(1).Accessible.checked);
         }
+        function test_aDisabledControlIgnoresAScreenReadersPress() {
+            // Qt runs an accessible action on a disabled item; each one checks.
+            play(host.browser());
+            part("next").Accessible.pressAction();
+            compare(controller.calls, [], "the button itself is off");
+            card.enabled = false;
+            part("toggle").Accessible.pressAction();
+            part("seekRow").Accessible.increaseAction();
+            compare(controller.calls, [], "and so is everything under a disabled card");
+            card.enabled = true;
+            part("toggle").Accessible.pressAction();
+            compare(controller.calls, ["toggle"]);
+        }
+        function test_theSeekRowIsASlider() {
+            const row = part("seekRow"), area = part("seekArea"), y = area.height / 2;
+            compare(row.Accessible.role, Accessible.Slider);
+            compare(row.Accessible.name, "Seek, 1:12");
+            row.Accessible.increaseAction();
+            row.Accessible.decreaseAction();
+            compare(controller.calls, ["seek:77", "seek:67"]);
+            mousePress(area, area.width * 0.5, y);
+            compare(row.Accessible.name, "Seek, 1:50", "the time under a held thumb");
+            mouseRelease(area, area.width * 0.5, y);
+            play(host.music({ canSeek: false }));
+            verify(row.Accessible.ignored, "nothing to move: no slider");
+        }
         function test_aPlayerThatCannotSeek() {
             play(host.music({ canSeek: false }));
             const area = part("seekArea");

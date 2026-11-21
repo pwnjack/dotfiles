@@ -107,7 +107,7 @@ FocusScope {
         activeFocusOnTab: true
         Accessible.role: Accessible.Button
         Accessible.name: name
-        Accessible.onPressAction: clicked()
+        Accessible.onPressAction: if (enabled) clicked()
         Keys.onReturnPressed: clicked()
         Keys.onEnterPressed: clicked()
         Keys.onSpacePressed: clicked()
@@ -144,7 +144,7 @@ FocusScope {
         Accessible.name: title
         Accessible.checkable: true
         Accessible.checked: checked
-        Accessible.onPressAction: popover.controller.setTab(name)
+        Accessible.onPressAction: if (enabled) popover.controller.setTab(name)
         Keys.onReturnPressed: popover.controller.setTab(name)
         Keys.onEnterPressed: popover.controller.setTab(name)
         Keys.onSpacePressed: popover.controller.setTab(name)
@@ -265,7 +265,7 @@ FocusScope {
                                 implicitHeight: advancedText.implicitHeight + popover.px(10)
                                 Accessible.role: Accessible.Button
                                 Accessible.name: text
-                                Accessible.onPressAction: run()
+                                Accessible.onPressAction: if (enabled) run()
                                 radius: popover.px(7)
                                 color: advancedArea.containsMouse || activeFocus
                                     ? Qt.rgba(popover.foreground.r, popover.foreground.g, popover.foreground.b, 0.08) : "transparent"

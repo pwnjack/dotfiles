@@ -34,7 +34,7 @@ ColumnLayout {
                 objectName: "yearMonth" + index
                 Accessible.role: Accessible.Button
                 Accessible.name: year.card.c.locale.standaloneMonthName(index, Locale.LongFormat) + " " + year.card.c.viewYear
-                Accessible.onPressAction: year.card.c.pickMonth(index)
+                Accessible.onPressAction: if (enabled) year.card.c.pickMonth(index)
                 Layout.fillWidth: true
                 implicitHeight: year.card.px(48)
                 radius: year.card.px(10)

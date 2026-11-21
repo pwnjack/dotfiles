@@ -25,6 +25,12 @@ Item {
     // Wall-clock hours, as the range is in: on a DST day elapsed time is one hour off.
     readonly property real nowX: !day ? 0 : (Model.minutesOf(card.c.now) / 60 - range.from) / (range.to - range.from)
     implicitHeight: strip.height + ticksRow.height + card.px(4)
+    // The draft's start moved by `delta` minutes, kept inside its day.
+    function nudge(delta) {
+        if (!pickable || !draft || draft.allDay) return;
+        const minutes = Model.minutesOf(draft.start) + delta;
+        if (minutes >= 0 && minutes < 1440) gapClicked(minutes);
+    }
     function tickText(h) {
         const hh = h % 24;
         if (card.c.clock !== "12h") return Model.formatTime(hh * 60, card.c.clock, card.c.locale.amText, card.c.locale.pmText);
@@ -43,7 +49,17 @@ Item {
         height: tl.card.px(tl.twoLanes ? 44 : 28)
         radius: tl.card.px(7)
         color: Qt.rgba(tl.card.c.foreground.r, tl.card.c.foreground.g, tl.card.c.foreground.b, 0.05)
-        MouseArea { // a11y: not a control; a click on a coordinate, the sheet's time pills are the other way in
+        // A click picks the start by where it lands. For a screen reader the
+        // same strip is a slider over the draft's start, in the quarter hours
+        // a click snaps to.
+        Accessible.role: Accessible.Slider
+        Accessible.name: tl.draft && !tl.draft.allDay
+            ? "Start time, " + Model.formatTime(Model.minutesOf(tl.draft.start), tl.card.c.clock, tl.card.c.locale.amText, tl.card.c.locale.pmText)
+            : "Start time"
+        Accessible.ignored: !tl.pickable
+        Accessible.onIncreaseAction: if (enabled) tl.nudge(15)
+        Accessible.onDecreaseAction: if (enabled) tl.nudge(-15)
+        MouseArea {
             id: free
             anchors.fill: parent
             enabled: tl.pickable
@@ -86,7 +102,7 @@ Item {
                 Accessible.role: Accessible.Button
                 Accessible.name: modelData.title
                 Accessible.ignored: !tl.editable
-                Accessible.onPressAction: if (tl.editable) tl.card.c.editEvent(modelData)
+                Accessible.onPressAction: if (enabled && tl.editable) tl.card.c.editEvent(modelData)
                 border.width: bhov.containsMouse ? 2 : 0; border.color: tl.card.c.foreground
                 Text {
                     id: label

@@ -124,6 +124,7 @@ FocusScope {
                     Accessible.name: modelData.label
                     Accessible.checkable: true
                     Accessible.checked: active
+                    Accessible.onPressAction: if (enabled) strip.controller.setMode(modelData.mode)
                     Row {
                         id: tabContent
                         anchors.centerIn: parent
@@ -282,6 +283,7 @@ FocusScope {
                 color: (red ? strip.red : strip.accent)
                 Accessible.role: Accessible.Button
                 Accessible.name: strip.act.label
+                Accessible.onPressAction: if (enabled) strip.controller.run()
                 scale: actionMouse.pressed ? 0.97 : 1
                 Behavior on scale { NumberAnimation { duration: 100 } }
                 TextMetrics { id: widest; font: actionLabel.font; text: Model.WIDEST_ACTION_LABEL }

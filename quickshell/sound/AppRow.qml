@@ -99,7 +99,7 @@ Item {
         activeFocusOnTab: true
         Accessible.role: Accessible.Button
         Accessible.name: row.app.name + " output: " + row.app.route.label
-        Accessible.onPressAction: menu.visible ? menu.close() : menu.open()
+        Accessible.onPressAction: if (enabled) menu.visible ? menu.close() : menu.open()
         Keys.onReturnPressed: menu.open()
         Keys.onEnterPressed: menu.open()
         Keys.onSpacePressed: menu.open()
@@ -166,7 +166,7 @@ Item {
         text: String.fromCodePoint(row.app.muted ? 0xf0581 : 0xf057e)
         Accessible.role: Accessible.Button
         Accessible.name: (row.app.muted ? "Unmute " : "Mute ") + row.app.name
-        Accessible.onPressAction: row.controller.setMuted(row.app.key, !row.app.muted)
+        Accessible.onPressAction: if (enabled) row.controller.setMuted(row.app.key, !row.app.muted)
         color: muteArea.containsMouse ? row.popover.foreground : row.popover.dim
         font.family: row.popover.iconFont
         font.pixelSize: row.popover.px(13)
@@ -252,7 +252,7 @@ Item {
                     Accessible.name: text
                     Accessible.checkable: true
                     Accessible.checked: checked
-                    Accessible.onPressAction: row.choose(choice)
+                    Accessible.onPressAction: if (enabled) row.choose(choice)
                     Keys.onReturnPressed: row.choose(choice)
                     Keys.onEnterPressed: row.choose(choice)
                     Keys.onSpacePressed: row.choose(choice)

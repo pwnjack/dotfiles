@@ -28,6 +28,7 @@ Rectangle {
     Accessible.name: label || tip
     Accessible.checkable: checkable
     Accessible.checked: on
+    Accessible.onPressAction: if (enabled) clicked()
 
     Column {
         anchors.centerIn: parent
@@ -35,6 +36,7 @@ Rectangle {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: String.fromCodePoint(button.glyph)
+            Accessible.ignored: true
             color: button.strip.foreground
             font.family: button.strip.monoFont
             font.pixelSize: button.strip.px(button.label ? 21 : 16)

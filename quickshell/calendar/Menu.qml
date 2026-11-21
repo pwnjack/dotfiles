@@ -106,6 +106,7 @@ Rectangle {
                 x: parent.width - menu.card.px(9) - width
                 anchors.verticalCenter: parent.verticalCenter
                 text: "✓"
+                Accessible.ignored: true
                 color: menu.card.c.accent
                 font.pixelSize: menu.card.px(13)
             }

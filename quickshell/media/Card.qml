@@ -209,9 +209,10 @@ FocusScope {
                 height: card.px(18)
                 visible: card.info.seekRow
                 Accessible.role: Accessible.Slider
-                Accessible.name: "Seek, " + card.info.elapsed
-                Accessible.onIncreaseAction: card.step(Model.STEP_SECONDS)
-                Accessible.onDecreaseAction: card.step(-Model.STEP_SECONDS)
+                Accessible.name: "Seek, " + elapsed.text
+                Accessible.ignored: !card.info.seekable
+                Accessible.onIncreaseAction: if (enabled) card.step(Model.STEP_SECONDS)
+                Accessible.onDecreaseAction: if (enabled) card.step(-Model.STEP_SECONDS)
                 Text {
                     id: elapsed
                     objectName: "elapsed"
@@ -339,7 +340,7 @@ FocusScope {
                         Accessible.name: modelData.label
                         Accessible.checkable: true
                         Accessible.checked: current
-                        Accessible.onPressAction: card.controller.show(modelData.player)
+                        Accessible.onPressAction: if (enabled) card.controller.show(modelData.player)
                         Keys.onReturnPressed: card.controller.show(modelData.player)
                         Keys.onEnterPressed: card.controller.show(modelData.player)
                         Text {

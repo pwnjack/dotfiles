@@ -55,7 +55,7 @@ Rectangle {
                     color: Qt.lighter(base, choiceHover.containsMouse ? 1.12 : 1)
                     Accessible.role: Accessible.Button
                     Accessible.name: modelData.label
-                    Accessible.onPressAction: prompt.chosen(modelData.value)
+                    Accessible.onPressAction: if (enabled) prompt.chosen(modelData.value)
                     Text { anchors.centerIn: parent; text: choice.modelData.label; font.weight: Font.Bold
                         color: choice.modelData.danger ? "#ffffff" : prompt.card.c.accentInk
                         font.family: prompt.card.c.monoFont; font.pixelSize: prompt.card.px(13) }
@@ -69,7 +69,7 @@ Rectangle {
                 color: Qt.rgba(prompt.card.c.foreground.r, prompt.card.c.foreground.g, prompt.card.c.foreground.b, cancelHover.containsMouse ? 0.14 : 0.08)
                 Accessible.role: Accessible.Button
                 Accessible.name: cancelText.text
-                Accessible.onPressAction: prompt.cancelled()
+                Accessible.onPressAction: if (enabled) prompt.cancelled()
                 Text { id: cancelText; anchors.centerIn: parent; text: "Cancel"; color: prompt.card.c.foreground
                     font.family: prompt.card.c.monoFont; font.pixelSize: prompt.card.px(13) }
                 MouseArea { id: cancelHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: prompt.cancelled() }

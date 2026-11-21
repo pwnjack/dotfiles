@@ -28,8 +28,8 @@ Item {
     // Owners override the name with what the slider sets.
     Accessible.role: Accessible.Slider
     Accessible.name: "Volume, " + Math.round(level * 100) + "%"
-    Accessible.onIncreaseAction: nudge(1)
-    Accessible.onDecreaseAction: nudge(-1)
+    Accessible.onIncreaseAction: if (enabled) nudge(1)
+    Accessible.onDecreaseAction: if (enabled) nudge(-1)
 
     function round(v) { return Math.round(v * 100) / 100; }
     function at(x) {

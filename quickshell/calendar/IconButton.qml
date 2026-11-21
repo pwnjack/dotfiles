@@ -16,7 +16,7 @@ Rectangle {
     Accessible.role: Accessible.Button
     Accessible.name: name
     Accessible.ignored: name === ""      // a bar that is itself the button names it
-    Accessible.onPressAction: clicked()
+    Accessible.onPressAction: if (enabled) clicked()
     implicitWidth: card.px(28)
     implicitHeight: card.px(28)
     radius: width / 2
