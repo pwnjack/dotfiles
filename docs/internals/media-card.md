@@ -13,7 +13,7 @@ chips switches which one the card shows and controls.
 | Piece | Owns |
 | --- | --- |
 | `scripts/hyprland/medialib.sh` | Which player the bar shows, its middle click and scroll act on, and the card opens on. One rule, in its header. |
-| `scripts/hyprland/media-popover.sh` | The launch: toggles a running card, exits 0 when no player is on the bus, otherwise passes `media_player`'s answer on as `MEDIA_PLAYER`. |
+| `scripts/hyprland/media-popover.sh` | The launch: toggles a running card, exits 0 when no player is on the bus, otherwise passes `media_player`'s answer on as `MEDIA_PLAYER` and signals Waybar, whose text can be five seconds old, to show that answer too. |
 | Quickshell's MPRIS service | The players and everything read from them. There is no script and no poll of `playerctl` behind the card. |
 | `model.mjs` | Every decision, as pure functions: which player matches `MEDIA_PLAYER`, the texts and times, whether the seek row shows and takes input, which buttons are on, the chips, which art URLs are loaded, where a seek lands. Free of I/O and of the clock. |
 | `shell.qml` | The controller: holds the shown player and its position, and is the only thing that calls a player (`togglePlaying`, `next`, `previous`, `position`). |
@@ -49,12 +49,16 @@ chips switches which one the card shows and controls.
 - **A seek is sent on release.** While the thumb is held the bar and the
   elapsed time follow the pointer; one `position` is written when it is let
   go. A player that ignores it shows its own position again at the next tick.
+  A thumb still held when the track changes (`view().track`: the player's
+  track id, the title and the length) is dropped, and its release seeks
+  nothing.
 - **The bar is told at once.** On the shown player's `playbackStateChanged`
   and `postTrackChanged` the controller signals Waybar (`RTMIN+10`), the same
   signal `mediactl.sh` sends, so the bar does not wait for its five-second
   fallback.
 - **When the shown player leaves the bus** the card moves to another one;
-  when the last one leaves, it closes.
+  when the last one leaves, it closes, and a click during that fade does not
+  bring it back: `toggle` reopens a fading card only while a player exists.
 - **Art is loaded from `https:` and `file:` URLs only.** Any program on the
   session bus can name a URL; every other scheme shows the placeholder, as do
   a missing URL, a loading image and a failed one. Nothing is written to disk.
@@ -63,6 +67,10 @@ chips switches which one the card shows and controls.
 - **Keys.** Escape closes; Space plays or pauses wherever the focus is; Left
   and Right seek `model.STEP_SECONDS`; Tab walks the buttons a player allows,
   then the chips; Return presses the focused one.
+- **Buttons and chips are named.** A glyph says nothing to a screen reader:
+  the three buttons are `Accessible.Button`s called Previous, Play or Pause,
+  and Next; the chips are radio buttons named after their player, the shown
+  one checked. The glyphs themselves are ignored.
 - **Glyphs are code points** (`String.fromCodePoint`), never typed.
 - **The size is 1:1** (`uiScale` 1), as for every popover that belongs to the
   bar.

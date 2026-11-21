@@ -7,7 +7,7 @@ function music(overrides) {
     return Object.assign({
         dbusName: 'org.mpris.MediaPlayer2.spotify', identity: 'Spotify',
         trackTitle: 'Night Drive', trackArtist: 'Example Artist', trackAlbum: 'Example Album',
-        trackArtUrl: 'https://images.example/cover.jpg', isPlaying: true,
+        trackArtUrl: 'https://images.example/cover.jpg', isPlaying: true, uniqueId: 7,
         length: 220, lengthSupported: true, canSeek: true,
         canTogglePlaying: true, canGoNext: true, canGoPrevious: true,
     }, overrides)
@@ -60,6 +60,16 @@ const view = (player, position) => model.view({ player, position: position || 0 
     assert.ok(Math.abs(v.progress - 72 / 220) < 1e-9)
     assert.deepEqual([v.seekRow, v.seekable, v.playing], [true, true, true])
     assert.deepEqual([v.canToggle, v.canNext, v.canPrevious], [true, true, true])
+}
+
+// The track's key changes with the track, and with nothing else.
+{
+    const key = view(music(), 10).track
+    assert.equal(view(music(), 99).track, key, 'not with the position')
+    assert.equal(view(music({ isPlaying: false }), 10).track, key, 'not with a pause')
+    assert.notEqual(view(music({ uniqueId: 8 }), 10).track, key)
+    assert.notEqual(view(music({ trackTitle: 'Another' }), 10).track, key)
+    assert.notEqual(view(music({ length: 221 }), 10).track, key)
 }
 
 // The position never leaves the bar.

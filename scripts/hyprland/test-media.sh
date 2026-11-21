@@ -69,7 +69,9 @@ esac
 EOF
 printf '%s\n' '#!/bin/bash' 'echo "{\"x\": 100, \"y\": 5}"' > "$TMP/bin/hyprctl"
 printf '%s\n' '#!/bin/bash' 'echo "$*" >> "$QS_STATE/notified"' > "$TMP/bin/notify-send"
-chmod +x "$TMP/bin/qs" "$TMP/bin/hyprctl" "$TMP/bin/notify-send"
+# Never the real one: the launcher signals Waybar.
+printf '%s\n' '#!/bin/bash' 'echo "$*" >> "$QS_STATE/signalled"' > "$TMP/bin/pkill"
+chmod +x "$TMP/bin/qs" "$TMP/bin/hyprctl" "$TMP/bin/notify-send" "$TMP/bin/pkill"
 mkdir -p "$TMP/qs" "$TMP/home"
 launch() {
     XDG_CONFIG_HOME="$ROOT" XDG_CACHE_HOME="$TMP/cache" HOME="$TMP/home" QS_STATE="$TMP/qs" \
@@ -83,6 +85,7 @@ check "and no card is started"
 players 'firefox|Paused|Some video|Channel|' 'spotify|Playing|Song|Artist|Album'
 launch; assert_eq "$?" 0 "the launcher starts a card"
 assert_eq "$(cat "$TMP/qs/started" 2>/dev/null)" spotify "on the player the bar shows"
+assert_eq "$(cat "$TMP/qs/signalled" 2>/dev/null)" "-x -RTMIN+10 waybar" "and the bar is told to show that player now"
 launch; assert_eq "$?" 0 "a second run reaches the running card"
 assert_eq "$(wc -l < "$TMP/qs/started")" 1 "and starts no second one"
 [ ! -e "$TMP/qs/notified" ]

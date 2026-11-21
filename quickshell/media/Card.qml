@@ -40,8 +40,12 @@ FocusScope {
     component Press: Rectangle {
         id: press
         property int glyph
+        property string name
         property int size: card.px(34)
         signal clicked()
+        Accessible.role: Accessible.Button
+        Accessible.name: name
+        Accessible.onPressAction: if (enabled) clicked()
         width: size
         height: size
         radius: card.px(10)
@@ -55,6 +59,7 @@ FocusScope {
         Text {
             anchors.centerIn: parent
             text: String.fromCodePoint(press.glyph)
+            Accessible.ignored: true
             color: card.foreground
             font.family: card.monoFont
             font.pixelSize: Math.round(press.size * 0.5)
@@ -106,6 +111,7 @@ FocusScope {
                             anchors.centerIn: parent
                             // The bar's own note.
                             text: String.fromCodePoint(0xf075a)
+                            Accessible.ignored: true
                             color: card.dim
                             font.family: card.monoFont
                             font.pixelSize: card.px(34)
@@ -193,7 +199,11 @@ FocusScope {
                 id: seekRow
                 objectName: "seekRow"
                 // Where the pointer holds the thumb, 0..1; -1 when it is free.
+                // A thumb held while the track changes is let go: its release
+                // would seek a track nobody aimed at.
                 property real held: -1
+                readonly property string track: card.info.track
+                onTrackChanged: held = -1
                 readonly property real at: held >= 0 ? held : card.info.progress
                 width: parent.width
                 height: card.px(18)
@@ -254,9 +264,9 @@ FocusScope {
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     function fraction(x) { return Math.max(0, Math.min(1, x / width)); }
                     onPressed: mouse => seekRow.held = fraction(mouse.x)
-                    onPositionChanged: mouse => { if (pressed) seekRow.held = fraction(mouse.x); }
+                    onPositionChanged: mouse => { if (pressed && seekRow.held >= 0) seekRow.held = fraction(mouse.x); }
                     onReleased: {
-                        card.controller.seek(Model.seek(seekRow.held, card.info.seconds));
+                        if (seekRow.held >= 0) card.controller.seek(Model.seek(seekRow.held, card.info.seconds));
                         seekRow.held = -1;
                     }
                     onCanceled: seekRow.held = -1
@@ -270,6 +280,7 @@ FocusScope {
                     objectName: "previous"
                     anchors.verticalCenter: parent.verticalCenter
                     glyph: 0xf04ae
+                    name: "Previous"
                     enabled: card.info.canPrevious
                     onClicked: card.controller.previous()
                 }
@@ -277,6 +288,7 @@ FocusScope {
                     objectName: "toggle"
                     size: card.px(42)
                     glyph: card.info.playing ? 0xf03e4 : 0xf040a
+                    name: card.info.playing ? "Pause" : "Play"
                     enabled: card.info.canToggle
                     onClicked: card.controller.toggle()
                 }
@@ -284,6 +296,7 @@ FocusScope {
                     objectName: "next"
                     anchors.verticalCenter: parent.verticalCenter
                     glyph: 0xf04ad
+                    name: "Next"
                     enabled: card.info.canNext
                     onClicked: card.controller.next()
                 }
@@ -318,6 +331,11 @@ FocusScope {
                         border.width: activeFocus ? 2 : 0
                         border.color: card.accent
                         activeFocusOnTab: true
+                        Accessible.role: Accessible.RadioButton
+                        Accessible.name: modelData.label
+                        Accessible.checkable: true
+                        Accessible.checked: current
+                        Accessible.onPressAction: card.controller.show(modelData.player)
                         Keys.onReturnPressed: card.controller.show(modelData.player)
                         Keys.onEnterPressed: card.controller.show(modelData.player)
                         Text {
@@ -326,6 +344,7 @@ FocusScope {
                             anchors.centerIn: parent
                             width: Math.min(implicitWidth, parent.width - card.px(20))
                             text: chip.modelData.label
+                            Accessible.ignored: true
                             textFormat: Text.PlainText
                             elide: Text.ElideRight
                             color: chip.current ? card.accent : card.dim

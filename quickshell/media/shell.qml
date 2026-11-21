@@ -116,8 +116,9 @@ ShellRoot {
         target: "media"
         function ping(): string { return "ready"; }
         // Anything but a card that is fading out is closed by a second click,
-        // one still waiting for its players included.
-        function toggle(): void { if (root.closing) root.reopen(); else root.close(); }
+        // one still waiting for its players included. A card fading out
+        // because its last player left stays closed: there is nothing to show.
+        function toggle(): void { if (root.closing && root.players.length > 0) root.reopen(); else root.close(); }
         function close(): void { root.close(); }
         function status(): string {
             const player = root.player;

@@ -19,6 +19,7 @@ Item {
             property string trackAlbum: "Example Album"
             property string trackArtUrl: ""
             property bool isPlaying: true
+            property int uniqueId: 1
             property real length: 220
             property bool lengthSupported: true
             property bool canSeek: true
@@ -159,6 +160,33 @@ Item {
             mouseMove(area, area.width + 200, y);
             mouseRelease(area, area.width + 200, y);
             compare(controller.calls, ["seek:220"]);
+        }
+        function test_aDragIntoTheNextTrackSeeksNothing() {
+            const area = part("seekArea"), y = area.height / 2;
+            mousePress(area, area.width * 0.9, y);
+            controller.player.trackTitle = "The Next Song";
+            mouseMove(area, area.width * 0.95, y);
+            compare(part("elapsed").text, "1:12", "the thumb is let go");
+            mouseRelease(area, area.width * 0.95, y);
+            compare(controller.calls, []);
+            // The next press is a new gesture.
+            mouseClick(area, area.width / 2, y);
+            compare(controller.calls, ["seek:110"]);
+        }
+        function test_controlsAreNamedButtons() {
+            const names = { previous: "Previous", toggle: "Pause", next: "Next" };
+            for (const name in names) {
+                compare(part(name).Accessible.name, names[name]);
+                compare(part(name).Accessible.role, Accessible.Button);
+            }
+            controller.player.isPlaying = false;
+            compare(part("toggle").Accessible.name, "Play");
+            const spotify = controller.player, zen = host.browser();
+            play(spotify, [spotify, zen]);
+            const list = part("chipList");
+            compare(list.itemAt(1).Accessible.name, "Mozilla zen");
+            compare(list.itemAt(1).Accessible.role, Accessible.RadioButton);
+            verify(list.itemAt(0).Accessible.checked && !list.itemAt(1).Accessible.checked);
         }
         function test_aPlayerThatCannotSeek() {
             play(host.music({ canSeek: false }));

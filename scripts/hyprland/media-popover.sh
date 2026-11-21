@@ -14,6 +14,9 @@ if qs_ipc toggle >/dev/null 2>&1; then exit 0; fi
 MEDIA_PLAYER=$(media_player) || true
 [[ -n $MEDIA_PLAYER ]] || exit 0
 export MEDIA_PLAYER
+# The bar's text can be five seconds old, and that answer is new: refresh the
+# bar, so the label under the pointer names the player the card opens on.
+pkill -x -RTMIN+10 waybar 2>/dev/null || true
 qs_theme MEDIA
 qs_anchor MEDIA
 qs_start

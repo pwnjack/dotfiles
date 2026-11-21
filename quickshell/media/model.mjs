@@ -4,7 +4,7 @@
 //
 // A player is read by Quickshell's MprisPlayer property names (dbusName,
 // identity, trackTitle, trackArtist, trackAlbum, trackArtUrl, isPlaying,
-// length, lengthSupported, canSeek, canTogglePlaying, canGoNext,
+// uniqueId, length, lengthSupported, canSeek, canTogglePlaying, canGoNext,
 // canGoPrevious). Lengths and positions are seconds.
 //
 // Qt's V4 engine imports this file too: no object spread, no optional catch
@@ -70,7 +70,7 @@ export function view(input) {
     const player = input.player
     if (!player) {
         return {
-            title: '', artist: '', album: '', art: '', playing: false, seekRow: false, seekable: false,
+            title: '', artist: '', album: '', art: '', track: '', playing: false, seekRow: false, seekable: false,
             elapsed: '', length: '', seconds: 0, progress: 0,
             canToggle: false, canNext: false, canPrevious: false,
         }
@@ -84,6 +84,8 @@ export function view(input) {
         artist: player.trackArtist || '',
         album: player.trackAlbum || '',
         art: art(player.trackArtUrl),
+        // Changes when the track does: a thumb held across it is let go.
+        track: [player.uniqueId, player.trackTitle, length].join('\n'),
         playing: !!player.isPlaying,
         seekRow: length > 0,
         seekable: length > 0 && !!player.canSeek,
