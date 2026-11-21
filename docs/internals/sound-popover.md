@@ -6,8 +6,8 @@
 Scrolling the icon still runs `wpctl`. IPC target `sound`: `ping`, `toggle`,
 `close`, `status`. Nothing of it runs while it is closed: the pins
 watch, the battery timer and the microphone meter all live and die with the
-process. SwayNC has no volume widget; the sidebar keeps Do Not Disturb, media
-and notifications.
+process. SwayNC has no volume widget; the sidebar keeps Do Not Disturb and
+notifications.
 
 ## What owns what
 

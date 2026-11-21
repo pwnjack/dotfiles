@@ -160,53 +160,6 @@ progressbar {
 }
 
 
-/* Music player */
-.widget-mpris {
-  border-radius: 10px;
-  margin-bottom: 10px;
-}
-
-.widget-mpris-player {
-    border-radius: 8px;
-    margin: 0px 10px 0px 10px;
-}
-
-.mpris-background {
-  filter: blur(6px);
-  opacity: 0.6;
-  background-color: @background-alt;
-}
-
-.widget-mpris > box > button {
-  color: @text;
-}
-
-.widget-mpris button {
-  color: #FFF;
-  padding: 2px;
-  padding-top: 20px;
-  padding-bottom: 10px;
-}
-
-.widget-mpris button:hover {
-  color: @foreground;
-}
-
-.widget-mpris-album-art {
-  border-radius: 10px;
-  margin: 6px;
-}
-
-.widget-mpris-title {
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.widget-mpris-subtitle {
-  font-weight: 500;
-  font-size: 0.8rem;
-}
-
 /* Progress bars (notification value hints) */
 trough {
     border-radius: 6px;

@@ -28,7 +28,6 @@
 
   "widgets": [
     "label",
-    "mpris",
     "dnd",
     "notifications"
   ],
@@ -39,10 +38,6 @@
     "label": {
       "max-lines": 1,
       "text": " "
-    },
-    "mpris": {
-      "image-size": 96,
-      "blacklist": ["playerctld"]
     }
   }
 }
