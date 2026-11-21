@@ -48,6 +48,7 @@ Rectangle {
             width: Math.min(implicitWidth, button.width - button.strip.px(4))
             elide: Text.ElideRight
             text: button.label
+            Accessible.ignored: true
             color: button.strip.foreground
             opacity: 0.85
             font.family: button.strip.monoFont

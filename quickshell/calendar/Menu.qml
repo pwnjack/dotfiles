@@ -79,7 +79,7 @@ Rectangle {
             Accessible.name: item.modelData.label
             Accessible.checkable: true
             Accessible.checked: item.modelData.value === menu.current
-            Accessible.onPressAction: if (menu.enabled) menu.chosen(item.modelData.value)
+            Accessible.onPressAction: if (enabled && menu.enabled) menu.chosen(item.modelData.value)
             color: item.index === menu.hi ? Qt.rgba(menu.card.c.accent.r, menu.card.c.accent.g, menu.card.c.accent.b, 0.28) : "transparent"
             Rectangle {
                 id: dot

@@ -18,6 +18,10 @@ Item {
     // starts an event from a click: that is what + and "New event on…" are for.
     property bool pickable: false
     signal gapClicked(int minutes)
+    // A screen reader's step on the strip, in quarter hours. The owner moves
+    // the draft as its own time keys do: by elapsed time, which a wall-clock
+    // sum gets wrong on the night the clocks change.
+    signal stepped(int steps)
     readonly property var timed: Model.lanes(events.filter(e => !e.allDay))
     readonly property var range: Model.timelineRange(events, draft, day)
     readonly property bool twoLanes: timed.some(e => e.lane === 1)
@@ -25,12 +29,6 @@ Item {
     // Wall-clock hours, as the range is in: on a DST day elapsed time is one hour off.
     readonly property real nowX: !day ? 0 : (Model.minutesOf(card.c.now) / 60 - range.from) / (range.to - range.from)
     implicitHeight: strip.height + ticksRow.height + card.px(4)
-    // The draft's start moved by `delta` minutes, kept inside its day.
-    function nudge(delta) {
-        if (!pickable || !draft || draft.allDay) return;
-        const minutes = Model.minutesOf(draft.start) + delta;
-        if (minutes >= 0 && minutes < 1440) gapClicked(minutes);
-    }
     function tickText(h) {
         const hh = h % 24;
         if (card.c.clock !== "12h") return Model.formatTime(hh * 60, card.c.clock, card.c.locale.amText, card.c.locale.pmText);
@@ -57,8 +55,8 @@ Item {
             ? "Start time, " + Model.formatTime(Model.minutesOf(tl.draft.start), tl.card.c.clock, tl.card.c.locale.amText, tl.card.c.locale.pmText)
             : "Start time"
         Accessible.ignored: !tl.pickable
-        Accessible.onIncreaseAction: if (enabled) tl.nudge(15)
-        Accessible.onDecreaseAction: if (enabled) tl.nudge(-15)
+        Accessible.onIncreaseAction: if (enabled && tl.pickable && tl.draft && !tl.draft.allDay) tl.stepped(1)
+        Accessible.onDecreaseAction: if (enabled && tl.pickable && tl.draft && !tl.draft.allDay) tl.stepped(-1)
         MouseArea {
             id: free
             anchors.fill: parent

@@ -34,6 +34,7 @@ Rectangle {
                 width: parent.width - chevron.width - card.popover.px(8)
                 Text {
                     id: deviceLabel
+                    Accessible.ignored: true
                     objectName: card.kind + "Label"
                     width: Math.min(implicitWidth, parent.width)
                     elide: Text.ElideRight
@@ -47,6 +48,7 @@ Rectangle {
                 }
                 Text {
                     id: kindLabel
+                    Accessible.ignored: true
                     text: card.kind === "output" ? "Output" : "Input"
                     color: card.popover.dim
                     font.family: card.popover.monoFont

@@ -216,6 +216,8 @@ FocusScope {
                 Text {
                     id: elapsed
                     objectName: "elapsed"
+                    // The slider's name says it while there is a slider.
+                    Accessible.ignored: card.info.seekable
                     anchors.verticalCenter: parent.verticalCenter
                     text: seekRow.held >= 0 ? Model.time(Model.seek(seekRow.held, card.info.seconds)) : card.info.elapsed
                     color: card.dim

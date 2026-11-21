@@ -133,6 +133,7 @@ FocusScope {
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: String.fromCodePoint(tab.modelData.glyph)
+                            Accessible.ignored: true
                             color: tab.ink
                             font.family: strip.monoFont
                             font.pixelSize: strip.px(14)
@@ -141,6 +142,7 @@ FocusScope {
                             objectName: "label"
                             anchors.verticalCenter: parent.verticalCenter
                             text: tab.modelData.label
+                            Accessible.ignored: true
                             color: tab.ink
                             elide: Text.ElideRight
                             font.family: strip.monoFont
@@ -294,6 +296,7 @@ FocusScope {
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: String.fromCodePoint(strip.act.glyph)
+                        Accessible.ignored: true
                         color: actionButton.ink
                         font.family: strip.monoFont
                         font.pixelSize: strip.px(16)
@@ -305,6 +308,7 @@ FocusScope {
                         width: Math.min(implicitWidth, widest.advanceWidth + 1)
                         elide: Text.ElideRight
                         text: strip.act.label
+                        Accessible.ignored: true
                         color: actionButton.ink
                         font.family: strip.monoFont
                         font.pixelSize: strip.px(13)

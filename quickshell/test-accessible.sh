@@ -7,9 +7,10 @@
 #     closes on a click outside, only tracks hover or the wheel) carries
 #     `// a11y: not a control` on the line that opens it;
 #   - each pressable role has an Accessible.onPressAction, each slider an
-#     Accessible.onIncreaseAction;
-#   - every such action names `enabled`: Qt runs an accessible action on a
-#     disabled item, and `enabled` reads false under a disabled ancestor too.
+#     Accessible.onIncreaseAction and an Accessible.onDecreaseAction;
+#   - every such action starts with `if (enabled`: Qt runs an accessible
+#     action on a disabled item, and `enabled` reads false under a disabled
+#     ancestor too.
 # shortcut: counts per file and does not tie a role to its area, upgrade to a
 # QML parser if a file ever hides an unnamed control behind another's role.
 set -uo pipefail
@@ -31,12 +32,13 @@ for file in "$here"/*/*.qml; do
     [ $((areas - plain)) -le $((pressable + sliders)) ]
     check "$name: $areas pointer areas, $plain not controls, $((pressable + sliders)) controls"
     presses=$(grep -c 'Accessible\.onPressAction' "$file")
-    steps=$(grep -c 'Accessible\.onIncreaseAction' "$file")
-    [ "$pressable" -le "$presses" ] && [ "$sliders" -le "$steps" ]
-    check "$name: $pressable pressable with $presses press actions, $sliders sliders with $steps step actions"
-    unguarded=$(grep -E "$action" "$file" | grep -c -v 'enabled')
+    ups=$(grep -c 'Accessible\.onIncreaseAction' "$file")
+    downs=$(grep -c 'Accessible\.onDecreaseAction' "$file")
+    [ "$pressable" -le "$presses" ] && [ "$sliders" -le "$ups" ] && [ "$sliders" -le "$downs" ]
+    check "$name: $pressable pressable with $presses press actions, $sliders sliders with $ups up and $downs down actions"
+    unguarded=$(grep -E "$action" "$file" | grep -c -v -E "$action:[[:space:]]*if \(enabled[ )]")
     [ "$unguarded" -eq 0 ]
-    check "$name: $unguarded actions that ignore enabled"
+    check "$name: $unguarded actions that do not start with if (enabled"
 done
 
 test_summary accessible

@@ -401,6 +401,7 @@ FocusScope {
                             editable: false      // a click here would leave an edit half-made
                             pickable: true
                             onGapClicked: minutes => sheet.set(Model.moveStart(sheet.d, Model.at(sheet.d.startDay, minutes)))
+                            onStepped: steps => sheet.stepTime("start", steps)
                         }
                         Repeater {
                             model: sheet.conflicts

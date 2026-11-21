@@ -73,6 +73,7 @@ Column {
                 }
                 Text {
                     id: disclosureLabel
+                    Accessible.ignored: true
                     anchors.verticalCenter: parent.verticalCenter
                     text: (view.controller.expanded ? "Hide" : "Show") + " packages"
                     color: view.card.foreground
