@@ -19,19 +19,25 @@ function clamp(value, low, high) {
     return Math.max(low, Math.min(high, value))
 }
 
-// The player the bar shows. `wanted` is playerctl's playerName ("spotify",
-// "firefox"); a bus name is the prefix, that name and, for some players, an
-// instance suffix ("org.mpris.MediaPlayer2.firefox.instance_1_2810"). With no
-// match the card still opens: on the first playing player, then the first.
-export function pick(players, wanted) {
-    const list = players || []
-    if (wanted) {
-        for (const player of list) {
-            const bus = String(player.dbusName || '')
-            const name = bus.startsWith(BUS_PREFIX) ? bus.slice(BUS_PREFIX.length) : bus
-            if (name === wanted || name.startsWith(wanted + '.')) return player
-        }
+// The player the bar shows, or null while it is not on the list. `wanted` is
+// playerctl's playerName ("spotify", "firefox"); a bus name is the prefix,
+// that name and, for some players, an instance suffix
+// ("org.mpris.MediaPlayer2.firefox.instance_1_2810").
+export function named(players, wanted) {
+    if (!wanted) return null
+    for (const player of players || []) {
+        const bus = String(player.dbusName || '')
+        const name = bus.startsWith(BUS_PREFIX) ? bus.slice(BUS_PREFIX.length) : bus
+        if (name === wanted || name.startsWith(wanted + '.')) return player
     }
+    return null
+}
+
+// The player the card shows: the bar's, and without it the card still has
+// one, the first playing player, then the first.
+export function pick(players, wanted) {
+    const list = players || [], match = named(list, wanted)
+    if (match) return match
     for (const player of list) if (player.isPlaying) return player
     return list.length ? list[0] : null
 }
@@ -91,11 +97,10 @@ export function view(input) {
     }
 }
 
-// One chip per player, in bus order; one player needs no picker. Apart from
-// `view` because it does not depend on the position.
-export function chips(player, players) {
+// One chip per player, in bus order; one player needs no picker. The list
+// depends on the players alone, not on the one shown or its position: the
+// card rebuilds its chips, and drops the focus on one, whenever this changes.
+export function chips(players) {
     const list = players || []
-    return list.length < 2 ? [] : list.map(other => ({
-        label: other.identity || '', player: other, shown: other === player,
-    }))
+    return list.length < 2 ? [] : list.map(player => ({ label: player.identity || '', player: player }))
 }

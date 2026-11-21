@@ -36,6 +36,11 @@ const view = (player, position) => model.view({ player, position: position || 0 
     // A name that only starts like the wanted one belongs to another player.
     const other = music({ dbusName: 'org.mpris.MediaPlayer2.firefoxnightly', isPlaying: false })
     assert.equal(model.pick([other, zen], 'firefox'), zen)
+    // `named` is the match alone: the card waits for it before it settles.
+    assert.equal(model.named([zen, spotify], 'spotify'), spotify)
+    assert.equal(model.named([zen, spotify], 'vlc'), null)
+    assert.equal(model.named([zen, spotify], ''), null)
+    assert.equal(model.named(null, 'spotify'), null)
 }
 
 // Times.
@@ -91,15 +96,14 @@ const view = (player, position) => model.view({ player, position: position || 0 
     assert.equal(view(music({ trackTitle: '' })).title, 'Spotify')
 }
 
-// Two players: a chip each, in bus order, the shown one marked.
+// Two players: a chip each, in bus order.
 {
     const spotify = music(), zen = browser()
-    const chips = model.chips(zen, [spotify, zen])
+    const chips = model.chips([spotify, zen])
     assert.deepEqual(chips.map(chip => chip.label), ['Spotify', 'Mozilla zen'])
-    assert.deepEqual(chips.map(chip => chip.shown), [false, true])
-    assert.equal(chips[0].player, spotify)
-    assert.deepEqual(model.chips(spotify, [spotify]), [], 'one player needs no picker')
-    assert.deepEqual(model.chips(null, null), [])
+    assert.deepEqual(chips.map(chip => chip.player), [spotify, zen])
+    assert.deepEqual(model.chips([spotify]), [], 'one player needs no picker')
+    assert.deepEqual(model.chips(null), [])
 }
 
 // No player at all: an empty view, nothing to press.

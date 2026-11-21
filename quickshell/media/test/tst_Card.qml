@@ -7,22 +7,33 @@ Item {
     width: 1600
     height: 900
 
-    // Stand-ins with Quickshell's MprisPlayer property names.
-    function music(overrides) {
-        return Object.assign({
-            dbusName: "org.mpris.MediaPlayer2.spotify", identity: "Spotify",
-            trackTitle: "Night Drive", trackArtist: "Example Artist", trackAlbum: "Example Album",
-            trackArtUrl: "", isPlaying: true, length: 220, lengthSupported: true, canSeek: true,
-            canTogglePlaying: true, canGoNext: true, canGoPrevious: true
-        }, overrides);
+    // Stand-ins with Quickshell's MprisPlayer property names. Objects, as
+    // the real players are: a chip knows its player by identity.
+    Component {
+        id: standIn
+        QtObject {
+            property string dbusName: "org.mpris.MediaPlayer2.spotify"
+            property string identity: "Spotify"
+            property string trackTitle: "Night Drive"
+            property string trackArtist: "Example Artist"
+            property string trackAlbum: "Example Album"
+            property string trackArtUrl: ""
+            property bool isPlaying: true
+            property real length: 220
+            property bool lengthSupported: true
+            property bool canSeek: true
+            property bool canTogglePlaying: true
+            property bool canGoNext: true
+            property bool canGoPrevious: true
+        }
     }
+    function music(overrides) { return standIn.createObject(host, overrides || {}); }
     function browser() {
-        return {
+        return standIn.createObject(host, {
             dbusName: "org.mpris.MediaPlayer2.firefox.instance_1_2810", identity: "Mozilla zen",
             trackTitle: "A video", trackArtist: "A channel", trackAlbum: "",
-            trackArtUrl: "", isPlaying: false, length: 134, lengthSupported: true, canSeek: true,
-            canTogglePlaying: true, canGoNext: false, canGoPrevious: false
-        };
+            isPlaying: false, length: 134, canGoNext: false, canGoPrevious: false
+        });
     }
 
     QtObject {
@@ -44,7 +55,7 @@ Item {
         function next() { calls.push("next"); }
         function previous() { calls.push("previous"); }
         function seek(seconds) { calls.push("seek:" + Math.round(seconds)); }
-        function show(player) { shown = player; calls.push("show"); }
+        function show(next) { shown = next; player = next; calls.push("show"); }
     }
     Card {
         id: card
@@ -189,6 +200,19 @@ Item {
             mouseClick(list.itemAt(1));
             compare(controller.calls, ["show"]);
             compare(controller.shown, zen);
+        }
+        function test_aChosenChipKeepsTheFocus() {
+            const spotify = host.music(), zen = host.browser();
+            play(spotify, [spotify, zen]);
+            const chip = part("chipList").itemAt(1);
+            chip.forceActiveFocus();
+            keyClick(Qt.Key_Return);
+            compare(controller.player, zen);
+            compare(part("title").text, "A video");
+            compare(part("chipList").itemAt(1), chip);
+            verify(chip.activeFocus, "the next Tab starts from the chosen chip");
+            compare(String(findChild(chip, "chipLabel").color), String(card.accent), "and it is the marked one now");
+            compare(String(findChild(part("chipList").itemAt(0), "chipLabel").color), String(card.dim));
         }
         function test_chipsOutliveATick() {
             const spotify = host.music(), zen = host.browser();

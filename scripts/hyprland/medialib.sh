@@ -21,8 +21,9 @@
 # the bus Playing with empty metadata in some states, and that would blank a
 # bar that had a perfectly good paused title to show.
 #
-# Display (mediaexec.sh) and transport (mediactl.sh) both go through this, so
-# the title on the bar and the player your scroll wheel moves are always the
+# Display (mediaexec.sh), transport (mediactl.sh) and the media card's
+# launcher (media-popover.sh) all go through this, so the title on the bar, the
+# player your scroll wheel moves and the one the card opens on are always the
 # same one -- there is one winner, not one per surface.
 #
 

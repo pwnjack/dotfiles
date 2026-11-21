@@ -3,7 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 
-// The window a bar card opens in (sound, updates, weather): it covers the
+// The window a bar card opens in (media, sound, updates, weather): it covers the
 // output below (or above) the bar, closes on a click outside the card, puts
 // the card under the clicked point of the bar and runs its entrance and
 // leave. The card is its one child, with `focus: true`.

@@ -86,6 +86,14 @@ Open-Meteo for a new one only when that is older than 15 minutes. The place
 is the one the bar's `waybar-weather` service found; to set it by hand, put
 `<city>,<country>` in `~/.config/waybar-weather/cityname`.
 
+The **media module** shows the artist and title of what is playing, dimmed
+while it is paused, and hides when no player is open. Left-click opens the
+media card: album art, a seek bar and previous, play or pause, and next. With
+two players open (music and a browser tab, say) a row of chips switches which
+one the card controls; the bar goes on choosing its own. Middle-click plays or
+pauses and the scroll wheel skips tracks. In the card, `Space` plays or
+pauses, the left and right arrows seek five seconds and `Esc` closes.
+
 The **volume icon** opens the sound popover: output and input devices, per-app
 volume and which output each app plays on. Device names and hidden devices are
 set on the settings panel's Sound page; see
@@ -130,7 +138,7 @@ own special workspace; its API key comes from `~/.config/.env` (see below).
 ### Idle efficiency
 
 The settings panel, wallpaper carousel, keybindings overlay, capture bar,
-calendar card, sound popover, update card and weather card are launched on
+calendar card, media card, sound popover, update card and weather card are launched on
 demand and exit when closed, so none keeps a UI runtime resident. The desktop
 clock's eww daemon runs only while the clock is on, and the time costs no
 process per tick. The workspace dots are a native
@@ -143,8 +151,9 @@ it.
 
 ### Media
 
-Media keys play/pause and skip in whichever player is active; `playerctl`
-does the same from a terminal.
+Media keys play/pause and skip in the player the bar shows; `playerctl` does
+the same from a terminal. The bar's media module opens the media card (see
+[Feature notes](#feature-notes)).
 
 ### Clipboard
 

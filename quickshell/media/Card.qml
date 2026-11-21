@@ -20,9 +20,9 @@ FocusScope {
     readonly property color hairline: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.12)
     readonly property string monoFont: controller.monoFont
     readonly property var info: Model.view({ player: controller.player, position: controller.position })
-    // Apart from `info`, which changes every second while a track plays:
-    // the chips do not depend on the position.
-    readonly property var chips: Model.chips(controller.player, controller.players)
+    // Apart from `info`: the chips follow the players alone, so choosing one
+    // leaves the focus on it.
+    readonly property var chips: Model.chips(controller.players)
 
     function step(delta) {
         if (info.seekable) controller.seek(Model.step(controller.position, delta, info.seconds));
@@ -309,10 +309,11 @@ FocusScope {
                     Rectangle {
                         id: chip
                         required property var modelData
+                        readonly property bool current: modelData.player === card.controller.player
                         width: Math.min(chipRow.width, label.implicitWidth + card.px(20))
                         height: card.px(26)
                         radius: card.px(8)
-                        color: modelData.shown ? Qt.rgba(card.accent.r, card.accent.g, card.accent.b, 0.22)
+                        color: chip.current ? Qt.rgba(card.accent.r, card.accent.g, card.accent.b, 0.22)
                             : Qt.rgba(card.foreground.r, card.foreground.g, card.foreground.b, hover.containsMouse ? 0.12 : 0.06)
                         border.width: activeFocus ? 2 : 0
                         border.color: card.accent
@@ -327,7 +328,7 @@ FocusScope {
                             text: chip.modelData.label
                             textFormat: Text.PlainText
                             elide: Text.ElideRight
-                            color: chip.modelData.shown ? card.accent : card.dim
+                            color: chip.current ? card.accent : card.dim
                             font.family: card.monoFont
                             font.pixelSize: card.px(12)
                         }

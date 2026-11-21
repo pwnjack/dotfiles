@@ -366,10 +366,11 @@
     "signal": 10,
     "return-type": "json",
     "exec": "~/.config/scripts/hyprland/mediaexec.sh",
-    // Every binding is a transport control and every one goes through
-    // mediactl.sh, so they act on the player whose title is displayed --
-    // bare playerctl would pick by bus order and could hit a different one.
-    "on-click": "~/.config/scripts/hyprland/mediactl.sh play-pause",
+    // A left click opens the media card on the player whose title is
+    // displayed. The other bindings are transport controls and go through
+    // mediactl.sh, so they act on that player too -- bare playerctl would
+    // pick by bus order and could hit a different one.
+    "on-click": "~/.config/scripts/hyprland/media-popover.sh",
     "on-click-middle": "~/.config/scripts/hyprland/mediactl.sh play-pause",
     "on-scroll-up": "~/.config/scripts/hyprland/mediactl.sh next",
     "on-scroll-down": "~/.config/scripts/hyprland/mediactl.sh previous",

@@ -18,7 +18,8 @@
 # rendered "Artist - Title" label.
 #
 # Which player is shown is decided by medialib.sh, not by a stored preference.
-# All the click and scroll bindings are transport controls (mediactl.sh).
+# A left click opens the media card (media-popover.sh); the middle click and
+# the scroll bindings are transport controls (mediactl.sh).
 #
 
 # shellcheck source=./medialib.sh
