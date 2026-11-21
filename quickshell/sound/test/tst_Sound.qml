@@ -525,6 +525,27 @@ Item {
             tryVerify(() => popover.openMenu === null);
         }
 
+        function test_controls_are_named() {
+            const tab = findChild(popover, "tabApps");
+            compare(tab.Accessible.role, Accessible.RadioButton);
+            compare(tab.Accessible.name, tab.title);
+            const settings = findChild(popover, "settingsButton");
+            compare(settings.Accessible.role, Accessible.Button);
+            compare(settings.Accessible.name, "Settings");
+            const slider = findChild(popover, "outputSlider");
+            compare(slider.Accessible.role, Accessible.Slider);
+            verify(/^Output volume, \d+%$/.test(slider.Accessible.name), slider.Accessible.name);
+            settings.Accessible.pressAction();
+            compare(called("openSettings").length, 1);
+            mouseClick(findChild(popover, "outputChevron"));
+            const picker = findChild(popover, "picker");
+            tryCompare(picker, "shownFraction", 1);
+            const row = findChild(picker, "pickerRows").itemAt(0);
+            compare(row.Accessible.role, Accessible.RadioButton);
+            compare(row.Accessible.name, row.device.label);
+            compare(row.Accessible.checked, row.checked);
+        }
+
         function test_tab_click() {
             mouseClick(findChild(popover, "tabApps"));
             compare(called("setTab"), [["setTab", "apps"]]);

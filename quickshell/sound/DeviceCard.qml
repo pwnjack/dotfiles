@@ -26,6 +26,9 @@ Rectangle {
         Item {
             width: parent.width
             height: heading.implicitHeight
+            Accessible.role: Accessible.Button
+            Accessible.name: card.kind === "output" ? "Choose output device" : "Choose input device"
+            Accessible.onPressAction: if (card.controller.ready) card.controller.openPicker(card.kind)
             Column {
                 id: heading
                 width: parent.width - chevron.width - card.popover.px(8)
@@ -55,6 +58,7 @@ Rectangle {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 text: "›"
+                Accessible.ignored: true
                 color: picking.containsMouse ? card.popover.foreground : card.popover.dim
                 font.family: card.popover.monoFont
                 font.pixelSize: card.popover.px(18)
@@ -84,6 +88,9 @@ Rectangle {
                     ? (card.live && card.device.muted ? 0xf0581 : 0xf057e)
                     : (card.live && card.device.muted ? 0xf036d : 0xf036c))
                 color: muteArea.containsMouse ? card.popover.foreground : card.popover.dim
+                Accessible.role: Accessible.Button
+                Accessible.name: (card.live && card.device.muted ? "Unmute " : "Mute ") + card.kind
+                Accessible.onPressAction: card.controller.setMuted(card.device.key, !card.device.muted)
                 font.family: card.popover.iconFont
                 font.pixelSize: card.popover.px(15)
                 MouseArea {
@@ -106,6 +113,7 @@ Rectangle {
                 key: card.live ? card.device.key : ""
                 value: card.live ? card.device.volume : 0
                 muted: card.live && card.device.muted
+                Accessible.name: (card.kind === "output" ? "Output" : "Input") + " volume, " + Math.round(level * 100) + "%"
                 onCommit: (key, v) => card.controller.setVolume(key, v)
             }
         }

@@ -95,6 +95,7 @@ FocusScope {
         id: button
         property int glyph
         property bool active: false
+        property string name
         signal clicked()
         width: popover.px(26)
         height: width
@@ -104,12 +105,16 @@ FocusScope {
         border.width: activeFocus ? 2 : 0
         border.color: popover.accent
         activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: name
+        Accessible.onPressAction: clicked()
         Keys.onReturnPressed: clicked()
         Keys.onEnterPressed: clicked()
         Keys.onSpacePressed: clicked()
         Text {
             anchors.centerIn: parent
             text: String.fromCodePoint(button.glyph)
+            Accessible.ignored: true
             color: button.active || area.containsMouse ? popover.foreground : popover.dim
             font.family: popover.iconFont
             font.pixelSize: popover.px(13)
@@ -135,6 +140,11 @@ FocusScope {
         border.width: activeFocus ? 2 : 0
         border.color: popover.accent
         activeFocusOnTab: true
+        Accessible.role: Accessible.RadioButton
+        Accessible.name: title
+        Accessible.checkable: true
+        Accessible.checked: checked
+        Accessible.onPressAction: popover.controller.setTab(name)
         Keys.onReturnPressed: popover.controller.setTab(name)
         Keys.onEnterPressed: popover.controller.setTab(name)
         Keys.onSpacePressed: popover.controller.setTab(name)
@@ -187,7 +197,7 @@ FocusScope {
         clip: true
 
         // Clicks inside the card never reach the close-on-outside-click area.
-        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
+        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons } // a11y: not a control
 
         Column {
             id: main
@@ -215,6 +225,7 @@ FocusScope {
                     spacing: popover.px(4)
                     IconButton {
                         objectName: "settingsButton"
+                        name: "Settings"
                         // md-cog
                         glyph: 0xf0493
                         onClicked: popover.controller.openSettings()
@@ -222,6 +233,7 @@ FocusScope {
                     IconButton {
                         id: moreButton
                         objectName: "moreButton"
+                        name: "More"
                         // md-dots_horizontal
                         glyph: 0xf01d8
                         active: moreMenu.visible
@@ -251,6 +263,9 @@ FocusScope {
                                 objectName: "advancedEntry"
                                 readonly property string text: "Advanced…"
                                 implicitHeight: advancedText.implicitHeight + popover.px(10)
+                                Accessible.role: Accessible.Button
+                                Accessible.name: text
+                                Accessible.onPressAction: run()
                                 radius: popover.px(7)
                                 color: advancedArea.containsMouse || activeFocus
                                     ? Qt.rgba(popover.foreground.r, popover.foreground.g, popover.foreground.b, 0.08) : "transparent"

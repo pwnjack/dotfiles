@@ -97,6 +97,9 @@ Item {
         border.width: activeFocus ? 2 : 0
         border.color: row.popover.accent
         activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: row.app.name + " output: " + row.app.route.label
+        Accessible.onPressAction: menu.visible ? menu.close() : menu.open()
         Keys.onReturnPressed: menu.open()
         Keys.onEnterPressed: menu.open()
         Keys.onSpacePressed: menu.open()
@@ -138,6 +141,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 // md-chevron_down
                 text: String.fromCodePoint(0xf0140)
+                Accessible.ignored: true
                 color: row.popover.dim
                 font.family: row.popover.iconFont
                 font.pixelSize: row.popover.px(11)
@@ -160,6 +164,9 @@ Item {
         width: row.popover.px(18)
         // md-volume_high / md-volume_off
         text: String.fromCodePoint(row.app.muted ? 0xf0581 : 0xf057e)
+        Accessible.role: Accessible.Button
+        Accessible.name: (row.app.muted ? "Unmute " : "Mute ") + row.app.name
+        Accessible.onPressAction: row.controller.setMuted(row.app.key, !row.app.muted)
         color: muteArea.containsMouse ? row.popover.foreground : row.popover.dim
         font.family: row.popover.iconFont
         font.pixelSize: row.popover.px(13)
@@ -182,6 +189,7 @@ Item {
         key: row.app.key
         value: row.app.volume
         muted: row.app.muted
+        Accessible.name: row.app.name + " volume, " + Math.round(level * 100) + "%"
         onCommit: (key, v) => row.controller.setVolume(key, v)
     }
 
@@ -240,6 +248,11 @@ Item {
                             : "transparent"
                     border.width: activeFocus ? 1 : 0
                     border.color: row.popover.accent
+                    Accessible.role: Accessible.RadioButton
+                    Accessible.name: text
+                    Accessible.checkable: true
+                    Accessible.checked: checked
+                    Accessible.onPressAction: row.choose(choice)
                     Keys.onReturnPressed: row.choose(choice)
                     Keys.onEnterPressed: row.choose(choice)
                     Keys.onSpacePressed: row.choose(choice)

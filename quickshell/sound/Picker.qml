@@ -53,6 +53,11 @@ Column {
         border.width: activeFocus ? 2 : 0
         border.color: picker.popover.accent
         function choose() { picker.controller.choose(picker.kind, device.key); }
+        Accessible.role: Accessible.RadioButton
+        Accessible.name: device.label
+        Accessible.checkable: true
+        Accessible.checked: checked
+        Accessible.onPressAction: choose()
         Keys.onReturnPressed: choose()
         Keys.onEnterPressed: choose()
         Keys.onSpacePressed: choose()
@@ -146,9 +151,13 @@ Column {
             height: width
             radius: picker.popover.px(8)
             color: Qt.rgba(picker.popover.foreground.r, picker.popover.foreground.g, picker.popover.foreground.b, back.containsMouse ? 0.12 : 0.06)
+            Accessible.role: Accessible.Button
+            Accessible.name: "Back"
+            Accessible.onPressAction: picker.controller.closePicker()
             Text {
                 anchors.centerIn: parent
                 text: "‹"
+                Accessible.ignored: true
                 color: picker.popover.foreground
                 font.family: picker.popover.monoFont
                 font.pixelSize: picker.popover.px(16)
@@ -190,6 +199,9 @@ Column {
             color: reveal.containsMouse ? picker.popover.foreground : picker.popover.dim
             font.family: picker.popover.monoFont
             font.pixelSize: picker.popover.px(12)
+            Accessible.role: Accessible.Button
+            Accessible.name: text
+            Accessible.onPressAction: picker.revealed = true
             MouseArea {
                 id: reveal
                 anchors.fill: parent
@@ -237,6 +249,9 @@ Column {
                 color: settingsArea.containsMouse ? picker.popover.foreground : picker.popover.accent
                 font.family: picker.popover.monoFont
                 font.pixelSize: picker.popover.px(11.5)
+                Accessible.role: Accessible.Link
+                Accessible.name: "Settings"
+                Accessible.onPressAction: picker.controller.openSettings()
                 MouseArea {
                     id: settingsArea
                     anchors.fill: parent

@@ -25,6 +25,11 @@ Item {
     readonly property real step: 0.01
     implicitHeight: popover.px(22)
     activeFocusOnTab: true
+    // Owners override the name with what the slider sets.
+    Accessible.role: Accessible.Slider
+    Accessible.name: "Volume, " + Math.round(level * 100) + "%"
+    Accessible.onIncreaseAction: nudge(1)
+    Accessible.onDecreaseAction: nudge(-1)
 
     function round(v) { return Math.round(v * 100) / 100; }
     function at(x) {
@@ -93,6 +98,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         horizontalAlignment: Text.AlignRight
         text: Math.round(slider.level * 100) + " %"
+        Accessible.ignored: true
         color: slider.popover.dim
         font.family: slider.popover.monoFont
         font.pixelSize: slider.popover.px(12)
