@@ -1,6 +1,9 @@
 #!/bin/bash
-# Exercise the media card's model.
+# Exercise the media card's model and its real QML view without a compositor.
 set -euo pipefail
 test_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/qml-test.sh
+. "$test_dir/../../../scripts/lib/qml-test.sh"
 command -v node >/dev/null 2>&1 || { echo 'skip: media card model tests (node is not installed)'; exit 0; }
 node "$test_dir/model.mjs"
+qml_test 'media card' "$test_dir" "$@"

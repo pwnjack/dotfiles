@@ -61,12 +61,12 @@ function art(url) {
 }
 
 export function view(input) {
-    const player = input.player, players = input.players || []
+    const player = input.player
     if (!player) {
         return {
             title: '', artist: '', album: '', art: '', playing: false, seekRow: false, seekable: false,
             elapsed: '', length: '', seconds: 0, progress: 0,
-            canToggle: false, canNext: false, canPrevious: false, chips: [],
+            canToggle: false, canNext: false, canPrevious: false,
         }
     }
     const length = player.lengthSupported && player.length > 0 ? player.length : 0
@@ -88,9 +88,14 @@ export function view(input) {
         canToggle: !!player.canTogglePlaying,
         canNext: !!player.canGoNext,
         canPrevious: !!player.canGoPrevious,
-        // One player needs no picker.
-        chips: players.length < 2 ? [] : players.map(other => ({
-            label: other.identity || '', player: other, shown: other === player,
-        })),
     }
+}
+
+// One chip per player, in bus order; one player needs no picker. Apart from
+// `view` because it does not depend on the position.
+export function chips(player, players) {
+    const list = players || []
+    return list.length < 2 ? [] : list.map(other => ({
+        label: other.identity || '', player: other, shown: other === player,
+    }))
 }

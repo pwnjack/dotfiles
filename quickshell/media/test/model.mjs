@@ -21,7 +21,7 @@ function browser(overrides) {
         canTogglePlaying: true, canGoNext: false, canGoPrevious: false,
     }, overrides)
 }
-const view = (player, players, position) => model.view({ player, players: players || [player], position: position || 0 })
+const view = (player, position) => model.view({ player, position: position || 0 })
 
 // The bar's player, by playerctl's name.
 {
@@ -49,30 +49,29 @@ const view = (player, players, position) => model.view({ player, players: player
 
 // A track with everything.
 {
-    const v = view(music(), null, 72)
+    const v = view(music(), 72)
     assert.deepEqual([v.title, v.artist, v.album], ['Night Drive', 'Example Artist', 'Example Album'])
     assert.deepEqual([v.elapsed, v.length, v.seconds], ['1:12', '3:40', 220])
     assert.ok(Math.abs(v.progress - 72 / 220) < 1e-9)
     assert.deepEqual([v.seekRow, v.seekable, v.playing], [true, true, true])
     assert.deepEqual([v.canToggle, v.canNext, v.canPrevious], [true, true, true])
-    assert.deepEqual(v.chips, [], 'one player needs no picker')
 }
 
 // The position never leaves the bar.
 {
-    assert.equal(view(music(), null, 999).progress, 1)
-    assert.equal(view(music(), null, 999).elapsed, '3:40')
-    assert.equal(view(music(), null, -3).progress, 0)
+    assert.equal(view(music(), 999).progress, 1)
+    assert.equal(view(music(), 999).elapsed, '3:40')
+    assert.equal(view(music(), -3).progress, 0)
 }
 
 // No length: no seek row. A length the player cannot seek in: a row that
 // takes no input.
 {
     for (const stream of [music({ length: 0 }), music({ lengthSupported: false }), music({ length: -1 })]) {
-        const v = view(stream, null, 30)
+        const v = view(stream, 30)
         assert.deepEqual([v.seekRow, v.seekable, v.progress], [false, false, 0])
     }
-    const fixed = view(music({ canSeek: false }), null, 30)
+    const fixed = view(music({ canSeek: false }), 30)
     assert.deepEqual([fixed.seekRow, fixed.seekable], [true, false])
 }
 
@@ -95,16 +94,18 @@ const view = (player, players, position) => model.view({ player, players: player
 // Two players: a chip each, in bus order, the shown one marked.
 {
     const spotify = music(), zen = browser()
-    const v = view(zen, [spotify, zen])
-    assert.deepEqual(v.chips.map(chip => chip.label), ['Spotify', 'Mozilla zen'])
-    assert.deepEqual(v.chips.map(chip => chip.shown), [false, true])
-    assert.equal(v.chips[0].player, spotify)
+    const chips = model.chips(zen, [spotify, zen])
+    assert.deepEqual(chips.map(chip => chip.label), ['Spotify', 'Mozilla zen'])
+    assert.deepEqual(chips.map(chip => chip.shown), [false, true])
+    assert.equal(chips[0].player, spotify)
+    assert.deepEqual(model.chips(spotify, [spotify]), [], 'one player needs no picker')
+    assert.deepEqual(model.chips(null, null), [])
 }
 
 // No player at all: an empty view, nothing to press.
 {
-    const v = model.view({ player: null, players: [], position: 0 })
-    assert.deepEqual([v.title, v.seekRow, v.canToggle, v.chips.length], ['', false, false, 0])
+    const v = model.view({ player: null, position: 0 })
+    assert.deepEqual([v.title, v.seekRow, v.canToggle], ['', false, false])
 }
 
 // Seeking: a release on the bar, and the keys' steps.
