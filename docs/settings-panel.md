@@ -17,8 +17,9 @@ appears as a button in the Bar page's Layout section, and Update now in Default
 Apps' Launcher & updates section. Things another surface already owns stay
 there: the keybind cheatsheet (Super+H), Do Not Disturb (SwayNC), choosing the
 output and input device, their volume and mute, and per-app volume and routing
-(the sound popover on the bar's volume icon), running updates (the update card; the panel only
-chooses whether the bar shows the module), screenshot and recording options
+(the sound popover on the bar's volume icon), running updates with a progress
+bar (the update card; the panel chooses whether the bar shows the module, and
+its Update actions open the terminal update), screenshot and recording options
 (the capture bar) and picking wallpapers (the carousel; the panel only holds
 the random-wallpaper-at-login switch and palette options).
 
@@ -362,13 +363,14 @@ missing or unknown value means the first choice, which is also the default, so t
 until something is changed. "High" is the amber threshold: 70%, disk 80%.
 `scripts/hyprland/settings-panel.sh bar` opens it.
 
-Below them, the bar's layout: Position (Top · Bottom), Style (Floating: today's inset,
-rounded, fully bordered bar · Docked: edge to edge, square, one border line facing the
-windows), Background opacity (0–100 %), Border, Monitors (All, or one connected output — an
-empty `options/bar-output` means all, so the tracked default names no connector), Clock
-seconds (bar only; the lock screen keeps its hour/minute layout) and Workspaces (Dots ·
-Numbers). Their files are `bar-position`, `bar-style`, `bar-opacity`, `bar-border`,
-`bar-output`, `clock-seconds` and `bar-workspaces`.
+Above them sit the Layout and Clock & workspaces sections: Position (Top · Bottom), Style
+(Floating: the inset, rounded, fully bordered bar · Docked: edge to edge, square, one border
+line facing the windows), Show on (All, or one connected output — an empty
+`options/bar-output` means all, so the tracked default names no connector), Background
+opacity (0–100 %), Border, Show seconds (bar only; the lock screen keeps its hour/minute
+layout) and Workspace indicator (Dots · Numbers). Their files are `bar-position`,
+`bar-style`, `bar-output`, `bar-opacity`, `bar-border`, `clock-seconds` and
+`bar-workspaces`.
 
 Whoever renders a module applies its mode:
 
@@ -376,7 +378,8 @@ Whoever renders a module applies its mode:
   `scripts/waybar/bar-modes.sh`, which renders `~/.local/state/waybar/bar.jsonc` and reloads
   Waybar. The include blanks per-state formats: `format-normal` for "high" (config.jsonc
   gives each a `"normal": 0` state below warning), all three for "hidden". An empty format
-  hides the module.
+  hides the module. Disk's `tooltip-format` is rendered there too, blank whenever a format
+  is: Waybar 0.16 keeps a disk box on screen while its tooltip renders.
 - **gpu.sh, network.sh, updates.sh** read their own option when Waybar (re)starts them,
   which the same reload does. A hidden GPU never calls `nvidia-smi` and hidden updates never
   run `checkupdates`, so hiding a module also stops its polling.
@@ -406,8 +409,9 @@ itself left a 10 px gap behind when all four were hidden, measured.
 Traps:
 
 - **The main config wins over an include key by key.** `waybar/config.jsonc` must never set
-  `format-normal`, `format-warning` or `format-critical` on cpu/memory/disk, or a mode
-  silently stops working; `test-bar-modes.sh` fails if it does. The same reason puts the GPU
+  `format-normal`, `format-warning` or `format-critical` on cpu/memory/disk, nor
+  `tooltip-format` on disk, or a mode silently stops working; `test-bar-modes.sh` fails if
+  it does. The same reason puts the GPU
   mode in its script: an include cannot override the `exec` the main config sets.
 - **Unknown values read as the default; a missing file does not.** The backend shows an
   unrecognised `bar-*` value as the row's first choice, matching the renderers. A deleted
@@ -415,10 +419,10 @@ Traps:
   without a catalogue default (the Calendar row has one, so it reads its default), while the
   bar itself falls back to the default; the next overlay sync restores the default from
   `defaults/options/`.
-- **Blur is unchanged.** Hyprland's `blur-waybar` rule ignores pixels at 50 % alpha or less,
-  so the background is blurred only above 50 % opacity; at the default it is not, exactly as
-  before. Swapping the threshold to 0.01 and reloading produced a pixel-identical screenshot
-  (layer rules apply when a surface maps), so nothing was tuned on a guess.
+- **Blur follows the opacity.** Hyprland's `blur-waybar` rule ignores pixels at 50 % alpha
+  or less, so the background is blurred only above 50 % opacity, which the default 80 % is.
+  Layer rules apply when a surface maps, so a changed threshold shows only on a bar started
+  after it.
 - **A missing `bar.css` stops Waybar.** A missing JSON include is tolerated, a missing CSS
   import is a stylesheet error Waybar exits on — the same as a missing palette `colors-waybar.css`. So
   `install.sh` renders it, `waybar.sh` renders both includes before every start (the

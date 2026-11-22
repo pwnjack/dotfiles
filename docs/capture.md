@@ -20,7 +20,7 @@ The rules an edit must keep are in
 | `scripts/capture/record.sh` | Drives gpu-screen-recorder. State in `$XDG_RUNTIME_DIR/capture/recording.json`, recorder log in `gsr.log` beside it. |
 | `scripts/hyprland/screenshot.sh` | The screenshot command (hyprshot): `screen`, `window`, `region`; `--annotate` opens swappy, `--text` reads the shot. |
 | `scripts/capture/read-text.sh` | Reads a PNG on stdin: a QR code or barcode first, otherwise text. Copies the result and posts the toast. |
-| `scripts/hyprland/lock.sh` | Locks, then saves a recording in a detached process (autologin in `startup.sh` runs hyprlock directly; nothing records then). |
+| `scripts/hyprland/lock.sh` | Locks, then saves a recording in a detached process. The autologin lock in `startup.sh` goes through it too. |
 | Waybar `custom/recording` | Hidden when idle; `interval: once` plus signal 11; click stops (or cancels a countdown). |
 
 ## Copying text or a QR code
@@ -31,7 +31,8 @@ to `read-text.sh`, which tries two decoders in order and stops at the first
 that finds something.
 
 1. `zbarimg --raw` reads QR codes and barcodes. Every symbol found is copied
-   exactly as encoded, one payload per line, and the toast says "Code copied";
+   as encoded, one payload per line with trailing line breaks dropped, and the
+   toast says "Code copied";
    a lone `http(s)` link adds an Open action. `--raw` is what keeps a payload
    whole: zbarimg's default `TYPE:payload` lines cannot be told apart from a
    payload line that itself starts with `QR-Code:`.
@@ -46,7 +47,9 @@ claiming success; without `tesseract` and without a code
 it says "Text recognition needs tesseract" rather than failing silently. A
 cancelled selection posts nothing. The image lives in a private temporary file
 under `$XDG_RUNTIME_DIR`, removed on exit, and the recognised text only ever
-reaches `wl-copy` on stdin and the toast body. `--text` and `--annotate` cannot
+reaches `wl-copy` on stdin and the toast body; the one exception is a lone
+link, which the toast's Open action hands to `xdg-open` as an argument.
+`--text` and `--annotate` cannot
 be combined. Packages: `zbar`, `tesseract`, `tesseract-data-eng` and
 `tesseract-data-ita` (`install.sh` declares them).
 
@@ -77,9 +80,10 @@ changes. `record.sh` reads `capture-rec-target`, `capture-delay`,
 differently; `screenshot.sh` reads `capture-freeze`. `capture-shot-target` and
 `capture-annotate` are read only by the strip, which passes target, annotate
 and delay to `screenshot.sh` as argv; the Text tab passes `region --text` and
-the delay, and shares the Freeze file with Screenshot. The Freeze toggle (`capture-freeze`) applies to every screenshot path,
-including Super+S and Super+Alt+S;
-they ignore the strip's other options by design. The files:
+the delay, and shares the Freeze file with Screenshot. The Freeze toggle
+(`capture-freeze`) applies to every region or window screenshot, including
+Super+S and Super+Alt+S, which ignore the strip's other options by design; a
+whole-screen shot has nothing to select and never freezes. The files:
 `capture-shot-target`, `capture-rec-target` (`screen|window|region`),
 `capture-delay` (decimal seconds, `0` = off, so `08` is 8 s), `capture-freeze`,
 `capture-annotate`, `capture-audio`, `capture-mic` (`true|false`).

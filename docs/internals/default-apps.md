@@ -28,12 +28,16 @@ Strata is the repo's default GUI file manager (`strata-bin` from the AUR).
 `defaults/options/filemanager` selects `strata`, and `defaults/mimeapps.list`
 names `io.github.lgse.Strata.desktop` for `inode/directory`. Change repo
 defaults in `defaults/`; the settings overlay renders the live files. Super+E
-and “Show in folder” follow `options/filemanager`.
+follows `options/filemanager`, and “Show in folder” does when the file manager
+ships a service for it (below).
 
 `scripts/settings/file-manager.sh` makes the configured file manager answer
 D-Bus `org.freedesktop.FileManager1`, used by every “Show in folder” action.
 It copies the selected program's packaged service into the user data directory,
-so another installed file manager cannot win activation by chance.
+so another installed file manager cannot win activation by chance. A file
+manager that packages no such service (Yazi) gets none: the helper removes its
+own earlier copy, and the system's choice or a hand-written service answers.
+The capture toasts open the parent folder when the call fails.
 
 `scripts/settings/file-chooser.sh` is the source for the portal file chooser.
 When `options/filemanager` selects an installed Strata, it registers Strata's

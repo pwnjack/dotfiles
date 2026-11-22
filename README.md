@@ -20,8 +20,8 @@ cd ~/dotfiles
 ```
 
 The installer asks before installing packages and backs up any file it
-replaces; `./install.sh --dry-run` previews everything first. It also starts an
-SSH agent, so your key's passphrase is asked once per login. CachyOS ships the
+replaces; `./install.sh --dry-run` previews everything first. It also enables
+an SSH agent, so your key's passphrase is asked once per login. CachyOS ships the
 `paru` AUR helper it uses; on plain Arch, install `paru` or `yay` first.
 
 When it finishes, log out and choose **Hyprland** at your login screen — or, if

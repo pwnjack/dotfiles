@@ -36,9 +36,10 @@ The helper still runs as root because it must write
 as the target user. Root creates a temporary output in the theme's
 `Backgrounds` directory and atomically renames it only after a successful
 decode, so a failed conversion preserves the existing greeter image. The
-resolved theme and `Backgrounds` directories must remain root-owned; otherwise
-an unprivileged user could substitute the temporary or destination path used
-by the privileged rename.
+resolved theme and `Backgrounds` directories must remain root-owned and not
+writable by group or others; otherwise an unprivileged user could substitute
+the temporary or destination path used by the privileged rename, and the
+helper refuses the theme.
 
 ### 2. Test it
 

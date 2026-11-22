@@ -237,9 +237,10 @@ It does not use `khal new`, which splits the summary on ` :: ` and turns the
 text after it into the description. The new event is highlighted briefly, and
 a sync starts in the background to push it to iCloud.
 
-Closing a sheet that has a title saves a draft to
-`$XDG_RUNTIME_DIR/calendar/draft.json`. The draft comes back the next time the
-sheet opens, and Cancel or a successful Add clears it. If the local save fails,
+Closing a new-event sheet that has a title saves a draft to
+`$XDG_RUNTIME_DIR/calendar/draft.json`; an edit is never kept. The draft comes
+back the next time a new-event sheet opens without a day chosen for it (*New
+event on …* starts a fresh one), and Cancel or a successful Add clears it. If the local save fails,
 the sheet stays open and the error shows under Add.
 
 ## Editing and deleting
@@ -323,7 +324,7 @@ comes from `options/clock`. UI words are English, as in the rest of the panel.
 | A sync is running | An add, edit or delete waits up to 15 seconds for the sync, then is refused with *A sync with iCloud is running; try again in a moment*. The file is untouched. |
 | A render fails during a sync | The header shows the sync as failed, with khal's message, and the bar keeps its last agenda. |
 | A settings-only render fails | The bar keeps its last agenda and the header keeps the last sync status. The option change that needed the render is rolled back. |
-| Tools missing | `sync.sh` records *vdirsyncer is not installed*, or *Calendar tools not installed* when khal is missing, as a failed sync of kind tool, and the header shows that message. With khal missing it also removes `agenda.json`, so the pill hides. `cal.sh` answers *khal is not installed*, which a read treats as no events and an add or edit shows under Add. The doctor reports each missing tool as an error. With only vdirsyncer missing, the sync is still recorded as failed, but `sync.sh` renders from the local copy; a render that fails keeps the previous `agenda.json`. |
+| Tools missing | `sync.sh` records *vdirsyncer is not installed*, or *Calendar tools not installed* when khal is missing, as a failed sync of kind tool, and the header shows that message. With khal missing it also removes `agenda.json`, so the pill hides. `cal.sh` answers *khal is not installed*, which a read treats as no events and an add or edit shows under Add. Once an account is stored, the doctor warns about each missing tool. With only vdirsyncer missing, the sync is still recorded as failed, but `sync.sh` renders from the local copy; a render that fails keeps the previous `agenda.json`. |
 | DST | New timed events are written in UTC and shown in local time. Existing events keep their own time zone (`TZID`) or floating time. An edit writes its new times in that same form, so a repeating event keeps its wall time across DST. An all-day event that becomes timed is written in UTC. |
 
 ## Files and options
@@ -356,7 +357,7 @@ The runtime files are `agenda.json`, `status.json` and `draft.json` in
   the keyring or the real calendar copy.
 - `./doctor.sh` runs `check_calendar`. Once an account is stored, it warns when
   the timer is not enabled, when the last sync failed, or when the last success
-  is more than an hour old. It errors when `khal` or `vdirsyncer` is missing. It
+  is more than an hour old, or when `khal` or `vdirsyncer` is missing. It
   reads the tool names from `install.sh`, and it stays silent without an account.
 - The live round trip: add an event on the PC and check that it reaches the
   iPhone with its alert. Add one on the iPhone and check that it appears in the

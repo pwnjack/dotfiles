@@ -44,8 +44,9 @@ have no page above are described there too: the
 | Colours | matugen, derived from the wallpaper |
 | Desktop clock | eww (`options/desktop-clock`) |
 
-Strata is the default file manager. `Super + E` and “Show in folder” follow
-`options/filemanager`.
+Strata is the default file manager. `Super + E` follows `options/filemanager`,
+and so does “Show in folder” when that file manager ships a D-Bus service
+(see [default-apps.md](internals/default-apps.md)).
 
 ## Structure
 
@@ -85,14 +86,16 @@ success by closing, which means you can save *or* copy one annotation, not both.
 The **weather** beside the clock shows the condition and temperature now; its
 tooltip adds wind, humidity, pressure and the sun times. Left-click opens the
 weather card: the next 21 hours in 3-hour steps and seven days, each with its
-low and high on one scale. The card opens on the last forecast and asks
-Open-Meteo for a new one only when that is older than 15 minutes. The place
+low and high on one scale. The card opens on the last forecast for the bar's
+place and asks Open-Meteo for a new one only when it has none or that one is
+15 minutes old. The place
 is the one the bar's `waybar-weather` service found; to set it by hand, put
 `<city>,<country>` in `~/.config/waybar-weather/cityname`. See
 [weather-card.md](internals/weather-card.md).
 
-The **media module** shows the artist and title of what is playing, dimmed
-while it is paused, and hides when no player is open. Left-click opens the
+The **media module** shows the title of what is playing, with the artist when
+the player gives one, dimmed while it is paused, and hides when no player has
+a title to show. Left-click opens the
 media card: album art, a seek bar and previous, play or pause, and next. With
 two players open (music and a browser tab, say) a row of chips switches which
 one the card controls; the bar goes on choosing its own. Middle-click plays or
@@ -106,8 +109,10 @@ set on the settings panel's Sound page; see
 [sound-popover.md](internals/sound-popover.md).
 
 The **pending-updates module** sits right after the CPU, memory, GPU and disk
-readouts and appears only when repository, AUR or Flatpak updates exist — the
-module showing up is the notification. Left-click opens the update card, which
+readouts and appears when repository, AUR or Flatpak updates exist — the
+module showing up is the notification. It also stays while an update runs and
+until the card has shown a result that needs you (a restart, a failure, an
+upgrade pacman cannot resolve). Left-click opens the update card, which
 lists what is pending and runs the repository and Flatpak update with a
 progress bar; AUR updates stay in the terminal. Right-click forces a refresh.
 The AUR command comes from `options/aurhelper`, and repository checks need
@@ -157,16 +162,19 @@ it.
 
 ### Media
 
-Media keys play/pause and skip in the player the bar shows; `playerctl` does
-the same from a terminal. The bar's media module opens the media card (see
+Media keys play/pause and skip in the player the bar shows;
+`scripts/hyprland/mediactl.sh play-pause` (or `next`, `previous`) does the same
+from a terminal, where a bare `playerctl` acts on whichever player registered
+first. The bar's media module opens the media card (see
 [Feature notes](#feature-notes)).
 
 ### Clipboard
 
-`Super + C` opens the clipboard history in Rofi. The same from a terminal:
+`Super + C` opens the clipboard history in Rofi: pick an entry to copy it
+again, or **Clear history**. The same from a terminal:
 
 ```bash
-cliphist list | rofi -dmenu | cliphist decode | wl-copy
+~/.config/rofi/clipboard.sh
 ```
 
 ## Configuration
@@ -426,6 +434,7 @@ git init -b main
 git remote add origin https://github.com/pwnjack/dotfiles.git
 git fetch origin
 git reset origin/main   # marks repo files as tracked without touching them
+git config core.hooksPath scripts/hooks   # install.sh sets this only when .git already exists
 ```
 
 ### Manual
@@ -438,6 +447,13 @@ git reset origin/main   # marks repo files as tracked without touching them
 # Render this machine's settings (options/, GTK and Qt settings, mimeapps.list,
 # swaync, hyprsunset and btop config) from defaults/
 ~/.config/scripts/state/overlay.sh sync
+
+# Wallpapers, Waypaper's settings (its post-command is wall.sh) and the first
+# wallpaper as the current one
+mkdir -p ~/.cache/awww ~/Pictures/Wallpapers ~/Pictures/Screenshots
+cp -n ~/.config/wallpapers/* ~/Pictures/Wallpapers/
+[ -f ~/.cache/waypaper-config.ini ] || cp ~/.config/waypaper/config.ini.template ~/.cache/waypaper-config.ini
+bash -c '. ~/.config/scripts/lib/wallpaper.sh && wallpaper_record ~/.config/wallpapers/wall1.jpg'
 
 # Generate the palette and render every component's cache file
 ~/.config/scripts/theming/generate-palette.sh ~/.config/wallpapers/wall1.jpg
@@ -486,11 +502,20 @@ cp -a ~/.config/hypr ~/hypr-backup-$(date +%Y%m%d)
 cp -a --remove-destination ~/hypr-backup-DATE/. ~/.config/hypr/
 ```
 
-Installer backups mirror the relative paths of files it replaces. To restore
-one, copy its **contents** back into `~/.config`:
+Installer backups mirror the relative paths of files it replaces, with two
+subtrees of their own: `overlay/` holds the settings files the machine-state
+overlay replaced, at their `~/.config` paths, and `.ssh/config` the SSH config
+from before the Include. To restore one, copy each part back to where it came
+from:
 
 ```bash
-cp -a --remove-destination ~/.config-backup-YYYYMMDD-HHMMSS/. ~/.config/
+B=~/.config-backup-YYYYMMDD-HHMMSS
+# The deployed configs: everything but the two subtrees
+(cd "$B" && find . -mindepth 1 -maxdepth 1 ! -name overlay ! -name .ssh \
+    -exec cp -a --remove-destination -t ~/.config/ {} +)
+# The settings the overlay replaced, then the SSH config (each if present)
+cp -a --remove-destination "$B/overlay/." ~/.config/
+cp -a "$B/.ssh/config" ~/.ssh/config
 ```
 
 This restores backed-up files; it does not remove files first introduced by

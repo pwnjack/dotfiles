@@ -51,9 +51,11 @@ is: `The bar has no location yet.`, `No connection to Open-Meteo.` or
   come from the same reading, so a forecast is never saved under another
   place's name.
 - **A forecast must be whole.** `forecast.sh` refuses an answer, and
-  `--cached` a saved copy, that lacks any series the model indexes or has one
-  shorter than its times. A partial answer therefore never replaces a good
-  copy. Saving itself is best effort: a cache that cannot be written does not
+  `--cached` a saved copy, that lacks a temperature, condition or day-and-night
+  series the model needs, or has one shorter than its times. A partial answer
+  therefore never replaces a good copy. Rain chance and the sun times are
+  optional: the model leaves out what an answer does not carry. Saving itself
+  is best effort: a cache that cannot be written does not
   withhold a forecast already in hand.
 - **A user's own service config is left in charge.** The wrapper passes
   `-config waybar/weather.toml` only when `~/.config/waybar-weather/` holds no

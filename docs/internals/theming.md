@@ -269,8 +269,8 @@ Zen reads the stylesheet at startup; a new palette appears at the next launch.
 
 **eww** renders `wal/eww-colors.scss`, imported by relative path from
 `eww/eww.scss`. It does nothing without eww and reloads a running clock through
-`scripts/desktop-clock/desktop-clock.sh` only when the colours change. See
-`desktop-clock.md`.
+`scripts/desktop-clock/desktop-clock.sh` only when the colours change or the
+last reload failed. See `desktop-clock.md`.
 
 **Spotify** retains the tiny `spicetify/Themes/Pywal/` theme on its stock
 layout. `color.ini` links to `wal/spicetify-color.ini`, computed with

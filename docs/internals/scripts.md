@@ -6,7 +6,7 @@
 - `devices/` — `devices.sh`, the one reader of wireless peripheral batteries and connection state (USB headsets through the optional `headsetcontrol`); Waybar's battery module, the low-battery toast (`battery-alert.sh`) and the panel's Devices page all consume its JSON
 - `sound/` — `sound.sh`, the only thing that moves a stream or reads the popover's pins (see Sound popover)
 - `weather/` — `forecast.sh`, the only thing that asks Open-Meteo for the weather card's forecast, and the keeper of its saved copy (see Weather card)
-- `calendar/` — `sync.sh`, the only iCloud path, and `cal.sh`, the only khal reader and writer (see Calendar); `setup.sh` wires the iCloud account and sync timer; `ics-edit.py` and `declined.py` are the Python helpers
+- `calendar/` — `sync.sh`, the normal iCloud path (sign-in and `writable.sh` reach it too), and `cal.sh`, the only khal reader and writer (see Calendar); `setup.sh` wires the iCloud account and sync timer; `ics-edit.py` and `declined.py` are the Python helpers
 - `capture/` — `record.sh`, the only driver of gpu-screen-recorder, `read-text.sh`, the only QR and text decoder (`screenshot.sh --text`), and `toast.sh`, the shared toasts (see Capture bar); `fakes/` are test stubs
 - `updates/` — the update card's planner and runner (`updates-plan.sh`, `updates-run.sh`), `terminal.sh` for the terminal paths, and the Node modules `fold.mjs` and `tooltip.mjs` (see Update card)
 - `settings/` — the panel's request runner (`panel-request.sh`), default file manager, file chooser and terminal wiring (`file-manager.sh`, `file-chooser.sh`, `terminal.sh`), and `update.sh`, the terminal update (AUR helper from `options/aurhelper`, then Flatpak)
