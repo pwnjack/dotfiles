@@ -117,7 +117,8 @@ access. It shows the first match of these rules:
 
 1. An event in progress: `now · Dentist`, with class `now`.
 2. A timed event starting within the mode's window: `18:00 Dentist`. In `next`
-   mode an event on a later day shows its date, as `sab 17 · Dentist`.
+   mode an event on a later day shows its date, as `Sat 17 · Dentist`, with the
+   weekday in the session's language.
 3. An all-day event today: `Mum's birthday`.
 4. Nothing. The module is hidden.
 

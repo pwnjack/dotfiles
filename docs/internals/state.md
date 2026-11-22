@@ -14,7 +14,7 @@ Settings that a machine changes (options, GTK and Qt settings, default applicati
 
 ## Formats
 
-The format follows the path: `options/` is a directory with one value per file; `*.json` is compared per top-level key; `hypr/*.conf` is Hyprlang `$variable = value` lines; everything else (GTK and Qt settings, `mimeapps.list`) is an INI file compared per section and key.
+The format follows the path: `options/` is a directory with one value per file; `*.json` is compared per top-level key; `hypr/*.conf` is Hyprlang `$variable = value` lines; everything else (GTK and Qt settings, `mimeapps.list`, `btop/btop.conf`) is an INI file compared per section and key; keys before any section header count as one unnamed section.
 
 Values are compared exactly. An option file's trailing newline counts. JSON is compared by the JSON text of each top-level key and rendered with `JSON.stringify(..., 2)`, so the first render of `swaync/config.json` may reformat it without recording an override.
 
@@ -35,7 +35,7 @@ Sync runs:
 
 - at login, from `scripts/hyprland/startup.sh`, in the background so it never delays the lock on autologin;
 - after a pull or branch switch, from the `post-merge` and `post-checkout` hook;
-- on install, with `--replace <backup dir>` (or `--no-backup`, which copies nothing). A live file that predates the overlay is copied to the backup and replaced. `--replace` never deletes before rendering, keeps recorded overrides, and acts only on keys that `defaults/options` declares: per-machine keys with no default (`calendar-*`, `capture-*`) stay and are adopted;
+- on install, with `--replace <backup dir>` (or `--no-backup`, which copies nothing). A live file that predates the overlay is copied to the backup and replaced. `--replace` never deletes before rendering, keeps recorded overrides, and acts only on keys that `defaults/options` declares: per-machine keys with no default (`calendar-*`, `capture-*`, `sound-*`) stay and are adopted;
 - from the settings panel after each write to a rendered file.
 
 Live files are written by rename, so a live file that is a symlink is replaced by a regular file: the overlay owns these paths. Editor leftovers in `options/` (`name~`, `#name#`, dot-files) are never keys. A live file that changes between the sync's read and its write (a panel write outside the lock, `echo >`) is detected by a re-read just before the write, and that target is redone, up to three times before it fails with a message.
@@ -69,7 +69,7 @@ The file must fit one of the four formats as it stands. The engine is deliberate
 
 ## Old commits
 
-Visiting a commit from before the overlay (`git checkout` of an old revision, a bisect) and coming back makes git delete the tracked option files it restored for the old commit. The hook sees declared keys missing from `options/`, which a plain sync would read as resets and drop their overrides. So `post-merge` and `post-checkout` pass `--restore` whenever the previous tree (`$1` for a checkout, `ORIG_HEAD` for a merge) has no `defaults/`: a declared option missing from live then counts as unchanged and keeps its override, while options present are harvested as usual and undeclared ones (`calendar-*`, `capture-*`) stay. `git reset --hard` runs no hook; after one that crosses the overlay boundary, run `bash ~/.config/scripts/state/overlay.sh sync --restore` by hand.
+Visiting a commit from before the overlay (`git checkout` of an old revision, a bisect) and coming back makes git delete the tracked option files it restored for the old commit. The hook sees declared keys missing from `options/`, which a plain sync would read as resets and drop their overrides. So `post-merge` and `post-checkout` pass `--restore` whenever the previous tree (`$1` for a checkout, `ORIG_HEAD` for a merge) has no `defaults/`: a declared option missing from live then counts as unchanged and keeps its override, while options present are harvested as usual and undeclared ones (`calendar-*`, `capture-*`, `sound-*`) stay. `git reset --hard` runs no hook; after one that crosses the overlay boundary, run `bash ~/.config/scripts/state/overlay.sh sync --restore` by hand.
 
 ## Doctor
 

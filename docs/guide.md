@@ -20,7 +20,11 @@ Deep dives, one per component:
 
 The design notes and traps behind each piece (theming, the machine-state
 overlay, options, the doctor, the desktop clock, night light, default
-applications and more) are in [internals/](internals/).
+applications and more) are in [internals/](internals/). The bar's cards that
+have no page above are described there too: the
+[weather card](internals/weather-card.md), the
+[media card](internals/media-card.md) and the
+[sound popover](internals/sound-popover.md).
 
 ## Core stack
 
@@ -40,7 +44,7 @@ applications and more) are in [internals/](internals/).
 | Colours | matugen, derived from the wallpaper |
 | Desktop clock | eww (`options/desktop-clock`) |
 
-Strata is the default file manager. Super+E and “Show in folder” follow
+Strata is the default file manager. `Super + E` and “Show in folder” follow
 `options/filemanager`.
 
 ## Structure
@@ -84,7 +88,8 @@ weather card: the next 21 hours in 3-hour steps and seven days, each with its
 low and high on one scale. The card opens on the last forecast and asks
 Open-Meteo for a new one only when that is older than 15 minutes. The place
 is the one the bar's `waybar-weather` service found; to set it by hand, put
-`<city>,<country>` in `~/.config/waybar-weather/cityname`.
+`<city>,<country>` in `~/.config/waybar-weather/cityname`. See
+[weather-card.md](internals/weather-card.md).
 
 The **media module** shows the artist and title of what is playing, dimmed
 while it is paused, and hides when no player is open. Left-click opens the
@@ -92,7 +97,8 @@ media card: album art, a seek bar and previous, play or pause, and next. With
 two players open (music and a browser tab, say) a row of chips switches which
 one the card controls; the bar goes on choosing its own. Middle-click plays or
 pauses and the scroll wheel skips tracks. In the card, `Space` plays or
-pauses, the left and right arrows seek five seconds and `Esc` closes.
+pauses, the left and right arrows seek five seconds and `Esc` closes. See
+[media-card.md](internals/media-card.md).
 
 The **volume icon** opens the sound popover: output and input devices, per-app
 volume and which output each app plays on. Device names and hidden devices are
@@ -189,7 +195,7 @@ echo "ghostty" > ~/.config/options/terminal
 
 # Change primary monitor. Leave this EMPTY for no preference: hyprlock then
 # draws on every monitor, and wallpaper scripts use the first monitor awww
-# reports (what a single-monitor machine wants). The settings panel (Super+I)
+# reports (what a single-monitor machine wants). The settings panel (Super + I)
 # writes this file, and the overlay renders the lock screen's monitor from it.
 echo "HDMI-A-1" > ~/.config/options/mainmonitor
 
@@ -430,7 +436,7 @@ git reset origin/main   # marks repo files as tracked without touching them
 # do it (it sends any name your repos lack to the AUR helper).
 
 # Render this machine's settings (options/, GTK and Qt settings, mimeapps.list,
-# swaync and hyprsunset config) from defaults/
+# swaync, hyprsunset and btop config) from defaults/
 ~/.config/scripts/state/overlay.sh sync
 
 # Generate the palette and render every component's cache file
@@ -449,9 +455,14 @@ git reset origin/main   # marks repo files as tracked without touching them
 ~/.config/scripts/waybar/bar-modes.sh --no-reload
 ~/.config/scripts/waybar/build-workspaces.sh
 
-# Calendar sync timer and the patching Spotify launcher (optional)
+# Calendar sync timer, the patching Spotify launcher and its palette theme
+# (optional; each skips what is not installed or set up)
 ~/.config/scripts/calendar/setup.sh
 ~/.config/scripts/spotify/setup.sh
+~/.config/scripts/spotify/spicetify-theme.sh
+
+# SSH agent: the agent socket and the Include in ~/.ssh/config (backed up first)
+~/.config/scripts/ssh/setup.sh
 
 # Set fish as default shell (optional)
 chsh -s $(which fish)
